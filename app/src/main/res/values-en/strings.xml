@@ -1,0 +1,85 @@
+<resources>
+    <string name="app_name">TokenMonitor</string>
+
+    <string name="tab_home">Home</string>
+    <string name="tab_search">Search</string>
+    <string name="tab_settings">Settings</string>
+
+    <string name="add">Add</string>
+    <string name="delete">Remove</string>
+    <string name="refresh">Refresh</string>
+    <string name="open_search">Open search</string>
+    <string name="common_back">Back</string>
+    <string name="common_cancel">Cancel</string>
+    <string name="common_close">Close</string>
+    <string name="common_clear">Clear</string>
+    <string name="common_min_count">1</string>
+    <string name="common_max_count">10</string>
+
+    <string name="home_empty_hint">Add a trading pair to start monitoring.</string>
+    <string name="home_add_pair">Add pair</string>
+    <string name="home_title">Watch</string>
+    <string name="home_open_search">Search pairs</string>
+    <string name="home_overlay_tag">Overlay</string>
+    <string name="home_watchlist_title">Watchlist</string>
+    <string name="home_watchlist_subtitle">Long press an item to add it to the floating window.</string>
+
+    <string name="search_title">Search Pairs</string>
+    <string name="search_subtitle">Results stay ordered as Binance, Binance Alpha, and OKX, with collapsible groups.</string>
+    <string name="search_input_hint">Search Binance/OKX etc.</string>
+    <string name="search_action">Search Binance / Binance Alpha / OKX</string>
+    <string name="search_submit">Search</string>
+    <string name="search_result_count">%1$d results</string>
+    <string name="search_loading">Searching…</string>
+    <string name="search_empty">No results yet. Enter a keyword to begin searching.</string>
+    <string name="search_empty_initial">Enter a symbol to start searching</string>
+    <string name="search_empty_result">No matching pairs found</string>
+    <string name="search_tab_all">All</string>
+    <string name="search_tab_binance_family">Binance / Alpha</string>
+    <string name="search_tab_okx">OKX</string>
+    <string name="search_tag_alpha">Alpha</string>
+    <string name="error_search_retry">Search failed. Please try again later.</string>
+
+    <string name="settings_title">Settings</string>
+    <string name="settings_subtitle">Manage language, appearance, and floating window features here.</string>
+    <string name="appearance_title">Appearance</string>
+    <string name="appearance_subtitle">Follow system, or lock the app to light or dark mode.</string>
+    <string name="theme_system">System</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="language_title">Language</string>
+    <string name="language_subtitle">Switch between Simplified Chinese and English at any time.</string>
+    <string name="language_system">System</string>
+    <string name="language_chinese">简体中文</string>
+    <string name="language_english">English</string>
+
+    <string name="overlay_settings_title">Overlay Settings</string>
+    <string name="overlay_settings_subtitle">Permissions, appearance, and items for the floating window.</string>
+    <string name="overlay_settings_page_subtitle">This page only controls the floating window and does not change the main watchlist.</string>
+    <string name="overlay_enable">Enable floating window</string>
+    <string name="overlay_lock_drag">Lock dragging</string>
+    <string name="overlay_leading_display">Leading content</string>
+    <string name="overlay_display_icon">Icon</string>
+    <string name="overlay_display_pair_name">Pair name</string>
+    <string name="overlay_opacity_format">Opacity %1$d%%</string>
+    <string name="overlay_transparent">More transparent</string>
+    <string name="overlay_visible">More visible</string>
+    <string name="overlay_max_items_format">Maximum %1$d pairs</string>
+    <string name="overlay_rotation_hint">When more than 5 pairs are selected, the floating window rotates them in groups of 5.</string>
+    <string name="overlay_permission_message">Display-over-other-apps permission is still missing.</string>
+    <string name="overlay_permission_action">Grant overlay permission</string>
+    <string name="notification_permission_message">Notification permission is recommended so the foreground service notification stays visible.</string>
+    <string name="notification_permission_action">Request notification permission</string>
+    <string name="overlay_select_items">Select floating pairs</string>
+    <string name="overlay_add">Add to floating window</string>
+    <string name="overlay_remove">Remove from floating window</string>
+    <string name="overlay_added">Added to floating window</string>
+    <string name="overlay_empty_state">Add floating pairs from the home page first.</string>
+    <string name="overlay_page_format">Page %1$s</string>
+
+    <string name="overlay_notification_title">TokenMonitor floating window is running</string>
+    <string name="overlay_notification_text">The floating price panel refreshes every 3 seconds.</string>
+    <string name="overlay_notification_stop">Close floating window</string>
+    <string name="overlay_channel_name">Floating window service</string>
+    <string name="overlay_channel_description">Keeps the floating window alive and refreshes prices.</string>
+</resources>

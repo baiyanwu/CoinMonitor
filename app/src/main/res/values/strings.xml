@@ -1,0 +1,85 @@
+<resources>
+    <string name="app_name">TokenMonitor</string>
+
+    <string name="tab_home">首页</string>
+    <string name="tab_search">搜索</string>
+    <string name="tab_settings">设置</string>
+
+    <string name="add">添加</string>
+    <string name="delete">删除</string>
+    <string name="refresh">刷新</string>
+    <string name="open_search">打开搜索</string>
+    <string name="common_back">返回</string>
+    <string name="common_cancel">取消</string>
+    <string name="common_close">关闭</string>
+    <string name="common_clear">清空</string>
+    <string name="common_min_count">1</string>
+    <string name="common_max_count">10</string>
+
+    <string name="home_empty_hint">先添加一个币对开始监控</string>
+    <string name="home_add_pair">添加币对</string>
+    <string name="home_title">关注</string>
+    <string name="home_open_search">搜索币对</string>
+    <string name="home_overlay_tag">悬浮</string>
+    <string name="home_watchlist_title">观察列表</string>
+    <string name="home_watchlist_subtitle">长按单个币对可快速加入悬浮窗</string>
+
+    <string name="search_title">搜索币对</string>
+    <string name="search_subtitle">搜索结果顺序固定为 Binance、Binance Alpha、OKX，分组可折叠。</string>
+    <string name="search_input_hint">搜索 Binance/OKX 等</string>
+    <string name="search_action">搜索 Binance / Binance Alpha / OKX</string>
+    <string name="search_submit">开始搜索</string>
+    <string name="search_result_count">共 %1$d 条结果</string>
+    <string name="search_loading">搜索中…</string>
+    <string name="search_empty">还没有搜索结果，输入关键词后开始搜索。</string>
+    <string name="search_empty_initial">输入币种关键词后开始搜索</string>
+    <string name="search_empty_result">没有找到匹配结果</string>
+    <string name="search_tab_all">全部</string>
+    <string name="search_tab_binance_family">Binance / Alpha</string>
+    <string name="search_tab_okx">OKX</string>
+    <string name="search_tag_alpha">Alpha</string>
+    <string name="error_search_retry">搜索失败，请稍后重试</string>
+
+    <string name="settings_title">设置</string>
+    <string name="settings_subtitle">统一管理语言、主题外观，以及悬浮窗相关能力。</string>
+    <string name="appearance_title">外观模式</string>
+    <string name="appearance_subtitle">支持跟随系统，也可以固定为白天或夜间模式。</string>
+    <string name="theme_system">跟随系统</string>
+    <string name="theme_light">白天模式</string>
+    <string name="theme_dark">夜间模式</string>
+    <string name="language_title">语言</string>
+    <string name="language_subtitle">当前支持简体中文和英文，可随时切换。</string>
+    <string name="language_system">跟随系统</string>
+    <string name="language_chinese">简体中文</string>
+    <string name="language_english">English</string>
+
+    <string name="overlay_settings_title">悬浮窗设置</string>
+    <string name="overlay_settings_subtitle">管理悬浮窗权限、样式和展示币对。</string>
+    <string name="overlay_settings_page_subtitle">这一页只负责悬浮窗权限、样式和展示币对，不影响首页观察列表。</string>
+    <string name="overlay_enable">启用悬浮窗</string>
+    <string name="overlay_lock_drag">锁定拖动</string>
+    <string name="overlay_leading_display">左侧展示</string>
+    <string name="overlay_display_icon">图标</string>
+    <string name="overlay_display_pair_name">币对名字</string>
+    <string name="overlay_opacity_format">透明度 %1$d%%</string>
+    <string name="overlay_transparent">更透明</string>
+    <string name="overlay_visible">更明显</string>
+    <string name="overlay_max_items_format">最多展示 %1$d 个币对</string>
+    <string name="overlay_rotation_hint">当选择数量超过 5 个时，悬浮窗会自动切成每批 5 个轮播显示。</string>
+    <string name="overlay_permission_message">当前还没有授予“显示在其他应用上层”权限。</string>
+    <string name="overlay_permission_action">去授权悬浮权限</string>
+    <string name="notification_permission_message">建议开启通知权限，避免前台服务通知不可见。</string>
+    <string name="notification_permission_action">请求通知权限</string>
+    <string name="overlay_select_items">选择悬浮币对</string>
+    <string name="overlay_add">添加到悬浮窗</string>
+    <string name="overlay_remove">从悬浮窗移除</string>
+    <string name="overlay_added">已加入悬浮窗</string>
+    <string name="overlay_empty_state">请先在首页添加悬浮币对</string>
+    <string name="overlay_page_format">轮播 %1$s</string>
+
+    <string name="overlay_notification_title">TokenMonitor 悬浮窗运行中</string>
+    <string name="overlay_notification_text">悬浮价格面板会每 3 秒刷新一次。</string>
+    <string name="overlay_notification_stop">关闭悬浮窗</string>
+    <string name="overlay_channel_name">悬浮窗服务</string>
+    <string name="overlay_channel_description">用于维持悬浮窗常驻和价格轮询</string>
+</resources>
