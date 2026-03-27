@@ -272,6 +272,7 @@ private fun OverlaySettingsScreen(
                             state.items.forEach { item ->
                                 SettingSwitchRow(
                                     title = item.symbol,
+                                    subtitle = item.exchangeSource.title,
                                     horizontalPadding = 0.dp,
                                     verticalPadding = 0.dp,
                                     checked = item.overlaySelected,

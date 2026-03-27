@@ -15,12 +15,17 @@
     <string name="common_clear">Clear</string>
     <string name="common_min_count">Min 1</string>
     <string name="common_max_count">Max 10</string>
+    <string name="exchange_badge_binance">BINANCE</string>
+    <string name="exchange_badge_binance_alpha">ALPHA</string>
+    <string name="exchange_badge_okx">OKX</string>
 
     <string name="home_empty_hint">Add a trading pair to start monitoring.</string>
     <string name="home_add_pair">Add pair</string>
     <string name="home_title">Watch</string>
     <string name="home_open_search">Search pairs</string>
     <string name="home_overlay_tag">Overlay</string>
+    <string name="home_quick_overlay_add">Overlay</string>
+    <string name="home_quick_overlay_remove">Unoverlay</string>
     <string name="home_watchlist_title">Watchlist</string>
     <string name="home_watchlist_subtitle">Long press an item to add it to the floating window.</string>
 

@@ -22,6 +22,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 data class HomeUiState(
+    val isLoaded: Boolean = false,
     val items: List<WatchItem> = emptyList(),
     val overlayIds: Set<String> = emptySet(),
     val overlayEnabled: Boolean = false
@@ -60,6 +61,7 @@ class HomeViewModel(
                 currentItems = items
                 refreshIntervalMillis = payload.refreshIntervalMillis
                 _uiState.value = HomeUiState(
+                    isLoaded = true,
                     items = items,
                     overlayIds = payload.overlayIds,
                     overlayEnabled = payload.overlayEnabled

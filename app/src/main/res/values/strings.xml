@@ -15,12 +15,17 @@
     <string name="common_clear">清空</string>
     <string name="common_min_count">最少 1 个</string>
     <string name="common_max_count">最多 10 个</string>
+    <string name="exchange_badge_binance">BINANCE</string>
+    <string name="exchange_badge_binance_alpha">ALPHA</string>
+    <string name="exchange_badge_okx">OKX</string>
 
     <string name="home_empty_hint">先添加一个币对开始监控</string>
     <string name="home_add_pair">添加币对</string>
     <string name="home_title">关注</string>
     <string name="home_open_search">搜索币对</string>
     <string name="home_overlay_tag">悬浮</string>
+    <string name="home_quick_overlay_add">加入悬浮</string>
+    <string name="home_quick_overlay_remove">移出悬浮</string>
     <string name="home_watchlist_title">观察列表</string>
     <string name="home_watchlist_subtitle">长按单个币对可快速加入悬浮窗</string>
 

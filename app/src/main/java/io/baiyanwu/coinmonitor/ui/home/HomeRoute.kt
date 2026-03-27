@@ -2,34 +2,41 @@ package io.baiyanwu.coinmonitor.ui.home
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Delete
-import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.material.icons.rounded.Layers
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Button
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -37,8 +44,16 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -50,6 +65,11 @@ import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorComponentDefaults
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 import io.baiyanwu.coinmonitor.R
 import kotlinx.coroutines.launch
+
+private data class HomeQuickMenuState(
+    val itemId: String,
+    val anchorInRoot: IntOffset
+)
 
 @Composable
 fun HomeRoute(
@@ -70,7 +90,7 @@ fun HomeRoute(
 }
 
 @Composable
-private fun HomeScreen(
+internal fun HomeScreen(
     state: HomeUiState,
     contentBottomInset: Dp,
     onNavigateSearch: () -> Unit,
@@ -78,14 +98,17 @@ private fun HomeScreen(
     onToggleOverlay: (String) -> Unit,
     onRefresh: () -> Unit
 ) {
-    var menuItemId by remember { mutableStateOf<String?>(null) }
+    var quickMenuState by remember { mutableStateOf<HomeQuickMenuState?>(null) }
+    var rootSize by remember { mutableStateOf(IntSize.Zero) }
     val colors = CoinMonitorThemeTokens.colors
+    val dismissInteractionSource = remember { MutableInteractionSource() }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(colors.pageBackground)
             .padding(bottom = contentBottomInset)
+            .onSizeChanged { rootSize = it }
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             Row(
@@ -102,7 +125,9 @@ private fun HomeScreen(
                 SearchEntryButton(onClick = onNavigateSearch)
             }
 
-            if (state.items.isEmpty()) {
+            if (!state.isLoaded) {
+                HomeLoadingState()
+            } else if (state.items.isEmpty()) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -131,8 +156,8 @@ private fun HomeScreen(
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(
-                        start = 14.dp,
-                        end = 14.dp,
+                        start = 0.dp,
+                        end = 0.dp,
                         top = 0.dp,
                         bottom = 88.dp
                     ),
@@ -143,42 +168,22 @@ private fun HomeScreen(
                             WatchItemCard(
                                 item = item,
                                 overlaySelected = state.overlayIds.contains(item.id),
-                                onLongPress = { menuItemId = item.id }
-                            )
-
-                            DropdownMenu(
-                                expanded = menuItemId == item.id,
-                                onDismissRequest = { menuItemId = null }
-                            ) {
-                                DropdownMenuItem(
-                                    text = {
-                                        Text(
-                                            if (state.overlayIds.contains(item.id)) {
-                                                stringResource(R.string.overlay_remove)
-                                            } else {
-                                                stringResource(R.string.overlay_add)
-                                            }
+                                onClick = {
+                                    if (quickMenuState?.itemId == item.id) {
+                                        quickMenuState = null
+                                    }
+                                },
+                                onLongPress = { anchorInRoot ->
+                                    if (quickMenuState?.itemId == item.id) {
+                                        quickMenuState = null
+                                    } else {
+                                        quickMenuState = HomeQuickMenuState(
+                                            itemId = item.id,
+                                            anchorInRoot = anchorInRoot
                                         )
-                                    },
-                                    leadingIcon = {
-                                        Icon(Icons.Rounded.MoreVert, contentDescription = null)
-                                    },
-                                    onClick = {
-                                        onToggleOverlay(item.id)
-                                        menuItemId = null
                                     }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.delete)) },
-                                    leadingIcon = {
-                                        Icon(Icons.Rounded.Delete, contentDescription = null)
-                                    },
-                                    onClick = {
-                                        onRemoveWatchItem(item.id)
-                                        menuItemId = null
-                                    }
-                                )
-                            }
+                                }
+                            )
                         }
                     }
                 }
@@ -191,6 +196,222 @@ private fun HomeScreen(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(end = 18.dp, bottom = 20.dp)
+            )
+        }
+
+        quickMenuState?.let { menuState ->
+            HomeQuickActionsOverlay(
+                quickMenuState = menuState,
+                screenWidthPx = rootSize.width,
+                overlaySelected = state.overlayIds.contains(menuState.itemId),
+                onDismiss = { quickMenuState = null },
+                onToggleOverlay = {
+                    onToggleOverlay(menuState.itemId)
+                    quickMenuState = null
+                },
+                onDelete = {
+                    onRemoveWatchItem(menuState.itemId)
+                    quickMenuState = null
+                },
+                dismissInteractionSource = dismissInteractionSource
+            )
+        }
+    }
+}
+
+@Composable
+private fun HomeLoadingState() {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        CircularProgressIndicator(
+            color = CoinMonitorThemeTokens.colors.accent
+        )
+    }
+}
+
+@Composable
+private fun HomeQuickActionsMenuContent(
+    modifier: Modifier = Modifier,
+    overlaySelected: Boolean,
+    onToggleOverlay: () -> Unit,
+    onDelete: () -> Unit
+) {
+    val colors = CoinMonitorThemeTokens.colors
+
+    Surface(
+        modifier = modifier.testTag("home-quick-menu"),
+        shape = RoundedCornerShape(14.dp),
+        color = colors.cardBackground,
+        tonalElevation = 0.dp,
+        shadowElevation = 8.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .widthIn(min = 0.dp)
+                .padding(horizontal = 6.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            HomeQuickActionItem(
+                label = stringResource(R.string.delete),
+                icon = {
+                    Icon(
+                        imageVector = Icons.Rounded.Delete,
+                        contentDescription = null,
+                        modifier = Modifier.size(13.dp)
+                    )
+                },
+                onClick = onDelete,
+                testTag = "home-quick-action-delete"
+            )
+
+            Box(
+                modifier = Modifier
+                    .size(width = 1.dp, height = 18.dp)
+                    .background(colors.divider)
+            )
+
+            HomeQuickActionItem(
+                label = stringResource(
+                    if (overlaySelected) {
+                        R.string.home_quick_overlay_remove
+                    } else {
+                        R.string.home_quick_overlay_add
+                    }
+                ),
+                icon = {
+                    Icon(
+                        imageVector = Icons.Rounded.Layers,
+                        contentDescription = null,
+                        modifier = Modifier.size(13.dp)
+                    )
+                },
+                onClick = onToggleOverlay,
+                testTag = "home-quick-action-overlay"
+            )
+        }
+    }
+}
+
+@Composable
+private fun HomeQuickActionItem(
+    label: String,
+    icon: @Composable () -> Unit,
+    onClick: () -> Unit,
+    testTag: String? = null
+) {
+    val colors = CoinMonitorThemeTokens.colors
+
+    Row(
+        modifier = Modifier
+            .then(
+                if (testTag == null) {
+                    Modifier
+                } else {
+                    Modifier.testTag(testTag)
+                }
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 8.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(modifier = Modifier.alpha(0.88f)) {
+            icon()
+        }
+        Text(
+            text = label,
+            color = colors.primaryText,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Medium
+        )
+    }
+}
+
+@Composable
+private fun HomeQuickActionsOverlay(
+    quickMenuState: HomeQuickMenuState,
+    screenWidthPx: Int,
+    overlaySelected: Boolean,
+    onDismiss: () -> Unit,
+    onToggleOverlay: () -> Unit,
+    onDelete: () -> Unit,
+    dismissInteractionSource: MutableInteractionSource
+) {
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    var menuSize by remember(quickMenuState.itemId, overlaySelected) { mutableStateOf(IntSize.Zero) }
+    var animateIn by remember(quickMenuState.itemId, quickMenuState.anchorInRoot) { mutableStateOf(false) }
+    val menuReady = menuSize.width > 0 && menuSize.height > 0
+    val menuWidthPx = menuSize.width
+    val horizontalPaddingPx = with(density) { 12.dp.roundToPx() }
+    val verticalLiftPx = with(density) { 56.dp.roundToPx() }
+    val hiddenTranslationYPx = with(density) { 10.dp.toPx() }
+    val resolvedX = if (menuReady) {
+        (quickMenuState.anchorInRoot.x - (menuWidthPx / 2)).coerceIn(
+            horizontalPaddingPx,
+            (screenWidthPx - menuWidthPx - horizontalPaddingPx).coerceAtLeast(horizontalPaddingPx)
+        )
+    } else {
+        0
+    }
+    val resolvedY = if (menuReady) {
+        (quickMenuState.anchorInRoot.y - verticalLiftPx).coerceAtLeast(horizontalPaddingPx)
+    } else {
+        0
+    }
+    val menuVisible = menuReady && animateIn
+    val menuAlpha by animateFloatAsState(
+        targetValue = if (menuVisible) 1f else 0f,
+        animationSpec = tween(durationMillis = 160, easing = FastOutSlowInEasing),
+        label = "homeQuickMenuAlpha"
+    )
+    val menuScale by animateFloatAsState(
+        targetValue = if (menuVisible) 1f else 0.92f,
+        animationSpec = spring(dampingRatio = 0.82f, stiffness = 720f),
+        label = "homeQuickMenuScale"
+    )
+    val menuTranslationY by animateFloatAsState(
+        targetValue = if (menuVisible) 0f else hiddenTranslationYPx,
+        animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
+        label = "homeQuickMenuTranslationY"
+    )
+
+    LaunchedEffect(menuReady) {
+        if (menuReady) {
+            animateIn = true
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .clickable(
+                interactionSource = dismissInteractionSource,
+                indication = null,
+                onClick = onDismiss
+            )
+    ) {
+        Box(
+            modifier = Modifier
+                .offset { IntOffset(resolvedX, resolvedY) }
+                .graphicsLayer {
+                    alpha = menuAlpha
+                    scaleX = menuScale
+                    scaleY = menuScale
+                    translationY = menuTranslationY
+                    transformOrigin = TransformOrigin(0.5f, 1f)
+                }
+        ) {
+            // 作用：菜单先完成测量，再从手指附近做一次轻量弹出，避免定位和动画互相干扰。
+            HomeQuickActionsMenuContent(
+                modifier = Modifier.onGloballyPositioned { coordinates ->
+                    menuSize = coordinates.size
+                },
+                overlaySelected = overlaySelected,
+                onToggleOverlay = onToggleOverlay,
+                onDelete = onDelete
             )
         }
     }

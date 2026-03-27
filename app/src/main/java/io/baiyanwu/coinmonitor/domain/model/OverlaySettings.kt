@@ -10,7 +10,7 @@ data class OverlaySettings(
     val locked: Boolean = false,
     val opacity: Float = 0.42f,
     val maxItems: Int = 5,
-    val leadingDisplayMode: OverlayLeadingDisplayMode = OverlayLeadingDisplayMode.PAIR_NAME,
+    val leadingDisplayMode: OverlayLeadingDisplayMode = OverlayLeadingDisplayMode.ICON,
     val windowX: Int? = null,
     val windowY: Int? = null
 )
