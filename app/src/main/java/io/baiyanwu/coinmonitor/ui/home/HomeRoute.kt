@@ -32,9 +32,11 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -75,7 +77,8 @@ private data class HomeQuickMenuState(
 fun HomeRoute(
     container: AppContainer,
     contentBottomInset: Dp = 0.dp,
-    onNavigateSearch: () -> Unit
+    onNavigateSearch: () -> Unit,
+    onNavigateOverlaySettings: () -> Unit
 ) {
     val viewModel: HomeViewModel = viewModel(factory = HomeViewModel.factory(container))
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -83,6 +86,7 @@ fun HomeRoute(
         state = state,
         contentBottomInset = contentBottomInset,
         onNavigateSearch = onNavigateSearch,
+        onNavigateOverlaySettings = onNavigateOverlaySettings,
         onRemoveWatchItem = viewModel::removeWatchItem,
         onToggleOverlay = viewModel::toggleOverlay,
         onRefresh = viewModel::refreshNow
@@ -94,14 +98,20 @@ internal fun HomeScreen(
     state: HomeUiState,
     contentBottomInset: Dp,
     onNavigateSearch: () -> Unit,
+    onNavigateOverlaySettings: () -> Unit,
     onRemoveWatchItem: (String) -> Unit,
     onToggleOverlay: (String) -> Unit,
     onRefresh: () -> Unit
 ) {
     var quickMenuState by remember { mutableStateOf<HomeQuickMenuState?>(null) }
+    var showOverlayEnableDialog by remember { mutableStateOf(false) }
     var rootSize by remember { mutableStateOf(IntSize.Zero) }
     val colors = CoinMonitorThemeTokens.colors
     val dismissInteractionSource = remember { MutableInteractionSource() }
+    val overlayEnableDialogTitle = stringResource(R.string.home_overlay_enable_dialog_title)
+    val overlayEnableDialogMessage = stringResource(R.string.home_overlay_enable_dialog_message)
+    val overlayEnableDialogDismiss = stringResource(R.string.common_cancel)
+    val overlayEnableDialogConfirm = stringResource(R.string.home_overlay_enable_dialog_confirm)
 
     Box(
         modifier = Modifier
@@ -206,7 +216,12 @@ internal fun HomeScreen(
                 overlaySelected = state.overlayIds.contains(menuState.itemId),
                 onDismiss = { quickMenuState = null },
                 onToggleOverlay = {
-                    onToggleOverlay(menuState.itemId)
+                    val shouldAddToOverlay = !state.overlayIds.contains(menuState.itemId)
+                    if (shouldAddToOverlay && !state.overlayEnabled) {
+                        showOverlayEnableDialog = true
+                    } else {
+                        onToggleOverlay(menuState.itemId)
+                    }
                     quickMenuState = null
                 },
                 onDelete = {
@@ -214,6 +229,33 @@ internal fun HomeScreen(
                     quickMenuState = null
                 },
                 dismissInteractionSource = dismissInteractionSource
+            )
+        }
+
+        if (showOverlayEnableDialog) {
+            AlertDialog(
+                onDismissRequest = { showOverlayEnableDialog = false },
+                title = {
+                    Text(text = overlayEnableDialogTitle)
+                },
+                text = {
+                    Text(text = overlayEnableDialogMessage)
+                },
+                dismissButton = {
+                    TextButton(onClick = { showOverlayEnableDialog = false }) {
+                        Text(text = overlayEnableDialogDismiss)
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showOverlayEnableDialog = false
+                            onNavigateOverlaySettings()
+                        }
+                    ) {
+                        Text(text = overlayEnableDialogConfirm)
+                    }
+                }
             )
         }
     }

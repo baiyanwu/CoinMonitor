@@ -26,6 +26,9 @@
     <string name="home_overlay_tag">Overlay</string>
     <string name="home_quick_overlay_add">Overlay</string>
     <string name="home_quick_overlay_remove">Unoverlay</string>
+    <string name="home_overlay_enable_dialog_title">Enable Overlay</string>
+    <string name="home_overlay_enable_dialog_message">The floating overlay is not enabled yet. Open overlay settings now?</string>
+    <string name="home_overlay_enable_dialog_confirm">Enable</string>
     <string name="home_watchlist_title">Watchlist</string>
     <string name="home_watchlist_subtitle">Long press an item to add it to the floating window.</string>
 

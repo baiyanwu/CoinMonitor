@@ -104,7 +104,8 @@ fun CoinMonitorNavHost(
             composable(Destinations.HOME) {
                 HomeRoute(
                     container = container,
-                    onNavigateSearch = onOpenSearch
+                    onNavigateSearch = onOpenSearch,
+                    onNavigateOverlaySettings = onOpenOverlaySettings
                 )
             }
             composable(Destinations.SETTINGS) {
