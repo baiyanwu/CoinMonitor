@@ -9,6 +9,7 @@ import io.baiyanwu.coinmonitor.data.AppContainer
 import io.baiyanwu.coinmonitor.domain.model.AppLanguage
 import io.baiyanwu.coinmonitor.domain.model.AppPreferences
 import io.baiyanwu.coinmonitor.domain.model.AppThemeMode
+import io.baiyanwu.coinmonitor.domain.model.RefreshIntervalMode
 import io.baiyanwu.coinmonitor.domain.repository.AppPreferencesRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -45,6 +46,18 @@ class SettingsViewModel(
     fun setLanguage(language: AppLanguage) {
         viewModelScope.launch {
             appPreferencesRepository.setLanguage(language)
+        }
+    }
+
+    fun setRefreshIntervalSeconds(seconds: Int) {
+        viewModelScope.launch {
+            appPreferencesRepository.setRefreshIntervalSeconds(seconds)
+        }
+    }
+
+    fun setRefreshIntervalMode(mode: RefreshIntervalMode) {
+        viewModelScope.launch {
+            appPreferencesRepository.setRefreshIntervalMode(mode)
         }
     }
 

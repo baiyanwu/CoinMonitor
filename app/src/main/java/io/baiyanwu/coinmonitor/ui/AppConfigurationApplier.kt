@@ -20,6 +20,7 @@ import io.baiyanwu.coinmonitor.data.repository.DefaultAppPreferencesRepository
 import io.baiyanwu.coinmonitor.domain.model.AppLanguage
 import io.baiyanwu.coinmonitor.domain.model.AppPreferences
 import io.baiyanwu.coinmonitor.domain.model.AppThemeMode
+import io.baiyanwu.coinmonitor.domain.model.RefreshIntervalMode
 import io.baiyanwu.coinmonitor.domain.model.ThemeTemplateId
 import java.util.Locale
 
@@ -45,19 +46,24 @@ object AppConfigurationApplier {
             DefaultAppPreferencesRepository.Companion.KEY_THEME_TEMPLATE,
             ThemeTemplateId.DEFAULT_MD.name
         )?.let(ThemeTemplateId::valueOf) ?: ThemeTemplateId.DEFAULT_MD
-        val refreshIntervalSeconds = sharedPreferences.getInt(
+        val refreshIntervalMode = sharedPreferences.getString(
+            DefaultAppPreferencesRepository.Companion.KEY_REFRESH_INTERVAL_MODE,
+            RefreshIntervalMode.CUSTOM.name
+        )?.let(RefreshIntervalMode::valueOf) ?: RefreshIntervalMode.CUSTOM
+        val customRefreshIntervalSeconds = sharedPreferences.getInt(
             DefaultAppPreferencesRepository.Companion.KEY_REFRESH_INTERVAL_SECONDS,
-            AppPreferences.DEFAULT_REFRESH_INTERVAL_SECONDS
+            AppPreferences.DEFAULT_CUSTOM_REFRESH_INTERVAL_SECONDS
         ).coerceIn(
-            AppPreferences.MIN_REFRESH_INTERVAL_SECONDS,
-            AppPreferences.MAX_REFRESH_INTERVAL_SECONDS
+            AppPreferences.MIN_CUSTOM_REFRESH_INTERVAL_SECONDS,
+            AppPreferences.MAX_CUSTOM_REFRESH_INTERVAL_SECONDS
         )
 
         return AppPreferences(
             themeMode = themeMode,
             language = language,
             themeTemplate = themeTemplate,
-            refreshIntervalSeconds = refreshIntervalSeconds
+            refreshIntervalMode = refreshIntervalMode,
+            customRefreshIntervalSeconds = customRefreshIntervalSeconds
         )
     }
 

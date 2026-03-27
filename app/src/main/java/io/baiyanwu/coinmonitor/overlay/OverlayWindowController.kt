@@ -189,7 +189,7 @@ class OverlayWindowController(
             setTextColor(colors.overlayMutedText.copy(alpha = 0.88f).toArgb())
             setTypeface(typeface, Typeface.BOLD)
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 8f)
-            setPadding(0, 2.dp, 0, 0)
+            setPadding(0, 1.dp, 0, 0)
         }
     }
 
@@ -197,7 +197,8 @@ class OverlayWindowController(
         val row = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            val verticalPadding = 2.dp
+            // 悬浮窗高度有限，行间距尽量收紧，提升同屏信息密度。
+            val verticalPadding = 1.dp
             setPadding(0, verticalPadding, 0, verticalPadding)
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT,

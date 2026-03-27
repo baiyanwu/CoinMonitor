@@ -13,8 +13,8 @@
     <string name="common_cancel">Cancel</string>
     <string name="common_close">Close</string>
     <string name="common_clear">Clear</string>
-    <string name="common_min_count">1</string>
-    <string name="common_max_count">10</string>
+    <string name="common_min_count">Min 1</string>
+    <string name="common_max_count">Max 10</string>
 
     <string name="home_empty_hint">Add a trading pair to start monitoring.</string>
     <string name="home_add_pair">Add pair</string>
@@ -56,6 +56,10 @@
     <string name="settings_refresh_interval_value">Auto refresh interval: %1$d s</string>
     <string name="settings_refresh_interval_min_label">Fastest %1$d s</string>
     <string name="settings_refresh_interval_max_label">Slowest %1$d s</string>
+    <string name="settings_refresh_mode_title">Refresh Mode</string>
+    <string name="settings_refresh_mode_custom">Slider</string>
+    <string name="settings_refresh_mode_thirty_seconds">30 s</string>
+    <string name="settings_refresh_mode_one_minute">1 min</string>
 
     <string name="overlay_settings_title">Overlay Settings</string>
     <string name="overlay_settings_subtitle">Permissions, appearance, and items for the floating window.</string>

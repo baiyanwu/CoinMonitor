@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import io.baiyanwu.coinmonitor.domain.model.AppLanguage
 import io.baiyanwu.coinmonitor.domain.model.AppPreferences
 import io.baiyanwu.coinmonitor.domain.model.AppThemeMode
+import io.baiyanwu.coinmonitor.domain.model.RefreshIntervalMode
 import io.baiyanwu.coinmonitor.domain.model.ThemeTemplateId
 import io.baiyanwu.coinmonitor.domain.repository.AppPreferencesRepository
 import kotlinx.coroutines.Dispatchers
@@ -58,7 +59,16 @@ class DefaultAppPreferencesRepository(context: Context) : AppPreferencesReposito
     override suspend fun setRefreshIntervalSeconds(seconds: Int) {
         withContext(Dispatchers.IO) {
             sharedPreferences.edit()
-                .putInt(KEY_REFRESH_INTERVAL_SECONDS, normalizeRefreshIntervalSeconds(seconds))
+                .putInt(KEY_REFRESH_INTERVAL_SECONDS, normalizeCustomRefreshIntervalSeconds(seconds))
+                .putString(KEY_REFRESH_INTERVAL_MODE, RefreshIntervalMode.CUSTOM.name)
+                .apply()
+        }
+    }
+
+    override suspend fun setRefreshIntervalMode(mode: RefreshIntervalMode) {
+        withContext(Dispatchers.IO) {
+            sharedPreferences.edit()
+                .putString(KEY_REFRESH_INTERVAL_MODE, mode.name)
                 .apply()
         }
     }
@@ -73,10 +83,14 @@ class DefaultAppPreferencesRepository(context: Context) : AppPreferencesReposito
         val themeTemplate = sharedPreferences.getString(KEY_THEME_TEMPLATE, ThemeTemplateId.DEFAULT_MD.name)
             ?.let(ThemeTemplateId::valueOf)
             ?: ThemeTemplateId.DEFAULT_MD
-        val refreshIntervalSeconds = normalizeRefreshIntervalSeconds(
+        val refreshIntervalMode = sharedPreferences.getString(
+            KEY_REFRESH_INTERVAL_MODE,
+            RefreshIntervalMode.CUSTOM.name
+        )?.let(RefreshIntervalMode::valueOf) ?: RefreshIntervalMode.CUSTOM
+        val customRefreshIntervalSeconds = normalizeCustomRefreshIntervalSeconds(
             sharedPreferences.getInt(
                 KEY_REFRESH_INTERVAL_SECONDS,
-                AppPreferences.DEFAULT_REFRESH_INTERVAL_SECONDS
+                AppPreferences.DEFAULT_CUSTOM_REFRESH_INTERVAL_SECONDS
             )
         )
 
@@ -84,14 +98,15 @@ class DefaultAppPreferencesRepository(context: Context) : AppPreferencesReposito
             themeMode = themeMode,
             language = language,
             themeTemplate = themeTemplate,
-            refreshIntervalSeconds = refreshIntervalSeconds
+            refreshIntervalMode = refreshIntervalMode,
+            customRefreshIntervalSeconds = customRefreshIntervalSeconds
         )
     }
 
-    private fun normalizeRefreshIntervalSeconds(seconds: Int): Int {
+    private fun normalizeCustomRefreshIntervalSeconds(seconds: Int): Int {
         return seconds.coerceIn(
-            AppPreferences.MIN_REFRESH_INTERVAL_SECONDS,
-            AppPreferences.MAX_REFRESH_INTERVAL_SECONDS
+            AppPreferences.MIN_CUSTOM_REFRESH_INTERVAL_SECONDS,
+            AppPreferences.MAX_CUSTOM_REFRESH_INTERVAL_SECONDS
         )
     }
 
@@ -100,6 +115,7 @@ class DefaultAppPreferencesRepository(context: Context) : AppPreferencesReposito
         const val KEY_THEME_MODE = "theme_mode"
         const val KEY_LANGUAGE = "language"
         const val KEY_THEME_TEMPLATE = "theme_template"
+        const val KEY_REFRESH_INTERVAL_MODE = "refresh_interval_mode"
         const val KEY_REFRESH_INTERVAL_SECONDS = "refresh_interval_seconds"
     }
 }

@@ -1,5 +1,6 @@
 package io.baiyanwu.coinmonitor.ui.settings
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,10 +14,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.alpha
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -27,10 +29,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -38,7 +37,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.baiyanwu.coinmonitor.data.AppContainer
-import io.baiyanwu.coinmonitor.domain.model.AppPreferences
 import io.baiyanwu.coinmonitor.domain.model.OverlayLeadingDisplayMode
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorComponentDefaults
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
@@ -89,7 +87,6 @@ fun OverlaySettingsRoute(
         onLockedChange = viewModel::setLocked,
         onOpacityChange = viewModel::setOpacity,
         onMaxCountChange = viewModel::setMaxCount,
-        onRefreshIntervalChange = viewModel::setRefreshIntervalSeconds,
         onLeadingDisplayModeChange = viewModel::setLeadingDisplayMode,
         onToggleItem = viewModel::toggleItem
     )
@@ -107,15 +104,17 @@ private fun OverlaySettingsScreen(
     onLockedChange: (Boolean) -> Unit,
     onOpacityChange: (Float) -> Unit,
     onMaxCountChange: (Int) -> Unit,
-    onRefreshIntervalChange: (Int) -> Unit,
     onLeadingDisplayModeChange: (OverlayLeadingDisplayMode) -> Unit,
     onToggleItem: (String) -> Unit
 ) {
+    if (!state.isLoaded) {
+        // 本地配置还没回流前先展示加载态，避免开关、筛选项先用默认值再跳变。
+        OverlaySettingsLoadingScreen(onBack = onBack)
+        return
+    }
+
     val opacityProgress = opacityToProgress(state.settings.opacity)
     val opacityPercent = (opacityProgress * 100).roundToInt()
-    var refreshIntervalSliderValue by remember(state.refreshIntervalSeconds) {
-        mutableFloatStateOf(state.refreshIntervalSeconds.toFloat())
-    }
 
     LazyColumn(
         modifier = Modifier
@@ -220,38 +219,6 @@ private fun OverlaySettingsScreen(
                         startLabel = stringResource(R.string.common_min_count),
                         endLabel = stringResource(R.string.common_max_count)
                     )
-
-                    Text(
-                        text = stringResource(
-                            R.string.settings_refresh_interval_value,
-                            refreshIntervalSliderValue.roundToInt()
-                        ),
-                        style = MaterialTheme.typography.titleSmall
-                    )
-                    Slider(
-                        value = refreshIntervalSliderValue,
-                        onValueChange = { value ->
-                            refreshIntervalSliderValue = value.roundToInt().toFloat()
-                        },
-                        onValueChangeFinished = {
-                            onRefreshIntervalChange(refreshIntervalSliderValue.roundToInt())
-                        },
-                        valueRange = AppPreferences.MIN_REFRESH_INTERVAL_SECONDS.toFloat()..
-                            AppPreferences.MAX_REFRESH_INTERVAL_SECONDS.toFloat(),
-                        steps = AppPreferences.MAX_REFRESH_INTERVAL_SECONDS -
-                            AppPreferences.MIN_REFRESH_INTERVAL_SECONDS - 1,
-                        colors = CoinMonitorComponentDefaults.sliderColors()
-                    )
-                    SliderEndpoints(
-                        startLabel = stringResource(
-                            R.string.settings_refresh_interval_min_label,
-                            AppPreferences.MIN_REFRESH_INTERVAL_SECONDS
-                        ),
-                        endLabel = stringResource(
-                            R.string.settings_refresh_interval_max_label,
-                            AppPreferences.MAX_REFRESH_INTERVAL_SECONDS
-                        )
-                    )
                 }
             }
         }
@@ -324,6 +291,48 @@ private fun OverlaySettingsScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun OverlaySettingsLoadingScreen(
+    onBack: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 14.dp, vertical = 12.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(46.dp),
+            contentAlignment = Alignment.CenterStart
+        ) {
+            Text(
+                text = stringResource(R.string.overlay_settings_title),
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.padding(start = 34.dp)
+            )
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .offset(x = (-10).dp)
+                    .clickable(onClick = onBack),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                    contentDescription = stringResource(R.string.common_back),
+                    modifier = Modifier.size(26.dp)
+                )
+            }
+        }
+
+        CircularProgressIndicator(
+            modifier = Modifier.align(Alignment.Center),
+            color = CoinMonitorThemeTokens.colors.accent
+        )
     }
 }
 

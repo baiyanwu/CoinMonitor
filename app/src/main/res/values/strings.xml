@@ -13,8 +13,8 @@
     <string name="common_cancel">取消</string>
     <string name="common_close">关闭</string>
     <string name="common_clear">清空</string>
-    <string name="common_min_count">1</string>
-    <string name="common_max_count">10</string>
+    <string name="common_min_count">最少 1 个</string>
+    <string name="common_max_count">最多 10 个</string>
 
     <string name="home_empty_hint">先添加一个币对开始监控</string>
     <string name="home_add_pair">添加币对</string>
@@ -56,6 +56,10 @@
     <string name="settings_refresh_interval_value">自动刷新间隔：%1$d 秒</string>
     <string name="settings_refresh_interval_min_label">最快 %1$d 秒</string>
     <string name="settings_refresh_interval_max_label">最慢 %1$d 秒</string>
+    <string name="settings_refresh_mode_title">刷新模式</string>
+    <string name="settings_refresh_mode_custom">进度条</string>
+    <string name="settings_refresh_mode_thirty_seconds">30 秒</string>
+    <string name="settings_refresh_mode_one_minute">1 分钟</string>
 
     <string name="overlay_settings_title">悬浮窗设置</string>
     <string name="overlay_settings_subtitle">管理悬浮窗权限、样式和展示币对。</string>

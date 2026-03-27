@@ -4,8 +4,14 @@ import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -24,12 +30,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -165,10 +173,10 @@ fun CoinMonitorNavHost(container: AppContainer) {
             navController = navController,
             startDestination = Destinations.HOME,
             modifier = Modifier.padding(innerPadding),
-            enterTransition = { EnterTransition.None },
-            exitTransition = { ExitTransition.None },
-            popEnterTransition = { EnterTransition.None },
-            popExitTransition = { ExitTransition.None }
+            enterTransition = { resolveEnterTransition() },
+            exitTransition = { resolveExitTransition() },
+            popEnterTransition = { resolvePopEnterTransition() },
+            popExitTransition = { resolvePopExitTransition() }
         ) {
             composable(Destinations.HOME) {
                 HomeRoute(
@@ -202,4 +210,50 @@ fun CoinMonitorNavHost(container: AppContainer) {
             }
         }
     }
+}
+
+private fun AnimatedContentTransitionScope<NavBackStackEntry>.resolveEnterTransition(): EnterTransition {
+    val targetRoute = targetState.destination.route
+    return when {
+        targetRoute.isDetailRoute() -> {
+            // 二级页面使用轻量缩放进入，避免滑动时同时看到前后两个页面。
+            scaleIn(
+                animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing),
+                initialScale = 1.04f,
+                transformOrigin = TransformOrigin(0.5f, 0f)
+            )
+        }
+
+        else -> EnterTransition.None
+    }
+}
+
+private fun AnimatedContentTransitionScope<NavBackStackEntry>.resolveExitTransition(): ExitTransition {
+    val targetRoute = targetState.destination.route
+    return when {
+        // 进入二级页时，底层页面不做退出动画，避免和新页面叠加展示。
+        targetRoute.isDetailRoute() -> ExitTransition.None
+        else -> ExitTransition.None
+    }
+}
+
+private fun AnimatedContentTransitionScope<NavBackStackEntry>.resolvePopEnterTransition(): EnterTransition {
+    // 返回时目标页直接稳定接管，避免底层页提前露出。
+    return EnterTransition.None
+}
+
+private fun AnimatedContentTransitionScope<NavBackStackEntry>.resolvePopExitTransition(): ExitTransition {
+    return if (initialState.destination.route.isDetailRoute()) {
+        scaleOut(
+            animationSpec = tween(durationMillis = 220, easing = LinearOutSlowInEasing),
+            targetScale = 1.04f,
+            transformOrigin = TransformOrigin(0.5f, 0f)
+        )
+    } else {
+        ExitTransition.None
+    }
+}
+
+private fun String?.isDetailRoute(): Boolean {
+    return this == Destinations.SEARCH || this == Destinations.OVERLAY_SETTINGS
 }
