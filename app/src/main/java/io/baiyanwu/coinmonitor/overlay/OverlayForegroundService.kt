@@ -41,6 +41,7 @@ class OverlayForegroundService : Service() {
             scope = serviceScope,
             watchlistRepository = container.watchlistRepository,
             overlayRepository = container.overlayRepository,
+            appPreferencesRepository = container.appPreferencesRepository,
             marketQuoteRepository = container.marketQuoteRepository
         ) { items, settings ->
             if (settings.enabled) {
@@ -135,7 +136,12 @@ class OverlayForegroundService : Service() {
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentTitle(localizedContext.getString(R.string.overlay_notification_title))
-            .setContentText(localizedContext.getString(R.string.overlay_notification_text))
+            .setContentText(
+                localizedContext.getString(
+                    R.string.overlay_notification_text,
+                    preferences.refreshIntervalSeconds
+                )
+            )
             .setContentIntent(contentIntent)
             .setOngoing(true)
             .addAction(0, localizedContext.getString(R.string.overlay_notification_stop), stopIntent)

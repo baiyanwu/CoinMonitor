@@ -27,7 +27,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -35,6 +38,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.baiyanwu.coinmonitor.data.AppContainer
+import io.baiyanwu.coinmonitor.domain.model.AppPreferences
 import io.baiyanwu.coinmonitor.domain.model.OverlayLeadingDisplayMode
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorComponentDefaults
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
@@ -85,6 +89,7 @@ fun OverlaySettingsRoute(
         onLockedChange = viewModel::setLocked,
         onOpacityChange = viewModel::setOpacity,
         onMaxCountChange = viewModel::setMaxCount,
+        onRefreshIntervalChange = viewModel::setRefreshIntervalSeconds,
         onLeadingDisplayModeChange = viewModel::setLeadingDisplayMode,
         onToggleItem = viewModel::toggleItem
     )
@@ -102,11 +107,15 @@ private fun OverlaySettingsScreen(
     onLockedChange: (Boolean) -> Unit,
     onOpacityChange: (Float) -> Unit,
     onMaxCountChange: (Int) -> Unit,
+    onRefreshIntervalChange: (Int) -> Unit,
     onLeadingDisplayModeChange: (OverlayLeadingDisplayMode) -> Unit,
     onToggleItem: (String) -> Unit
 ) {
     val opacityProgress = opacityToProgress(state.settings.opacity)
     val opacityPercent = (opacityProgress * 100).roundToInt()
+    var refreshIntervalSliderValue by remember(state.refreshIntervalSeconds) {
+        mutableFloatStateOf(state.refreshIntervalSeconds.toFloat())
+    }
 
     LazyColumn(
         modifier = Modifier
@@ -210,6 +219,38 @@ private fun OverlaySettingsScreen(
                     SliderEndpoints(
                         startLabel = stringResource(R.string.common_min_count),
                         endLabel = stringResource(R.string.common_max_count)
+                    )
+
+                    Text(
+                        text = stringResource(
+                            R.string.settings_refresh_interval_value,
+                            refreshIntervalSliderValue.roundToInt()
+                        ),
+                        style = MaterialTheme.typography.titleSmall
+                    )
+                    Slider(
+                        value = refreshIntervalSliderValue,
+                        onValueChange = { value ->
+                            refreshIntervalSliderValue = value.roundToInt().toFloat()
+                        },
+                        onValueChangeFinished = {
+                            onRefreshIntervalChange(refreshIntervalSliderValue.roundToInt())
+                        },
+                        valueRange = AppPreferences.MIN_REFRESH_INTERVAL_SECONDS.toFloat()..
+                            AppPreferences.MAX_REFRESH_INTERVAL_SECONDS.toFloat(),
+                        steps = AppPreferences.MAX_REFRESH_INTERVAL_SECONDS -
+                            AppPreferences.MIN_REFRESH_INTERVAL_SECONDS - 1,
+                        colors = CoinMonitorComponentDefaults.sliderColors()
+                    )
+                    SliderEndpoints(
+                        startLabel = stringResource(
+                            R.string.settings_refresh_interval_min_label,
+                            AppPreferences.MIN_REFRESH_INTERVAL_SECONDS
+                        ),
+                        endLabel = stringResource(
+                            R.string.settings_refresh_interval_max_label,
+                            AppPreferences.MAX_REFRESH_INTERVAL_SECONDS
+                        )
                     )
                 }
             }

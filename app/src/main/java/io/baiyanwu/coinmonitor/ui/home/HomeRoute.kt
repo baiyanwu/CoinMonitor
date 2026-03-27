@@ -1,5 +1,8 @@
 package io.baiyanwu.coinmonitor.ui.home
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,9 +33,11 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -42,6 +47,7 @@ import io.baiyanwu.coinmonitor.ui.components.WatchItemCard
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorComponentDefaults
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 import io.baiyanwu.coinmonitor.R
+import kotlinx.coroutines.launch
 
 @Composable
 fun HomeRoute(
@@ -170,19 +176,56 @@ private fun HomeScreen(
         }
 
         if (state.items.isNotEmpty()) {
-            FloatingActionButton(
-                onClick = onRefresh,
-                containerColor = colors.fabContainer,
-                contentColor = colors.fabContent,
+            AnimatedRefreshFab(
+                onRefresh = onRefresh,
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(end = 18.dp, bottom = 20.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Refresh,
-                    contentDescription = stringResource(R.string.refresh)
-                )
-            }
+            )
+        }
+    }
+}
+
+@Composable
+private fun AnimatedRefreshFab(
+    onRefresh: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val colors = CoinMonitorThemeTokens.colors
+    val scope = rememberCoroutineScope()
+    val rotation = remember { Animatable(0f) }
+
+    Box(
+        modifier = modifier.size(72.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        FloatingActionButton(
+            onClick = {
+                onRefresh()
+                scope.launch {
+                    rotation.stop()
+                    val currentRotation = rotation.value % 360f
+                    rotation.snapTo(currentRotation)
+                    rotation.animateTo(
+                        targetValue = currentRotation + 360f,
+                        animationSpec = tween(
+                            durationMillis = 700,
+                            easing = FastOutSlowInEasing
+                        )
+                    )
+                    rotation.snapTo(0f)
+                }
+            },
+            containerColor = colors.fabContainer,
+            contentColor = colors.fabContent
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Refresh,
+                contentDescription = stringResource(R.string.refresh),
+                modifier = Modifier.graphicsLayer {
+                    rotationZ = rotation.value
+                }
+            )
         }
     }
 }

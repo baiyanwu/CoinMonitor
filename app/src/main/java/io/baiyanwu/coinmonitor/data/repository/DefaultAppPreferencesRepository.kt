@@ -55,6 +55,14 @@ class DefaultAppPreferencesRepository(context: Context) : AppPreferencesReposito
         }
     }
 
+    override suspend fun setRefreshIntervalSeconds(seconds: Int) {
+        withContext(Dispatchers.IO) {
+            sharedPreferences.edit()
+                .putInt(KEY_REFRESH_INTERVAL_SECONDS, normalizeRefreshIntervalSeconds(seconds))
+                .apply()
+        }
+    }
+
     private fun readPreferences(): AppPreferences {
         val themeMode = sharedPreferences.getString(KEY_THEME_MODE, AppThemeMode.SYSTEM.name)
             ?.let(AppThemeMode::valueOf)
@@ -65,11 +73,25 @@ class DefaultAppPreferencesRepository(context: Context) : AppPreferencesReposito
         val themeTemplate = sharedPreferences.getString(KEY_THEME_TEMPLATE, ThemeTemplateId.DEFAULT_MD.name)
             ?.let(ThemeTemplateId::valueOf)
             ?: ThemeTemplateId.DEFAULT_MD
+        val refreshIntervalSeconds = normalizeRefreshIntervalSeconds(
+            sharedPreferences.getInt(
+                KEY_REFRESH_INTERVAL_SECONDS,
+                AppPreferences.DEFAULT_REFRESH_INTERVAL_SECONDS
+            )
+        )
 
         return AppPreferences(
             themeMode = themeMode,
             language = language,
-            themeTemplate = themeTemplate
+            themeTemplate = themeTemplate,
+            refreshIntervalSeconds = refreshIntervalSeconds
+        )
+    }
+
+    private fun normalizeRefreshIntervalSeconds(seconds: Int): Int {
+        return seconds.coerceIn(
+            AppPreferences.MIN_REFRESH_INTERVAL_SECONDS,
+            AppPreferences.MAX_REFRESH_INTERVAL_SECONDS
         )
     }
 
@@ -78,5 +100,6 @@ class DefaultAppPreferencesRepository(context: Context) : AppPreferencesReposito
         const val KEY_THEME_MODE = "theme_mode"
         const val KEY_LANGUAGE = "language"
         const val KEY_THEME_TEMPLATE = "theme_template"
+        const val KEY_REFRESH_INTERVAL_SECONDS = "refresh_interval_seconds"
     }
 }

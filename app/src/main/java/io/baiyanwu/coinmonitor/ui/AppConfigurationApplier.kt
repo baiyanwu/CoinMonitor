@@ -45,11 +45,19 @@ object AppConfigurationApplier {
             DefaultAppPreferencesRepository.Companion.KEY_THEME_TEMPLATE,
             ThemeTemplateId.DEFAULT_MD.name
         )?.let(ThemeTemplateId::valueOf) ?: ThemeTemplateId.DEFAULT_MD
+        val refreshIntervalSeconds = sharedPreferences.getInt(
+            DefaultAppPreferencesRepository.Companion.KEY_REFRESH_INTERVAL_SECONDS,
+            AppPreferences.DEFAULT_REFRESH_INTERVAL_SECONDS
+        ).coerceIn(
+            AppPreferences.MIN_REFRESH_INTERVAL_SECONDS,
+            AppPreferences.MAX_REFRESH_INTERVAL_SECONDS
+        )
 
         return AppPreferences(
             themeMode = themeMode,
             language = language,
-            themeTemplate = themeTemplate
+            themeTemplate = themeTemplate,
+            refreshIntervalSeconds = refreshIntervalSeconds
         )
     }
 

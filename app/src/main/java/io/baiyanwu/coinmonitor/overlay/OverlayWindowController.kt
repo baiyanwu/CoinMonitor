@@ -74,6 +74,11 @@ class OverlayWindowController(
             return
         }
 
+        val resolvedFlags = resolveWindowFlags(settings)
+        if (params.flags != resolvedFlags) {
+            params.flags = resolvedFlags
+        }
+
         root.background = buildBackground(settings.opacity)
         syncThemeAwareViews()
         val limitedItems = items.take(settings.maxItems)
@@ -137,12 +142,26 @@ class OverlayWindowController(
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+            resolveWindowFlags(settings),
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.START
             x = settings.windowX ?: 48.dp
             y = settings.windowY ?: 180.dp
+        }
+    }
+
+    /**
+     * 锁定状态下让悬浮窗完全触摸穿透，避免遮挡底层应用点击。
+     * 未锁定时保留拖动能力，但窗口外触摸仍交给下层页面。
+     */
+    private fun resolveWindowFlags(settings: OverlaySettings): Int {
+        val baseFlags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
+        return if (settings.locked) {
+            baseFlags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+        } else {
+            baseFlags
         }
     }
 

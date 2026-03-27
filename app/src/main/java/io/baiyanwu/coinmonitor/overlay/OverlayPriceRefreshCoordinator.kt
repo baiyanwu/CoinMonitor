@@ -1,7 +1,9 @@
 package io.baiyanwu.coinmonitor.overlay
 
+import io.baiyanwu.coinmonitor.domain.model.AppPreferences
 import io.baiyanwu.coinmonitor.domain.model.OverlaySettings
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
+import io.baiyanwu.coinmonitor.domain.repository.AppPreferencesRepository
 import io.baiyanwu.coinmonitor.domain.repository.MarketQuoteRepository
 import io.baiyanwu.coinmonitor.domain.repository.OverlayRepository
 import io.baiyanwu.coinmonitor.domain.repository.WatchlistRepository
@@ -16,6 +18,7 @@ class OverlayPriceRefreshCoordinator(
     private val scope: CoroutineScope,
     private val watchlistRepository: WatchlistRepository,
     private val overlayRepository: OverlayRepository,
+    private val appPreferencesRepository: AppPreferencesRepository,
     private val marketQuoteRepository: MarketQuoteRepository,
     private val onRender: (List<WatchItem>, OverlaySettings) -> Unit
 ) {
@@ -24,6 +27,8 @@ class OverlayPriceRefreshCoordinator(
 
     private var currentItems: List<WatchItem> = emptyList()
     private var currentSettings: OverlaySettings = OverlaySettings()
+    private var refreshIntervalMillis: Long =
+        AppPreferences.DEFAULT_REFRESH_INTERVAL_SECONDS * 1_000L
 
     fun start() {
         if (stateJob != null) return
@@ -31,13 +36,19 @@ class OverlayPriceRefreshCoordinator(
         stateJob = scope.launch {
             combine(
                 overlayRepository.observeSettings(),
-                overlayRepository.observeOverlayItems()
-            ) { settings, items ->
-                settings to items
-            }.collect { (settings, items) ->
-                currentSettings = settings
-                currentItems = items
-                onRender(items, settings)
+                overlayRepository.observeOverlayItems(),
+                appPreferencesRepository.observePreferences()
+            ) { settings, items, preferences ->
+                OverlayRefreshSnapshot(
+                    settings = settings,
+                    items = items,
+                    refreshIntervalMillis = preferences.refreshIntervalSeconds * 1_000L
+                )
+            }.collect { snapshot ->
+                currentSettings = snapshot.settings
+                currentItems = snapshot.items
+                refreshIntervalMillis = snapshot.refreshIntervalMillis
+                onRender(snapshot.items, snapshot.settings)
                 restartRefreshLoop()
             }
         }
@@ -69,10 +80,15 @@ class OverlayPriceRefreshCoordinator(
         refreshJob = scope.launch {
             refreshNow()
             while (isActive) {
-                delay(3_000)
+                delay(refreshIntervalMillis)
                 refreshNow()
             }
         }
     }
 }
 
+private data class OverlayRefreshSnapshot(
+    val settings: OverlaySettings,
+    val items: List<WatchItem>,
+    val refreshIntervalMillis: Long
+)

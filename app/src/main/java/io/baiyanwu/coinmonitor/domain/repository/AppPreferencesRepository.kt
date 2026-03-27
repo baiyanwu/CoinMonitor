@@ -16,4 +16,6 @@ interface AppPreferencesRepository {
     suspend fun setLanguage(language: AppLanguage)
 
     suspend fun setThemeTemplate(templateId: ThemeTemplateId)
+
+    suspend fun setRefreshIntervalSeconds(seconds: Int)
 }

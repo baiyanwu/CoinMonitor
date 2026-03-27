@@ -6,7 +6,9 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import io.baiyanwu.coinmonitor.data.AppContainer
+import io.baiyanwu.coinmonitor.domain.model.AppPreferences
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
+import io.baiyanwu.coinmonitor.domain.repository.AppPreferencesRepository
 import io.baiyanwu.coinmonitor.domain.repository.MarketQuoteRepository
 import io.baiyanwu.coinmonitor.domain.repository.OverlayRepository
 import io.baiyanwu.coinmonitor.domain.repository.WatchlistRepository
@@ -28,30 +30,41 @@ data class HomeUiState(
 class HomeViewModel(
     private val watchlistRepository: WatchlistRepository,
     private val overlayRepository: OverlayRepository,
-    private val marketQuoteRepository: MarketQuoteRepository
+    private val marketQuoteRepository: MarketQuoteRepository,
+    private val appPreferencesRepository: AppPreferencesRepository
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
     private var currentItems: List<WatchItem> = emptyList()
     private var refreshJob: Job? = null
+    private var refreshIntervalMillis: Long =
+        AppPreferences.DEFAULT_REFRESH_INTERVAL_SECONDS * 1_000L
 
     init {
         viewModelScope.launch {
             combine(
                 watchlistRepository.observeWatchlist(),
                 overlayRepository.observeOverlayItems(),
-                overlayRepository.observeSettings()
-            ) { items, overlayItems, settings ->
-                Triple(items, overlayItems.map { it.id }.toSet(), settings.enabled)
-            }.collect { (items, overlayIds, overlayEnabled) ->
+                overlayRepository.observeSettings(),
+                appPreferencesRepository.observePreferences()
+            ) { items, overlayItems, settings, preferences ->
+                HomeUiPayload(
+                    items = items,
+                    overlayIds = overlayItems.map { it.id }.toSet(),
+                    overlayEnabled = settings.enabled,
+                    refreshIntervalMillis = preferences.refreshIntervalSeconds * 1_000L
+                )
+            }.collect { payload ->
+                val items = payload.items
                 currentItems = items
+                refreshIntervalMillis = payload.refreshIntervalMillis
                 _uiState.value = HomeUiState(
                     items = items,
-                    overlayIds = overlayIds,
-                    overlayEnabled = overlayEnabled
+                    overlayIds = payload.overlayIds,
+                    overlayEnabled = payload.overlayEnabled
                 )
-                restartRefreshLoop(items, overlayEnabled)
+                restartRefreshLoop(items, payload.overlayEnabled)
             }
         }
     }
@@ -86,7 +99,7 @@ class HomeViewModel(
         refreshJob = viewModelScope.launch {
             refreshQuotes(items)
             while (isActive) {
-                delay(3_000)
+                delay(refreshIntervalMillis)
                 refreshQuotes(currentItems)
             }
         }
@@ -106,10 +119,17 @@ class HomeViewModel(
                 HomeViewModel(
                     watchlistRepository = container.watchlistRepository,
                     overlayRepository = container.overlayRepository,
-                    marketQuoteRepository = container.marketQuoteRepository
+                    marketQuoteRepository = container.marketQuoteRepository,
+                    appPreferencesRepository = container.appPreferencesRepository
                 )
             }
         }
     }
 }
 
+private data class HomeUiPayload(
+    val items: List<WatchItem>,
+    val overlayIds: Set<String>,
+    val overlayEnabled: Boolean,
+    val refreshIntervalMillis: Long
+)

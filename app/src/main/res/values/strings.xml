@@ -52,6 +52,10 @@
     <string name="language_system">跟随系统</string>
     <string name="language_chinese">简体中文</string>
     <string name="language_english">English</string>
+    <string name="settings_refresh_interval_title">刷新频率</string>
+    <string name="settings_refresh_interval_value">自动刷新间隔：%1$d 秒</string>
+    <string name="settings_refresh_interval_min_label">最快 %1$d 秒</string>
+    <string name="settings_refresh_interval_max_label">最慢 %1$d 秒</string>
 
     <string name="overlay_settings_title">悬浮窗设置</string>
     <string name="overlay_settings_subtitle">管理悬浮窗权限、样式和展示币对。</string>
@@ -78,7 +82,7 @@
     <string name="overlay_page_format">轮播 %1$s</string>
 
     <string name="overlay_notification_title">CoinMonitor 悬浮窗运行中</string>
-    <string name="overlay_notification_text">悬浮价格面板会每 3 秒刷新一次。</string>
+    <string name="overlay_notification_text">悬浮价格面板会每 %1$d 秒刷新一次。</string>
     <string name="overlay_notification_stop">关闭悬浮窗</string>
     <string name="overlay_channel_name">悬浮窗服务</string>
     <string name="overlay_channel_description">用于维持悬浮窗常驻和价格轮询</string>

@@ -6,9 +6,11 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import io.baiyanwu.coinmonitor.data.AppContainer
+import io.baiyanwu.coinmonitor.domain.model.AppPreferences
 import io.baiyanwu.coinmonitor.domain.model.OverlayLeadingDisplayMode
 import io.baiyanwu.coinmonitor.domain.model.OverlaySettings
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
+import io.baiyanwu.coinmonitor.domain.repository.AppPreferencesRepository
 import io.baiyanwu.coinmonitor.domain.repository.OverlayRepository
 import io.baiyanwu.coinmonitor.domain.repository.WatchlistRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,12 +21,14 @@ import kotlinx.coroutines.launch
 
 data class OverlaySettingsUiState(
     val settings: OverlaySettings = OverlaySettings(),
-    val items: List<WatchItem> = emptyList()
+    val items: List<WatchItem> = emptyList(),
+    val refreshIntervalSeconds: Int = AppPreferences.DEFAULT_REFRESH_INTERVAL_SECONDS
 )
 
 class OverlaySettingsViewModel(
     private val overlayRepository: OverlayRepository,
-    private val watchlistRepository: WatchlistRepository
+    private val watchlistRepository: WatchlistRepository,
+    private val appPreferencesRepository: AppPreferencesRepository
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(OverlaySettingsUiState())
     val uiState: StateFlow<OverlaySettingsUiState> = _uiState.asStateFlow()
@@ -33,9 +37,14 @@ class OverlaySettingsViewModel(
         viewModelScope.launch {
             combine(
                 overlayRepository.observeSettings(),
-                watchlistRepository.observeWatchlist()
-            ) { settings, items ->
-                OverlaySettingsUiState(settings = settings, items = items)
+                watchlistRepository.observeWatchlist(),
+                appPreferencesRepository.observePreferences()
+            ) { settings, items, preferences ->
+                OverlaySettingsUiState(
+                    settings = settings,
+                    items = items,
+                    refreshIntervalSeconds = preferences.refreshIntervalSeconds
+                )
             }.collect {
                 _uiState.value = it
             }
@@ -78,12 +87,19 @@ class OverlaySettingsViewModel(
         }
     }
 
+    fun setRefreshIntervalSeconds(seconds: Int) {
+        viewModelScope.launch {
+            appPreferencesRepository.setRefreshIntervalSeconds(seconds)
+        }
+    }
+
     companion object {
         fun factory(container: AppContainer): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 OverlaySettingsViewModel(
                     overlayRepository = container.overlayRepository,
-                    watchlistRepository = container.watchlistRepository
+                    watchlistRepository = container.watchlistRepository,
+                    appPreferencesRepository = container.appPreferencesRepository
                 )
             }
         }
