@@ -51,9 +51,12 @@ body::before {
 .hero {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 520px) minmax(360px, 1fr);
+  grid-template-columns: minmax(0, 520px) minmax(380px, 620px);
+  justify-content: center;
   align-items: center;
-  gap: clamp(40px, 7vw, 96px);
+  gap: clamp(44px, 6.5vw, 96px);
+  max-width: 1380px;
+  margin: 0 auto;
   min-height: 100svh;
   padding: clamp(32px, 5vw, 64px);
 }
@@ -61,6 +64,7 @@ body::before {
 .hero__content {
   position: relative;
   z-index: 1;
+  max-width: 520px;
 }
 
 .brand-chip {
@@ -86,6 +90,21 @@ body::before {
   margin-top: 28px;
 }
 
+.hero__title {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.hero__title-icon {
+  width: clamp(48px, 4.2vw, 68px);
+  height: clamp(48px, 4.2vw, 68px);
+  flex-shrink: 0;
+  filter:
+    drop-shadow(0 18px 28px rgba(56, 30, 114, 0.28))
+    drop-shadow(0 0 20px rgba(208, 188, 255, 0.18));
+}
+
 .hero__eyebrow {
   margin: 0 0 14px;
   font-size: 0.92rem;
@@ -96,10 +115,16 @@ body::before {
 
 .hero h1 {
   margin: 0;
-  font-family: "DIN Alternate", "Avenir Next", "SF Pro Display", "PingFang SC", sans-serif;
-  font-size: clamp(3.8rem, 8vw, 6.8rem);
-  line-height: 0.96;
-  letter-spacing: -0.05em;
+  font-family: "Sora", "Avenir Next", "SF Pro Display", "PingFang SC", sans-serif;
+  font-size: clamp(2.5rem, 5.2vw, 4.4rem);
+  font-weight: 700;
+  line-height: 0.98;
+  letter-spacing: -0.055em;
+  background: linear-gradient(135deg, #f8f5ff 4%, var(--accent) 38%, var(--accent-secondary) 68%, var(--accent-tertiary) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 8px 30px rgba(208, 188, 255, 0.12);
 }
 
 .hero__lead {
@@ -134,7 +159,13 @@ body::before {
   min-height: 58px;
   padding: 0 22px;
   border-radius: 18px;
-  border: 1px solid rgba(208, 188, 255, 0.18);
+  border: 1px solid rgba(208, 188, 255, 0.22);
+  background: linear-gradient(180deg, rgba(208, 188, 255, 0.16), rgba(208, 188, 255, 0.08));
+  backdrop-filter: blur(16px);
+  box-shadow:
+    0 18px 38px rgba(38, 28, 72, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  color: rgba(245, 247, 251, 0.94);
   font-size: 1rem;
   font-weight: 700;
   text-decoration: none;
@@ -146,6 +177,9 @@ body::before {
 
 .action-button:hover {
   transform: translateY(-2px);
+  box-shadow:
+    0 24px 48px rgba(38, 28, 72, 0.26),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
   filter: saturate(1.03);
 }
 
@@ -171,39 +205,19 @@ body::before {
 }
 
 .action-button--primary {
-  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
-  color: var(--accent-deep);
-  box-shadow:
-    0 20px 45px rgba(103, 80, 164, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.32);
-}
-
-.action-button--primary:hover {
-  box-shadow:
-    0 26px 52px rgba(103, 80, 164, 0.36),
-    inset 0 1px 0 rgba(255, 255, 255, 0.42);
+  background: linear-gradient(180deg, rgba(208, 188, 255, 0.18), rgba(208, 188, 255, 0.1));
 }
 
 .action-button--primary .action-button__icon {
-  background: rgba(255, 255, 255, 0.42);
+  background: rgba(208, 188, 255, 0.18);
 }
 
 .action-button--ghost {
-  background: rgba(233, 221, 255, 0.08);
-  color: rgba(245, 247, 251, 0.92);
-  box-shadow:
-    0 18px 38px rgba(38, 28, 72, 0.22),
-    inset 0 1px 0 rgba(255, 255, 255, 0.04);
-}
-
-.action-button--ghost:hover {
-  box-shadow:
-    0 22px 44px rgba(38, 28, 72, 0.28),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, rgba(208, 188, 255, 0.14), rgba(208, 188, 255, 0.08));
 }
 
 .action-button--ghost .action-button__icon {
-  background: rgba(208, 188, 255, 0.12);
+  background: rgba(208, 188, 255, 0.14);
 }
 
 .hero__points {
@@ -235,6 +249,8 @@ body::before {
 
 .hero__visual {
   position: relative;
+  width: min(100%, 620px);
+  margin: 0 auto;
   min-height: clamp(460px, 78vh, 860px);
 }
 
@@ -337,6 +353,7 @@ body::before {
 
   .hero__content {
     max-width: 680px;
+    margin: 0 auto;
   }
 
   .hero__visual {
@@ -352,6 +369,10 @@ body::before {
 
   .hero h1 {
     font-size: clamp(3rem, 18vw, 4.5rem);
+  }
+
+  .hero__title {
+    gap: 14px;
   }
 
   .hero__lead {
