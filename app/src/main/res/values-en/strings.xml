@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">TokenMonitor</string>
+    <string name="app_name">CoinMonitor</string>
 
     <string name="tab_home">Home</string>
     <string name="tab_search">Search</string>
@@ -77,7 +77,7 @@
     <string name="overlay_empty_state">Add floating pairs from the home page first.</string>
     <string name="overlay_page_format">Page %1$s</string>
 
-    <string name="overlay_notification_title">TokenMonitor floating window is running</string>
+    <string name="overlay_notification_title">CoinMonitor floating window is running</string>
     <string name="overlay_notification_text">The floating price panel refreshes every 3 seconds.</string>
     <string name="overlay_notification_stop">Close floating window</string>
     <string name="overlay_channel_name">Floating window service</string>

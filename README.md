@@ -1,9 +1,9 @@
-# TokenMonitor
+# CoinMonitor
 
-`TokenMonitor` 是基于当前 `coinbar` 需求重新实现的 Android 简化版项目，重点能力是：
+`CoinMonitor` 是一个盯盘币价的 Android 项目，重点能力是：
 
 - 首页只保留币对列表和 `+` 搜索入口
-- 搜索来源对齐 macOS 版：Binance Alpha / Binance / OKX
+- 搜索来源覆盖 Binance Alpha / Binance / OKX
 - 支持添加、删除、长按加入悬浮窗
 - 悬浮窗配置页支持启用、锁定拖动、透明度、最大展示数量
 - 悬浮窗通过前台服务常驻，默认每 `3 秒` 刷新一次价格
@@ -20,7 +20,7 @@
 ## 目录结构
 
 ```text
-app/src/main/java/io/coinbar/tokenmonitor/
+app/src/main/java/io/baiyanwu/CoinMonitor/
   boot/        开机恢复、升级恢复、有限自恢复广播
   data/        数据库、网络、仓库实现
   domain/      核心模型和仓库接口
@@ -31,14 +31,14 @@ app/src/main/java/io/coinbar/tokenmonitor/
 ## 运行方式
 
 ```bash
-cd /Users/baiyanwu/Documents/work/code/myproject/TokenMonitor
+cd <project-root>
 ./gradlew :app:assembleDebug
 ```
 
 如果需要安装到设备：
 
 ```bash
-cd /Users/baiyanwu/Documents/work/code/myproject/TokenMonitor
+cd <project-root>
 ./gradlew :app:installDebug
 ```
 

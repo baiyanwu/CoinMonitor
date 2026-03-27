@@ -1,10 +1,10 @@
-package io.coinbar.tokenmonitor
+package io.baiyanwu.coinmonitor
 
-import io.coinbar.tokenmonitor.domain.model.ExchangeSource
-import io.coinbar.tokenmonitor.domain.model.WatchItem
-import io.coinbar.tokenmonitor.overlay.OverlayBatchPlanner
-import io.coinbar.tokenmonitor.overlay.PriceTextSizer
-import io.coinbar.tokenmonitor.overlay.QuoteFormatter
+import io.baiyanwu.coinmonitor.domain.model.ExchangeSource
+import io.baiyanwu.coinmonitor.domain.model.WatchItem
+import io.baiyanwu.coinmonitor.overlay.OverlayBatchPlanner
+import io.baiyanwu.coinmonitor.overlay.PriceTextSizer
+import io.baiyanwu.coinmonitor.overlay.QuoteFormatter
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

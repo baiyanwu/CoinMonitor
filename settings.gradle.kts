@@ -20,6 +20,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "TokenMonitor"
+rootProject.name = "CoinMonitor"
 include(":app")
 

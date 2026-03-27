@@ -7,11 +7,11 @@ plugins {
 }
 
 android {
-    namespace = "io.coinbar.tokenmonitor"
+    namespace = "io.baiyanwu.coinmonitor"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "io.coinbar.tokenmonitor"
+        applicationId = "io.baiyanwu.coinmonitor"
         minSdk = 26
         targetSdk = 35
         versionCode = 1

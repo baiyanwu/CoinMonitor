@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">TokenMonitor</string>
+    <string name="app_name">CoinMonitor</string>
 
     <string name="tab_home">首页</string>
     <string name="tab_search">搜索</string>
@@ -77,7 +77,7 @@
     <string name="overlay_empty_state">请先在首页添加悬浮币对</string>
     <string name="overlay_page_format">轮播 %1$s</string>
 
-    <string name="overlay_notification_title">TokenMonitor 悬浮窗运行中</string>
+    <string name="overlay_notification_title">CoinMonitor 悬浮窗运行中</string>
     <string name="overlay_notification_text">悬浮价格面板会每 3 秒刷新一次。</string>
     <string name="overlay_notification_stop">关闭悬浮窗</string>
     <string name="overlay_channel_name">悬浮窗服务</string>
