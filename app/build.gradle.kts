@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -11,6 +13,29 @@ ksp {
     arg("room.generateKotlin", "true")
     arg("room.incremental", "true")
 }
+
+val localProperties = Properties().apply {
+    val propertiesFile = rootProject.file("local.properties")
+    if (propertiesFile.exists()) {
+        propertiesFile.inputStream().use(::load)
+    }
+}
+
+fun readSigningProperty(localKey: String, envKey: String): String? {
+    return localProperties.getProperty(localKey)?.takeIf { it.isNotBlank() }
+        ?: System.getenv(envKey)?.takeIf { it.isNotBlank() }
+}
+
+val releaseStoreFile = readSigningProperty("release.storeFile", "ANDROID_RELEASE_STORE_FILE")
+val releaseStorePassword = readSigningProperty("release.storePassword", "ANDROID_RELEASE_STORE_PASSWORD")
+val releaseKeyAlias = readSigningProperty("release.keyAlias", "ANDROID_RELEASE_KEY_ALIAS")
+val releaseKeyPassword = readSigningProperty("release.keyPassword", "ANDROID_RELEASE_KEY_PASSWORD")
+val hasReleaseSigning = listOf(
+    releaseStoreFile,
+    releaseStorePassword,
+    releaseKeyAlias,
+    releaseKeyPassword
+).all { !it.isNullOrBlank() }
 
 android {
     namespace = "io.baiyanwu.coinmonitor"
@@ -29,9 +54,23 @@ android {
         }
     }
 
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = file(requireNotNull(releaseStoreFile))
+                storePassword = requireNotNull(releaseStorePassword)
+                keyAlias = requireNotNull(releaseKeyAlias)
+                keyPassword = requireNotNull(releaseKeyPassword)
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

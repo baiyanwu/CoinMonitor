@@ -7,3 +7,9 @@
 /captures
 **/build
 
+# Signing files
+/keystore/
+*.jks
+*.keystore
+*.pem
+*.p12

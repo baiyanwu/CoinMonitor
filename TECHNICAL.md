@@ -78,3 +78,26 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 - 不要把任何私有 API Key、鉴权头或内部环境地址写入仓库
 - 当前数据源均为公开接口，不依赖额外密钥
 - 若后续接入第三方密钥，请统一改为 `local.properties` / CI secrets 注入
+
+## Release Signing
+
+本地签名和 CI 签名都已经预留好接入点：
+
+- 本地开发默认从 `local.properties` 读取 release 签名参数
+- GitHub Actions 默认从 secrets 注入 release 签名参数
+
+本地参数键如下：
+
+- `release.storeFile`
+- `release.storePassword`
+- `release.keyAlias`
+- `release.keyPassword`
+
+GitHub Actions secrets 约定如下：
+
+- `ANDROID_KEYSTORE_BASE64`
+- `ANDROID_RELEASE_STORE_PASSWORD`
+- `ANDROID_RELEASE_KEY_ALIAS`
+- `ANDROID_RELEASE_KEY_PASSWORD`
+
+其中 `ANDROID_KEYSTORE_BASE64` 需要由 keystore 文件 base64 编码后写入 GitHub Secrets。
