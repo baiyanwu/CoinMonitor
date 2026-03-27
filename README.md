@@ -1,80 +1,166 @@
 # CoinMonitor
 
-`CoinMonitor` 是一个盯盘币价的 Android 项目，重点能力是：
+`CoinMonitor` 是一个基于 Android 的轻量级盯盘应用，聚焦“观察列表 + 悬浮窗盯盘”这条核心路径。
 
-- 首页只保留币对列表和 `+` 搜索入口
-- 搜索来源覆盖 Binance Alpha / Binance / OKX
-- 支持添加、删除、长按加入悬浮窗
-- 悬浮窗配置页支持启用、锁定拖动、透明度、最大展示数量
-- 设置页在“悬浮窗设置”入口下方提供刷新模式配置，支持自定义 `3-10 秒`、`30 秒`、`1 分钟`
-- 悬浮窗通过前台服务常驻，并跟随全局刷新时间轮询价格
-- 主 Activity 被关闭或从最近任务划掉后，前台服务继续维持悬浮窗和轮询
+它支持从 `Binance Alpha`、`Binance`、`OKX` 搜索现货交易对，加入观察列表后可以在应用内查看，也可以选择加入系统悬浮窗，配合前台服务持续刷新价格。
 
-## 技术栈
+## Highlights
+
+- Jetpack Compose 构建主界面，搜索页和悬浮窗设置页使用独立 `Activity` 承接
+- 支持 `Binance Alpha`、`Binance`、`OKX` 三个数据来源
+- 支持观察列表、手动刷新、长按加入悬浮窗
+- 悬浮窗支持启用、锁定拖动、透明度、最大展示数量、图标/币对名切换
+- 全局刷新间隔支持自定义 `3-10 秒`、`30 秒`、`1 分钟`
+- 悬浮窗通过前台服务维持运行，并在符合条件时尝试自恢复
+
+## Project Status
+
+项目仍处于早期阶段，当前更偏向可用的 MVP / Beta 版本。
+
+现阶段已经完成的工程收口：
+
+- 去除了默认破坏性数据库迁移策略，为后续正式 migration 留出空间
+- Room schema 已导出，便于后续版本演进
+- 悬浮窗启停规则已经统一，避免 UI 开关状态和真实运行状态不一致
+- 调试网络日志仅在 Debug 构建输出，Release 默认关闭
+
+## Screenshots / Assets
+
+当前仓库已附带应用图标素材：
+
+- [coinmonitor_app_icon.svg](./artwork/coinmonitor_app_icon.svg)
+
+如果你准备正式开源，建议后续再补 2-4 张截图：
+
+- 首页观察列表
+- 搜索页
+- 悬浮窗设置页
+- 实际悬浮窗效果
+
+这会显著提升 GitHub 首页的可读性和项目完成度。
+
+## Tech Stack
 
 - Kotlin
 - Jetpack Compose
 - Room
 - Retrofit + OkHttp + Kotlinx Serialization
-- ForegroundService + WindowManager Overlay
+- Foreground Service
+- WindowManager Overlay
 
-## 目录结构
+## Requirements
 
-```text
-app/src/main/java/io/baiyanwu/CoinMonitor/
-  boot/        开机恢复、升级恢复、有限自恢复广播
-  data/        数据库、网络、仓库实现
-  domain/      核心模型和仓库接口
-  overlay/     悬浮窗控制器、前台服务、轮询协调器
-  ui/          Compose 页面、导航、主题
-```
+- Android Studio Koala 及以上版本
+- JDK 17
+- Android `minSdk 26`
+- Android `targetSdk 35`
 
-## 运行方式
+## Quick Start
+
+### 1. Clone
 
 ```bash
-cd <project-root>
+git clone <your-repo-url>
+cd CoinMonitor
+```
+
+### 2. Build Debug APK
+
+```bash
 ./gradlew :app:assembleDebug
 ```
 
-如果需要安装到设备：
+### 3. Run Tests
 
 ```bash
-cd <project-root>
+./gradlew testDebugUnitTest :app:lintDebug
+```
+
+### 4. Install on Device
+
+```bash
 ./gradlew :app:installDebug
 ```
 
-## 当前实现说明
+## Features
 
-- 设置页已开放全局刷新时间配置，位置在“悬浮窗设置”入口卡片下方。
-- 刷新模式当前支持三种互斥选项：自定义 `3-10 秒`、`30 秒`、`1 分钟`，默认值为 `3 秒`。
-- 悬浮窗展示数量上限为 `10`，超过 `5` 个时按每批 `5` 个轮播。
-- 权限缺失时，设置页会引导用户去系统授权悬浮窗权限；只有权限满足后，悬浮窗才会被正式标记为启用并启动前台服务。
-- Android 系统设置中的“强行停止”会阻断自动恢复，这是系统限制，不是代码缺陷。
-- 首页右下角刷新按钮点击后会执行一次单圈旋转反馈，不会持续自转，避免把“正在刷新”和“可点击入口”混成同一类状态。
-- 搜索页和悬浮窗设置页已经从主 `NavHost` 中拆出，改为独立 `Activity` 承接，避免底部 `tab bar`、页面转场和内容区域尺寸联动后出现的重排与抖动。
-- 搜索页和悬浮窗设置页的根布局显式消费了顶部状态栏 inset。对 `targetSdk 35` 场景来说，这一步是必须的，不能只依赖宿主窗口自动避让，否则页面头部容易顶进状态栏。
-- 悬浮窗设置页顶部标题和返回按钮显式走主题色，夜间模式下不会出现文案或图标对比度不足的问题。
-- Room 已开启 schema 导出，并移除了默认破坏性迁移配置。当前 App 还未上线，因此本阶段只保留后续补正式 migration 的设计口子，不额外维护历史版本迁移脚本。
-- 网络层日志只在 Debug 构建输出，Release 默认关闭，避免把调试日志策略带入正式包。
+### Watchlist
 
-## 导航结构说明
+- 首页展示观察列表
+- 支持添加、删除、手动刷新
+- 长按单个币对可快速加入或移出悬浮窗
 
-- `MainActivity` 只承接首页和设置页两个底部 `tab`，这两个页面继续使用同一个 `Scaffold + NavHost` 维护主框架。
-- 搜索页使用独立的 `SearchActivity`，通过页面级转场进入和退出，不再参与底部导航区域的布局计算。
-- 悬浮窗设置页使用独立的 `OverlaySettingsActivity`，权限申请、返回手势和状态栏安全区都在页面自己的宿主里闭环处理。
-- 这次拆分的核心目的不是绕开 `Navigation Compose`，而是把“主框架导航”和“完整二级页”分层，减少底栏显隐、窗口 inset、页面动画三者相互耦合导致的问题。
+### Search
 
-## UI 实现约束
+- 支持关键字搜索
+- 搜索结果覆盖 `Binance Alpha / Binance / OKX`
+- 结果按来源稳定排序，便于快速筛选
 
-- 搜索页的紧凑搜索框使用 `BasicTextField + decorationBox` 实现，而不是继续强压 `OutlinedTextField`。
-  这样可以在保持 Android 风格的前提下，稳定控制高度、hint、光标和清空按钮布局，避免出现文本裁切或输入光标显示异常。
-- 当控件设计目标和当前库的默认规则存在冲突时，优先改成符合库规则的实现方式，不继续依赖极端内边距、强制高度或关闭最小交互约束等补丁式方案。
-- Compose 页面颜色、文案和控件状态都尽量走统一的主题 token 和资源字符串，后续换模板颜色或扩展多语言时不需要逐页回收硬编码。
+### Overlay
 
-## 已知设计取舍
+- 支持选择要展示的币对
+- 支持锁定拖动、透明度调节、最大展示数量限制
+- 选择数量超过 `5` 个时按每批 `5` 个轮播
+- 只有在悬浮窗权限满足时，应用才会把悬浮窗正式标记为启用
 
-- 搜索页的输入框已经改成自定义紧凑实现，这是为了兼顾移动端密度和 Compose 文本输入的稳定性。
-- 当前 App 内图标加载没有接入 `Glide`、`Coil` 之类第三方图库，而是使用 `OkHttp + 内存缓存 + 磁盘缓存` 的轻量方案。
-- 悬浮窗仍然使用 `WindowManager + View`，没有改成 Compose，这是为了降低系统悬浮场景下的重排、生命周期和兼容性风险。
-- 首页刷新按钮的旋转动效使用单次 `Animatable` 驱动，而不是无限循环动画。这样更符合“手动刷新一次”的交互语义，也避免用户误以为后台存在永不结束的刷新任务。
-- 悬浮窗运行条件由统一策略集中判断，`MainActivity`、权限页、恢复广播和前台服务不再各自维护一套启停规则，避免出现 UI 状态和真实运行状态不一致。
+### Refresh Strategy
+
+- 全局刷新间隔统一配置
+- 当前支持：
+  - 自定义 `3-10 秒`
+  - `30 秒`
+  - `1 分钟`
+- 首页轮询和悬浮窗轮询使用同一套全局刷新策略
+
+## Architecture
+
+```text
+app/src/main/java/io/baiyanwu/coinmonitor/
+  boot/        开机恢复、升级恢复、自恢复广播
+  data/        数据库、网络、仓库实现
+  domain/      核心模型和仓库接口
+  overlay/     悬浮窗控制器、前台服务、轮询协调器
+  ui/          Compose 页面、主题、Activity 宿主
+```
+
+整体设计偏向简单直接的单模块结构，优先保证可维护性和演进空间，而不是过早做复杂模块拆分。
+
+## Open Source Notes
+
+当前仓库适合公开，但在真正推到 GitHub 前后，建议保持下面这些约束：
+
+- 不要提交 `local.properties`
+- 不要提交签名文件、私钥、发行版 keystore
+- 不要把任何私有 API Key、鉴权头或内部环境地址写入仓库
+- 当前数据源均为公开接口，不依赖额外密钥
+- 若后续接入第三方密钥，请统一改为 `local.properties` / CI secrets 注入
+
+## Roadmap
+
+- 补充 GitHub 首页截图
+- 增加更多单元测试和 UI 测试
+- 评估是否接入正式的版本发布流程
+- 后续版本数据库演进时补充显式 migration
+- 根据开源反馈继续优化多语言、可访问性和异常处理
+
+## Contributing
+
+欢迎提交 Issue 和 Pull Request。
+
+在发起 PR 前，请至少确认：
+
+```bash
+./gradlew testDebugUnitTest :app:assembleDebug :app:lintDebug
+```
+
+更多说明请查看 [CONTRIBUTING.md](./CONTRIBUTING.md)。
+
+## Disclaimer
+
+- 本项目仅用于技术交流与个人学习，不构成任何投资建议
+- `Binance`、`OKX` 等名称和接口归各自平台所有
+- 加密资产价格波动较大，请谨慎使用
+
+## License
+
+本项目采用 [Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0) 许可证，详情见 [LICENSE](./LICENSE)。
