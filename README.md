@@ -37,7 +37,7 @@
 ## Quick Start
 
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/baiyanwu/CoinMonitor.git
 cd CoinMonitor
 ./gradlew :app:assembleDebug
 ./gradlew testDebugUnitTest :app:lintDebug
