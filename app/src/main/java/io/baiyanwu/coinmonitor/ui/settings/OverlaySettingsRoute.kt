@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.draw.alpha
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material3.Button
@@ -29,17 +28,19 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.baiyanwu.coinmonitor.data.AppContainer
 import io.baiyanwu.coinmonitor.domain.model.OverlayLeadingDisplayMode
+import io.baiyanwu.coinmonitor.overlay.OverlayRuntimePolicy
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorComponentDefaults
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 import io.baiyanwu.coinmonitor.R
@@ -59,7 +60,7 @@ fun OverlaySettingsRoute(
     onStopOverlay: () -> Unit
 ) {
     val viewModel: OverlaySettingsViewModel = viewModel(factory = OverlaySettingsViewModel.factory(container))
-    val state by viewModel.uiState.collectAsState()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
 
     OverlaySettingsScreen(
@@ -71,17 +72,23 @@ fun OverlaySettingsRoute(
         onRequestNotificationPermission = onRequestNotificationPermission,
         onEnabledChange = { enabled ->
             scope.launch {
-                viewModel.setEnabled(enabled)
                 if (enabled) {
                     if (!notificationPermissionGranted) {
                         onRequestNotificationPermission()
                     }
-                    if (!overlayPermissionGranted) {
+                    val shouldEnable = OverlayRuntimePolicy.shouldPersistEnabled(
+                        requestedEnabled = true,
+                        canDrawOverlays = overlayPermissionGranted
+                    )
+                    viewModel.setEnabled(shouldEnable)
+                    if (!shouldEnable) {
+                        onStopOverlay()
                         onRequestOverlayPermission()
                     } else {
                         onStartOverlay()
                     }
                 } else {
+                    viewModel.setEnabled(false)
                     onStopOverlay()
                 }
             }
@@ -185,7 +192,11 @@ private fun OverlaySettingsScreen(
                     )
 
                     Text(
-                        text = stringResource(R.string.overlay_max_items_format, state.settings.maxItems),
+                        text = pluralStringResource(
+                            id = R.plurals.overlay_max_items,
+                            count = state.settings.maxItems,
+                            state.settings.maxItems
+                        ),
                         style = MaterialTheme.typography.titleSmall
                     )
                     Slider(

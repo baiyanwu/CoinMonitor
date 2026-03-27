@@ -22,7 +22,7 @@ class AppContainer(context: Context) {
         appContext,
         CoinMonitorDatabase::class.java,
         "coin_monitor.db"
-    ).fallbackToDestructiveMigration().build()
+    ).build()
 
     private val networkFactory = NetworkFactory()
 

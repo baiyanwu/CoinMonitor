@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.baiyanwu.coinmonitor.overlay.CoinIconService
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
@@ -26,10 +27,12 @@ import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 @Composable
 fun CoinSymbolIcon(
     symbol: String,
-    modifier: Modifier = Modifier.size(20.dp)
+    modifier: Modifier = Modifier,
+    size: Dp = 20.dp
 ) {
     val context = LocalContext.current
     var bitmap by remember(symbol) { mutableStateOf<Bitmap?>(null) }
+    val iconModifier = modifier.size(size)
 
     LaunchedEffect(symbol) {
         bitmap = CoinIconService.Companion.get(context).loadBitmap(symbol)
@@ -39,10 +42,10 @@ fun CoinSymbolIcon(
         Image(
             bitmap = bitmap!!.asImageBitmap(),
             contentDescription = null,
-            modifier = modifier.clip(CircleShape)
+            modifier = iconModifier.clip(CircleShape)
         )
     } else {
-        GenericCoinPlaceholder(modifier = modifier)
+        GenericCoinPlaceholder(modifier = iconModifier)
     }
 }
 

@@ -29,7 +29,6 @@
     <string name="search_input_hint">搜索 Binance/OKX 等</string>
     <string name="search_action">搜索 Binance / Binance Alpha / OKX</string>
     <string name="search_submit">开始搜索</string>
-    <string name="search_result_count">共 %1$d 条结果</string>
     <string name="search_loading">搜索中…</string>
     <string name="search_empty">还没有搜索结果，输入关键词后开始搜索。</string>
     <string name="search_empty_initial">输入币种关键词后开始搜索</string>
@@ -72,7 +71,6 @@
     <string name="overlay_opacity_format">透明度 %1$d%%</string>
     <string name="overlay_transparent">更透明</string>
     <string name="overlay_visible">更明显</string>
-    <string name="overlay_max_items_format">最多展示 %1$d 个币对</string>
     <string name="overlay_rotation_hint">当选择数量超过 5 个时，悬浮窗会自动切成每批 5 个轮播显示。</string>
     <string name="overlay_permission_message">当前还没有授予“显示在其他应用上层”权限。</string>
     <string name="overlay_permission_action">去授权悬浮权限</string>

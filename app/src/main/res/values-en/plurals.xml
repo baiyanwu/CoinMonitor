@@ -1,0 +1,6 @@
+<resources>
+    <plurals name="overlay_max_items">
+        <item quantity="one">Maximum %1$d pair</item>
+        <item quantity="other">Maximum %1$d pairs</item>
+    </plurals>
+</resources>

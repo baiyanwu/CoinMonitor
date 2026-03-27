@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.lifecycle.lifecycleScope
 import io.baiyanwu.coinmonitor.appContainer
 import io.baiyanwu.coinmonitor.overlay.OverlayPermissionHelper
+import io.baiyanwu.coinmonitor.overlay.OverlayRuntimePolicy
 import io.baiyanwu.coinmonitor.overlay.OverlayServiceController
 import io.baiyanwu.coinmonitor.ui.navigation.CoinMonitorNavHost
 import io.baiyanwu.coinmonitor.ui.search.SearchActivity
@@ -26,9 +27,13 @@ class MainActivity : CoinMonitorComposeActivity() {
         super.onResume()
         lifecycleScope.launch {
             val settings = appContainer().overlayRepository.getSettings()
-            if (settings.enabled && OverlayPermissionHelper.canDrawOverlays(this@MainActivity)) {
+            val canDrawOverlays = OverlayPermissionHelper.canDrawOverlays(this@MainActivity)
+            if (OverlayRuntimePolicy.shouldRunOverlay(settings.enabled, canDrawOverlays)) {
                 OverlayServiceController.start(this@MainActivity)
-            } else if (!settings.enabled) {
+            } else {
+                if (settings.enabled && !canDrawOverlays) {
+                    appContainer().overlayRepository.setEnabled(false)
+                }
                 OverlayServiceController.stop(this@MainActivity)
             }
         }

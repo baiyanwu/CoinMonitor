@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import io.baiyanwu.coinmonitor.appContainer
 import io.baiyanwu.coinmonitor.overlay.OverlayPermissionHelper
+import io.baiyanwu.coinmonitor.overlay.OverlayRuntimePolicy
 import io.baiyanwu.coinmonitor.overlay.OverlayServiceController
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -16,8 +17,11 @@ class OverlayRestoreReceiver : BroadcastReceiver() {
         CoroutineScope(Dispatchers.IO).launch {
             runCatching {
                 val settings = context.appContainer().overlayRepository.getSettings()
-                if (settings.enabled && OverlayPermissionHelper.canDrawOverlays(context)) {
+                val canDrawOverlays = OverlayPermissionHelper.canDrawOverlays(context)
+                if (OverlayRuntimePolicy.shouldRunOverlay(settings.enabled, canDrawOverlays)) {
                     OverlayServiceController.start(context)
+                } else if (settings.enabled && !canDrawOverlays) {
+                    context.appContainer().overlayRepository.setEnabled(false)
                 }
             }
             pendingResult.finish()

@@ -60,24 +60,35 @@ class OverlayForegroundService : Service() {
                     appContainer().overlayRepository.setEnabled(false)
                     stopSelfSafely()
                 }
+                return START_NOT_STICKY
             }
 
             ACTION_REFRESH_NOW -> {
                 startForegroundIfNeeded()
                 serviceScope.launch {
-                    coordinator.refreshNow()
+                    val settings = appContainer().overlayRepository.getSettings()
+                    val canDrawOverlays = OverlayPermissionHelper.canDrawOverlays(this@OverlayForegroundService)
+                    if (OverlayRuntimePolicy.shouldRunOverlay(settings.enabled, canDrawOverlays)) {
+                        coordinator.refreshNow()
+                    } else {
+                        if (settings.enabled && !canDrawOverlays) {
+                            appContainer().overlayRepository.setEnabled(false)
+                        }
+                        stopSelfSafely()
+                    }
                 }
+                return START_NOT_STICKY
             }
 
             ACTION_START, null -> {
                 startForegroundIfNeeded()
                 serviceScope.launch {
                     val settings = appContainer().overlayRepository.getSettings()
-                    if (!settings.enabled) {
-                        appContainer().overlayRepository.setEnabled(true)
-                    }
-
-                    if (!OverlayPermissionHelper.canDrawOverlays(this@OverlayForegroundService)) {
+                    val canDrawOverlays = OverlayPermissionHelper.canDrawOverlays(this@OverlayForegroundService)
+                    if (!OverlayRuntimePolicy.shouldRunOverlay(settings.enabled, canDrawOverlays)) {
+                        if (settings.enabled && !canDrawOverlays) {
+                            appContainer().overlayRepository.setEnabled(false)
+                        }
                         stopSelfSafely()
                         return@launch
                     }
@@ -86,10 +97,11 @@ class OverlayForegroundService : Service() {
                     windowController.showOrUpdate(items, latestSettings)
                     coordinator.refreshNow()
                 }
+                return START_STICKY
             }
-        }
 
-        return START_STICKY
+            else -> return START_NOT_STICKY
+        }
     }
 
     override fun onDestroy() {
@@ -100,7 +112,17 @@ class OverlayForegroundService : Service() {
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
-        scheduleRestart()
+        serviceScope.launch {
+            val settings = appContainer().overlayRepository.getSettings()
+            if (
+                OverlayRuntimePolicy.shouldRunOverlay(
+                    settingsEnabled = settings.enabled,
+                    canDrawOverlays = OverlayPermissionHelper.canDrawOverlays(this@OverlayForegroundService)
+                )
+            ) {
+                scheduleRestart()
+            }
+        }
         super.onTaskRemoved(rootIntent)
     }
 

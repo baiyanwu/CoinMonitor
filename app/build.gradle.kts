@@ -6,6 +6,12 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+    arg("room.generateKotlin", "true")
+    arg("room.incremental", "true")
+}
+
 android {
     namespace = "io.baiyanwu.coinmonitor"
     compileSdk = 35

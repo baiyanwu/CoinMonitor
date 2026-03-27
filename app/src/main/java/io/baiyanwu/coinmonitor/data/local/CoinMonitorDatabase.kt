@@ -8,7 +8,7 @@ import io.baiyanwu.coinmonitor.data.local.dao.WatchItemDao
 @Database(
     entities = [WatchItemEntity::class, OverlaySettingsEntity::class],
     version = 4,
-    exportSchema = false
+    exportSchema = true
 )
 abstract class CoinMonitorDatabase : RoomDatabase() {
     abstract fun watchItemDao(): WatchItemDao

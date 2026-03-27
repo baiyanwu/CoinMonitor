@@ -1,0 +1,6 @@
+<resources>
+    <plurals name="overlay_max_items">
+        <item quantity="one">最多展示 %1$d 个币对</item>
+        <item quantity="other">最多展示 %1$d 个币对</item>
+    </plurals>
+</resources>

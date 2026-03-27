@@ -29,7 +29,6 @@
     <string name="search_input_hint">Search Binance/OKX etc.</string>
     <string name="search_action">Search Binance / Binance Alpha / OKX</string>
     <string name="search_submit">Search</string>
-    <string name="search_result_count">%1$d results</string>
     <string name="search_loading">Searching…</string>
     <string name="search_empty">No results yet. Enter a keyword to begin searching.</string>
     <string name="search_empty_initial">Enter a symbol to start searching</string>
@@ -72,7 +71,6 @@
     <string name="overlay_opacity_format">Opacity %1$d%%</string>
     <string name="overlay_transparent">More transparent</string>
     <string name="overlay_visible">More visible</string>
-    <string name="overlay_max_items_format">Maximum %1$d pairs</string>
     <string name="overlay_rotation_hint">When more than 5 pairs are selected, the floating window rotates them in groups of 5.</string>
     <string name="overlay_permission_message">Display-over-other-apps permission is still missing.</string>
     <string name="overlay_permission_action">Grant overlay permission</string>
