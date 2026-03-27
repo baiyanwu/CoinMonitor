@@ -3,6 +3,7 @@ package io.baiyanwu.coinmonitor.ui.home
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -40,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.baiyanwu.coinmonitor.data.AppContainer
@@ -52,12 +54,14 @@ import kotlinx.coroutines.launch
 @Composable
 fun HomeRoute(
     container: AppContainer,
+    contentBottomInset: Dp = 0.dp,
     onNavigateSearch: () -> Unit
 ) {
     val viewModel: HomeViewModel = viewModel(factory = HomeViewModel.factory(container))
     val state by viewModel.uiState.collectAsState()
     HomeScreen(
         state = state,
+        contentBottomInset = contentBottomInset,
         onNavigateSearch = onNavigateSearch,
         onRemoveWatchItem = viewModel::removeWatchItem,
         onToggleOverlay = viewModel::toggleOverlay,
@@ -68,6 +72,7 @@ fun HomeRoute(
 @Composable
 private fun HomeScreen(
     state: HomeUiState,
+    contentBottomInset: Dp,
     onNavigateSearch: () -> Unit,
     onRemoveWatchItem: (String) -> Unit,
     onToggleOverlay: (String) -> Unit,
@@ -76,7 +81,12 @@ private fun HomeScreen(
     var menuItemId by remember { mutableStateOf<String?>(null) }
     val colors = CoinMonitorThemeTokens.colors
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(colors.pageBackground)
+            .padding(bottom = contentBottomInset)
+    ) {
         Column(modifier = Modifier.fillMaxSize()) {
             Row(
                 modifier = Modifier

@@ -1,5 +1,6 @@
 package io.baiyanwu.coinmonitor.ui.settings
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -31,6 +32,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.baiyanwu.coinmonitor.data.AppContainer
@@ -46,6 +48,7 @@ import kotlin.math.roundToInt
 @Composable
 fun SettingsRoute(
     container: AppContainer,
+    contentBottomInset: Dp = 0.dp,
     onNavigateOverlaySettings: () -> Unit
 ) {
     val viewModel: SettingsViewModel = viewModel(factory = SettingsViewModel.factory(container))
@@ -53,6 +56,7 @@ fun SettingsRoute(
 
     SettingsScreen(
         state = state,
+        contentBottomInset = contentBottomInset,
         onNavigateOverlaySettings = onNavigateOverlaySettings,
         onThemeModeChange = viewModel::setThemeMode,
         onLanguageChange = viewModel::setLanguage,
@@ -64,12 +68,14 @@ fun SettingsRoute(
 @Composable
 private fun SettingsScreen(
     state: SettingsUiState,
+    contentBottomInset: Dp,
     onNavigateOverlaySettings: () -> Unit,
     onThemeModeChange: (AppThemeMode) -> Unit,
     onLanguageChange: (AppLanguage) -> Unit,
     onRefreshIntervalModeChange: (RefreshIntervalMode) -> Unit,
     onRefreshIntervalChange: (Int) -> Unit
 ) {
+    val colors = CoinMonitorThemeTokens.colors
     val refreshIntervalMode = state.preferences.refreshIntervalMode
     val customModeSelected = refreshIntervalMode == RefreshIntervalMode.CUSTOM
     val thirtySecondsModeSelected = refreshIntervalMode == RefreshIntervalMode.THIRTY_SECONDS
@@ -81,7 +87,8 @@ private fun SettingsScreen(
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 14.dp, vertical = 12.dp),
+            .background(colors.pageBackground)
+            .padding(start = 14.dp, top = 12.dp, end = 14.dp, bottom = 12.dp + contentBottomInset),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {

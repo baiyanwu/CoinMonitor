@@ -29,6 +29,14 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name="io.baiyanwu.coinmonitor.ui.search.SearchActivity"
+            android:exported="false" />
+
+        <activity
+            android:name="io.baiyanwu.coinmonitor.ui.settings.OverlaySettingsActivity"
+            android:exported="false" />
+
         <service
             android:name="io.baiyanwu.coinmonitor.overlay.OverlayForegroundService"
             android:enabled="true"

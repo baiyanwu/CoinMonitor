@@ -1,5 +1,6 @@
 package io.baiyanwu.coinmonitor.ui.settings
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.alpha
@@ -119,35 +121,13 @@ private fun OverlaySettingsScreen(
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
+            .background(CoinMonitorThemeTokens.colors.pageBackground)
+            .statusBarsPadding()
             .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(46.dp),
-                contentAlignment = Alignment.CenterStart
-            ) {
-                Text(
-                    text = stringResource(R.string.overlay_settings_title),
-                    style = MaterialTheme.typography.titleLarge,
-                    modifier = Modifier.padding(start = 34.dp)
-                )
-                Box(
-                    modifier = Modifier
-                        .size(48.dp)
-                        .offset(x = (-10).dp)
-                        .clickable(onClick = onBack),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                        contentDescription = stringResource(R.string.common_back),
-                        modifier = Modifier.size(26.dp)
-                    )
-                }
-            }
+            OverlaySettingsTopBar(onBack = onBack)
         }
 
         item {
@@ -282,6 +262,7 @@ private fun OverlaySettingsScreen(
                                 SettingSwitchRow(
                                     title = item.symbol,
                                     horizontalPadding = 0.dp,
+                                    verticalPadding = 0.dp,
                                     checked = item.overlaySelected,
                                     onCheckedChange = { onToggleItem(item.id) }
                                 )
@@ -301,38 +282,50 @@ private fun OverlaySettingsLoadingScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .background(CoinMonitorThemeTokens.colors.pageBackground)
+            .statusBarsPadding()
             .padding(horizontal = 14.dp, vertical = 12.dp)
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(46.dp),
-            contentAlignment = Alignment.CenterStart
-        ) {
-            Text(
-                text = stringResource(R.string.overlay_settings_title),
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(start = 34.dp)
-            )
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .offset(x = (-10).dp)
-                    .clickable(onClick = onBack),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                    contentDescription = stringResource(R.string.common_back),
-                    modifier = Modifier.size(26.dp)
-                )
-            }
-        }
+        OverlaySettingsTopBar(onBack = onBack)
 
         CircularProgressIndicator(
             modifier = Modifier.align(Alignment.Center),
             color = CoinMonitorThemeTokens.colors.accent
         )
+    }
+}
+
+@Composable
+private fun OverlaySettingsTopBar(
+    onBack: () -> Unit
+) {
+    val colors = CoinMonitorThemeTokens.colors
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(46.dp),
+        contentAlignment = Alignment.CenterStart
+    ) {
+        Text(
+            text = stringResource(R.string.overlay_settings_title),
+            style = MaterialTheme.typography.titleLarge,
+            color = colors.primaryText,
+            modifier = Modifier.padding(start = 34.dp)
+        )
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .offset(x = (-10).dp)
+                .clickable(onClick = onBack),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                contentDescription = stringResource(R.string.common_back),
+                modifier = Modifier.size(26.dp),
+                tint = colors.primaryText
+            )
+        }
     }
 }
 
