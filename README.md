@@ -11,7 +11,7 @@
 项目当前主要通过 `vibecoding` 的方式完成设计、实现和迭代，在保证可运行与可维护的前提下快速推进功能落地。
 
 <div align="center">
-  <img src="./artwork/screenshot.png" alt="CoinMonitor homepage preview" width="320" />
+  <img src="./artwork/screenshot.png" alt="CoinMonitor homepage preview" width="960" />
 </div>
 
 
