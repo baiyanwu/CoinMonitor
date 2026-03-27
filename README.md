@@ -1,35 +1,41 @@
 <div align="center">
   <img src="./artwork/coinmonitor_app_icon.svg" alt="CoinMonitor app icon" width="96" height="96" />
   <h1>CoinMonitor</h1>
-  <p>一个专注于观察列表与悬浮窗盯盘体验的 Android 币价监控应用。</p>
+  <p>A lightweight Android crypto price monitor built around a watchlist and system overlay workflow.</p>
 </div>
 
-`CoinMonitor` 是一个基于 Android 的轻量级盯盘应用，聚焦“观察列表 + 悬浮窗盯盘”这条核心路径。
+<p align="center">
+  <a href="./README.zh-CN.md">简体中文</a>
+  ·
+  <a href="./TECHNICAL.md">Technical Notes</a>
+  ·
+  <a href="./LICENSE">Apache-2.0</a>
+</p>
 
-它支持从 `Binance Alpha`、`Binance`、`OKX` 搜索现货交易对，加入观察列表后可以在应用内查看，也可以选择加入系统悬浮窗，配合前台服务持续刷新价格。
+`CoinMonitor` is an Android app focused on one simple path: search pairs, add them to a watchlist, and optionally pin selected pairs into a floating overlay for quick monitoring across apps.
 
-项目当前主要通过 `vibecoding` 的方式完成设计、实现和迭代，在保证可运行与可维护的前提下快速推进功能落地。
+It supports spot pair search from `Binance Alpha`, `Binance`, and `OKX`. Once a pair is added, you can track it inside the app or send it to the overlay, where a foreground service keeps prices refreshed in the background.
+
+This project is currently designed and iterated primarily through `vibecoding`, while still being kept in a conventional Android project structure so it stays runnable, readable, and maintainable.
 
 <div align="center">
-  <img src="./artwork/screenshot.png" alt="CoinMonitor homepage preview" width="960" />
+  <img src="./artwork/screenshot.png" alt="CoinMonitor preview" width="960" />
 </div>
 
+---
 
-----
+## Highlights
 
-
-## 功能
-
-- 支持 `Binance Alpha`、`Binance`、`OKX` 三个数据来源
-- 支持观察列表、手动刷新、长按加入悬浮窗
-- 悬浮窗支持启用、锁定拖动、透明度、最大展示数量、图标/币对名切换
-- 全局刷新间隔支持自定义 `3-10 秒`、`30 秒`、`1 分钟`
-- 悬浮窗通过前台服务维持运行，并在符合条件时尝试自恢复
-
+- Search spot pairs from `Binance Alpha`, `Binance`, and `OKX`
+- Maintain a watchlist with manual refresh and long-press quick actions
+- Add or remove items from the floating overlay directly from the home screen
+- Configure overlay behavior including drag lock, opacity, max item count, and leading display mode
+- Use shared refresh intervals across the home screen and overlay: custom `3-10s`, `30s`, or `1 min`
+- Keep the overlay alive with a foreground service and restore it only when runtime conditions are still valid
 
 ## Requirements
 
-- Android Studio Koala 及以上版本
+- Android Studio Koala or newer
 - JDK 17
 - Android `minSdk 26`
 - Android `targetSdk 35`
@@ -44,20 +50,25 @@ cd CoinMonitor
 ./gradlew :app:installDebug
 ```
 
+## Documentation
+
+- Technical implementation: [TECHNICAL.md](./TECHNICAL.md)
+- Chinese README: [README.zh-CN.md](./README.zh-CN.md)
+- Contributing guide: [CONTRIBUTING.md](./CONTRIBUTING.md)
+
 ## Roadmap
 
-- 链上币对
-- k 线样式
-- AI 分析
-- todo
-
+- On-chain pair support
+- K-line style views
+- AI-assisted analysis
+- More watchlist and overlay polish
 
 ## Disclaimer
 
-- 本项目仅用于技术交流与个人学习，不构成任何投资建议
-- `Binance`、`OKX` 等名称和接口归各自平台所有
-- 本项目不提供任何交易接口，仅提供价格参考，加密资产价格波动较大，请谨慎使用
+- This project is for technical exploration and personal learning only and does not constitute investment advice.
+- `Binance`, `OKX`, and other platform names or APIs belong to their respective owners.
+- The app does not provide trading execution. It only displays reference prices, and crypto assets are highly volatile.
 
 ## License
 
-本项目采用 [Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0) 许可证，详情见 [LICENSE](./LICENSE)。
+This project is licensed under [Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0). See [LICENSE](./LICENSE) for details.

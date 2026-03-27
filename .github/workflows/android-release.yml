@@ -1,0 +1,132 @@
+name: Android Release
+
+on:
+  release:
+    types:
+      - published
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Git ref to build when running manually
+        required: false
+        default: main
+      release_tag:
+        description: Existing GitHub Release tag to upload assets to when running manually
+        required: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-release-${{ github.event.release.tag_name || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Resolve target ref
+        id: target
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          MANUAL_REF: ${{ github.event.inputs.ref }}
+          MANUAL_RELEASE_TAG: ${{ github.event.inputs.release_tag }}
+        run: |
+          if [ "$EVENT_NAME" = "release" ]; then
+            echo "ref=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+            echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+            echo "artifact_suffix=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+          else
+            RESOLVED_REF="${MANUAL_REF:-main}"
+            echo "ref=$RESOLVED_REF" >> "$GITHUB_OUTPUT"
+            echo "release_tag=${MANUAL_RELEASE_TAG}" >> "$GITHUB_OUTPUT"
+            echo "artifact_suffix=${MANUAL_RELEASE_TAG:-manual-${GITHUB_SHA}}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.target.outputs.ref }}
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Grant execute permission for Gradle
+        run: chmod +x gradlew
+
+      - name: Validate signing configuration
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_RELEASE_STORE_PASSWORD: ${{ secrets.ANDROID_RELEASE_STORE_PASSWORD }}
+          ANDROID_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}
+          ANDROID_RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEY_PASSWORD }}
+        run: |
+          test -n "$ANDROID_KEYSTORE_BASE64"
+          test -n "$ANDROID_RELEASE_STORE_PASSWORD"
+          test -n "$ANDROID_RELEASE_KEY_ALIAS"
+          test -n "$ANDROID_RELEASE_KEY_PASSWORD"
+
+      - name: Restore release keystore
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          mkdir -p keystore
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > keystore/coinmonitor-release.jks
+
+      - name: Run unit tests
+        run: ./gradlew testDebugUnitTest
+
+      - name: Run lint
+        run: ./gradlew :app:lintDebug
+
+      - name: Build signed release APK
+        env:
+          ANDROID_RELEASE_STORE_FILE: ${{ github.workspace }}/keystore/coinmonitor-release.jks
+          ANDROID_RELEASE_STORE_PASSWORD: ${{ secrets.ANDROID_RELEASE_STORE_PASSWORD }}
+          ANDROID_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}
+          ANDROID_RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEY_PASSWORD }}
+        run: ./gradlew :app:assembleRelease
+
+      - name: Upload release APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coinmonitor-release-apk-${{ steps.target.outputs.artifact_suffix }}
+          path: app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload lint report artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coinmonitor-lint-report-${{ steps.target.outputs.artifact_suffix }}
+          path: app/build/reports/lint-results-debug.html
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload mapping artifact
+        if: ${{ hashFiles('app/build/outputs/mapping/release/**') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: coinmonitor-release-mapping-${{ steps.target.outputs.artifact_suffix }}
+          path: app/build/outputs/mapping/release/**
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Upload release assets to GitHub Release
+        if: ${{ steps.target.outputs.release_tag != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.target.outputs.release_tag }}
+        run: |
+          gh release upload "$RELEASE_TAG" app/build/outputs/apk/release/*.apk --repo "$GITHUB_REPOSITORY" --clobber
+          if [ -d app/build/outputs/mapping/release ]; then
+            find app/build/outputs/mapping/release -type f -maxdepth 1 -print0 | while IFS= read -r -d '' file; do
+              gh release upload "$RELEASE_TAG" "$file" --repo "$GITHUB_REPOSITORY" --clobber
+            done
+          fi
