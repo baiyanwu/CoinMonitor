@@ -51,11 +51,11 @@ body::before {
 .hero {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 520px) minmax(380px, 620px);
+  grid-template-columns: minmax(0, 500px) minmax(380px, 600px);
   justify-content: center;
   align-items: center;
-  gap: clamp(44px, 6.5vw, 96px);
-  max-width: 1380px;
+  gap: clamp(40px, 6vw, 80px);
+  max-width: 1280px;
   margin: 0 auto;
   min-height: 100svh;
   padding: clamp(32px, 5vw, 64px);
@@ -64,7 +64,8 @@ body::before {
 .hero__content {
   position: relative;
   z-index: 1;
-  max-width: 520px;
+  max-width: 500px;
+  justify-self: end;
 }
 
 .brand-chip {
@@ -93,6 +94,7 @@ body::before {
 .hero__title {
   display: flex;
   align-items: center;
+  flex-wrap: nowrap;
   gap: 14px;
 }
 
@@ -123,6 +125,7 @@ body::before {
   background: linear-gradient(135deg, #f8f5ff 4%, var(--accent) 38%, var(--accent-secondary) 68%, var(--accent-tertiary) 100%);
   -webkit-background-clip: text;
   background-clip: text;
+  -webkit-text-fill-color: transparent;
   color: transparent;
   text-shadow: 0 8px 30px rgba(208, 188, 255, 0.12);
 }
@@ -249,8 +252,9 @@ body::before {
 
 .hero__visual {
   position: relative;
-  width: min(100%, 620px);
-  margin: 0 auto;
+  width: min(100%, 600px);
+  margin: 0;
+  justify-self: start;
   min-height: clamp(460px, 78vh, 860px);
 }
 
@@ -354,6 +358,7 @@ body::before {
   .hero__content {
     max-width: 680px;
     margin: 0 auto;
+    justify-self: stretch;
   }
 
   .hero__visual {
