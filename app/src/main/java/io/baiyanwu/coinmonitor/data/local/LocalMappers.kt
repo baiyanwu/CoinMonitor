@@ -45,6 +45,8 @@ fun OverlaySettingsEntity.toDomain(): OverlaySettings {
         opacity = opacity,
         maxItems = maxItems,
         leadingDisplayMode = OverlayLeadingDisplayMode.valueOf(leadingDisplayMode),
+        fontScale = fontScale,
+        snapToEdge = snapToEdge,
         windowX = windowX,
         windowY = windowY
     )
@@ -57,6 +59,8 @@ fun OverlaySettings.toEntity(): OverlaySettingsEntity {
         opacity = opacity,
         maxItems = maxItems,
         leadingDisplayMode = leadingDisplayMode.name,
+        fontScale = fontScale,
+        snapToEdge = snapToEdge,
         windowX = windowX,
         windowY = windowY
     )

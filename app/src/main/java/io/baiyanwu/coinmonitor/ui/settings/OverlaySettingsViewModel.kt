@@ -77,6 +77,18 @@ class OverlaySettingsViewModel(
         }
     }
 
+    fun setFontScale(fontScale: Float) {
+        viewModelScope.launch {
+            overlayRepository.setFontScale(fontScale)
+        }
+    }
+
+    fun setSnapToEdge(enabled: Boolean) {
+        viewModelScope.launch {
+            overlayRepository.setSnapToEdge(enabled)
+        }
+    }
+
     fun toggleItem(id: String) {
         viewModelScope.launch {
             overlayRepository.toggleItem(id)

@@ -52,7 +52,10 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 
 - 支持选择要展示的币对
 - 支持锁定拖动、透明度调节、最大展示数量限制
+- 支持字体大小调节，并同步缩放左侧图标 / 名称区比例
 - 左侧展示默认使用图标，也可以切换成币对名称
+- 支持吸附靠边，吸附后切换成边栏跑马灯样式
+- 通知栏支持临时隐藏 / 恢复显示，以及拖动开关
 - 选择数量超过 `5` 个时按每批 `5` 个轮播
 - 只有在悬浮窗权限满足时，应用才会把悬浮窗正式标记为启用
 - 悬浮窗设置页中的币对选择列表会带上交易所来源副标题，避免同名币对辨识成本过高
@@ -71,8 +74,13 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 - 首页长按快捷菜单挂在同一棵 Compose 树里渲染，不走独立 `PopupWindow`；菜单会先测量真实宽度，再按手指落点附近定位，并补一段轻量的入场动画。
 - 首页列表在 ViewModel 首次收到本地数据前会先展示加载态，避免把默认空列表误判为空页面。
 - 搜索页和悬浮窗设置页使用独立 `Activity`，避免和主 `NavHost` 的底部导航、转场动画、窗口 inset 相互耦合。
+- 首页刷新已经切换成 `PullToRefreshBox`，并在 ViewModel 里补了手动刷新态，避免手势刷新和后台轮询互相打架。
 - 悬浮窗仍然使用 `WindowManager + View`，没有改成 Compose，以降低系统悬浮场景下的重排、生命周期和兼容性风险。
+- 悬浮窗当前把“临时隐藏”单独建模为运行态，不落库；隐藏时会立即 `removeViewImmediate`，保证原位置点击可以穿透到底层应用。
+- 标准悬浮窗行视图会复用已有 `ImageView` / `TextView`，避免高频价格刷新时反复重建 leading 区域导致图标闪动。
+- 前台通知使用自定义 `RemoteViews` 内容布局，统一正文与操作按钮的对齐方式。
 - 数据库已移除默认破坏性迁移，并开启 Room schema 导出，为后续显式 migration 留出接口。
+- 当前 Room schema 已升级到 `v5`，用于承载悬浮窗字体大小和吸附靠边配置。
 - 调试网络日志只在 Debug 构建输出，Release 默认关闭。
 - 悬浮窗启停规则已经统一，避免 UI 开关状态和真实运行状态不一致。
 
@@ -108,3 +116,12 @@ GitHub Actions secrets 约定如下：
 - `ANDROID_RELEASE_KEY_PASSWORD`
 
 其中 `ANDROID_KEYSTORE_BASE64` 需要由 keystore 文件 base64 编码后写入 GitHub Secrets。
+
+## Release Notes
+
+- 当前 GitHub Release 采用 `releaseX.Y.Z` 的 tag / title 命名
+- Android 应用内版本号使用 `versionName` / `versionCode` 单独维护
+- 发布新版时建议同步更新：
+  - `app/build.gradle.kts` 中的 `versionName`
+  - `app/build.gradle.kts` 中的 `versionCode`
+  - `README.md` / `README.zh-CN.md` 的更新说明

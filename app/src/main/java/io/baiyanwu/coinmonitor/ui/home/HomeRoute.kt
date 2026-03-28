@@ -1,6 +1,5 @@
 package io.baiyanwu.coinmonitor.ui.home
 
-import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -26,23 +25,22 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Layers
-import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -66,7 +64,6 @@ import io.baiyanwu.coinmonitor.ui.components.WatchItemCard
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorComponentDefaults
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 import io.baiyanwu.coinmonitor.R
-import kotlinx.coroutines.launch
 
 private data class HomeQuickMenuState(
     val itemId: String,
@@ -93,6 +90,7 @@ fun HomeRoute(
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun HomeScreen(
     state: HomeUiState,
@@ -135,78 +133,77 @@ internal fun HomeScreen(
                 SearchEntryButton(onClick = onNavigateSearch)
             }
 
-            if (!state.isLoaded) {
-                HomeLoadingState()
-            } else if (state.items.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 24.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(14.dp)
+            PullToRefreshBox(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                isRefreshing = state.isRefreshing,
+                onRefresh = onRefresh
+            ) {
+                if (!state.isLoaded) {
+                    HomeLoadingState()
+                } else if (state.items.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 24.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = stringResource(R.string.home_empty_hint),
-                            textAlign = TextAlign.Center,
-                            color = colors.secondaryText,
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-                        Button(
-                            onClick = onNavigateSearch,
-                            colors = CoinMonitorComponentDefaults.primaryButtonColors()
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(14.dp)
                         ) {
-                            Text(text = stringResource(R.string.home_add_pair))
+                            Text(
+                                text = stringResource(R.string.home_empty_hint),
+                                textAlign = TextAlign.Center,
+                                color = colors.secondaryText,
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            Button(
+                                onClick = onNavigateSearch,
+                                colors = CoinMonitorComponentDefaults.primaryButtonColors()
+                            ) {
+                                Text(text = stringResource(R.string.home_add_pair))
+                            }
                         }
                     }
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(
-                        start = 0.dp,
-                        end = 0.dp,
-                        top = 0.dp,
-                        bottom = 88.dp
-                    ),
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    items(state.items, key = { it.id }) { item ->
-                        Box(modifier = Modifier.fillMaxWidth()) {
-                            WatchItemCard(
-                                item = item,
-                                overlaySelected = state.overlayIds.contains(item.id),
-                                onClick = {
-                                    if (quickMenuState?.itemId == item.id) {
-                                        quickMenuState = null
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(
+                            start = 0.dp,
+                            end = 0.dp,
+                            top = 0.dp,
+                            bottom = 24.dp
+                        ),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        items(state.items, key = { it.id }) { item ->
+                            Box(modifier = Modifier.fillMaxWidth()) {
+                                WatchItemCard(
+                                    item = item,
+                                    overlaySelected = state.overlayIds.contains(item.id),
+                                    onClick = {
+                                        if (quickMenuState?.itemId == item.id) {
+                                            quickMenuState = null
+                                        }
+                                    },
+                                    onLongPress = { anchorInRoot ->
+                                        if (quickMenuState?.itemId == item.id) {
+                                            quickMenuState = null
+                                        } else {
+                                            quickMenuState = HomeQuickMenuState(
+                                                itemId = item.id,
+                                                anchorInRoot = anchorInRoot
+                                            )
+                                        }
                                     }
-                                },
-                                onLongPress = { anchorInRoot ->
-                                    if (quickMenuState?.itemId == item.id) {
-                                        quickMenuState = null
-                                    } else {
-                                        quickMenuState = HomeQuickMenuState(
-                                            itemId = item.id,
-                                            anchorInRoot = anchorInRoot
-                                        )
-                                    }
-                                }
-                            )
+                                )
+                            }
                         }
                     }
                 }
             }
-        }
-
-        if (state.items.isNotEmpty()) {
-            AnimatedRefreshFab(
-                onRefresh = onRefresh,
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(end = 18.dp, bottom = 20.dp)
-            )
         }
 
         quickMenuState?.let { menuState ->
@@ -454,50 +451,6 @@ private fun HomeQuickActionsOverlay(
                 overlaySelected = overlaySelected,
                 onToggleOverlay = onToggleOverlay,
                 onDelete = onDelete
-            )
-        }
-    }
-}
-
-@Composable
-private fun AnimatedRefreshFab(
-    onRefresh: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val colors = CoinMonitorThemeTokens.colors
-    val scope = rememberCoroutineScope()
-    val rotation = remember { Animatable(0f) }
-
-    Box(
-        modifier = modifier.size(72.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        FloatingActionButton(
-            onClick = {
-                onRefresh()
-                scope.launch {
-                    rotation.stop()
-                    val currentRotation = rotation.value % 360f
-                    rotation.snapTo(currentRotation)
-                    rotation.animateTo(
-                        targetValue = currentRotation + 360f,
-                        animationSpec = tween(
-                            durationMillis = 700,
-                            easing = FastOutSlowInEasing
-                        )
-                    )
-                    rotation.snapTo(0f)
-                }
-            },
-            containerColor = colors.fabContainer,
-            contentColor = colors.fabContent
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.Refresh,
-                contentDescription = stringResource(R.string.refresh),
-                modifier = Modifier.graphicsLayer {
-                    rotationZ = rotation.value
-                }
             )
         }
     }

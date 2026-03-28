@@ -22,6 +22,8 @@ class AppContainer(context: Context) {
         appContext,
         CoinMonitorDatabase::class.java,
         "coin_monitor.db"
+    ).addMigrations(
+        CoinMonitorDatabase.MIGRATION_4_5
     ).build()
 
     private val networkFactory = NetworkFactory()

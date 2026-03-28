@@ -27,11 +27,20 @@ This project is currently designed and iterated primarily through `vibecoding`, 
 ## Highlights
 
 - Search spot pairs from `Binance Alpha`, `Binance`, and `OKX`
-- Maintain a watchlist with manual refresh and long-press quick actions
+- Maintain a watchlist with pull-to-refresh and long-press quick actions
 - Add or remove items from the floating overlay directly from the home screen
-- Configure overlay behavior including drag lock, opacity, max item count, and leading display mode
+- Configure overlay behavior including drag lock, opacity, max item count, leading display mode, and font sizing
+- Temporarily hide or restore the overlay from the foreground notification, while immediately releasing touch interception
+- Snap the overlay to the screen edge and switch into a marquee sidebar mode to reduce obstruction
 - Use shared refresh intervals across the home screen and overlay: custom `3-10s`, `30s`, or `1 min`
 - Keep the overlay alive with a foreground service and restore it only when runtime conditions are still valid
+
+## What's New In 1.0.1
+
+- Replaced the home screen tap-to-refresh flow with pull-to-refresh
+- Added richer foreground-notification controls with aligned custom actions
+- Added overlay font sizing, edge snapping, and sidebar marquee behavior
+- Fixed icon flicker in the floating overlay during frequent price updates
 
 ## Requirements
 

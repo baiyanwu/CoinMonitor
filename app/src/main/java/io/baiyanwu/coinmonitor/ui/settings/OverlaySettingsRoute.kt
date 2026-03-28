@@ -45,7 +45,7 @@ import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorComponentDefaults
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 import io.baiyanwu.coinmonitor.R
 import kotlinx.coroutines.launch
-import kotlin.collections.forEach
+import java.util.Locale
 import kotlin.math.roundToInt
 
 @Composable
@@ -97,6 +97,8 @@ fun OverlaySettingsRoute(
         onOpacityChange = viewModel::setOpacity,
         onMaxCountChange = viewModel::setMaxCount,
         onLeadingDisplayModeChange = viewModel::setLeadingDisplayMode,
+        onFontScaleChange = viewModel::setFontScale,
+        onSnapToEdgeChange = viewModel::setSnapToEdge,
         onToggleItem = viewModel::toggleItem
     )
 }
@@ -114,6 +116,8 @@ private fun OverlaySettingsScreen(
     onOpacityChange: (Float) -> Unit,
     onMaxCountChange: (Int) -> Unit,
     onLeadingDisplayModeChange: (OverlayLeadingDisplayMode) -> Unit,
+    onFontScaleChange: (Float) -> Unit,
+    onSnapToEdgeChange: (Boolean) -> Unit,
     onToggleItem: (String) -> Unit
 ) {
     if (!state.isLoaded) {
@@ -124,6 +128,7 @@ private fun OverlaySettingsScreen(
 
     val opacityProgress = opacityToProgress(state.settings.opacity)
     val opacityPercent = (opacityProgress * 100).roundToInt()
+    val fontSizeSp = fontScaleToFontSizeSp(state.settings.fontScale)
 
     LazyColumn(
         modifier = Modifier
@@ -192,6 +197,31 @@ private fun OverlaySettingsScreen(
                     )
 
                     Text(
+                        text = stringResource(
+                            R.string.overlay_font_size_format,
+                            formatFontSize(fontSizeSp)
+                        ),
+                        style = MaterialTheme.typography.titleSmall
+                    )
+                    Slider(
+                        value = fontSizeSp,
+                        onValueChange = { onFontScaleChange(fontSizeSpToScale(it)) },
+                        valueRange = MIN_OVERLAY_FONT_SIZE_SP..MAX_OVERLAY_FONT_SIZE_SP,
+                        steps = 9,
+                        colors = CoinMonitorComponentDefaults.sliderColors()
+                    )
+                    SliderEndpoints(
+                        startLabel = stringResource(
+                            R.string.overlay_font_size_endpoint,
+                            formatFontSize(MIN_OVERLAY_FONT_SIZE_SP)
+                        ),
+                        endLabel = stringResource(
+                            R.string.overlay_font_size_endpoint,
+                            formatFontSize(MAX_OVERLAY_FONT_SIZE_SP)
+                        )
+                    )
+
+                    Text(
                         text = pluralStringResource(
                             id = R.plurals.overlay_max_items,
                             count = state.settings.maxItems,
@@ -210,6 +240,17 @@ private fun OverlaySettingsScreen(
                         startLabel = stringResource(R.string.common_min_count),
                         endLabel = stringResource(R.string.common_max_count)
                     )
+
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        SettingSwitchRow(
+                            title = stringResource(R.string.overlay_snap_to_edge),
+                            subtitle = stringResource(R.string.overlay_snap_to_edge_hint),
+                            checked = state.settings.snapToEdge,
+                            horizontalPadding = 0.dp,
+                            verticalPadding = 0.dp,
+                            onCheckedChange = onSnapToEdgeChange
+                        )
+                    }
                 }
             }
         }
@@ -427,7 +468,41 @@ private fun opacityToProgress(opacity: Float): Float {
 }
 
 private fun progressToOpacity(progress: Float): Float {
-    val minOpacity = 0.16f
-    val maxOpacity = 0.72f
+    val minOpacity = io.baiyanwu.coinmonitor.domain.model.OverlaySettings.MIN_OPACITY
+    val maxOpacity = io.baiyanwu.coinmonitor.domain.model.OverlaySettings.MAX_OPACITY
     return minOpacity + (maxOpacity - minOpacity) * progress.coerceIn(0f, 1f)
+}
+
+private fun fontScaleToProgress(fontScale: Float): Float {
+    val minFontScale = io.baiyanwu.coinmonitor.domain.model.OverlaySettings.MIN_FONT_SCALE
+    val maxFontScale = io.baiyanwu.coinmonitor.domain.model.OverlaySettings.MAX_FONT_SCALE
+    return ((fontScale - minFontScale) / (maxFontScale - minFontScale)).coerceIn(0f, 1f)
+}
+
+private fun progressToFontScale(progress: Float): Float {
+    val minFontScale = io.baiyanwu.coinmonitor.domain.model.OverlaySettings.MIN_FONT_SCALE
+    val maxFontScale = io.baiyanwu.coinmonitor.domain.model.OverlaySettings.MAX_FONT_SCALE
+    return minFontScale + (maxFontScale - minFontScale) * progress.coerceIn(0f, 1f)
+}
+
+private const val DEFAULT_OVERLAY_FONT_SIZE_SP = 10f
+private const val MIN_OVERLAY_FONT_SIZE_SP = 8.5f
+private const val MAX_OVERLAY_FONT_SIZE_SP = 13.5f
+
+private fun fontScaleToFontSizeSp(fontScale: Float): Float {
+    return (DEFAULT_OVERLAY_FONT_SIZE_SP * fontScale).coerceIn(
+        minimumValue = MIN_OVERLAY_FONT_SIZE_SP,
+        maximumValue = MAX_OVERLAY_FONT_SIZE_SP
+    )
+}
+
+private fun fontSizeSpToScale(fontSizeSp: Float): Float {
+    return (fontSizeSp / DEFAULT_OVERLAY_FONT_SIZE_SP).coerceIn(
+        minimumValue = io.baiyanwu.coinmonitor.domain.model.OverlaySettings.MIN_FONT_SCALE,
+        maximumValue = io.baiyanwu.coinmonitor.domain.model.OverlaySettings.MAX_FONT_SCALE
+    )
+}
+
+private fun formatFontSize(fontSizeSp: Float): String {
+    return String.format(Locale.US, "%.1f", fontSizeSp)
 }

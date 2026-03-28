@@ -20,12 +20,15 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 data class HomeUiState(
     val isLoaded: Boolean = false,
     val items: List<WatchItem> = emptyList(),
     val overlayIds: Set<String> = emptySet(),
-    val overlayEnabled: Boolean = false
+    val overlayEnabled: Boolean = false,
+    val isRefreshing: Boolean = false
 )
 
 class HomeViewModel(
@@ -38,9 +41,13 @@ class HomeViewModel(
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
     private var currentItems: List<WatchItem> = emptyList()
+    private var currentOverlayIds: Set<String> = emptySet()
+    private var currentOverlayEnabled: Boolean = false
     private var refreshJob: Job? = null
     private var refreshIntervalMillis: Long =
         AppPreferences.DEFAULT_REFRESH_INTERVAL_SECONDS * 1_000L
+    private var manualRefreshing: Boolean = false
+    private val refreshMutex = Mutex()
 
     init {
         viewModelScope.launch {
@@ -59,13 +66,10 @@ class HomeViewModel(
             }.collect { payload ->
                 val items = payload.items
                 currentItems = items
+                currentOverlayIds = payload.overlayIds
+                currentOverlayEnabled = payload.overlayEnabled
                 refreshIntervalMillis = payload.refreshIntervalMillis
-                _uiState.value = HomeUiState(
-                    isLoaded = true,
-                    items = items,
-                    overlayIds = payload.overlayIds,
-                    overlayEnabled = payload.overlayEnabled
-                )
+                publishUiState(isLoaded = true)
                 restartRefreshLoop(items, payload.overlayEnabled)
             }
         }
@@ -84,8 +88,15 @@ class HomeViewModel(
     }
 
     fun refreshNow() {
+        if (manualRefreshing) return
         viewModelScope.launch {
-            refreshQuotes(currentItems)
+            manualRefreshing = true
+            publishUiState(isLoaded = _uiState.value.isLoaded)
+            runCatching {
+                refreshQuotes(currentItems)
+            }
+            manualRefreshing = false
+            publishUiState(isLoaded = _uiState.value.isLoaded)
         }
     }
 
@@ -109,10 +120,22 @@ class HomeViewModel(
 
     private suspend fun refreshQuotes(items: List<WatchItem>) {
         if (items.isEmpty()) return
-        val quotes = marketQuoteRepository.fetchQuotes(items)
-        if (quotes.isNotEmpty()) {
-            watchlistRepository.updateQuotes(quotes)
+        refreshMutex.withLock {
+            val quotes = marketQuoteRepository.fetchQuotes(items)
+            if (quotes.isNotEmpty()) {
+                watchlistRepository.updateQuotes(quotes)
+            }
         }
+    }
+
+    private fun publishUiState(isLoaded: Boolean) {
+        _uiState.value = HomeUiState(
+            isLoaded = isLoaded,
+            items = currentItems,
+            overlayIds = currentOverlayIds,
+            overlayEnabled = currentOverlayEnabled,
+            isRefreshing = manualRefreshing
+        )
     }
 
     companion object {

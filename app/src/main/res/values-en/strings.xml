@@ -77,8 +77,12 @@
     <string name="overlay_display_icon">Icon</string>
     <string name="overlay_display_pair_name">Pair name</string>
     <string name="overlay_opacity_format">Opacity %1$d%%</string>
+    <string name="overlay_font_size_format">Font size %1$s sp</string>
+    <string name="overlay_font_size_endpoint">%1$s sp</string>
     <string name="overlay_transparent">More transparent</string>
     <string name="overlay_visible">More visible</string>
+    <string name="overlay_snap_to_edge">Snap to edge</string>
+    <string name="overlay_snap_to_edge_hint">Automatically dock to the left or right edge and switch to a marquee sidebar style.</string>
     <string name="overlay_rotation_hint">When more than 5 pairs are selected, the floating window rotates them in groups of 5.</string>
     <string name="overlay_permission_message">Display-over-other-apps permission is still missing.</string>
     <string name="overlay_permission_action">Grant overlay permission</string>
@@ -93,6 +97,18 @@
 
     <string name="overlay_notification_title">CoinMonitor floating window is running</string>
     <string name="overlay_notification_text">The floating price panel refreshes every %1$d s.</string>
+    <string name="overlay_notification_hidden_text">The floating window is temporarily hidden. Restore it from the notification at any time.</string>
+    <string name="overlay_notification_locked_text">The floating panel refreshes every %1$d s and dragging is currently locked.</string>
+    <string name="overlay_notification_unlocked_text">The floating panel refreshes every %1$d s and can be dragged right now.</string>
+    <string name="overlay_notification_hide">Hide</string>
+    <string name="overlay_notification_restore">Restore</string>
+    <string name="overlay_notification_hide_short">Hide now</string>
+    <string name="overlay_notification_show_short">Show now</string>
+    <string name="overlay_notification_lock_drag">Lock drag</string>
+    <string name="overlay_notification_free_drag">Free drag</string>
+    <string name="overlay_notification_unlock_drag">Unlock drag</string>
+    <string name="overlay_notification_toggle_visibility">Display</string>
+    <string name="overlay_notification_toggle_drag">Drag</string>
     <string name="overlay_notification_stop">Close floating window</string>
     <string name="overlay_channel_name">Floating window service</string>
     <string name="overlay_channel_description">Keeps the floating window alive and refreshes prices.</string>

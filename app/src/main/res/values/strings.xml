@@ -77,8 +77,12 @@
     <string name="overlay_display_icon">图标</string>
     <string name="overlay_display_pair_name">币对名字</string>
     <string name="overlay_opacity_format">透明度 %1$d%%</string>
+    <string name="overlay_font_size_format">字体大小 %1$s sp</string>
+    <string name="overlay_font_size_endpoint">%1$s sp</string>
     <string name="overlay_transparent">更透明</string>
     <string name="overlay_visible">更明显</string>
+    <string name="overlay_snap_to_edge">吸附靠边</string>
+    <string name="overlay_snap_to_edge_hint">开启后会自动吸附到左右边缘，并切换成边栏跑马灯样式，尽量减少遮挡。</string>
     <string name="overlay_rotation_hint">当选择数量超过 5 个时，悬浮窗会自动切成每批 5 个轮播显示。</string>
     <string name="overlay_permission_message">当前还没有授予“显示在其他应用上层”权限。</string>
     <string name="overlay_permission_action">去授权悬浮权限</string>
@@ -93,6 +97,18 @@
 
     <string name="overlay_notification_title">CoinMonitor 悬浮窗运行中</string>
     <string name="overlay_notification_text">悬浮价格面板会每 %1$d 秒刷新一次。</string>
+    <string name="overlay_notification_hidden_text">悬浮窗已临时隐藏，通知栏可随时恢复显示。</string>
+    <string name="overlay_notification_locked_text">悬浮价格面板每 %1$d 秒刷新一次，当前已锁定拖动。</string>
+    <string name="overlay_notification_unlocked_text">悬浮价格面板每 %1$d 秒刷新一次，当前可直接拖动。</string>
+    <string name="overlay_notification_hide">临时隐藏</string>
+    <string name="overlay_notification_restore">恢复显示</string>
+    <string name="overlay_notification_hide_short">临时隐藏</string>
+    <string name="overlay_notification_show_short">恢复显示</string>
+    <string name="overlay_notification_lock_drag">锁定拖动</string>
+    <string name="overlay_notification_free_drag">允许拖动</string>
+    <string name="overlay_notification_unlock_drag">允许拖动</string>
+    <string name="overlay_notification_toggle_visibility">显示</string>
+    <string name="overlay_notification_toggle_drag">拖动</string>
     <string name="overlay_notification_stop">关闭悬浮窗</string>
     <string name="overlay_channel_name">悬浮窗服务</string>
     <string name="overlay_channel_description">用于维持悬浮窗常驻和价格轮询</string>

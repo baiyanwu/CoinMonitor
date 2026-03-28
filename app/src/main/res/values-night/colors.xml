@@ -1,4 +1,7 @@
 <resources>
     <color name="window_background">#131318</color>
     <color name="system_bar_background">#211F26</color>
+    <color name="overlay_notification_title_color">#F4EFF4</color>
+    <color name="overlay_notification_body_color">#CAC4D0</color>
+    <color name="overlay_notification_action_color">#AFC6FF</color>
 </resources>

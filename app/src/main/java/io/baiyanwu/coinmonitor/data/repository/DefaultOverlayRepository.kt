@@ -41,7 +41,14 @@ class DefaultOverlayRepository(
     }
 
     override suspend fun setOpacity(opacity: Float) {
-        updateSettings { it.copy(opacity = opacity.coerceIn(0.16f, 0.72f)) }
+        updateSettings {
+            it.copy(
+                opacity = opacity.coerceIn(
+                    minimumValue = OverlaySettings.MIN_OPACITY,
+                    maximumValue = OverlaySettings.MAX_OPACITY
+                )
+            )
+        }
     }
 
     override suspend fun setMaxCount(maxCount: Int) {
@@ -50,6 +57,21 @@ class DefaultOverlayRepository(
 
     override suspend fun setLeadingDisplayMode(mode: OverlayLeadingDisplayMode) {
         updateSettings { it.copy(leadingDisplayMode = mode) }
+    }
+
+    override suspend fun setFontScale(fontScale: Float) {
+        updateSettings {
+            it.copy(
+                fontScale = fontScale.coerceIn(
+                    minimumValue = OverlaySettings.MIN_FONT_SCALE,
+                    maximumValue = OverlaySettings.MAX_FONT_SCALE
+                )
+            )
+        }
+    }
+
+    override suspend fun setSnapToEdge(enabled: Boolean) {
+        updateSettings { it.copy(snapToEdge = enabled) }
     }
 
     override suspend fun setWindowPosition(x: Int, y: Int) {
@@ -66,6 +88,8 @@ class DefaultOverlayRepository(
                 opacity = next.opacity,
                 maxItems = next.maxItems,
                 leadingDisplayMode = next.leadingDisplayMode.name,
+                fontScale = next.fontScale,
+                snapToEdge = next.snapToEdge,
                 windowX = next.windowX,
                 windowY = next.windowY
             )
