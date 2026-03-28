@@ -1,5 +1,10 @@
 import java.util.Properties
 
+// 统一维护应用版本信息，避免版本展示与打包产物命名脱节。
+val appArtifactName = "coinmonitor"
+val appVersionCode = 3
+val appVersionName = "1.0.2"
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -45,8 +50,10 @@ android {
         applicationId = "io.baiyanwu.coinmonitor"
         minSdk = 26
         targetSdk = 35
-        versionCode = 3
-        versionName = "1.0.2"
+        versionCode = appVersionCode
+        versionName = appVersionName
+        // 让 APK / AAB 产物名自动携带版本号，便于发布与归档识别。
+        setProperty("archivesBaseName", "$appArtifactName-v$appVersionName")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
