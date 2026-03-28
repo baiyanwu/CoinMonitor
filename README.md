@@ -38,12 +38,12 @@ This project is currently designed and iterated primarily through `vibecoding`, 
 - Keep the overlay alive with a foreground service and restore it only when runtime conditions are still valid
 - Fall back to grayscale chain icons when an on-chain token does not provide its own logo, with processed icon bitmaps cached for reuse
 
-## What's New In 1.0.1
+## What's New In 1.0.2
 
-- Replaced the home screen tap-to-refresh flow with pull-to-refresh
-- Added richer foreground-notification controls with aligned custom actions
-- Added overlay font sizing, edge snapping, and sidebar marquee behavior
-- Fixed icon flicker in the floating overlay during frequent price updates
+- Switched the main quote pipeline to exchange and on-chain `WSS`, covering `Binance Spot` / `Binance Alpha` / `OKX Spot` / `OKX On-chain`
+- Added `REST` snapshot fallback and subscription fingerprinting so reconnects stay stable when the watchlist keeps receiving live price updates
+- Moved the search-page loading spinner into the search field icon slot instead of showing a separate indicator below
+- Rounded floating-overlay token icons to keep the overlay visuals aligned with the in-app list
 
 ## On-chain Notes
 
@@ -76,7 +76,7 @@ cd CoinMonitor
 
 ## Roadmap
 
-- Exchange and on-chain `WSS` quote refresh
+- User-selectable quote refresh mode: `Auto / WSS / API`
 - K-line style views
 - AI-assisted analysis
 - More watchlist and overlay polish
