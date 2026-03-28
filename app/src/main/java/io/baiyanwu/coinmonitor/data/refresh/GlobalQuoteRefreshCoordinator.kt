@@ -20,14 +20,16 @@ class GlobalQuoteRefreshCoordinator(
     private val scope: CoroutineScope,
     private val watchlistRepository: WatchlistRepository,
     private val appPreferencesRepository: AppPreferencesRepository,
-    marketQuoteRepository: MarketQuoteRepository
+    marketQuoteRepository: MarketQuoteRepository,
+    okxCredentialsProvider: suspend () -> io.baiyanwu.coinmonitor.domain.model.OkxApiCredentials? = { null }
 ) {
     private val homeActive = MutableStateFlow(false)
     private val overlayActive = MutableStateFlow(false)
-    private val refreshEngine: QuoteRefreshEngine = PollingQuoteRefreshEngine(
+    private val refreshEngine: QuoteRefreshEngine = StreamingQuoteRefreshEngine(
         scope = scope,
         watchlistRepository = watchlistRepository,
-        marketQuoteRepository = marketQuoteRepository
+        marketQuoteRepository = marketQuoteRepository,
+        okxCredentialsProvider = okxCredentialsProvider
     )
 
     private var observeJob: Job? = null

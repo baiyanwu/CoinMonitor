@@ -1,6 +1,7 @@
 package io.baiyanwu.coinmonitor.overlay
 
 import android.content.Context
+import android.graphics.Outline
 import android.graphics.Paint
 import android.graphics.PixelFormat
 import android.graphics.Typeface
@@ -11,7 +12,9 @@ import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.view.ViewOutlineProvider
 import android.view.WindowManager
+import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -333,27 +336,40 @@ class OverlayWindowController(
         width: Int,
         metrics: OverlayMetrics
     ): View {
-        return ImageView(context).apply {
+        val iconView = ImageView(context).apply {
             scaleType = ImageView.ScaleType.FIT_CENTER
+            layoutParams = FrameLayout.LayoutParams(metrics.iconSizePx, metrics.iconSizePx).apply {
+                gravity = Gravity.CENTER_VERTICAL
+            }
+            background = buildDefaultBitcoinDrawable(metrics)
+            clipToOutline = true
+            outlineProvider = object : ViewOutlineProvider() {
+                override fun getOutline(view: View, outline: Outline) {
+                    outline.setOval(0, 0, view.width, view.height)
+                }
+            }
+            setImageDrawable(buildDefaultBitcoinDrawable(metrics))
+        }
+
+        scope.launch {
+            val bitmap = coinIconService.loadBitmap(
+                symbol = item.baseSymbol,
+                preferredIconUrl = item.iconUrl,
+                fallbackIconUrl = OnchainChainIconRegistry.resolveIconUrl(item.chainIndex),
+                grayscaleFallback = item.chainIndex != null
+            )
+            if (bitmap != null) {
+                iconView.setImageBitmap(bitmap)
+            } else {
+                iconView.setImageDrawable(buildDefaultBitcoinDrawable(metrics))
+            }
+        }
+
+        return FrameLayout(context).apply {
             layoutParams = LinearLayout.LayoutParams(width, metrics.iconSizePx).also {
                 it.marginEnd = metrics.leadingSpacingPx
             }
-            background = null
-            setImageDrawable(buildDefaultBitcoinDrawable(metrics))
-
-            scope.launch {
-                val bitmap = coinIconService.loadBitmap(
-                    symbol = item.baseSymbol,
-                    preferredIconUrl = item.iconUrl,
-                    fallbackIconUrl = OnchainChainIconRegistry.resolveIconUrl(item.chainIndex),
-                    grayscaleFallback = item.chainIndex != null
-                )
-                if (bitmap != null) {
-                    setImageBitmap(bitmap)
-                } else {
-                    setImageDrawable(buildDefaultBitcoinDrawable(metrics))
-                }
-            }
+            addView(iconView)
         }
     }
 

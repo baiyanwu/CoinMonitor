@@ -72,6 +72,7 @@ class AppContainer(context: Context) {
         scope = appScope,
         watchlistRepository = watchlistRepository,
         appPreferencesRepository = appPreferencesRepository,
-        marketQuoteRepository = marketQuoteRepository
+        marketQuoteRepository = marketQuoteRepository,
+        okxCredentialsProvider = { okxCredentialsRepository.getCredentials() }
     )
 }

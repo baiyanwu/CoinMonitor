@@ -30,6 +30,11 @@ internal object OkxOnChainRequestSigner {
     }
 
     /**
+     * OKX DEX WebSocket 登录要求秒级 Unix 时间戳，和 REST 使用的 ISO8601 时间串不是同一套格式。
+     */
+    fun buildUnixTimestampSeconds(now: Instant = Instant.now()): String = now.epochSecond.toString()
+
+    /**
      * OKX 这里按固定毫秒位 `.000Z` 去签名更稳，和 curl 成功样例保持一致，避免 `Instant.toString()`
      * 在不同精度下生成不稳定文本，导致同一时刻的签名串不一致。
      */
