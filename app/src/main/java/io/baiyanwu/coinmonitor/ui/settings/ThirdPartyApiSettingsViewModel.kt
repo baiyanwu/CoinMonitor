@@ -20,7 +20,9 @@ data class ThirdPartyApiSettingsUiState(
     val secretKey: String = "",
     val passphrase: String = "",
     val savedFlag: Boolean = false,
-    val clearedFlag: Boolean = false
+    val clearedFlag: Boolean = false,
+    val secureStorageAvailable: Boolean = true,
+    val errorMessage: String? = null
 ) {
     val isReadyToEnable: Boolean
         get() = apiKey.isNotBlank() && secretKey.isNotBlank() && passphrase.isNotBlank()
@@ -35,44 +37,80 @@ class ThirdPartyApiSettingsViewModel(
     init {
         viewModelScope.launch {
             okxCredentialsRepository.observeCredentials().collect { credentials ->
-                _uiState.value = credentials.toUiState()
+                _uiState.value = credentials.toUiState(
+                    secureStorageAvailable = okxCredentialsRepository.isSecureStorageAvailable()
+                )
             }
         }
     }
 
     fun setEnabled(enabled: Boolean) {
-        _uiState.update { it.copy(enabled = enabled, savedFlag = false, clearedFlag = false) }
+        _uiState.update {
+            it.copy(enabled = enabled, savedFlag = false, clearedFlag = false, errorMessage = null)
+        }
     }
 
     fun updateApiKey(value: String) {
-        _uiState.update { it.copy(apiKey = value, savedFlag = false, clearedFlag = false) }
+        _uiState.update {
+            it.copy(apiKey = value, savedFlag = false, clearedFlag = false, errorMessage = null)
+        }
     }
 
     fun updateSecretKey(value: String) {
-        _uiState.update { it.copy(secretKey = value, savedFlag = false, clearedFlag = false) }
+        _uiState.update {
+            it.copy(secretKey = value, savedFlag = false, clearedFlag = false, errorMessage = null)
+        }
     }
 
     fun updatePassphrase(value: String) {
-        _uiState.update { it.copy(passphrase = value, savedFlag = false, clearedFlag = false) }
+        _uiState.update {
+            it.copy(passphrase = value, savedFlag = false, clearedFlag = false, errorMessage = null)
+        }
     }
 
     fun saveCredentials() {
         val snapshot = _uiState.value
         viewModelScope.launch {
-            okxCredentialsRepository.saveCredentials(
-                enabled = snapshot.enabled,
-                apiKey = snapshot.apiKey,
-                secretKey = snapshot.secretKey,
-                passphrase = snapshot.passphrase
-            )
-            _uiState.update { it.copy(savedFlag = true, clearedFlag = false) }
+            runCatching {
+                okxCredentialsRepository.saveCredentials(
+                    enabled = snapshot.enabled,
+                    apiKey = snapshot.apiKey,
+                    secretKey = snapshot.secretKey,
+                    passphrase = snapshot.passphrase
+                )
+            }.onSuccess {
+                _uiState.update {
+                    it.copy(savedFlag = true, clearedFlag = false, errorMessage = null)
+                }
+            }.onFailure {
+                _uiState.update {
+                    it.copy(
+                        savedFlag = false,
+                        clearedFlag = false,
+                        errorMessage = "当前设备不支持安全存储，无法保存 OKX 凭证。"
+                    )
+                }
+            }
         }
     }
 
     fun clearCredentials() {
         viewModelScope.launch {
-            okxCredentialsRepository.clearCredentials()
-            _uiState.update { it.copy(clearedFlag = true, savedFlag = false) }
+            runCatching {
+                okxCredentialsRepository.clearCredentials()
+            }.onSuccess {
+                _uiState.update {
+                    it.copy(clearedFlag = true, savedFlag = false, errorMessage = null)
+                }
+            }.onFailure {
+                _uiState.update {
+                    it.copy(
+                        clearedFlag = false,
+                        savedFlag = false,
+                        errorMessage = "当前设备不支持安全存储，无法管理 OKX 凭证。"
+                    )
+                }
+            }
         }
     }
 
@@ -87,12 +125,14 @@ class ThirdPartyApiSettingsViewModel(
     }
 }
 
-private fun OkxApiCredentials.toUiState(): ThirdPartyApiSettingsUiState {
+private fun OkxApiCredentials.toUiState(
+    secureStorageAvailable: Boolean
+): ThirdPartyApiSettingsUiState {
     return ThirdPartyApiSettingsUiState(
         enabled = enabled,
         apiKey = apiKey,
         secretKey = secretKey,
-        passphrase = passphrase
+        passphrase = passphrase,
+        secureStorageAvailable = secureStorageAvailable
     )
 }
-

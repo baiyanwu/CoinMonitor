@@ -8,6 +8,7 @@ import io.baiyanwu.coinmonitor.domain.model.MarketType
 import io.baiyanwu.coinmonitor.domain.model.OkxApiCredentials
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
 import io.baiyanwu.coinmonitor.domain.repository.MarketQuoteRepository
+import io.baiyanwu.coinmonitor.domain.repository.NetworkLogRepository
 import io.baiyanwu.coinmonitor.domain.repository.WatchlistRepository
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -45,7 +46,8 @@ class StreamingQuoteRefreshEngine(
     private val scope: CoroutineScope,
     private val watchlistRepository: WatchlistRepository,
     private val marketQuoteRepository: MarketQuoteRepository,
-    private val okxCredentialsProvider: suspend () -> OkxApiCredentials? = { null }
+    private val okxCredentialsProvider: suspend () -> OkxApiCredentials? = { null },
+    private val networkLogRepository: NetworkLogRepository
 ) : QuoteRefreshEngine {
     private val json = Json {
         ignoreUnknownKeys = true
@@ -191,6 +193,7 @@ class StreamingQuoteRefreshEngine(
                 request,
                 object : WebSocketListener() {
                     override fun onOpen(webSocket: WebSocket, response: Response) {
+                        logWs("WS OPEN binance-spot $BINANCE_PUBLIC_WS_URL")
                         val subscribeRequest = buildJsonObject {
                             put("method", "SUBSCRIBE")
                             put("params", buildJsonArray {
@@ -200,10 +203,15 @@ class StreamingQuoteRefreshEngine(
                             })
                             put("id", 1)
                         }
+                        logWs(
+                            line = "WS SEND binance-spot subscribe ${symbolMap.size}",
+                            detail = subscribeRequest.toString()
+                        )
                         webSocket.send(subscribeRequest.toString())
                     }
 
                     override fun onMessage(webSocket: WebSocket, text: String) {
+                        logWs("WS RECV binance-spot $text")
                         parseBinanceTickerMessage(text, symbolMap)?.let { quote ->
                             scope.launch {
                                 enqueueQuote(quote)
@@ -221,6 +229,10 @@ class StreamingQuoteRefreshEngine(
                     }
 
                     override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+                        logWs(
+                            line = "WS FAIL binance-spot ${t.javaClass.simpleName}: ${t.message.orEmpty()}",
+                            detail = t.stackTraceToString()
+                        )
                         Log.w(TAG, "Binance spot WSS failed: ${t.message}")
                         closed.complete(Unit)
                     }
@@ -250,6 +262,7 @@ class StreamingQuoteRefreshEngine(
                 request,
                 object : WebSocketListener() {
                     override fun onOpen(webSocket: WebSocket, response: Response) {
+                        logWs("WS OPEN binance-alpha $ALPHA_PUBLIC_WS_URL")
                         val subscribeRequest = buildJsonObject {
                             put("method", "SUBSCRIBE")
                             put("params", buildJsonArray {
@@ -259,10 +272,15 @@ class StreamingQuoteRefreshEngine(
                             })
                             put("id", 1)
                         }
+                        logWs(
+                            line = "WS SEND binance-alpha subscribe ${symbolMap.size}",
+                            detail = subscribeRequest.toString()
+                        )
                         webSocket.send(subscribeRequest.toString())
                     }
 
                     override fun onMessage(webSocket: WebSocket, text: String) {
+                        logWs("WS RECV binance-alpha $text")
                         parseAlphaTickerMessage(text, symbolMap)?.let { quote ->
                             scope.launch {
                                 enqueueQuote(quote)
@@ -280,6 +298,10 @@ class StreamingQuoteRefreshEngine(
                     }
 
                     override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+                        logWs(
+                            line = "WS FAIL binance-alpha ${t.javaClass.simpleName}: ${t.message.orEmpty()}",
+                            detail = t.stackTraceToString()
+                        )
                         Log.w(TAG, "Binance alpha WSS failed: ${t.message}")
                         closed.complete(Unit)
                     }
@@ -310,6 +332,7 @@ class StreamingQuoteRefreshEngine(
                 request,
                 object : WebSocketListener() {
                     override fun onOpen(webSocket: WebSocket, response: Response) {
+                        logWs("WS OPEN okx-spot $OKX_PUBLIC_WS_URL")
                         val subscribeRequest = buildJsonObject {
                             put("op", "subscribe")
                             put("args", buildJsonArray {
@@ -321,6 +344,10 @@ class StreamingQuoteRefreshEngine(
                                 }
                             })
                         }
+                        logWs(
+                            line = "WS SEND okx-spot subscribe ${instrumentMap.size}",
+                            detail = subscribeRequest.toString()
+                        )
                         webSocket.send(subscribeRequest.toString())
 
                         heartbeatJob = scope.launch {
@@ -337,6 +364,7 @@ class StreamingQuoteRefreshEngine(
                         lastMessageTimestamp = System.currentTimeMillis()
                         if (text == "pong") return
 
+                        logWs("WS RECV okx-spot $text")
                         parseOkxTickerMessages(text, instrumentMap).forEach { quote ->
                             scope.launch {
                                 enqueueQuote(quote)
@@ -357,6 +385,10 @@ class StreamingQuoteRefreshEngine(
 
                     override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                         heartbeatJob?.cancel()
+                        logWs(
+                            line = "WS FAIL okx-spot ${t.javaClass.simpleName}: ${t.message.orEmpty()}",
+                            detail = t.stackTraceToString()
+                        )
                         Log.w(TAG, "OKX spot WSS failed: ${t.message}")
                         closed.complete(Unit)
                     }
@@ -400,6 +432,11 @@ class StreamingQuoteRefreshEngine(
                 request,
                 object : WebSocketListener() {
                     override fun onOpen(webSocket: WebSocket, response: Response) {
+                        logWs("WS OPEN okx-onchain $OKX_ONCHAIN_PUBLIC_WS_URL")
+                        logWs(
+                            line = "WS SEND okx-onchain login",
+                            detail = buildOkxOnChainLoginRequest(credentials).toString()
+                        )
                         webSocket.send(buildOkxOnChainLoginRequest(credentials).toString())
 
                         heartbeatJob = scope.launch {
@@ -416,6 +453,7 @@ class StreamingQuoteRefreshEngine(
                         lastMessageTimestamp = System.currentTimeMillis()
                         if (text == "pong") return
 
+                        logWs("WS RECV okx-onchain $text")
                         when {
                             handleOkxOnChainLoginMessage(
                                 text = text,
@@ -449,6 +487,10 @@ class StreamingQuoteRefreshEngine(
 
                     override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                         heartbeatJob?.cancel()
+                        logWs(
+                            line = "WS FAIL okx-onchain ${t.javaClass.simpleName}: ${t.message.orEmpty()}",
+                            detail = t.stackTraceToString()
+                        )
                         Log.w(TAG, "OKX on-chain WSS failed: ${t.message}")
                         loginCompleted.complete(false)
                         closed.complete(Unit)
@@ -653,7 +695,12 @@ class StreamingQuoteRefreshEngine(
 
         val success = event == "login" && payload["code"]?.jsonPrimitive?.contentOrNull == "0"
         if (success) {
-            webSocket.send(buildOkxOnChainSubscribeRequest(items).toString())
+            val subscribeRequest = buildOkxOnChainSubscribeRequest(items).toString()
+            logWs(
+                line = "WS SEND okx-onchain subscribe ${items.size}",
+                detail = subscribeRequest
+            )
+            webSocket.send(subscribeRequest)
         } else {
             Log.w(TAG, "OKX on-chain WSS login response failed: $text")
         }
@@ -763,6 +810,10 @@ class StreamingQuoteRefreshEngine(
         } else {
             tokenAddress
         }
+    }
+
+    private fun logWs(line: String, detail: String = line) {
+        networkLogRepository.append(line = line, detail = detail)
     }
 
     companion object {

@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.Language
+import androidx.compose.material.icons.rounded.ReceiptLong
 import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.rounded.VpnKey
@@ -51,7 +52,8 @@ fun SettingsRoute(
     container: AppContainer,
     contentBottomInset: Dp = 0.dp,
     onNavigateOverlaySettings: () -> Unit,
-    onNavigateThirdPartyApiSettings: () -> Unit
+    onNavigateThirdPartyApiSettings: () -> Unit,
+    onNavigateNetworkLog: () -> Unit
 ) {
     val viewModel: SettingsViewModel = viewModel(factory = SettingsViewModel.factory(container))
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -61,6 +63,7 @@ fun SettingsRoute(
         contentBottomInset = contentBottomInset,
         onNavigateOverlaySettings = onNavigateOverlaySettings,
         onNavigateThirdPartyApiSettings = onNavigateThirdPartyApiSettings,
+        onNavigateNetworkLog = onNavigateNetworkLog,
         onThemeModeChange = viewModel::setThemeMode,
         onLanguageChange = viewModel::setLanguage,
         onRefreshIntervalModeChange = viewModel::setRefreshIntervalMode,
@@ -74,6 +77,7 @@ private fun SettingsScreen(
     contentBottomInset: Dp,
     onNavigateOverlaySettings: () -> Unit,
     onNavigateThirdPartyApiSettings: () -> Unit,
+    onNavigateNetworkLog: () -> Unit,
     onThemeModeChange: (AppThemeMode) -> Unit,
     onLanguageChange: (AppLanguage) -> Unit,
     onRefreshIntervalModeChange: (RefreshIntervalMode) -> Unit,
@@ -113,6 +117,21 @@ private fun SettingsScreen(
                     title = stringResource(R.string.settings_third_party_api_title),
                     subtitle = stringResource(R.string.settings_third_party_api_subtitle),
                     onClick = onNavigateThirdPartyApiSettings
+                )
+            }
+        }
+
+        item {
+            ElevatedCard(
+                shape = RoundedCornerShape(20.dp),
+                modifier = Modifier.fillMaxWidth(),
+                colors = CoinMonitorComponentDefaults.elevatedCardColors()
+            ) {
+                SettingNavigationRow(
+                    icon = { Icon(Icons.Rounded.ReceiptLong, contentDescription = null) },
+                    title = stringResource(R.string.network_log_title),
+                    subtitle = stringResource(R.string.network_log_settings_subtitle),
+                    onClick = onNavigateNetworkLog
                 )
             }
         }

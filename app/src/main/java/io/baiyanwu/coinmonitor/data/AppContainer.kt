@@ -8,12 +8,14 @@ import io.baiyanwu.coinmonitor.data.refresh.GlobalQuoteRefreshCoordinator
 import io.baiyanwu.coinmonitor.data.repository.DefaultAppPreferencesRepository
 import io.baiyanwu.coinmonitor.data.repository.DefaultMarketQuoteRepository
 import io.baiyanwu.coinmonitor.data.repository.DefaultMarketSearchRepository
+import io.baiyanwu.coinmonitor.data.repository.DefaultNetworkLogRepository
 import io.baiyanwu.coinmonitor.data.repository.DefaultOkxCredentialsRepository
 import io.baiyanwu.coinmonitor.data.repository.DefaultOverlayRepository
 import io.baiyanwu.coinmonitor.data.repository.DefaultWatchlistRepository
 import io.baiyanwu.coinmonitor.domain.repository.AppPreferencesRepository
 import io.baiyanwu.coinmonitor.domain.repository.MarketQuoteRepository
 import io.baiyanwu.coinmonitor.domain.repository.MarketSearchRepository
+import io.baiyanwu.coinmonitor.domain.repository.NetworkLogRepository
 import io.baiyanwu.coinmonitor.domain.repository.OkxCredentialsRepository
 import io.baiyanwu.coinmonitor.domain.repository.OverlayRepository
 import io.baiyanwu.coinmonitor.domain.repository.WatchlistRepository
@@ -34,7 +36,11 @@ class AppContainer(context: Context) {
         CoinMonitorDatabase.MIGRATION_5_6
     ).build()
 
-    private val networkFactory = NetworkFactory()
+    val networkLogRepository: NetworkLogRepository = DefaultNetworkLogRepository()
+
+    private val networkFactory = NetworkFactory(
+        networkLogRepository = networkLogRepository
+    )
     val appPreferencesRepository: AppPreferencesRepository = DefaultAppPreferencesRepository(
         context = appContext
     )
@@ -73,6 +79,7 @@ class AppContainer(context: Context) {
         watchlistRepository = watchlistRepository,
         appPreferencesRepository = appPreferencesRepository,
         marketQuoteRepository = marketQuoteRepository,
-        okxCredentialsProvider = { okxCredentialsRepository.getCredentials() }
+        okxCredentialsProvider = { okxCredentialsRepository.getCredentials() },
+        networkLogRepository = networkLogRepository
     )
 }

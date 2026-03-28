@@ -8,6 +8,8 @@ interface OkxCredentialsRepository {
 
     fun getCredentials(): OkxApiCredentials
 
+    fun isSecureStorageAvailable(): Boolean
+
     suspend fun saveCredentials(
         enabled: Boolean,
         apiKey: String,
@@ -17,4 +19,3 @@ interface OkxCredentialsRepository {
 
     suspend fun clearCredentials()
 }
-

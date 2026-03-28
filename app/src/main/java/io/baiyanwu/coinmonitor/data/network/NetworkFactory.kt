@@ -1,6 +1,7 @@
 package io.baiyanwu.coinmonitor.data.network
 
 import io.baiyanwu.coinmonitor.BuildConfig
+import io.baiyanwu.coinmonitor.domain.repository.NetworkLogRepository
 import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -8,13 +9,16 @@ import retrofit2.Retrofit
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
 import okhttp3.MediaType.Companion.toMediaType
 
-class NetworkFactory {
+class NetworkFactory(
+    networkLogRepository: NetworkLogRepository
+) {
     private val json = Json {
         ignoreUnknownKeys = true
         explicitNulls = false
     }
 
     private val okHttpClient: OkHttpClient = OkHttpClient.Builder()
+        .addInterceptor(NetworkLogInterceptor(networkLogRepository))
         .addInterceptor(
             HttpLoggingInterceptor().apply {
                 level = if (BuildConfig.DEBUG) {

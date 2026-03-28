@@ -3,6 +3,7 @@ package io.baiyanwu.coinmonitor.data.refresh
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
 import io.baiyanwu.coinmonitor.domain.repository.AppPreferencesRepository
 import io.baiyanwu.coinmonitor.domain.repository.MarketQuoteRepository
+import io.baiyanwu.coinmonitor.domain.repository.NetworkLogRepository
 import io.baiyanwu.coinmonitor.domain.repository.WatchlistRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -21,7 +22,8 @@ class GlobalQuoteRefreshCoordinator(
     private val watchlistRepository: WatchlistRepository,
     private val appPreferencesRepository: AppPreferencesRepository,
     marketQuoteRepository: MarketQuoteRepository,
-    okxCredentialsProvider: suspend () -> io.baiyanwu.coinmonitor.domain.model.OkxApiCredentials? = { null }
+    okxCredentialsProvider: suspend () -> io.baiyanwu.coinmonitor.domain.model.OkxApiCredentials? = { null },
+    networkLogRepository: NetworkLogRepository
 ) {
     private val homeActive = MutableStateFlow(false)
     private val overlayActive = MutableStateFlow(false)
@@ -29,7 +31,8 @@ class GlobalQuoteRefreshCoordinator(
         scope = scope,
         watchlistRepository = watchlistRepository,
         marketQuoteRepository = marketQuoteRepository,
-        okxCredentialsProvider = okxCredentialsProvider
+        okxCredentialsProvider = okxCredentialsProvider,
+        networkLogRepository = networkLogRepository
     )
 
     private var observeJob: Job? = null

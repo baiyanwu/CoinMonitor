@@ -76,6 +76,15 @@
     <string name="settings_refresh_mode_one_minute">1 分钟</string>
     <string name="settings_third_party_api_title">第三方 API 设置</string>
     <string name="settings_third_party_api_subtitle">OKX 凭证由用户自行填写并保存在本机</string>
+    <string name="network_log_title">网络日志</string>
+    <string name="network_log_settings_subtitle">按时间顺序查看 HTTP 与 WSS 请求行日志</string>
+    <string name="network_log_start">开始记录</string>
+    <string name="network_log_stop">停止记录</string>
+    <string name="network_log_clear">清空日志</string>
+    <string name="network_log_status_running">记录中</string>
+    <string name="network_log_status_stopped">未记录</string>
+    <string name="network_log_count">共 %1$d 条</string>
+    <string name="network_log_empty">暂无日志，点击右上角开始按钮后再试。</string>
 
     <string name="third_party_api_settings_title">第三方 API 设置</string>
     <string name="third_party_api_settings_section_okx">OKX Onchain</string>
@@ -89,6 +98,7 @@
     <string name="third_party_api_settings_validation_required">启用前请完整填写 API Key、Secret Key 和 Passphrase。</string>
     <string name="third_party_api_settings_saved">已保存到本机安全存储</string>
     <string name="third_party_api_settings_cleared">凭证已清空</string>
+    <string name="third_party_api_settings_secure_storage_unavailable">当前设备的安全存储不可用，应用不会降级到明文保存，因此无法保存 OKX 凭证。</string>
 
     <string name="overlay_settings_title">悬浮窗设置</string>
     <string name="overlay_settings_subtitle">管理悬浮窗权限、样式和展示币对。</string>

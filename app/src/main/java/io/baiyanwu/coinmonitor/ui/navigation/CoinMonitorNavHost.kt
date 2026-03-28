@@ -46,7 +46,8 @@ fun CoinMonitorNavHost(
     container: AppContainer,
     onOpenSearch: () -> Unit,
     onOpenOverlaySettings: () -> Unit,
-    onOpenThirdPartyApiSettings: () -> Unit
+    onOpenThirdPartyApiSettings: () -> Unit,
+    onOpenNetworkLog: () -> Unit
 ) {
     val navController = rememberNavController()
     val tabs = remember {
@@ -113,7 +114,8 @@ fun CoinMonitorNavHost(
                 SettingsRoute(
                     container = container,
                     onNavigateOverlaySettings = onOpenOverlaySettings,
-                    onNavigateThirdPartyApiSettings = onOpenThirdPartyApiSettings
+                    onNavigateThirdPartyApiSettings = onOpenThirdPartyApiSettings,
+                    onNavigateNetworkLog = onOpenNetworkLog
                 )
             }
         }

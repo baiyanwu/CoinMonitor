@@ -108,6 +108,13 @@ private fun ThirdPartyApiSettingsScreen(
                     style = MaterialTheme.typography.bodySmall,
                     color = colors.secondaryText
                 )
+                if (!state.secureStorageAvailable) {
+                    Text(
+                        text = stringResource(R.string.third_party_api_settings_secure_storage_unavailable),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
 
                 SettingSwitchRow(
                     title = stringResource(R.string.third_party_api_settings_enable_okx),
@@ -171,6 +178,13 @@ private fun ThirdPartyApiSettingsScreen(
                         text = stringResource(R.string.third_party_api_settings_cleared),
                         style = MaterialTheme.typography.bodySmall,
                         color = colors.secondaryText
+                    )
+                }
+                state.errorMessage?.let { message ->
+                    Text(
+                        text = message,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
                     )
                 }
 
