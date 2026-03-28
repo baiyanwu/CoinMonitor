@@ -40,6 +40,11 @@
             android:exported="false"
             android:screenOrientation="portrait" />
 
+        <activity
+            android:name="io.baiyanwu.coinmonitor.ui.settings.ThirdPartyApiSettingsActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
         <service
             android:name="io.baiyanwu.coinmonitor.overlay.OverlayForegroundService"
             android:enabled="true"

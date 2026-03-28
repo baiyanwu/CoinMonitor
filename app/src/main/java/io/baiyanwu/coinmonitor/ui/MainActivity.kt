@@ -9,6 +9,7 @@ import io.baiyanwu.coinmonitor.overlay.OverlayServiceController
 import io.baiyanwu.coinmonitor.ui.navigation.CoinMonitorNavHost
 import io.baiyanwu.coinmonitor.ui.search.SearchActivity
 import io.baiyanwu.coinmonitor.ui.settings.OverlaySettingsActivity
+import io.baiyanwu.coinmonitor.ui.settings.ThirdPartyApiSettingsActivity
 import kotlinx.coroutines.launch
 
 class MainActivity : CoinMonitorComposeActivity() {
@@ -18,7 +19,8 @@ class MainActivity : CoinMonitorComposeActivity() {
             CoinMonitorNavHost(
                 container = container,
                 onOpenSearch = { SearchActivity.start(this@MainActivity) },
-                onOpenOverlaySettings = { OverlaySettingsActivity.start(this@MainActivity) }
+                onOpenOverlaySettings = { OverlaySettingsActivity.start(this@MainActivity) },
+                onOpenThirdPartyApiSettings = { ThirdPartyApiSettingsActivity.start(this@MainActivity) }
             )
         }
     }

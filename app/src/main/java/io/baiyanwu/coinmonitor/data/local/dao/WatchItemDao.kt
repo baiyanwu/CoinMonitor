@@ -46,7 +46,7 @@ interface WatchItemDao {
         lastPrice: Double,
         previousPrice: Double?,
         liveTrend: String,
-        change24hPercent: Double,
+        change24hPercent: Double?,
         lastUpdatedAt: Long
     )
 }

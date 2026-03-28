@@ -30,6 +30,7 @@ class OverlayForegroundService : Service() {
         getSystemService(NOTIFICATION_SERVICE) as NotificationManager
     }
 
+    private val container by lazy { appContainer() }
     private lateinit var coordinator: OverlayPriceRefreshCoordinator
     private lateinit var windowController: OverlayWindowController
     private var isForegroundStarted: Boolean = false
@@ -39,19 +40,16 @@ class OverlayForegroundService : Service() {
         super.onCreate()
         createChannelIfNeeded()
 
-        val container = appContainer()
         windowController = OverlayWindowController(
             context = this,
             overlayRepository = container.overlayRepository,
             appPreferencesRepository = container.appPreferencesRepository,
             scope = serviceScope
         )
+        container.globalQuoteRefreshCoordinator.setOverlayActive(true)
         coordinator = OverlayPriceRefreshCoordinator(
             scope = serviceScope,
-            watchlistRepository = container.watchlistRepository,
             overlayRepository = container.overlayRepository,
-            appPreferencesRepository = container.appPreferencesRepository,
-            marketQuoteRepository = container.marketQuoteRepository
         ) { items, settings ->
             // 临时隐藏属于运行态，后续行情刷新时也必须继续尊重这个状态。
             if (settings.enabled && !OverlayRuntimeSession.temporarilyHidden.value) {
@@ -128,7 +126,7 @@ class OverlayForegroundService : Service() {
                     val settings = appContainer().overlayRepository.getSettings()
                     val canDrawOverlays = OverlayPermissionHelper.canDrawOverlays(this@OverlayForegroundService)
                     if (OverlayRuntimePolicy.shouldRunOverlay(settings.enabled, canDrawOverlays)) {
-                        coordinator.refreshNow()
+                        container.globalQuoteRefreshCoordinator.refreshNow()
                     } else {
                         if (settings.enabled && !canDrawOverlays) {
                             appContainer().overlayRepository.setEnabled(false)
@@ -143,7 +141,7 @@ class OverlayForegroundService : Service() {
                 startForegroundIfNeeded()
                 serviceScope.launch {
                     if (!renderLatestOverlay()) return@launch
-                    coordinator.refreshNow()
+                    container.globalQuoteRefreshCoordinator.refreshNow()
                 }
                 return START_STICKY
             }
@@ -153,6 +151,7 @@ class OverlayForegroundService : Service() {
     }
 
     override fun onDestroy() {
+        container.globalQuoteRefreshCoordinator.setOverlayActive(false)
         coordinator.stop()
         windowController.hide()
         OverlayRuntimeSession.reset()

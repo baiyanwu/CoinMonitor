@@ -3,6 +3,10 @@ package io.baiyanwu.coinmonitor.overlay
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.ColorMatrix
+import android.graphics.ColorMatrixColorFilter
+import android.graphics.Paint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -13,6 +17,7 @@ import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
 import java.net.URLEncoder
+import java.security.MessageDigest
 import java.util.concurrent.ConcurrentHashMap
 
 class CoinIconService private constructor(private val context: Context) {
@@ -26,28 +31,48 @@ class CoinIconService private constructor(private val context: Context) {
         }
     }
 
-    suspend fun loadBitmap(symbol: String): Bitmap? = withContext(Dispatchers.IO) {
+    suspend fun loadBitmap(
+        symbol: String,
+        preferredIconUrl: String? = null,
+        fallbackIconUrl: String? = null,
+        grayscaleFallback: Boolean = false
+    ): Bitmap? = withContext(Dispatchers.IO) {
         val normalized = symbol.uppercase()
-        memoryCache[normalized]?.let { return@withContext it }
-
-        loadFromDisk(normalized)?.let { bitmap ->
-            memoryCache[normalized] = bitmap
-            return@withContext bitmap
+        val directRequests = buildDirectIconRequests(
+            preferredIconUrl = preferredIconUrl,
+            fallbackIconUrl = fallbackIconUrl,
+            grayscaleFallback = grayscaleFallback
+        )
+        directRequests.forEach { request ->
+            loadCachedBitmap(request.cacheKey)?.let { return@withContext it }
         }
 
         cacheMutex.withLock {
+            directRequests.forEach { request ->
+                loadCachedBitmap(request.cacheKey)?.let { return@withContext it }
+                val bitmap = downloadBitmap(request.url) ?: return@forEach
+                val finalBitmap = if (request.grayscale) bitmap.toGrayscale() else bitmap
+                saveToDisk(request.cacheKey, finalBitmap)
+                memoryCache[request.cacheKey] = finalBitmap
+                return@withContext finalBitmap
+            }
+
             memoryCache[normalized]?.let { return@withContext it }
             loadFromDisk(normalized)?.let { bitmap ->
                 memoryCache[normalized] = bitmap
                 return@withContext bitmap
             }
-
             val remoteUrl = fetchIconUrl(normalized) ?: return@withContext null
             val bitmap = downloadBitmap(remoteUrl) ?: return@withContext null
             saveToDisk(normalized, bitmap)
             memoryCache[normalized] = bitmap
             bitmap
         }
+    }
+
+    private fun loadCachedBitmap(cacheKey: String): Bitmap? {
+        memoryCache[cacheKey]?.let { return it }
+        return loadFromDisk(cacheKey)?.also { memoryCache[cacheKey] = it }
     }
 
     private fun loadFromDisk(symbol: String): Bitmap? {
@@ -65,6 +90,33 @@ class CoinIconService private constructor(private val context: Context) {
         FileOutputStream(file).use { output ->
             bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)
         }
+    }
+
+    private fun buildDirectIconRequests(
+        preferredIconUrl: String?,
+        fallbackIconUrl: String?,
+        grayscaleFallback: Boolean
+    ): List<IconRequest> {
+        val requests = mutableListOf<IconRequest>()
+        preferredIconUrl?.takeIf { it.isNotBlank() }?.let { url ->
+            requests += IconRequest(
+                cacheKey = "icon_${buildHash(url)}",
+                url = url,
+                grayscale = false
+            )
+        }
+        fallbackIconUrl?.takeIf { it.isNotBlank() }?.let { url ->
+            requests += IconRequest(
+                cacheKey = if (grayscaleFallback) {
+                    "chain_gray_${buildHash(url)}"
+                } else {
+                    "chain_${buildHash(url)}"
+                },
+                url = url,
+                grayscale = grayscaleFallback
+            )
+        }
+        return requests.distinctBy { it.cacheKey }
     }
 
     private fun fetchIconUrl(symbol: String): String? {
@@ -105,6 +157,32 @@ class CoinIconService private constructor(private val context: Context) {
         }
     }
 
+    /**
+     * 灰阶化在下载后、缓存前完成一次，避免列表滚动和悬浮窗刷新时重复做像素处理。
+     */
+    private fun Bitmap.toGrayscale(): Bitmap {
+        val output = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(output)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            colorFilter = ColorMatrixColorFilter(
+                ColorMatrix().apply { setSaturation(0f) }
+            )
+        }
+        canvas.drawBitmap(this, 0f, 0f, paint)
+        return output
+    }
+
+    private fun buildHash(value: String): String {
+        val digest = MessageDigest.getInstance("SHA-256").digest(value.toByteArray())
+        return digest.joinToString(separator = "") { byte -> "%02x".format(byte) }
+    }
+
+    private data class IconRequest(
+        val cacheKey: String,
+        val url: String,
+        val grayscale: Boolean
+    )
+
     companion object {
         @Volatile
         private var instance: CoinIconService? = null
@@ -116,4 +194,3 @@ class CoinIconService private constructor(private val context: Context) {
         }
     }
 }
-

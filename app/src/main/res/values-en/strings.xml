@@ -33,18 +33,25 @@
     <string name="home_watchlist_subtitle">Long press an item to add it to the floating window.</string>
 
     <string name="search_title">Search Pairs</string>
-    <string name="search_subtitle">Results stay ordered as Binance, Binance Alpha, and OKX, with collapsible groups.</string>
+    <string name="search_subtitle">Switch between exchange and on-chain search, then filter on-chain results by EVM / SOL.</string>
     <string name="search_input_hint">Search Binance/OKX etc.</string>
+    <string name="search_input_hint_onchain">Enter token name or contract address</string>
     <string name="search_action">Search Binance / Binance Alpha / OKX</string>
     <string name="search_submit">Search</string>
     <string name="search_loading">Searching…</string>
     <string name="search_empty">No results yet. Enter a keyword to begin searching.</string>
     <string name="search_empty_initial">Enter a symbol to start searching</string>
     <string name="search_empty_result">No matching pairs found</string>
+    <string name="search_mode_exchange">Exchange</string>
+    <string name="search_mode_onchain">On-chain</string>
     <string name="search_tab_all">All</string>
     <string name="search_tab_binance_family">Binance / Alpha</string>
     <string name="search_tab_okx">OKX</string>
+    <string name="search_tab_evm">EVM</string>
+    <string name="search_tab_sol">SOL</string>
     <string name="search_tag_alpha">Alpha</string>
+    <string name="search_onchain_credential_missing">On-chain search requires configured OKX API credentials.</string>
+    <string name="search_onchain_credential_tip">Go to &quot;Settings &gt; Third-Party API Settings&quot; and fill in OKX API Key, Secret Key, and Passphrase first.</string>
     <string name="error_search_retry">Search failed. Please try again later.</string>
 
     <string name="settings_title">Settings</string>
@@ -67,6 +74,21 @@
     <string name="settings_refresh_mode_custom">Slider</string>
     <string name="settings_refresh_mode_thirty_seconds">30 s</string>
     <string name="settings_refresh_mode_one_minute">1 min</string>
+    <string name="settings_third_party_api_title">Third-party API Settings</string>
+    <string name="settings_third_party_api_subtitle">OKX credentials are provided by the user and stored on-device only.</string>
+
+    <string name="third_party_api_settings_title">Third-party API Settings</string>
+    <string name="third_party_api_settings_section_okx">OKX Onchain</string>
+    <string name="third_party_api_settings_disclaimer">Credentials are stored only on this device for direct OKX requests and are never uploaded to the developer server.</string>
+    <string name="third_party_api_settings_enable_okx">Enable OKX credentials</string>
+    <string name="third_party_api_settings_api_key">API Key</string>
+    <string name="third_party_api_settings_secret_key">Secret Key</string>
+    <string name="third_party_api_settings_passphrase">Passphrase</string>
+    <string name="third_party_api_settings_save">Save</string>
+    <string name="third_party_api_settings_clear">Clear credentials</string>
+    <string name="third_party_api_settings_validation_required">Please fill API Key, Secret Key and Passphrase before enabling.</string>
+    <string name="third_party_api_settings_saved">Saved to secure local storage.</string>
+    <string name="third_party_api_settings_cleared">Credentials cleared.</string>
 
     <string name="overlay_settings_title">Overlay Settings</string>
     <string name="overlay_settings_subtitle">Permissions, appearance, and items for the floating window.</string>

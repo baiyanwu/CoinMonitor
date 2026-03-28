@@ -45,7 +45,8 @@ private data class MainTab(
 fun CoinMonitorNavHost(
     container: AppContainer,
     onOpenSearch: () -> Unit,
-    onOpenOverlaySettings: () -> Unit
+    onOpenOverlaySettings: () -> Unit,
+    onOpenThirdPartyApiSettings: () -> Unit
 ) {
     val navController = rememberNavController()
     val tabs = remember {
@@ -111,7 +112,8 @@ fun CoinMonitorNavHost(
             composable(Destinations.SETTINGS) {
                 SettingsRoute(
                     container = container,
-                    onNavigateOverlaySettings = onOpenOverlaySettings
+                    onNavigateOverlaySettings = onOpenOverlaySettings,
+                    onNavigateThirdPartyApiSettings = onOpenThirdPartyApiSettings
                 )
             }
         }

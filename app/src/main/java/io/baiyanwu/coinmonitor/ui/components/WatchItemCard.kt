@@ -101,10 +101,7 @@ fun WatchItemCard(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            CoinSymbolIcon(
-                symbol = item.baseSymbol,
-                modifier = Modifier.size(24.dp)
-            )
+            CoinSymbolIcon(item = item, modifier = Modifier.size(24.dp))
 
             Column(
                 modifier = Modifier.weight(1f),

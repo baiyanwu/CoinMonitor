@@ -17,6 +17,7 @@ import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.material.icons.rounded.VpnKey
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -49,7 +50,8 @@ import kotlin.math.roundToInt
 fun SettingsRoute(
     container: AppContainer,
     contentBottomInset: Dp = 0.dp,
-    onNavigateOverlaySettings: () -> Unit
+    onNavigateOverlaySettings: () -> Unit,
+    onNavigateThirdPartyApiSettings: () -> Unit
 ) {
     val viewModel: SettingsViewModel = viewModel(factory = SettingsViewModel.factory(container))
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -58,6 +60,7 @@ fun SettingsRoute(
         state = state,
         contentBottomInset = contentBottomInset,
         onNavigateOverlaySettings = onNavigateOverlaySettings,
+        onNavigateThirdPartyApiSettings = onNavigateThirdPartyApiSettings,
         onThemeModeChange = viewModel::setThemeMode,
         onLanguageChange = viewModel::setLanguage,
         onRefreshIntervalModeChange = viewModel::setRefreshIntervalMode,
@@ -70,6 +73,7 @@ private fun SettingsScreen(
     state: SettingsUiState,
     contentBottomInset: Dp,
     onNavigateOverlaySettings: () -> Unit,
+    onNavigateThirdPartyApiSettings: () -> Unit,
     onThemeModeChange: (AppThemeMode) -> Unit,
     onLanguageChange: (AppLanguage) -> Unit,
     onRefreshIntervalModeChange: (RefreshIntervalMode) -> Unit,
@@ -96,6 +100,21 @@ private fun SettingsScreen(
                 text = stringResource(R.string.settings_title),
                 style = MaterialTheme.typography.headlineSmall
             )
+        }
+
+        item {
+            ElevatedCard(
+                shape = RoundedCornerShape(20.dp),
+                modifier = Modifier.fillMaxWidth(),
+                colors = CoinMonitorComponentDefaults.elevatedCardColors()
+            ) {
+                SettingNavigationRow(
+                    icon = { Icon(Icons.Rounded.VpnKey, contentDescription = null) },
+                    title = stringResource(R.string.settings_third_party_api_title),
+                    subtitle = stringResource(R.string.settings_third_party_api_subtitle),
+                    onClick = onNavigateThirdPartyApiSettings
+                )
+            }
         }
 
         item {
@@ -289,6 +308,7 @@ private fun SettingsScreen(
 private fun SettingNavigationRow(
     icon: @Composable () -> Unit,
     title: String,
+    subtitle: String? = null,
     onClick: () -> Unit
 ) {
     Row(
@@ -307,6 +327,13 @@ private fun SettingNavigationRow(
             icon()
             Column {
                 Text(title, style = MaterialTheme.typography.titleMedium)
+                if (!subtitle.isNullOrBlank()) {
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = CoinMonitorThemeTokens.colors.secondaryText
+                    )
+                }
             }
         }
         Icon(Icons.AutoMirrored.Rounded.ArrowForward, contentDescription = null)

@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -21,9 +22,12 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.ArrowDropDown
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -32,6 +36,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -40,25 +45,64 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import io.baiyanwu.coinmonitor.R
 import io.baiyanwu.coinmonitor.data.AppContainer
 import io.baiyanwu.coinmonitor.domain.model.ExchangeSource
+import io.baiyanwu.coinmonitor.domain.model.MarketType
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
 import io.baiyanwu.coinmonitor.ui.components.CoinSymbolIcon
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
-import io.baiyanwu.coinmonitor.R
 
 private const val TAB_ALL = 0
 private const val TAB_BINANCE_FAMILY = 1
 private const val TAB_OKX = 2
+private const val TAB_ONCHAIN_SOL = 3
+private const val TAB_ONCHAIN_EVM = 4
+private const val SOLANA_CHAIN_INDEX = "501"
+private const val DEFAULT_EVM_CHAIN_INDEX = "1"
+private const val MIN_SOL_ADDRESS_LENGTH = 32
+private const val MAX_SOL_ADDRESS_LENGTH = 44
+
+private enum class ChainFamilyLabel {
+    EVM,
+    SOL,
+    UNKNOWN
+}
+
+private data class OnchainChainOption(
+    val label: String,
+    val chainIndex: String
+)
+
+/**
+ * 链上页签先只暴露当前产品要用的主流链，并直接复用 chainIndex 做前端筛选，
+ * 这样不需要额外拉一轮链元数据，也能让用户快速切到目标链。
+ */
+private val ONCHAIN_EVM_OPTIONS = listOf(
+    OnchainChainOption(label = "ETH", chainIndex = "1"),
+    OnchainChainOption(label = "Base", chainIndex = "8453"),
+    OnchainChainOption(label = "BSC", chainIndex = "56"),
+    OnchainChainOption(label = "Arbitrum", chainIndex = "42161"),
+    OnchainChainOption(label = "Polygon", chainIndex = "137"),
+    OnchainChainOption(label = "Optimism", chainIndex = "10"),
+    OnchainChainOption(label = "Avalanche", chainIndex = "43114"),
+    OnchainChainOption(label = "Linea", chainIndex = "59144"),
+    OnchainChainOption(label = "Scroll", chainIndex = "534352"),
+    OnchainChainOption(label = "Blast", chainIndex = "81457"),
+    OnchainChainOption(label = "Mode", chainIndex = "34443"),
+    OnchainChainOption(label = "Mantle", chainIndex = "5000"),
+    OnchainChainOption(label = "Polygon zkEVM", chainIndex = "1101"),
+    OnchainChainOption(label = "zkSync", chainIndex = "324"),
+    OnchainChainOption(label = "Fantom", chainIndex = "250"),
+    OnchainChainOption(label = "Zeta", chainIndex = "7000")
+)
 
 @Composable
 fun SearchRoute(
@@ -73,6 +117,7 @@ fun SearchRoute(
         onQueryChange = viewModel::updateQuery,
         onClearQuery = viewModel::clearQuery,
         onSearch = viewModel::search,
+        onSearchModeChange = viewModel::setSearchMode,
         onToggleItem = viewModel::toggleWatchItem
     )
 }
@@ -83,29 +128,67 @@ private fun SearchScreen(
     onBack: () -> Unit,
     onQueryChange: (String) -> Unit,
     onClearQuery: () -> Unit,
-    onSearch: () -> Unit,
+    onSearch: (OnchainSearchSelection?) -> Unit,
+    onSearchModeChange: (SearchMode) -> Unit,
     onToggleItem: (WatchItem) -> Unit
 ) {
     val colors = CoinMonitorThemeTokens.colors
-    var selectedTab by rememberSaveable { mutableIntStateOf(TAB_ALL) }
-    val sortedResults = remember(state.results) {
-        state.results.sortedWith(
-            compareBy<WatchItem>(
-                { ExchangeSource.Companion.sortRank(it.exchangeSource) },
-                { it.symbol }
-            )
-        )
+    var exchangeTab by rememberSaveable { mutableIntStateOf(TAB_ALL) }
+    var onchainTab by rememberSaveable { mutableIntStateOf(TAB_ONCHAIN_EVM) }
+    var selectedEvmChainIndex by rememberSaveable { mutableStateOf(DEFAULT_EVM_CHAIN_INDEX) }
+    val selectedEvmChain = remember(selectedEvmChainIndex) {
+        ONCHAIN_EVM_OPTIONS.firstOrNull { it.chainIndex == selectedEvmChainIndex } ?: ONCHAIN_EVM_OPTIONS.first()
     }
-    val filteredResults = remember(sortedResults, selectedTab) {
-        when (selectedTab) {
-            TAB_BINANCE_FAMILY -> sortedResults.filter {
-                it.exchangeSource == ExchangeSource.BINANCE || it.exchangeSource == ExchangeSource.BINANCE_ALPHA
-            }
 
-            TAB_OKX -> sortedResults.filter { it.exchangeSource == ExchangeSource.OKX }
-            else -> sortedResults
+    val sortedResults = remember(state.results, state.searchMode) {
+        when (state.searchMode) {
+            SearchMode.EXCHANGE -> state.results.sortedWith(
+                compareBy<WatchItem>(
+                    { ExchangeSource.sortRank(it.exchangeSource) },
+                    { it.symbol }
+                )
+            )
+
+            SearchMode.ONCHAIN -> state.results.sortedWith(
+                compareBy<WatchItem>(
+                    { chainRank(it) },
+                    { it.symbol.uppercase() },
+                    { it.name.uppercase() }
+                )
+            )
         }
     }
+    val modeResults = remember(sortedResults, state.searchMode) {
+        when (state.searchMode) {
+            SearchMode.EXCHANGE -> sortedResults.filterNot(::isOnchainItem)
+            SearchMode.ONCHAIN -> sortedResults.filter(::isOnchainItem)
+        }
+    }
+    val filteredResults = remember(
+        modeResults,
+        state.searchMode,
+        exchangeTab,
+        onchainTab,
+        selectedEvmChainIndex
+    ) {
+        when (state.searchMode) {
+            SearchMode.EXCHANGE -> when (exchangeTab) {
+                TAB_BINANCE_FAMILY -> modeResults.filter {
+                    it.exchangeSource == ExchangeSource.BINANCE || it.exchangeSource == ExchangeSource.BINANCE_ALPHA
+                }
+
+                TAB_OKX -> modeResults.filter { it.exchangeSource == ExchangeSource.OKX }
+                else -> modeResults
+            }
+
+            SearchMode.ONCHAIN -> when (onchainTab) {
+                TAB_ONCHAIN_SOL -> modeResults.filter { inferChainFamily(it) == ChainFamilyLabel.SOL }
+                TAB_ONCHAIN_EVM -> modeResults.filter { resolveChainIndex(it) == selectedEvmChainIndex }
+                else -> modeResults
+            }
+        }
+    }
+    val showCredentialHint = state.searchMode == SearchMode.ONCHAIN && !state.hasOkxCredentials
 
     Column(
         modifier = Modifier
@@ -118,21 +201,59 @@ private fun SearchScreen(
             onBack = onBack,
             onQueryChange = onQueryChange,
             onClearQuery = onClearQuery,
-            onSearch = onSearch
+            onSearch = {
+                val onchainSelection = if (state.searchMode == SearchMode.ONCHAIN) {
+                    val chainIndex = if (onchainTab == TAB_ONCHAIN_SOL) {
+                        SOLANA_CHAIN_INDEX
+                    } else {
+                        selectedEvmChainIndex
+                    }
+                    OnchainSearchSelection(chainIndex = chainIndex)
+                } else {
+                    null
+                }
+                onSearch(onchainSelection)
+            },
+            onSearchModeChange = onSearchModeChange
         )
 
-        if (sortedResults.isNotEmpty()) {
-            SearchTabs(
-                selectedTab = selectedTab,
-                onSelectTab = { selectedTab = it }
-            )
-        }
+        SearchTabs(
+            searchMode = state.searchMode,
+            selectedExchangeTab = exchangeTab,
+            onSelectExchangeTab = { exchangeTab = it },
+            selectedOnchainTab = onchainTab,
+            selectedOnchainChain = selectedEvmChain,
+            onSelectOnchainTab = { onchainTab = it },
+            onSelectOnchainChain = { option ->
+                selectedEvmChainIndex = option.chainIndex
+                onchainTab = TAB_ONCHAIN_EVM
+            }
+        )
 
         LazyColumn(
             modifier = Modifier.weight(1f),
             contentPadding = PaddingValues(bottom = 16.dp)
         ) {
-            if (state.errorMessage != null) {
+            if (showCredentialHint) {
+                item("search_onchain_credential_hint") {
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 10.dp),
+                        color = colors.cardBackground,
+                        shape = RoundedCornerShape(18.dp)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.search_onchain_credential_tip),
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                            color = colors.secondaryText,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
+            }
+
+            if (state.errorMessage != null && !showCredentialHint) {
                 item("search_error") {
                     Surface(
                         modifier = Modifier
@@ -157,14 +278,13 @@ private fun SearchScreen(
                             .padding(top = 56.dp, bottom = 12.dp),
                         contentAlignment = Alignment.Center
                     ) {
+                        val emptyTextRes = when {
+                            showCredentialHint -> R.string.search_onchain_credential_missing
+                            state.hasSearched -> R.string.search_empty_result
+                            else -> R.string.search_empty_initial
+                        }
                         Text(
-                            text = stringResource(
-                                if (state.hasSearched) {
-                                    R.string.search_empty_result
-                                } else {
-                                    R.string.search_empty_initial
-                                }
-                            ),
+                            text = stringResource(emptyTextRes),
                             color = colors.secondaryText,
                             style = MaterialTheme.typography.bodyMedium
                         )
@@ -188,7 +308,7 @@ private fun SearchScreen(
                             filteredResults.forEach { item ->
                                 SearchResultRow(
                                     item = item,
-                                    selectedTab = selectedTab,
+                                    searchMode = state.searchMode,
                                     added = state.addedIds.contains(item.id),
                                     onToggleItem = onToggleItem
                                 )
@@ -207,7 +327,8 @@ private fun SearchHeader(
     onBack: () -> Unit,
     onQueryChange: (String) -> Unit,
     onClearQuery: () -> Unit,
-    onSearch: () -> Unit
+    onSearch: () -> Unit,
+    onSearchModeChange: (SearchMode) -> Unit
 ) {
     val colors = CoinMonitorThemeTokens.colors
     val searchTextStyle = MaterialTheme.typography.bodyMedium.copy(
@@ -220,19 +341,77 @@ private fun SearchHeader(
         fontSize = 15.sp,
         lineHeight = 18.sp
     )
+    val placeholderRes = if (state.searchMode == SearchMode.ONCHAIN) {
+        R.string.search_input_hint_onchain
+    } else {
+        R.string.search_input_hint
+    }
+    var modeMenuExpanded by remember { mutableStateOf(false) }
+    val selectedModeLabel = if (state.searchMode == SearchMode.ONCHAIN) {
+        stringResource(R.string.search_mode_onchain)
+    } else {
+        stringResource(R.string.search_mode_exchange)
+    }
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(colors.pageBackground)
-            .padding(horizontal = 14.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+            .padding(horizontal = 14.dp, vertical = 8.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            Box {
+                Surface(
+                    modifier = Modifier
+                        .height(40.dp)
+                        .clickable { modeMenuExpanded = true },
+                    color = colors.cardBackground,
+                    shape = RoundedCornerShape(18.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = selectedModeLabel,
+                            color = colors.primaryText,
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Icon(
+                            imageVector = Icons.Rounded.ArrowDropDown,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                            tint = colors.secondaryText
+                        )
+                    }
+                }
+                DropdownMenu(
+                    expanded = modeMenuExpanded,
+                    onDismissRequest = { modeMenuExpanded = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text(text = stringResource(R.string.search_mode_exchange)) },
+                        onClick = {
+                            modeMenuExpanded = false
+                            onSearchModeChange(SearchMode.EXCHANGE)
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text(text = stringResource(R.string.search_mode_onchain)) },
+                        onClick = {
+                            modeMenuExpanded = false
+                            onSearchModeChange(SearchMode.ONCHAIN)
+                        }
+                    )
+                }
+            }
+
             Surface(
                 modifier = Modifier
                     .weight(1f)
@@ -258,12 +437,20 @@ private fun SearchHeader(
                                 .padding(start = 12.dp, end = 8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Search,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp),
-                                tint = colors.accent
-                            )
+                            if (state.loading) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp),
+                                    color = colors.accent,
+                                    strokeWidth = 2.dp
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Rounded.Search,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                    tint = colors.accent
+                                )
+                            }
 
                             Box(
                                 modifier = Modifier
@@ -273,13 +460,12 @@ private fun SearchHeader(
                             ) {
                                 if (state.query.isBlank()) {
                                     Text(
-                                        text = stringResource(R.string.search_input_hint),
+                                        text = stringResource(placeholderRes),
                                         color = colors.tertiaryText,
                                         style = placeholderTextStyle,
                                         maxLines = 1
                                     )
                                 }
-
                                 innerTextField()
                             }
 
@@ -313,31 +499,36 @@ private fun SearchHeader(
                     .padding(vertical = 8.dp)
             )
         }
-
-        if (state.loading) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                CircularProgressIndicator(
-                    modifier = Modifier
-                        .padding(start = 4.dp)
-                        .size(14.dp),
-                    strokeWidth = 2.dp
-                )
-                Text(
-                    text = stringResource(R.string.search_loading),
-                    color = colors.secondaryText,
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
-        }
     }
 }
 
 @Composable
 private fun SearchTabs(
+    searchMode: SearchMode,
+    selectedExchangeTab: Int,
+    onSelectExchangeTab: (Int) -> Unit,
+    selectedOnchainTab: Int,
+    selectedOnchainChain: OnchainChainOption,
+    onSelectOnchainTab: (Int) -> Unit,
+    onSelectOnchainChain: (OnchainChainOption) -> Unit
+) {
+    when (searchMode) {
+        SearchMode.EXCHANGE -> ExchangeSearchTabs(
+            selectedTab = selectedExchangeTab,
+            onSelectTab = onSelectExchangeTab
+        )
+
+        SearchMode.ONCHAIN -> OnchainSearchTabs(
+            selectedTab = selectedOnchainTab,
+            selectedChain = selectedOnchainChain,
+            onSelectSol = { onSelectOnchainTab(TAB_ONCHAIN_SOL) },
+            onSelectChain = onSelectOnchainChain
+        )
+    }
+}
+
+@Composable
+private fun ExchangeSearchTabs(
     selectedTab: Int,
     onSelectTab: (Int) -> Unit
 ) {
@@ -355,21 +546,87 @@ private fun SearchTabs(
                 onClick = { onSelectTab(TAB_ALL) },
                 shape = RoundedCornerShape(topStart = 18.dp, bottomStart = 18.dp),
                 label = stringResource(R.string.search_tab_all),
-                modifier = Modifier.width(itemWidth)
+                modifier = Modifier.width(itemWidth),
+                selectedContainerColor = colors.chipSelectedContainer,
+                unselectedContainerColor = colors.cardBackground
             )
             SearchTabButton(
                 selected = selectedTab == TAB_BINANCE_FAMILY,
                 onClick = { onSelectTab(TAB_BINANCE_FAMILY) },
                 shape = RoundedCornerShape(4.dp),
                 label = stringResource(R.string.search_tab_binance_family),
-                modifier = Modifier.width(itemWidth)
+                modifier = Modifier.width(itemWidth),
+                selectedContainerColor = colors.chipSelectedContainer,
+                unselectedContainerColor = colors.cardBackground
             )
             SearchTabButton(
                 selected = selectedTab == TAB_OKX,
                 onClick = { onSelectTab(TAB_OKX) },
                 shape = RoundedCornerShape(topEnd = 18.dp, bottomEnd = 18.dp),
                 label = stringResource(R.string.search_tab_okx),
-                modifier = Modifier.width(itemWidth)
+                modifier = Modifier.width(itemWidth),
+                selectedContainerColor = colors.chipSelectedContainer,
+                unselectedContainerColor = colors.cardBackground
+            )
+        }
+    }
+}
+
+@Composable
+private fun OnchainSearchTabs(
+    selectedTab: Int,
+    selectedChain: OnchainChainOption,
+    onSelectSol: () -> Unit,
+    onSelectChain: (OnchainChainOption) -> Unit
+) {
+    val colors = CoinMonitorThemeTokens.colors
+    var chainMenuExpanded by remember { mutableStateOf(false) }
+
+    BoxWithConstraints(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(colors.pageBackground)
+            .padding(horizontal = 14.dp)
+    ) {
+        val itemWidth = (maxWidth - 4.dp) / 2
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            Box(modifier = Modifier.width(itemWidth)) {
+                DropdownSearchTabButton(
+                    selected = selectedTab == TAB_ONCHAIN_EVM,
+                    label = selectedChain.label,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(topStart = 18.dp, bottomStart = 18.dp),
+                    selectedContainerColor = colors.chipSelectedContainer,
+                    unselectedContainerColor = colors.cardBackground,
+                    onClick = { chainMenuExpanded = true }
+                )
+                DropdownMenu(
+                    expanded = chainMenuExpanded,
+                    onDismissRequest = { chainMenuExpanded = false },
+                    modifier = Modifier
+                        .width(itemWidth)
+                        .heightIn(max = 280.dp),
+                    offset = DpOffset(x = 0.dp, y = 4.dp)
+                ) {
+                    ONCHAIN_EVM_OPTIONS.forEach { option ->
+                        DropdownMenuItem(
+                            text = { Text(text = option.label) },
+                            onClick = {
+                                chainMenuExpanded = false
+                                onSelectChain(option)
+                            }
+                        )
+                    }
+                }
+            }
+            SearchTabButton(
+                selected = selectedTab == TAB_ONCHAIN_SOL,
+                onClick = onSelectSol,
+                shape = RoundedCornerShape(topEnd = 18.dp, bottomEnd = 18.dp),
+                label = stringResource(R.string.search_tab_sol),
+                modifier = Modifier.width(itemWidth),
+                selectedContainerColor = colors.chipSelectedContainer,
+                unselectedContainerColor = colors.cardBackground
             )
         }
     }
@@ -381,14 +638,15 @@ private fun SearchTabButton(
     onClick: () -> Unit,
     shape: Shape,
     label: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    selectedContainerColor: androidx.compose.ui.graphics.Color,
+    unselectedContainerColor: androidx.compose.ui.graphics.Color
 ) {
     val colors = CoinMonitorThemeTokens.colors
     Surface(
-        modifier = modifier
-            .clickable(onClick = onClick),
+        modifier = modifier.clickable(onClick = onClick),
         shape = shape,
-        color = if (selected) colors.chipSelectedContainer else colors.cardBackground,
+        color = if (selected) selectedContainerColor else unselectedContainerColor,
         tonalElevation = if (selected) 1.dp else 0.dp
     ) {
         Box(
@@ -409,13 +667,55 @@ private fun SearchTabButton(
 }
 
 @Composable
+private fun DropdownSearchTabButton(
+    selected: Boolean,
+    label: String,
+    shape: Shape,
+    selectedContainerColor: androidx.compose.ui.graphics.Color,
+    unselectedContainerColor: androidx.compose.ui.graphics.Color,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    val colors = CoinMonitorThemeTokens.colors
+    Surface(
+        modifier = modifier.clickable(onClick = onClick),
+        shape = shape,
+        color = if (selected) selectedContainerColor else unselectedContainerColor,
+        tonalElevation = if (selected) 1.dp else 0.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 10.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = label,
+                color = if (selected) colors.chipSelectedContent else colors.secondaryText,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1
+            )
+            Icon(
+                imageVector = Icons.Rounded.ArrowDropDown,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp),
+                tint = if (selected) colors.chipSelectedContent else colors.secondaryText
+            )
+        }
+    }
+}
+
+@Composable
 private fun SearchResultRow(
     item: WatchItem,
-    selectedTab: Int,
+    searchMode: SearchMode,
     added: Boolean,
     onToggleItem: (WatchItem) -> Unit
 ) {
     val colors = CoinMonitorThemeTokens.colors
+    val onchainMode = searchMode == SearchMode.ONCHAIN
 
     Row(
         modifier = Modifier
@@ -424,53 +724,53 @@ private fun SearchResultRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        CoinSymbolIcon(
-            symbol = item.baseSymbol,
-            modifier = Modifier.size(18.dp)
-        )
-        Row(
+        CoinSymbolIcon(item = item, modifier = Modifier.size(18.dp))
+        Column(
             modifier = Modifier.weight(1f),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
+            val titleText = if (onchainMode) {
+                resolveOnchainSymbol(item)
+            } else {
+                item.baseSymbol
+            }
             Text(
-                text = buildAnnotatedString {
-                    val base = item.baseSymbol
-                    val quote = item.symbol.substringAfter("/", "")
-                    withStyle(
-                        SpanStyle(
-                            color = colors.primaryText,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    ) {
-                        append(base)
-                    }
-                    if (quote.isNotBlank()) {
-                        append("/")
-                        withStyle(
-                            SpanStyle(
-                                color = colors.secondaryText,
-                                fontWeight = FontWeight.Medium
-                            )
-                        ) {
-                            append(quote)
-                        }
-                    }
-                },
-                style = MaterialTheme.typography.titleSmall
+                text = titleText,
+                style = MaterialTheme.typography.titleSmall,
+                color = colors.primaryText,
+                fontWeight = FontWeight.SemiBold
             )
-            if (selectedTab == TAB_BINANCE_FAMILY && item.exchangeSource == ExchangeSource.BINANCE_ALPHA) {
-                Surface(
-                    color = colors.accent.copy(alpha = 0.16f),
-                    shape = RoundedCornerShape(100.dp)
+            if (onchainMode) {
+                Text(
+                    text = resolveOnchainSubtitle(item),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.secondaryText,
+                    maxLines = 1
+                )
+            } else {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = stringResource(R.string.search_tag_alpha),
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                        color = colors.accent,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Medium
+                        text = item.symbol.substringAfter("/", ""),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colors.secondaryText
                     )
+                    if (item.exchangeSource == ExchangeSource.BINANCE_ALPHA) {
+                        Surface(
+                            color = colors.accent.copy(alpha = 0.16f),
+                            shape = RoundedCornerShape(100.dp)
+                        ) {
+                            Text(
+                                text = stringResource(R.string.search_tag_alpha),
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                color = colors.accent,
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -488,4 +788,107 @@ private fun SearchResultRow(
             )
         }
     }
+}
+
+private fun isOnchainItem(item: WatchItem): Boolean {
+    if (item.marketType == MarketType.ONCHAIN_TOKEN) return true
+    val id = item.id.lowercase()
+    if (id.startsWith("okx-onchain:") || id.startsWith("onchain:") || id.startsWith("okx-dex:")) {
+        return true
+    }
+    if (item.symbol.contains("/")) {
+        return false
+    }
+    val rawIdentity = resolveOnchainIdentity(item)
+    return looksLikeHexAddress(rawIdentity) || looksLikeSolAddress(rawIdentity)
+}
+
+private fun chainRank(item: WatchItem): Int {
+    return when (inferChainFamily(item)) {
+        ChainFamilyLabel.SOL -> 0
+        ChainFamilyLabel.EVM -> 1
+        ChainFamilyLabel.UNKNOWN -> 2
+    }
+}
+
+private fun inferChainFamily(item: WatchItem): ChainFamilyLabel {
+    return when {
+        item.chainFamily?.name == ChainFamilyLabel.EVM.name -> ChainFamilyLabel.EVM
+        item.chainFamily?.name == ChainFamilyLabel.SOL.name -> ChainFamilyLabel.SOL
+        resolveChainIndex(item) == SOLANA_CHAIN_INDEX -> ChainFamilyLabel.SOL
+        looksLikeHexAddress(resolveOnchainIdentity(item)) -> ChainFamilyLabel.EVM
+        looksLikeSolAddress(resolveOnchainIdentity(item)) -> ChainFamilyLabel.SOL
+        item.id.lowercase().contains(":sol:") || item.id.lowercase().contains("solana") -> ChainFamilyLabel.SOL
+        item.id.lowercase().contains(":evm:") || item.id.lowercase().contains("ethereum") -> ChainFamilyLabel.EVM
+        else -> ChainFamilyLabel.UNKNOWN
+    }
+}
+
+private fun resolveOnchainSymbol(item: WatchItem): String {
+    return when {
+        item.symbol.contains("/") -> item.symbol.substringBefore("/").uppercase()
+        item.symbol.isNotBlank() -> item.symbol.uppercase()
+        else -> item.name.uppercase()
+    }
+}
+
+private fun resolveOnchainSubtitle(item: WatchItem): String {
+    val shortAddress = resolveOnchainIdentity(item)
+        .takeIf { it.isNotBlank() }
+        ?.let(::shortenAddress)
+        ?: "--"
+    return "${resolveOnchainChainLabel(item)} | $shortAddress"
+}
+
+private fun resolveOnchainChainLabel(item: WatchItem): String {
+    val chainIndex = resolveChainIndex(item)
+    if (chainIndex == SOLANA_CHAIN_INDEX) return "SOL"
+    val optionLabel = ONCHAIN_EVM_OPTIONS.firstOrNull { it.chainIndex == chainIndex }?.label
+    if (optionLabel != null) return optionLabel
+    return when (inferChainFamily(item)) {
+        ChainFamilyLabel.EVM -> "EVM"
+        ChainFamilyLabel.SOL -> "SOL"
+        ChainFamilyLabel.UNKNOWN -> "CHAIN"
+    }
+}
+
+/**
+ * 优先吃新字段里的 chainIndex，只有历史数据缺字段时，才回退到旧的 id 结构兜底解析。
+ */
+private fun resolveChainIndex(item: WatchItem): String? {
+    item.chainIndex?.takeIf { it.isNotBlank() }?.let { return it }
+    val segments = item.id.split(":")
+    if (segments.size < 3) return null
+    return when (segments.first().lowercase()) {
+        "okx-onchain", "onchain", "okx-dex" -> segments.getOrNull(1)
+        else -> null
+    }
+}
+
+private fun resolveOnchainIdentity(item: WatchItem): String {
+    item.tokenAddress?.takeIf { it.isNotBlank() }?.let { return it }
+    return item.id.substringAfterLast(":", item.id)
+}
+
+private fun looksLikeHexAddress(value: String): Boolean {
+    return value.length == 42 &&
+        value.startsWith("0x", ignoreCase = true) &&
+        value.drop(2).all { it in '0'..'9' || it in 'a'..'f' || it in 'A'..'F' }
+}
+
+private fun looksLikeSolAddress(value: String): Boolean {
+    if (value.length !in MIN_SOL_ADDRESS_LENGTH..MAX_SOL_ADDRESS_LENGTH) return false
+    return value.all { char ->
+        char in '1'..'9' ||
+            char in 'A'..'H' ||
+            char in 'J'..'N' ||
+            char in 'P'..'Z' ||
+            char in 'a'..'k' ||
+            char in 'm'..'z'
+    }
+}
+
+private fun shortenAddress(value: String): String {
+    if (value.length <= 10) return value
+    return "${value.take(6)}...${value.takeLast(4)}"
 }

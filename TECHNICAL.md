@@ -45,8 +45,18 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 ### Search
 
 - 支持关键字搜索
-- 搜索结果覆盖 `Binance Alpha / Binance / OKX`
-- 结果按来源稳定排序，便于快速筛选
+- 交易所模式覆盖 `Binance Alpha / Binance / OKX`
+- 链上模式当前通过 `OKX DEX Market API` 搜索代币，并按单链过滤结果
+- 链上搜索支持币名 / Symbol / 合约地址输入
+- 搜索结果按来源和链稳定排序，便于快速筛选
+
+### On-chain
+
+- 当前链上能力只做搜索和最新价格展示，不提供交易执行
+- `OKX` 凭证由用户在设置页本地填写
+- 凭证通过本地加密存储管理，并由链上仓库统一读取
+- 链上搜索当前面向 `EVM` 与 `Solana`，其中 EVM 再按具体链 `chainIndex` 精确请求
+- 链上代币缺少自身图标时，会回退到链图标，并在缓存阶段生成灰阶版本复用
 
 ### Overlay
 
@@ -67,7 +77,8 @@ app/src/main/java/io/baiyanwu/coinmonitor/
   - 自定义 `3-10 秒`
   - `30 秒`
   - `1 分钟`
-- 首页轮询和悬浮窗轮询使用同一套全局刷新策略
+- 首页和悬浮窗只保留一套全局刷新协调器
+- 当前底层默认实现仍是轮询，但已经抽出可替换的刷新引擎接口，后续切 `WSS` 时可以直接替换实现
 
 ## Implementation Notes
 
@@ -81,8 +92,11 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 - 前台通知使用自定义 `RemoteViews` 内容布局，统一正文与操作按钮的对齐方式。
 - 数据库已移除默认破坏性迁移，并开启 Room schema 导出，为后续显式 migration 留出接口。
 - 当前 Room schema 已升级到 `v5`，用于承载悬浮窗字体大小和吸附靠边配置。
+- 当前 Room schema 已升级到 `v6`，用于承载链上观察项所需的链信息与图标字段。
 - 调试网络日志只在 Debug 构建输出，Release 默认关闭。
 - 悬浮窗启停规则已经统一，避免 UI 开关状态和真实运行状态不一致。
+- 搜索页的交易所模式和链上模式已经彻底分流，链上模式不会再混发交易所搜索请求。
+- 行情刷新已经拆成“全局协调器 + 可替换刷新引擎”两层结构，为交易所与链上的 `WSS` 接入预留接口。
 
 ## Open Source Notes
 
@@ -91,8 +105,9 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 - 不要提交 `local.properties`
 - 不要提交签名文件、私钥、发行版 keystore
 - 不要把任何私有 API Key、鉴权头或内部环境地址写入仓库
-- 当前数据源均为公开接口，不依赖额外密钥
-- 若后续接入第三方密钥，请统一改为 `local.properties` / CI secrets 注入
+- 交易所现货数据仍然使用公开接口
+- 链上搜索与报价依赖用户自行填写的 `OKX` 凭证，项目本身不托管任何密钥
+- 不要把测试用 `OKX` 密钥、鉴权头或抓包结果提交进仓库
 
 ## Release Signing
 

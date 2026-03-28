@@ -17,6 +17,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.compose.ui.graphics.toArgb
 import io.baiyanwu.coinmonitor.R
+import io.baiyanwu.coinmonitor.domain.model.OnchainChainIconRegistry
 import io.baiyanwu.coinmonitor.domain.model.OverlayLeadingDisplayMode
 import io.baiyanwu.coinmonitor.domain.model.OverlaySettings
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
@@ -341,7 +342,12 @@ class OverlayWindowController(
             setImageDrawable(buildDefaultBitcoinDrawable(metrics))
 
             scope.launch {
-                val bitmap = coinIconService.loadBitmap(item.baseSymbol)
+                val bitmap = coinIconService.loadBitmap(
+                    symbol = item.baseSymbol,
+                    preferredIconUrl = item.iconUrl,
+                    fallbackIconUrl = OnchainChainIconRegistry.resolveIconUrl(item.chainIndex),
+                    grayscaleFallback = item.chainIndex != null
+                )
                 if (bitmap != null) {
                     setImageBitmap(bitmap)
                 } else {

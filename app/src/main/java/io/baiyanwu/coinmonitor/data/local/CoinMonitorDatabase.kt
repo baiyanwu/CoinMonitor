@@ -9,7 +9,7 @@ import io.baiyanwu.coinmonitor.data.local.dao.WatchItemDao
 
 @Database(
     entities = [WatchItemEntity::class, OverlaySettingsEntity::class],
-    version = 5,
+    version = 6,
     exportSchema = true
 )
 abstract class CoinMonitorDatabase : RoomDatabase() {
@@ -24,6 +24,26 @@ abstract class CoinMonitorDatabase : RoomDatabase() {
                 )
                 database.execSQL(
                     "ALTER TABLE overlay_settings ADD COLUMN snapToEdge INTEGER NOT NULL DEFAULT 0"
+                )
+            }
+        }
+
+        val MIGRATION_5_6: Migration = object : Migration(5, 6) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    "ALTER TABLE watch_items ADD COLUMN marketType TEXT NOT NULL DEFAULT 'CEX_SPOT'"
+                )
+                database.execSQL(
+                    "ALTER TABLE watch_items ADD COLUMN chainFamily TEXT"
+                )
+                database.execSQL(
+                    "ALTER TABLE watch_items ADD COLUMN chainIndex TEXT"
+                )
+                database.execSQL(
+                    "ALTER TABLE watch_items ADD COLUMN tokenAddress TEXT"
+                )
+                database.execSQL(
+                    "ALTER TABLE watch_items ADD COLUMN iconUrl TEXT"
                 )
             }
         }

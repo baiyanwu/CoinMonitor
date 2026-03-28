@@ -5,6 +5,5 @@ data class MarketQuote(
     val symbol: String,
     val name: String,
     val priceUsd: Double,
-    val change24hPercent: Double
+    val change24hPercent: Double?
 )
-

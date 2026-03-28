@@ -33,18 +33,25 @@
     <string name="home_watchlist_subtitle">长按单个币对可快速加入悬浮窗</string>
 
     <string name="search_title">搜索币对</string>
-    <string name="search_subtitle">搜索结果顺序固定为 Binance、Binance Alpha、OKX，分组可折叠。</string>
+    <string name="search_subtitle">支持在交易所与链上搜索间切换，链上结果可按 EVM / SOL 筛选。</string>
     <string name="search_input_hint">搜索 Binance/OKX 等</string>
+    <string name="search_input_hint_onchain">输入代币名或合约地址</string>
     <string name="search_action">搜索 Binance / Binance Alpha / OKX</string>
     <string name="search_submit">开始搜索</string>
     <string name="search_loading">搜索中…</string>
     <string name="search_empty">还没有搜索结果，输入关键词后开始搜索。</string>
     <string name="search_empty_initial">输入币种关键词后开始搜索</string>
     <string name="search_empty_result">没有找到匹配结果</string>
+    <string name="search_mode_exchange">交易所</string>
+    <string name="search_mode_onchain">链上</string>
     <string name="search_tab_all">全部</string>
     <string name="search_tab_binance_family">Binance / Alpha</string>
     <string name="search_tab_okx">OKX</string>
+    <string name="search_tab_evm">EVM</string>
+    <string name="search_tab_sol">SOL</string>
     <string name="search_tag_alpha">Alpha</string>
+    <string name="search_onchain_credential_missing">链上搜索需要先配置 OKX API 凭证</string>
+    <string name="search_onchain_credential_tip">请先前往“设置 &gt; 第三方 API 设置”填写 OKX API Key、Secret Key 与 Passphrase。</string>
     <string name="error_search_retry">搜索失败，请稍后重试</string>
 
     <string name="settings_title">设置</string>
@@ -67,6 +74,21 @@
     <string name="settings_refresh_mode_custom">进度条</string>
     <string name="settings_refresh_mode_thirty_seconds">30 秒</string>
     <string name="settings_refresh_mode_one_minute">1 分钟</string>
+    <string name="settings_third_party_api_title">第三方 API 设置</string>
+    <string name="settings_third_party_api_subtitle">OKX 凭证由用户自行填写并保存在本机</string>
+
+    <string name="third_party_api_settings_title">第三方 API 设置</string>
+    <string name="third_party_api_settings_section_okx">OKX Onchain</string>
+    <string name="third_party_api_settings_disclaimer">凭证仅保存在本机，用于直接请求 OKX 接口，不会上传到开发者服务器。</string>
+    <string name="third_party_api_settings_enable_okx">启用 OKX 凭证</string>
+    <string name="third_party_api_settings_api_key">API Key</string>
+    <string name="third_party_api_settings_secret_key">Secret Key</string>
+    <string name="third_party_api_settings_passphrase">Passphrase</string>
+    <string name="third_party_api_settings_save">保存</string>
+    <string name="third_party_api_settings_clear">清空凭证</string>
+    <string name="third_party_api_settings_validation_required">启用前请完整填写 API Key、Secret Key 和 Passphrase。</string>
+    <string name="third_party_api_settings_saved">已保存到本机安全存储</string>
+    <string name="third_party_api_settings_cleared">凭证已清空</string>
 
     <string name="overlay_settings_title">悬浮窗设置</string>
     <string name="overlay_settings_subtitle">管理悬浮窗权限、样式和展示币对。</string>

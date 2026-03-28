@@ -40,6 +40,9 @@ class NetworkFactory {
     val okxApi: OkxApi = retrofit("https://www.okx.com/")
         .create(OkxApi::class.java)
 
+    val okxOnChainApi: OkxOnChainApi = retrofit("https://web3.okx.com/")
+        .create(OkxOnChainApi::class.java)
+
     val alphaApi: BinanceAlphaApi = retrofit("https://www.binance.com/")
         .create(BinanceAlphaApi::class.java)
 }

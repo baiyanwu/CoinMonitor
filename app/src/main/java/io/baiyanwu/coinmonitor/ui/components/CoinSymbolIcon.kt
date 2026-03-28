@@ -21,21 +21,30 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import io.baiyanwu.coinmonitor.domain.model.OnchainChainIconRegistry
+import io.baiyanwu.coinmonitor.domain.model.WatchItem
 import io.baiyanwu.coinmonitor.overlay.CoinIconService
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 
 @Composable
 fun CoinSymbolIcon(
     symbol: String,
+    iconUrl: String? = null,
+    fallbackIconUrl: String? = null,
     modifier: Modifier = Modifier,
     size: Dp = 20.dp
 ) {
     val context = LocalContext.current
-    var bitmap by remember(symbol) { mutableStateOf<Bitmap?>(null) }
+    var bitmap by remember(symbol, iconUrl, fallbackIconUrl) { mutableStateOf<Bitmap?>(null) }
     val iconModifier = modifier.size(size)
 
-    LaunchedEffect(symbol) {
-        bitmap = CoinIconService.Companion.get(context).loadBitmap(symbol)
+    LaunchedEffect(symbol, iconUrl, fallbackIconUrl) {
+        bitmap = CoinIconService.Companion.get(context).loadBitmap(
+            symbol = symbol,
+            preferredIconUrl = iconUrl,
+            fallbackIconUrl = fallbackIconUrl,
+            grayscaleFallback = fallbackIconUrl != null
+        )
     }
 
     if (bitmap != null) {
@@ -47,6 +56,21 @@ fun CoinSymbolIcon(
     } else {
         GenericCoinPlaceholder(modifier = iconModifier)
     }
+}
+
+@Composable
+fun CoinSymbolIcon(
+    item: WatchItem,
+    modifier: Modifier = Modifier,
+    size: Dp = 20.dp
+) {
+    CoinSymbolIcon(
+        symbol = item.baseSymbol,
+        iconUrl = item.iconUrl,
+        fallbackIconUrl = OnchainChainIconRegistry.resolveIconUrl(item.chainIndex),
+        modifier = modifier,
+        size = size
+    )
 }
 
 @Composable

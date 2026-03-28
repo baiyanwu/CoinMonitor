@@ -4,7 +4,10 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
+import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.Header
+import retrofit2.http.POST
 import retrofit2.http.Query
 
 interface BinanceApi {
@@ -32,6 +35,36 @@ interface BinanceAlphaApi {
 
     @GET("bapi/defi/v1/public/alpha-trade/ticker")
     suspend fun getTicker(@Query("symbol") symbol: String): JsonObject
+}
+
+interface OkxOnChainApi {
+    @GET("api/v6/dex/market/supported/chain")
+    suspend fun getSupportedChains(
+        @Header("OK-ACCESS-KEY") accessKey: String,
+        @Header("OK-ACCESS-SIGN") accessSign: String,
+        @Header("OK-ACCESS-TIMESTAMP") accessTimestamp: String,
+        @Header("OK-ACCESS-PASSPHRASE") accessPassphrase: String,
+        @Query("chainIndex") chainIndex: String? = null
+    ): OkxOnChainSupportedChainsResponse
+
+    @GET("api/v6/dex/market/token/search")
+    suspend fun searchTokens(
+        @Header("OK-ACCESS-KEY") accessKey: String,
+        @Header("OK-ACCESS-SIGN") accessSign: String,
+        @Header("OK-ACCESS-TIMESTAMP") accessTimestamp: String,
+        @Header("OK-ACCESS-PASSPHRASE") accessPassphrase: String,
+        @Query("chains") chains: String,
+        @Query("search") search: String
+    ): OkxOnChainTokenSearchResponse
+
+    @POST("api/v6/dex/market/price")
+    suspend fun getTokenPrices(
+        @Header("OK-ACCESS-KEY") accessKey: String,
+        @Header("OK-ACCESS-SIGN") accessSign: String,
+        @Header("OK-ACCESS-TIMESTAMP") accessTimestamp: String,
+        @Header("OK-ACCESS-PASSPHRASE") accessPassphrase: String,
+        @Body requestBody: List<OkxOnChainPriceRequest>
+    ): OkxOnChainTokenPriceResponse
 }
 
 @Serializable
@@ -80,6 +113,63 @@ data class OkxTickerRow(
     val open24h: String
 )
 
+@Serializable
+data class OkxOnChainTokenSearchResponse(
+    val code: String,
+    val msg: String? = null,
+    val data: List<OkxOnChainTokenRow> = emptyList()
+)
+
+@Serializable
+data class OkxOnChainSupportedChainsResponse(
+    val code: String,
+    val msg: String? = null,
+    val data: List<OkxOnChainChainRow> = emptyList()
+)
+
+@Serializable
+data class OkxOnChainTokenPriceResponse(
+    val code: String,
+    val msg: String? = null,
+    val data: List<OkxOnChainTokenPriceRow> = emptyList()
+)
+
+@Serializable
+data class OkxOnChainChainRow(
+    @SerialName("chainIndex") val chainIndex: String? = null,
+    @SerialName("chainName") val chainName: String? = null,
+    @SerialName("chainLogoUrl") val chainLogoUrl: String? = null,
+    @SerialName("chainSymbol") val chainSymbol: String? = null
+)
+
+@Serializable
+data class OkxOnChainPriceRequest(
+    @SerialName("chainIndex") val chainIndex: String,
+    @SerialName("tokenContractAddress") val tokenContractAddress: String
+)
+
+@Serializable
+data class OkxOnChainTokenRow(
+    @SerialName("chainIndex") val chainIndex: String? = null,
+    @SerialName("chainName") val chainName: String? = null,
+    @SerialName("tokenContractAddress") val tokenContractAddress: String? = null,
+    @SerialName("tokenSymbol") val tokenSymbol: String? = null,
+    @SerialName("tokenName") val tokenName: String? = null,
+    @SerialName("tokenLogoUrl") val tokenLogoUrl: String? = null,
+    @SerialName("decimal") val decimal: String? = null,
+    @SerialName("explorerUrl") val explorerUrl: String? = null,
+    @SerialName("price") val price: String? = null,
+    @SerialName("change") val change: String? = null
+)
+
+@Serializable
+data class OkxOnChainTokenPriceRow(
+    @SerialName("chainIndex") val chainIndex: String? = null,
+    @SerialName("tokenContractAddress") val tokenContractAddress: String? = null,
+    @SerialName("time") val time: String? = null,
+    @SerialName("price") val price: String? = null
+)
+
 internal fun JsonObject.isAlphaSuccess(): Boolean {
     val success = get("success")?.toString()?.removeSurrounding("\"")?.toBooleanStrictOrNull()
     if (success == false) return false
@@ -89,4 +179,3 @@ internal fun JsonObject.isAlphaSuccess(): Boolean {
 }
 
 internal fun JsonObject.jsonArray(key: String): JsonArray? = this[key] as? JsonArray
-
