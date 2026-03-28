@@ -32,7 +32,7 @@ class OverlayLogicTest {
 
     @Test
     fun `price formatter keeps small values precision`() {
-        assertEquals("0.00001", QuoteFormatter.formatPrice(0.00001234))
+        assertEquals("0.0₄1234", QuoteFormatter.formatPrice(0.00001234))
         assertEquals("12.340", QuoteFormatter.formatPrice(12.34))
     }
 
