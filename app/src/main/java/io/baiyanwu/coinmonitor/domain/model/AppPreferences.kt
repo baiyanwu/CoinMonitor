@@ -27,8 +27,15 @@ data class AppPreferences(
     val language: AppLanguage = AppLanguage.SYSTEM,
     val themeTemplate: ThemeTemplateId = ThemeTemplateId.DEFAULT_MD,
     val refreshIntervalMode: RefreshIntervalMode = RefreshIntervalMode.CUSTOM,
-    val customRefreshIntervalSeconds: Int = DEFAULT_CUSTOM_REFRESH_INTERVAL_SECONDS
+    val customRefreshIntervalSeconds: Int = DEFAULT_CUSTOM_REFRESH_INTERVAL_SECONDS,
+    val klineIndicatorSettings: KlineIndicatorSettings = KlineIndicatorSettings()
 ) {
+    val klineMainIndicator: KlineIndicator
+        get() = klineIndicatorSettings.selectedMainIndicator
+
+    val klineSubIndicator: KlineIndicator
+        get() = klineIndicatorSettings.selectedSubIndicator
+
     val refreshIntervalSeconds: Int
         get() = when (refreshIntervalMode) {
             RefreshIntervalMode.CUSTOM -> customRefreshIntervalSeconds.coerceIn(

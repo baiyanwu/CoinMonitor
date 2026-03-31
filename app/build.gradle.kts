@@ -123,6 +123,7 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.androidx.security.crypto)
+    implementation(libs.tradingview.lightweightcharts)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

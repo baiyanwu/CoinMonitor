@@ -1,5 +1,6 @@
 package io.baiyanwu.coinmonitor.data.network
 
+import io.baiyanwu.coinmonitor.domain.model.NetworkLogProtocol
 import io.baiyanwu.coinmonitor.domain.repository.NetworkLogRepository
 import okhttp3.Interceptor
 import okhttp3.Response
@@ -25,7 +26,11 @@ class NetworkLogInterceptor(
                 }
             }
         }.trim()
-        networkLogRepository.append(line = requestLine, detail = requestDetail)
+        networkLogRepository.append(
+            protocol = NetworkLogProtocol.HTTP,
+            line = requestLine,
+            detail = requestDetail
+        )
 
         return try {
             val response = chain.proceed(request)
@@ -37,11 +42,15 @@ class NetworkLogInterceptor(
                 if (response.headers.size > 0) {
                     appendLine("Headers:")
                     response.headers.forEach { header ->
-                        appendLine("${header.first}: ${header.second}")
-                    }
+                    appendLine("${header.first}: ${header.second}")
                 }
-            }.trim()
-            networkLogRepository.append(line = responseLine, detail = responseDetail)
+            }
+        }.trim()
+            networkLogRepository.append(
+                protocol = NetworkLogProtocol.HTTP,
+                line = responseLine,
+                detail = responseDetail
+            )
             response
         } catch (error: IOException) {
             val durationMs = (System.nanoTime() - startAt) / 1_000_000
@@ -50,7 +59,11 @@ class NetworkLogInterceptor(
                 appendLine(failureLine)
                 append(error.stackTraceToString())
             }.trim()
-            networkLogRepository.append(line = failureLine, detail = failureDetail)
+            networkLogRepository.append(
+                protocol = NetworkLogProtocol.HTTP,
+                line = failureLine,
+                detail = failureDetail
+            )
             throw error
         }
     }

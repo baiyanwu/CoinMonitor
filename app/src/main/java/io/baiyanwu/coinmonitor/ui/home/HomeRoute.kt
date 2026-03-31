@@ -79,7 +79,8 @@ fun HomeRoute(
     container: AppContainer,
     contentBottomInset: Dp = 0.dp,
     onNavigateSearch: () -> Unit,
-    onNavigateOverlaySettings: () -> Unit
+    onNavigateOverlaySettings: () -> Unit,
+    onNavigateKline: (String) -> Unit
 ) {
     val viewModel: HomeViewModel = viewModel(factory = HomeViewModel.factory(container))
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -105,6 +106,7 @@ fun HomeRoute(
         contentBottomInset = contentBottomInset,
         onNavigateSearch = onNavigateSearch,
         onNavigateOverlaySettings = onNavigateOverlaySettings,
+        onNavigateKline = onNavigateKline,
         onRemoveWatchItem = viewModel::removeWatchItem,
         onToggleOverlay = viewModel::toggleOverlay,
         onRefresh = viewModel::refreshNow
@@ -118,6 +120,7 @@ internal fun HomeScreen(
     contentBottomInset: Dp,
     onNavigateSearch: () -> Unit,
     onNavigateOverlaySettings: () -> Unit,
+    onNavigateKline: (String) -> Unit,
     onRemoveWatchItem: (String) -> Unit,
     onToggleOverlay: (String) -> Unit,
     onRefresh: () -> Unit
@@ -205,9 +208,8 @@ internal fun HomeScreen(
                                     item = item,
                                     overlaySelected = state.overlayIds.contains(item.id),
                                     onClick = {
-                                        if (quickMenuState?.itemId == item.id) {
-                                            quickMenuState = null
-                                        }
+                                        quickMenuState = null
+                                        onNavigateKline(item.id)
                                     },
                                     onLongPress = { anchorInRoot ->
                                         if (quickMenuState?.itemId == item.id) {

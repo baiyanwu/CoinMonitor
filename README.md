@@ -29,6 +29,9 @@ This project is currently designed and iterated primarily through `vibecoding`, 
 - Search spot pairs from `Binance Alpha`, `Binance`, and `OKX`
 - Search on-chain tokens by keyword or contract address, with current support focused on `EVM` and `Solana`
 - Let users provide their own `OKX` API credentials locally for on-chain search and pricing, without any project-hosted backend
+- Add a dedicated `Kline` tab with multi-source chart switching across `Binance / Alpha / OKX / On-chain`
+- Support interval switching, main/sub indicator switching, and a separate indicator settings screen
+- Configure `MA / EMA / BOLL / VOL / MACD / RSI / KDJ` with toggles, parameters, colors, and style presets
 - Maintain a watchlist with pull-to-refresh and long-press quick actions
 - Add or remove items from the floating overlay directly from the home screen
 - Configure overlay behavior including drag lock, opacity, max item count, leading display mode, and font sizing
@@ -44,6 +47,12 @@ This project is currently designed and iterated primarily through `vibecoding`, 
 - Added `REST` snapshot fallback and subscription fingerprinting so reconnects stay stable when the watchlist keeps receiving live price updates
 - Moved the search-page loading spinner into the search field icon slot instead of showing a separate indicator below
 - Rounded floating-overlay token icons to keep the overlay visuals aligned with the in-app list
+
+## In Progress For 1.0.3
+
+- Added a dedicated bottom `Kline` tab powered by `TradingView Lightweight Charts`
+- Added a separate indicator settings screen with grouped main/sub indicator configuration
+- Added K-line network logging hooks to help debug request and rendering flow across sources
 
 ## On-chain Notes
 
@@ -77,8 +86,10 @@ cd CoinMonitor
 ## Roadmap
 
 - User-selectable quote refresh mode: `Auto / WSS / API`
-- K-line style views
+- More K-line interaction and visual polish
 - AI-assisted analysis
+  - The `AI Analysis` entry and local config structure exist
+  - The actual AI chat / analysis pipeline is still TODO and not shipped yet
 - More watchlist and overlay polish
 
 ## Disclaimer

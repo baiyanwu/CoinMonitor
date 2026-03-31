@@ -5,6 +5,7 @@ import io.baiyanwu.coinmonitor.data.network.OkxOnChainRequestSigner
 import io.baiyanwu.coinmonitor.domain.model.ExchangeSource
 import io.baiyanwu.coinmonitor.domain.model.MarketQuote
 import io.baiyanwu.coinmonitor.domain.model.MarketType
+import io.baiyanwu.coinmonitor.domain.model.NetworkLogProtocol
 import io.baiyanwu.coinmonitor.domain.model.OkxApiCredentials
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
 import io.baiyanwu.coinmonitor.domain.repository.MarketQuoteRepository
@@ -820,7 +821,11 @@ class StreamingQuoteRefreshEngine(
     }
 
     private fun logWs(line: String, detail: String = line) {
-        networkLogRepository.append(line = line, detail = detail)
+        networkLogRepository.append(
+            protocol = NetworkLogProtocol.WSS,
+            line = line,
+            detail = detail
+        )
     }
 
     companion object {

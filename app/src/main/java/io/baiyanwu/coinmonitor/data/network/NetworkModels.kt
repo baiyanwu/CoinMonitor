@@ -16,6 +16,13 @@ interface BinanceApi {
 
     @GET("api/v3/ticker/24hr")
     suspend fun getTickers(@Query("symbols") symbols: String): List<BinanceTickerRow>
+
+    @GET("api/v3/klines")
+    suspend fun getKlines(
+        @Query("symbol") symbol: String,
+        @Query("interval") interval: String,
+        @Query("limit") limit: Int
+    ): JsonArray
 }
 
 interface OkxApi {
@@ -24,6 +31,13 @@ interface OkxApi {
 
     @GET("api/v5/market/ticker")
     suspend fun getTicker(@Query("instId") instId: String): OkxTickerResponse
+
+    @GET("api/v5/market/candles")
+    suspend fun getCandles(
+        @Query("instId") instId: String,
+        @Query("bar") bar: String,
+        @Query("limit") limit: Int
+    ): OkxCandlesResponse
 }
 
 interface BinanceAlphaApi {
@@ -35,6 +49,13 @@ interface BinanceAlphaApi {
 
     @GET("bapi/defi/v1/public/alpha-trade/ticker")
     suspend fun getTicker(@Query("symbol") symbol: String): JsonObject
+
+    @GET("bapi/defi/v1/public/alpha-trade/klines")
+    suspend fun getKlines(
+        @Query("symbol") symbol: String,
+        @Query("interval") interval: String,
+        @Query("limit") limit: Int
+    ): JsonObject
 }
 
 interface OkxOnChainApi {
@@ -65,6 +86,18 @@ interface OkxOnChainApi {
         @Header("OK-ACCESS-PASSPHRASE") accessPassphrase: String,
         @Body requestBody: List<OkxOnChainPriceRequest>
     ): OkxOnChainTokenPriceResponse
+
+    @GET("api/v6/dex/market/candles")
+    suspend fun getCandles(
+        @Header("OK-ACCESS-KEY") accessKey: String,
+        @Header("OK-ACCESS-SIGN") accessSign: String,
+        @Header("OK-ACCESS-TIMESTAMP") accessTimestamp: String,
+        @Header("OK-ACCESS-PASSPHRASE") accessPassphrase: String,
+        @Query("chainIndex") chainIndex: String,
+        @Query("tokenContractAddress") tokenContractAddress: String,
+        @Query("bar") bar: String,
+        @Query("limit") limit: Int
+    ): OkxOnChainCandlesResponse
 }
 
 @Serializable
@@ -114,6 +147,12 @@ data class OkxTickerRow(
 )
 
 @Serializable
+data class OkxCandlesResponse(
+    val code: String,
+    val data: List<List<String>>
+)
+
+@Serializable
 data class OkxOnChainTokenSearchResponse(
     val code: String,
     val msg: String? = null,
@@ -132,6 +171,13 @@ data class OkxOnChainTokenPriceResponse(
     val code: String,
     val msg: String? = null,
     val data: List<OkxOnChainTokenPriceRow> = emptyList()
+)
+
+@Serializable
+data class OkxOnChainCandlesResponse(
+    val code: String,
+    val msg: String? = null,
+    val data: List<List<String>> = emptyList()
 )
 
 @Serializable

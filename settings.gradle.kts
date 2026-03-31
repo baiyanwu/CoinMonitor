@@ -22,4 +22,3 @@ dependencyResolutionManagement {
 
 rootProject.name = "CoinMonitor"
 include(":app")
-

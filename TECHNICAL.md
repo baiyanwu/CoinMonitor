@@ -50,6 +50,16 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 - 链上搜索支持币名 / Symbol / 合约地址输入
 - 搜索结果按来源和链稳定排序，便于快速筛选
 
+### K-line
+
+- 底部导航新增独立 `K线` tab，K 线页和首页/设置页并列
+- 图表内核当前使用 `TradingView Lightweight Charts Android wrapper`
+- K 线数据统一走 `MarketKlineRepository`，对 `Binance / Binance Alpha / OKX / OKX On-chain` 做统一 candle 映射
+- 主图支持 `MA / EMA / BOLL`，副图支持 `VOL / MACD / RSI / KDJ`
+- 指标设置使用独立 `Activity`，通过本地偏好持久化完整配置模型
+- 当前图表已经消费 `开关 / 参数 / 颜色 / 基础样式`，并按配置重绘，不会因为改指标参数而重新请求行情接口
+- 图表实现和页面实现之间通过 `KlineChartContract` 解耦，方便后续继续替换成自研 K 线内核
+
 ### On-chain
 
 - 当前链上能力只做搜索和最新价格展示，不提供交易执行
@@ -132,6 +142,9 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 - 给 `REST` 快照刷新和 `WSS` 推送补统一时序保护，避免手动下拉刷新时旧快照短暂覆盖更晚到达的实时价格
 - 可选实现方向包括“按报价时间戳丢弃旧写入”或“把 `REST / WSS` 更新统一串行到同一条写库通道”
 - 重新核对 `Binance Spot / Binance Alpha / OKX Spot / OKX On-chain` 的官方 `WSS` 心跳与断线判定要求，按交易所收口保活策略，避免把 `ping/pong` 逻辑混用后留下“假在线但不推送”的长连接状态
+- 补齐 `AI 分析` 能力
+  - 当前只完成入口、设置结构和页面占位
+  - 尚未完成真正的 AI 请求链路、K 线上下文拼装、会话态管理和失败兜底
 
 ## Implementation Notes
 
