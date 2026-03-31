@@ -107,30 +107,38 @@ private val ONCHAIN_EVM_OPTIONS = listOf(
 @Composable
 fun SearchRoute(
     container: AppContainer,
-    onBack: () -> Unit
+    entryMode: SearchEntryMode = SearchEntryMode.HOME,
+    onBack: () -> Unit,
+    onSelectForKline: (String) -> Unit = {}
 ) {
     val viewModel: SearchViewModel = viewModel(factory = SearchViewModel.factory(container))
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     SearchScreen(
         state = state,
+        entryMode = entryMode,
         onBack = onBack,
         onQueryChange = viewModel::updateQuery,
         onClearQuery = viewModel::clearQuery,
         onSearch = viewModel::search,
         onSearchModeChange = viewModel::setSearchMode,
-        onToggleItem = viewModel::toggleWatchItem
+        onToggleItem = viewModel::toggleWatchItem,
+        onSelectForKline = { item ->
+            viewModel.selectItemForKline(item, onSelectForKline)
+        }
     )
 }
 
 @Composable
 private fun SearchScreen(
     state: SearchUiState,
+    entryMode: SearchEntryMode,
     onBack: () -> Unit,
     onQueryChange: (String) -> Unit,
     onClearQuery: () -> Unit,
     onSearch: (OnchainSearchSelection?) -> Unit,
     onSearchModeChange: (SearchMode) -> Unit,
-    onToggleItem: (WatchItem) -> Unit
+    onToggleItem: (WatchItem) -> Unit,
+    onSelectForKline: (WatchItem) -> Unit
 ) {
     val colors = CoinMonitorThemeTokens.colors
     var exchangeTab by rememberSaveable { mutableIntStateOf(TAB_ALL) }
@@ -308,9 +316,11 @@ private fun SearchScreen(
                             filteredResults.forEach { item ->
                                 SearchResultRow(
                                     item = item,
+                                    entryMode = entryMode,
                                     searchMode = state.searchMode,
                                     added = state.addedIds.contains(item.id),
-                                    onToggleItem = onToggleItem
+                                    onToggleItem = onToggleItem,
+                                    onSelectForKline = onSelectForKline
                                 )
                             }
                         }
@@ -710,16 +720,20 @@ private fun DropdownSearchTabButton(
 @Composable
 private fun SearchResultRow(
     item: WatchItem,
+    entryMode: SearchEntryMode,
     searchMode: SearchMode,
     added: Boolean,
-    onToggleItem: (WatchItem) -> Unit
+    onToggleItem: (WatchItem) -> Unit,
+    onSelectForKline: (WatchItem) -> Unit
 ) {
     val colors = CoinMonitorThemeTokens.colors
     val onchainMode = searchMode == SearchMode.ONCHAIN
+    val klineEntry = entryMode == SearchEntryMode.KLINE
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clickable(enabled = klineEntry) { onSelectForKline(item) }
             .padding(horizontal = 12.dp, vertical = 6.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -757,36 +771,65 @@ private fun SearchResultRow(
                         style = MaterialTheme.typography.bodySmall,
                         color = colors.secondaryText
                     )
-                    if (item.exchangeSource == ExchangeSource.BINANCE_ALPHA) {
-                        Surface(
-                            color = colors.accent.copy(alpha = 0.16f),
-                            shape = RoundedCornerShape(100.dp)
-                        ) {
-                            Text(
-                                text = stringResource(R.string.search_tag_alpha),
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                color = colors.accent,
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-                    }
+                    ExchangeSourceBadge(source = item.exchangeSource)
                 }
             }
         }
-        Box(
-            modifier = Modifier
-                .clickable { onToggleItem(item) }
-                .padding(horizontal = 6.dp, vertical = 8.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = if (added) stringResource(R.string.delete) else stringResource(R.string.add),
-                color = if (added) colors.negative else colors.positive,
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.SemiBold
-            )
+        if (!klineEntry) {
+            Box(
+                modifier = Modifier
+                    .clickable { onToggleItem(item) }
+                    .padding(horizontal = 6.dp, vertical = 8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = if (added) stringResource(R.string.delete) else stringResource(R.string.add),
+                    color = if (added) colors.negative else colors.positive,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
         }
+    }
+}
+
+/**
+ * 搜索结果里的交易所来源标签。
+ */
+@Composable
+private fun ExchangeSourceBadge(source: ExchangeSource) {
+    val colors = CoinMonitorThemeTokens.colors
+    val (label, containerColor, contentColor) = when (source) {
+        ExchangeSource.BINANCE -> Triple(
+            stringResource(R.string.exchange_badge_binance),
+            colors.heroBackground,
+            colors.secondaryText
+        )
+
+        ExchangeSource.BINANCE_ALPHA -> Triple(
+            stringResource(R.string.exchange_badge_binance_alpha),
+            colors.accent.copy(alpha = 0.16f),
+            colors.accent
+        )
+
+        ExchangeSource.OKX -> Triple(
+            stringResource(R.string.exchange_badge_okx),
+            colors.heroBackground,
+            colors.secondaryText
+        )
+    }
+
+    Surface(
+        color = containerColor,
+        shape = RoundedCornerShape(100.dp)
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+            color = contentColor,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.SemiBold
+        )
     }
 }
 

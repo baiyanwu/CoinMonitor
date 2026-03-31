@@ -56,6 +56,57 @@ data class KlineChartStrokeStyle(
 object KlineChartStyleDefaults {
 
     /**
+     * 亮色图表默认配色。
+     *
+     * 图表配色和应用页面主题解耦，避免直接复用页面分割线颜色后，
+     * 在 K 线区域出现“网格对比度不合适”的问题。
+     */
+    val lightPalette = KlineChartPalette(
+        backgroundColor = 0xFFF8F7FC.toInt(),
+        textColor = 0xFF6A647A.toInt(),
+        gridColor = 0xFFD9D2E7.toInt(),
+        bullishColor = 0xFF2BCB77.toInt(),
+        bearishColor = 0xFFFF5A6E.toInt(),
+        ma5Color = 0xFFF3C623.toInt(),
+        ma10Color = 0xFFE04EC3.toInt(),
+        ma20Color = 0xFF8F67D8.toInt(),
+        ema5Color = 0xFFF3C623.toInt(),
+        ema10Color = 0xFFE04EC3.toInt(),
+        ema20Color = 0xFF8F67D8.toInt(),
+        bollUpperColor = 0xFF3B57F0.toInt(),
+        bollMiddleColor = 0xFF38C172.toInt(),
+        bollLowerColor = 0xFFFF5A6E.toInt(),
+        auxiliaryPrimaryColor = 0xFFF3C623.toInt(),
+        auxiliarySecondaryColor = 0xFF8F67D8.toInt(),
+        auxiliaryTertiaryColor = 0xFF38C172.toInt()
+    )
+
+    /**
+     * 夜间图表默认配色。
+     *
+     * 夜间模式下单独拉高网格和文字对比度，避免直接复用页面分隔线后显得发灰发脏。
+     */
+    val darkPalette = KlineChartPalette(
+        backgroundColor = 0xFF1E1A24.toInt(),
+        textColor = 0xFFC9C3D8.toInt(),
+        gridColor = 0xFF4A4A4A.toInt(),
+        bullishColor = 0xFF31D67B.toInt(),
+        bearishColor = 0xFFFF5A6E.toInt(),
+        ma5Color = 0xFFF3C623.toInt(),
+        ma10Color = 0xFFE04EC3.toInt(),
+        ma20Color = 0xFF8F67D8.toInt(),
+        ema5Color = 0xFFF3C623.toInt(),
+        ema10Color = 0xFFE04EC3.toInt(),
+        ema20Color = 0xFF8F67D8.toInt(),
+        bollUpperColor = 0xFF4D63FF.toInt(),
+        bollMiddleColor = 0xFF39D98A.toInt(),
+        bollLowerColor = 0xFFFF5A6E.toInt(),
+        auxiliaryPrimaryColor = 0xFFF3C623.toInt(),
+        auxiliarySecondaryColor = 0xFFC9C3D8.toInt(),
+        auxiliaryTertiaryColor = 0xFF39D98A.toInt()
+    )
+
+    /**
      * 默认指标线宽配置。
      */
     val strokeStyle = KlineChartStrokeStyle(

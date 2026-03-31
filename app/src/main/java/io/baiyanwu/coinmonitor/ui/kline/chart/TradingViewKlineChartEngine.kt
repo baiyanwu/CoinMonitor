@@ -16,6 +16,8 @@ import com.tradingview.lightweightcharts.api.options.models.TimeScaleOptions
 import com.tradingview.lightweightcharts.api.options.models.applyLineSeriesOptions
 import com.tradingview.lightweightcharts.api.options.models.candlestickSeriesOptions
 import com.tradingview.lightweightcharts.api.options.models.chartOptions
+import com.tradingview.lightweightcharts.api.options.models.gridLineOptions
+import com.tradingview.lightweightcharts.api.options.models.gridOptions
 import com.tradingview.lightweightcharts.api.options.models.histogramSeriesOptions
 import com.tradingview.lightweightcharts.api.options.models.layoutOptions
 import com.tradingview.lightweightcharts.api.options.models.lineSeriesOptions
@@ -356,6 +358,16 @@ class TradingViewKlineChartEngine(
                     background = SolidColor(palette.backgroundColor)
                     textColor = palette.textColor.toIntColor()
                 }
+                grid = gridOptions {
+                    vertLines = gridLineOptions {
+                        color = palette.gridColor.toIntColor()
+                        visible = true
+                    }
+                    horzLines = gridLineOptions {
+                        color = palette.gridColor.toIntColor()
+                        visible = true
+                    }
+                }
                 timeScale = TimeScaleOptions(
                     borderColor = palette.gridColor.toIntColor(),
                     timeVisible = true,
@@ -376,6 +388,16 @@ class TradingViewKlineChartEngine(
                 layout = layoutOptions {
                     background = SolidColor(palette.backgroundColor)
                     textColor = palette.textColor.toIntColor()
+                }
+                grid = gridOptions {
+                    vertLines = gridLineOptions {
+                        color = palette.gridColor.toIntColor()
+                        visible = true
+                    }
+                    horzLines = gridLineOptions {
+                        color = palette.gridColor.toIntColor()
+                        visible = true
+                    }
                 }
                 rightPriceScale = PriceScaleOptions(
                     visible = true,

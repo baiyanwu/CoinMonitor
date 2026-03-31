@@ -21,6 +21,7 @@ class MainActivity : CoinMonitorComposeActivity() {
             CoinMonitorNavHost(
                 container = container,
                 onOpenSearch = { SearchActivity.start(this@MainActivity) },
+                onOpenKlineSearch = { SearchActivity.startForKline(this@MainActivity) },
                 onOpenKlineIndicatorSettings = { KlineIndicatorSettingsActivity.start(this@MainActivity) },
                 onOpenOverlaySettings = { OverlaySettingsActivity.start(this@MainActivity) },
                 onOpenThirdPartyApiSettings = { ThirdPartyApiSettingsActivity.start(this@MainActivity) },

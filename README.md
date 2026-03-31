@@ -32,6 +32,7 @@ This project is currently designed and iterated primarily through `vibecoding`, 
 - Add a dedicated `Kline` tab with multi-source chart switching across `Binance / Alpha / OKX / On-chain`
 - Support interval switching, main/sub indicator switching, and a separate indicator settings screen
 - Configure `MA / EMA / BOLL / VOL / MACD / RSI / KDJ` with toggles, parameters, colors, and style presets
+- Split search-page behavior by entry: watchlist management from Home, direct pair selection and return when opened from Kline
 - Maintain a watchlist with pull-to-refresh and long-press quick actions
 - Add or remove items from the floating overlay directly from the home screen
 - Configure overlay behavior including drag lock, opacity, max item count, leading display mode, and font sizing
@@ -53,6 +54,7 @@ This project is currently designed and iterated primarily through `vibecoding`, 
 - Added a dedicated bottom `Kline` tab powered by `TradingView Lightweight Charts`
 - Added a separate indicator settings screen with grouped main/sub indicator configuration
 - Added K-line network logging hooks to help debug request and rendering flow across sources
+- Split chart colors from the app surface theme so dark-mode grid, text, and candle colors can be tuned independently
 
 ## On-chain Notes
 

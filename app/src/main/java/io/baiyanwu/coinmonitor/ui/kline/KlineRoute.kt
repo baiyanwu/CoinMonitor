@@ -25,7 +25,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.draw.clip
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ArrowDropDown
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Tune
@@ -52,6 +51,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
@@ -140,6 +140,7 @@ private fun KlineScreen(
                 PairSelectorField(
                     value = state.selectedItem?.symbol.orEmpty(),
                     badge = state.selectedSource?.title.orEmpty(),
+                    enabled = false,
                     expanded = pairMenuExpanded,
                     onExpandedChange = { pairMenuExpanded = it }
                 ) {
@@ -334,32 +335,21 @@ private fun KlineChartSection(
     state: KlineUiState,
     modifier: Modifier = Modifier
 ) {
-    val colors = CoinMonitorThemeTokens.colors
-    val renderModel = remember(state.candles, state.selectedMainIndicator, state.selectedSubIndicator) {
+    val isDarkChart = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val palette = remember(isDarkChart) {
+        if (isDarkChart) {
+            KlineChartStyleDefaults.darkPalette
+        } else {
+            KlineChartStyleDefaults.lightPalette
+        }
+    }
+    val renderModel = remember(state.candles, state.selectedMainIndicator, state.selectedSubIndicator, state.indicatorSettings, palette) {
         KlineChartRenderModel(
             candles = state.candles,
             mainIndicator = state.selectedMainIndicator,
             subIndicator = state.selectedSubIndicator,
             indicatorSettings = state.indicatorSettings,
-            palette = KlineChartPalette(
-                backgroundColor = colors.cardBackground.toArgb(),
-                textColor = colors.secondaryText.toArgb(),
-                gridColor = colors.divider.toArgb(),
-                bullishColor = colors.positive.toArgb(),
-                bearishColor = colors.negative.toArgb(),
-                ma5Color = colors.accent.toArgb(),
-                ma10Color = colors.primaryText.toArgb(),
-                ma20Color = colors.primaryText.toArgb(),
-                ema5Color = colors.accent.toArgb(),
-                ema10Color = colors.heroBackground.toArgb(),
-                ema20Color = colors.positive.toArgb(),
-                bollUpperColor = colors.primaryText.toArgb(),
-                bollMiddleColor = colors.accent.toArgb(),
-                bollLowerColor = colors.negative.toArgb(),
-                auxiliaryPrimaryColor = colors.accent.toArgb(),
-                auxiliarySecondaryColor = colors.primaryText.toArgb(),
-                auxiliaryTertiaryColor = colors.positive.toArgb()
-            ),
+            palette = palette,
             strokeStyle = KlineChartStyleDefaults.strokeStyle
         )
     }
@@ -381,6 +371,7 @@ private fun PairSelectorField(
     modifier: Modifier = Modifier,
     value: String,
     badge: String,
+    enabled: Boolean = true,
     expanded: Boolean,
     onExpandedChange: (Boolean) -> Unit,
     content: @Composable () -> Unit
@@ -392,7 +383,8 @@ private fun PairSelectorField(
                 .then(modifier)
                 .widthIn(max = 280.dp)
                 .height(40.dp)
-                .clickable { onExpandedChange(true) },
+                // 这里暂时关闭点击展开行为，后续如果要恢复币对下拉切换，只需要把 enabled 改回 true。
+                .clickable(enabled = enabled) { onExpandedChange(true) },
             shape = RoundedCornerShape(18.dp),
             color = colors.fabContainer
         ) {
@@ -412,11 +404,6 @@ private fun PairSelectorField(
                     overflow = TextOverflow.Ellipsis
                 )
                 SourceMiniTag(sourceTitle = badge)
-                Icon(
-                    imageVector = Icons.Rounded.ArrowDropDown,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp)
-                )
             }
         }
         DropdownMenu(

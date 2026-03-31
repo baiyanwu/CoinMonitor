@@ -23,9 +23,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Layers
-import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -491,7 +491,7 @@ private fun SearchEntryButton(onClick: () -> Unit) {
     ) {
         Box(contentAlignment = Alignment.Center) {
             Icon(
-                imageVector = Icons.Rounded.Search,
+                imageVector = Icons.Rounded.Add,
                 contentDescription = stringResource(R.string.home_open_search),
                 tint = colors.fabContent
             )

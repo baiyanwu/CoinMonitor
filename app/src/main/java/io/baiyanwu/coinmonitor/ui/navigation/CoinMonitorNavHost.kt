@@ -48,6 +48,7 @@ private data class MainTab(
 fun CoinMonitorNavHost(
     container: AppContainer,
     onOpenSearch: () -> Unit,
+    onOpenKlineSearch: () -> Unit,
     onOpenKlineIndicatorSettings: () -> Unit,
     onOpenOverlaySettings: () -> Unit,
     onOpenThirdPartyApiSettings: () -> Unit,
@@ -122,7 +123,7 @@ fun CoinMonitorNavHost(
             composable(Destinations.KLINE) {
                 KlineRoute(
                     container = container,
-                    onOpenSearch = onOpenSearch,
+                    onOpenSearch = onOpenKlineSearch,
                     onOpenIndicatorSettings = onOpenKlineIndicatorSettings
                 )
             }

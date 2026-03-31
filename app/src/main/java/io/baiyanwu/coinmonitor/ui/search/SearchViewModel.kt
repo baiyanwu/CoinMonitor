@@ -26,6 +26,11 @@ enum class SearchMode {
     ONCHAIN
 }
 
+enum class SearchEntryMode {
+    HOME,
+    KLINE
+}
+
 data class SearchUiState(
     val query: String = "",
     val searchMode: SearchMode = SearchMode.EXCHANGE,
@@ -183,6 +188,29 @@ class SearchViewModel(
                     watchlistRepository.updateQuotes(quotes)
                 }
             }
+        }
+    }
+
+    /**
+     * 从 K 线页进入搜索时，点击结果后直接把标的补进观察列表并返回。
+     */
+    fun selectItemForKline(item: WatchItem, onCompleted: (String) -> Unit) {
+        viewModelScope.launch {
+            val targetItem = if (uiState.value.addedIds.contains(item.id)) {
+                item
+            } else {
+                val itemToSave = item.copy(addedAt = System.currentTimeMillis())
+                watchlistRepository.add(itemToSave)
+                runCatching {
+                    marketQuoteRepository.fetchQuotes(listOf(itemToSave))
+                }.onSuccess { quotes ->
+                    if (quotes.isNotEmpty()) {
+                        watchlistRepository.updateQuotes(quotes)
+                    }
+                }
+                itemToSave
+            }
+            onCompleted(targetItem.id)
         }
     }
 
