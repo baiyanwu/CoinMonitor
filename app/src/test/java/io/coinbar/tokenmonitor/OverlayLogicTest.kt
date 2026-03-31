@@ -10,7 +10,7 @@ import org.junit.Test
 
 class OverlayLogicTest {
     @Test
-    fun `overlay batch planner paginates in groups of five`() {
+    fun `overlay batch planner returns all items without pagination`() {
         val items = (1..8).map { index ->
             WatchItem(
                 id = "binance:TEST$index",
@@ -21,13 +21,11 @@ class OverlayLogicTest {
             )
         }
 
-        val first = OverlayBatchPlanner.plan(items, maxPerPage = 5, cursor = 0)
-        val second = OverlayBatchPlanner.plan(items, maxPerPage = 5, cursor = first.nextCursor)
+        val batch = OverlayBatchPlanner.plan(items, maxPerPage = 5, cursor = 0)
 
-        assertEquals(5, first.items.size)
-        assertEquals("1/2", first.pageLabel)
-        assertEquals(3, second.items.size)
-        assertEquals("2/2", second.pageLabel)
+        assertEquals(8, batch.items.size)
+        assertEquals(0, batch.nextCursor)
+        assertEquals(null, batch.pageLabel)
     }
 
     @Test
