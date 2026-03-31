@@ -83,6 +83,47 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 - `OKX On-chain` 当前按官方最新 `price channel` 文档接入，使用 `wss://wsdex.okx.com/ws/v6/dex`，并在登录成功后再发送价格订阅
 - 轮询实现仍然保留在工程中，后续可作为 `仅 API` 模式或故障回退方案继续复用
 
+### Upstream Docs And Endpoints
+
+为方便后续继续接手，这里把当前实际接入的上游文档入口、`base URL` 和主要接口路径集中列出。
+
+- `Binance Spot`
+  - 官方文档：`https://developers.binance.com/docs/binance-spot-api-docs/rest-api`、`https://developers.binance.com/docs/binance-spot-api-docs/web-socket-streams`
+  - REST base URL：`https://api.binance.com/`
+  - WSS URL：`wss://stream.binance.com:9443/ws`
+  - 当前 REST 路径：`GET /api/v3/exchangeInfo`、`GET /api/v3/ticker/24hr`
+  - 当前 WSS 订阅：`${symbol.lowercase()}@ticker`
+
+- `Binance Alpha`
+  - 官方文档入口：当前项目主要参考 `Binance Alpha / Web3 Wallet` 公开页面行为与现网接口，缺少一套稳定的官方开放文档索引；后续如果 Binance 提供正式文档，建议优先补到这里
+  - REST base URL：`https://www.binance.com/`
+  - WSS URL：`wss://nbstream.binance.com/w3w/wsa/stream`
+  - 当前 REST 路径：`GET /bapi/defi/v1/public/alpha-trade/get-exchange-info`、`GET /bapi/defi/v1/public/wallet-direct/buw/wallet/cex/alpha/all/token/list`、`GET /bapi/defi/v1/public/alpha-trade/ticker`
+  - 当前 WSS 订阅：`${symbol.lowercase()}@ticker`
+
+- `OKX Spot`
+  - 官方文档：`https://www.okx.com/docs-v5/en/`
+  - REST base URL：`https://www.okx.com/`
+  - WSS URL：`wss://ws.okx.com:8443/ws/v5/public`
+  - 当前 REST 路径：`GET /api/v5/public/instruments?instType=SPOT`、`GET /api/v5/market/ticker`
+  - 当前 WSS 订阅：`channel=tickers`
+
+- `OKX On-chain / DEX Market API`
+  - 英文文档：`https://web3.okx.com/build/dev-docs/dex-api/dex-api-access-and-usage`
+  - 英文 WSS 文档：`https://web3.okx.com/build/dev-docs/dex-api/dex-websocket-introduction`
+  - 中文开发者入口：`https://web3.okx.com/zh-hans/onchainos/dev-portal`
+  - 英文开发者入口：`https://web3.okx.com/onchainos/dev-portal`
+  - REST base URL：`https://web3.okx.com/`
+  - WSS URL：`wss://wsdex.okx.com/ws/v6/dex`
+  - 当前 REST 路径：`GET /api/v6/dex/market/supported/chain`、`GET /api/v6/dex/market/token/search`、`POST /api/v6/dex/market/price`
+  - 当前 WSS 登录 path：`/users/self/verify`
+  - 当前 WSS 订阅频道：`channel=price`
+
+- 代码对齐位置
+  - REST base URL 定义：`app/src/main/java/io/baiyanwu/coinmonitor/data/network/NetworkFactory.kt`
+  - REST 路径定义：`app/src/main/java/io/baiyanwu/coinmonitor/data/network/NetworkModels.kt`
+  - WSS URL 与订阅实现：`app/src/main/java/io/baiyanwu/coinmonitor/data/refresh/StreamingQuoteRefreshEngine.kt`
+
 ## TODO
 
 - 增加“行情刷新方式”设置项，允许用户在 `智能 / 仅 WSS / 仅 API` 三种模式之间切换
