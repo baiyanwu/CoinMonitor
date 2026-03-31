@@ -101,6 +101,7 @@
     <string name="third_party_api_settings_validation_required_ai">Base URL, API Key, and Model are required before enabling AI.</string>
     <string name="third_party_api_settings_saved">Saved to secure local storage.</string>
     <string name="third_party_api_settings_cleared">Credentials cleared.</string>
+    <string name="third_party_api_settings_secure_storage_unavailable">Secure storage is unavailable on this device, so OKX credentials cannot be saved.</string>
     <string name="third_party_api_settings_secure_storage_unavailable_ai">Secure storage is unavailable on this device, so AI settings cannot be saved.</string>
 
     <string name="kline_empty_watchlist">Add a pair on Home first.</string>
