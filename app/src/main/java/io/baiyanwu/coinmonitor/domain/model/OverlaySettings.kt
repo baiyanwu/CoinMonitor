@@ -17,6 +17,7 @@ data class OverlaySettings(
     val windowY: Int? = null
 ) {
     companion object {
+        const val MAX_SELECTABLE_ITEMS: Int = 10
         const val MIN_OPACITY: Float = 0.16f
         const val MAX_OPACITY: Float = 0.72f
         const val MIN_FONT_SCALE: Float = 0.85f

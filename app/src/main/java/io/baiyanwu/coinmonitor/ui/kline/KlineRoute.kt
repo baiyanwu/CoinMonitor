@@ -72,6 +72,8 @@ import io.baiyanwu.coinmonitor.ui.kline.chart.KlineChartRenderModel
 import io.baiyanwu.coinmonitor.ui.kline.chart.KlineChartStyleDefaults
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 
+private const val SHOW_KLINE_AI_ENTRY = false
+
 /**
  * K 线页路由入口。
  *
@@ -297,20 +299,22 @@ private fun KlineScreen(
                 Spacer(modifier = Modifier.height(96.dp))
             }
         }
-        ExtendedFloatingActionButton(
-            onClick = { chatDialogVisible = true },
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(18.dp),
-            icon = {
-                Icon(
-                    imageVector = Icons.Rounded.AutoAwesome,
-                    contentDescription = null
-                )
-            },
-            text = { Text(stringResource(R.string.kline_chat)) },
-            shape = CircleShape
-        )
+        if (SHOW_KLINE_AI_ENTRY) {
+            ExtendedFloatingActionButton(
+                onClick = { chatDialogVisible = true },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(18.dp),
+                icon = {
+                    Icon(
+                        imageVector = Icons.Rounded.AutoAwesome,
+                        contentDescription = null
+                    )
+                },
+                text = { Text(stringResource(R.string.kline_chat_button_short)) },
+                shape = CircleShape
+            )
+        }
     }
 
     if (chatDialogVisible) {

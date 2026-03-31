@@ -115,6 +115,7 @@
     <string name="kline_main_indicator_hint">主图指标会叠加在蜡烛图上。</string>
     <string name="kline_sub_indicator_hint">副图指标会显示在下方独立面板中。</string>
     <string name="kline_chat">AI 分析</string>
+    <string name="kline_chat_button_short">AI</string>
     <string name="kline_chat_hint">输入你想问的问题，例如“这个周期结构怎么看？”</string>
     <string name="kline_chat_send">发送</string>
     <string name="kline_ai_not_ready">请先在设置页完成 AI 配置</string>
@@ -138,6 +139,8 @@
     <string name="kline_indicator_macd_subtitle">指数平滑异同移动平均线</string>
     <string name="kline_indicator_rsi_subtitle">相对强弱指标</string>
     <string name="kline_indicator_kdj_subtitle">随机震荡指标</string>
+    <string name="overlay_select_limit_reached">最多只能添加%1$d个悬浮窗</string>
+    <string name="overlay_add_failed">悬浮窗添加失败</string>
     <string name="kline_indicator_sheet_ma_title">MA - 移动平均线</string>
     <string name="kline_indicator_sheet_ema_title">EMA - 指数移动平均线</string>
     <string name="kline_indicator_sheet_boll_title">BOLL - 布林线</string>

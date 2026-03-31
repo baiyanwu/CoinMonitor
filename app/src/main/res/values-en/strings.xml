@@ -114,6 +114,7 @@
     <string name="kline_main_indicator_hint">Main indicators are overlaid on the candlestick chart.</string>
     <string name="kline_sub_indicator_hint">Sub indicators are shown in the lower panel.</string>
     <string name="kline_chat">AI Analysis</string>
+    <string name="kline_chat_button_short">AI</string>
     <string name="kline_chat_hint">Ask something like: How does this structure look on this timeframe?</string>
     <string name="kline_chat_send">Send</string>
     <string name="kline_ai_not_ready">Configure AI access in Settings first.</string>
@@ -137,6 +138,8 @@
     <string name="kline_indicator_macd_subtitle">Moving Average Convergence Divergence</string>
     <string name="kline_indicator_rsi_subtitle">Relative Strength Index</string>
     <string name="kline_indicator_kdj_subtitle">Stochastic Oscillator</string>
+    <string name="overlay_select_limit_reached">You can add up to %1$d overlay items.</string>
+    <string name="overlay_add_failed">Failed to add overlay item.</string>
     <string name="kline_indicator_sheet_ma_title">MA - Moving Average</string>
     <string name="kline_indicator_sheet_ema_title">EMA - Exponential Moving Average</string>
     <string name="kline_indicator_sheet_boll_title">BOLL - Bollinger Bands</string>

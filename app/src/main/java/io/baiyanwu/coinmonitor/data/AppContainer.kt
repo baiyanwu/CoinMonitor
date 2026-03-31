@@ -57,6 +57,7 @@ class AppContainer(context: Context) {
     )
 
     val overlayRepository: OverlayRepository = DefaultOverlayRepository(
+        context = appContext,
         overlaySettingsDao = database.overlaySettingsDao(),
         watchItemDao = database.watchItemDao()
     )

@@ -45,6 +45,8 @@ import io.baiyanwu.coinmonitor.data.AppContainer
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorComponentDefaults
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 
+private const val SHOW_AI_SETTINGS_ENTRY = false
+
 @Composable
 fun ThirdPartyApiSettingsRoute(
     container: AppContainer,
@@ -200,91 +202,93 @@ private fun ThirdPartyApiSettingsScreen(
             )
         }
 
-        ThirdPartySectionCard(title = stringResource(R.string.third_party_api_settings_section_ai)) {
-            Text(
-                text = stringResource(R.string.third_party_api_settings_ai_disclaimer),
-                style = MaterialTheme.typography.bodySmall,
-                color = colors.secondaryText
-            )
-            if (!state.ai.secureStorageAvailable) {
+        if (SHOW_AI_SETTINGS_ENTRY) {
+            ThirdPartySectionCard(title = stringResource(R.string.third_party_api_settings_section_ai)) {
                 Text(
-                    text = stringResource(R.string.third_party_api_settings_secure_storage_unavailable_ai),
+                    text = stringResource(R.string.third_party_api_settings_ai_disclaimer),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error
+                    color = colors.secondaryText
+                )
+                if (!state.ai.secureStorageAvailable) {
+                    Text(
+                        text = stringResource(R.string.third_party_api_settings_secure_storage_unavailable_ai),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+                SettingSwitchRow(
+                    title = stringResource(R.string.third_party_api_settings_enable_ai),
+                    checked = state.ai.enabled,
+                    onCheckedChange = onAiEnabledChange,
+                    horizontalPadding = 0.dp,
+                    verticalPadding = 0.dp
+                )
+                OutlinedTextField(
+                    value = state.ai.baseUrl,
+                    onValueChange = {
+                        showAiValidationError = false
+                        onAiBaseUrlChange(it)
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text(stringResource(R.string.third_party_api_settings_base_url)) },
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = state.ai.apiKey,
+                    onValueChange = {
+                        showAiValidationError = false
+                        onAiApiKeyChange(it)
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text(stringResource(R.string.third_party_api_settings_api_key)) },
+                    visualTransformation = PasswordVisualTransformation(),
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = state.ai.model,
+                    onValueChange = {
+                        showAiValidationError = false
+                        onAiModelChange(it)
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text(stringResource(R.string.third_party_api_settings_model)) },
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = state.ai.systemPrompt,
+                    onValueChange = {
+                        showAiValidationError = false
+                        onAiSystemPromptChange(it)
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 4,
+                    label = { Text(stringResource(R.string.third_party_api_settings_system_prompt)) }
+                )
+                if (showAiValidationError) {
+                    ValidationText(R.string.third_party_api_settings_validation_required_ai)
+                }
+                FeedbackText(
+                    savedFlag = state.ai.savedFlag,
+                    clearedFlag = state.ai.clearedFlag,
+                    errorMessage = state.ai.errorMessage
+                )
+                SaveClearButtons(
+                    onSave = {
+                        val needValidate = state.ai.enabled || state.ai.baseUrl.isNotBlank() ||
+                            state.ai.apiKey.isNotBlank() || state.ai.model.isNotBlank()
+                        if (needValidate && !state.ai.isReadyToEnable) {
+                            showAiValidationError = true
+                            return@SaveClearButtons
+                        }
+                        showAiValidationError = false
+                        onSaveAi()
+                    },
+                    onClear = {
+                        showAiValidationError = false
+                        onClearAi()
+                    }
                 )
             }
-            SettingSwitchRow(
-                title = stringResource(R.string.third_party_api_settings_enable_ai),
-                checked = state.ai.enabled,
-                onCheckedChange = onAiEnabledChange,
-                horizontalPadding = 0.dp,
-                verticalPadding = 0.dp
-            )
-            OutlinedTextField(
-                value = state.ai.baseUrl,
-                onValueChange = {
-                    showAiValidationError = false
-                    onAiBaseUrlChange(it)
-                },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text(stringResource(R.string.third_party_api_settings_base_url)) },
-                singleLine = true
-            )
-            OutlinedTextField(
-                value = state.ai.apiKey,
-                onValueChange = {
-                    showAiValidationError = false
-                    onAiApiKeyChange(it)
-                },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text(stringResource(R.string.third_party_api_settings_api_key)) },
-                visualTransformation = PasswordVisualTransformation(),
-                singleLine = true
-            )
-            OutlinedTextField(
-                value = state.ai.model,
-                onValueChange = {
-                    showAiValidationError = false
-                    onAiModelChange(it)
-                },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text(stringResource(R.string.third_party_api_settings_model)) },
-                singleLine = true
-            )
-            OutlinedTextField(
-                value = state.ai.systemPrompt,
-                onValueChange = {
-                    showAiValidationError = false
-                    onAiSystemPromptChange(it)
-                },
-                modifier = Modifier.fillMaxWidth(),
-                minLines = 4,
-                label = { Text(stringResource(R.string.third_party_api_settings_system_prompt)) }
-            )
-            if (showAiValidationError) {
-                ValidationText(R.string.third_party_api_settings_validation_required_ai)
-            }
-            FeedbackText(
-                savedFlag = state.ai.savedFlag,
-                clearedFlag = state.ai.clearedFlag,
-                errorMessage = state.ai.errorMessage
-            )
-            SaveClearButtons(
-                onSave = {
-                    val needValidate = state.ai.enabled || state.ai.baseUrl.isNotBlank() ||
-                        state.ai.apiKey.isNotBlank() || state.ai.model.isNotBlank()
-                    if (needValidate && !state.ai.isReadyToEnable) {
-                        showAiValidationError = true
-                        return@SaveClearButtons
-                    }
-                    showAiValidationError = false
-                    onSaveAi()
-                },
-                onClear = {
-                    showAiValidationError = false
-                    onClearAi()
-                }
-            )
         }
     }
 }
@@ -424,6 +428,7 @@ private fun SettingSwitchRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clickable { onCheckedChange(!checked) }
             .padding(horizontal = horizontalPadding, vertical = verticalPadding),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically

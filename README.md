@@ -60,6 +60,9 @@ This project is currently designed and iterated primarily through `vibecoding`, 
 - Reduced dark-mode flashing when the K-line chart is first opened
 - Kept the K-line chart state more stable when switching between bottom tabs
 - Unified exchange badges across watchlist and search results
+- Made watchlist icons and overlay icons more stable during scrolling and live updates
+- Refined snapped-overlay ticker behavior so items rotate more naturally instead of resetting on every live price push
+- Added an overlay selection limit to stop users from adding more than 10 items at once
 
 ## On-chain Notes
 
