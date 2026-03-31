@@ -41,6 +41,7 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 - 支持添加、删除、手动刷新
 - 首页首屏会先等待本地数据回流，避免“先闪空态按钮、再切列表”
 - 长按单个币对会弹出跟手快捷菜单，支持删除，以及加入或移出悬浮窗
+- 首页价格继续保持实时显示，但实时价格更新已经从 Room 高频写回中拆出，改为走内存报价状态，降低大量 `WSS` 推送时的滚动抖动
 
 ### Search
 
@@ -104,6 +105,8 @@ app/src/main/java/io/baiyanwu/coinmonitor/
   - `1 分钟`
 - 首页和悬浮窗只保留一套全局刷新协调器
 - 当前底层默认实现已经切到流式引擎，`Binance Spot / Binance Alpha / OKX Spot / OKX On-chain` 优先走 `WSS`
+- 当前实时价格主链路已经改成 `WSS / REST -> InMemory QuoteRepository -> UI`，不再每次报价都直接写回 `watch_items`
+- `watch_items` 里的价格字段当前只承担启动恢复和低频快照持久化，默认在页面不再活跃时落一次，并在前台运行期间按低频兜底写回
 - `OKX On-chain` 当前按官方最新 `price channel` 文档接入，使用 `wss://wsdex.okx.com/ws/v6/dex`，并在登录成功后再发送价格订阅
 - 轮询实现仍然保留在工程中，后续可作为 `仅 API` 模式或故障回退方案继续复用
 
@@ -165,6 +168,8 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 - 首页长按快捷菜单挂在同一棵 Compose 树里渲染，不走独立 `PopupWindow`；菜单会先测量真实宽度，再按手指落点附近定位，并补一段轻量的入场动画。
 - 首页列表在 ViewModel 首次收到本地数据前会先展示加载态，避免把默认空列表误判为空页面。
 - 首页 `CoinSymbolIcon` 当前会先同步读取本地 / 内存图标缓存，再异步补齐，避免列表滚动时反复闪回占位图。
+- 首页实时价格读取已经下沉到单行价格子树；每个 item 只订阅自己的 quote flow，避免任意一个币价变化时唤醒整屏可见项。
+- 首页列表项手势已经从 `pointerInteropFilter + combinedClickable` 收敛为更轻的 `detectTapGestures`，减少滚动时的额外触摸桥接成本。
 - 搜索页和悬浮窗设置页使用独立 `Activity`，避免和主 `NavHost` 的底部导航、转场动画、窗口 inset 相互耦合。
 - 首页刷新已经切换成 `PullToRefreshBox`，并在 ViewModel 里补了手动刷新态，避免手势刷新和后台轮询互相打架。
 - 设置页里涉及 `Switch` 的横向行当前都支持整行点击，不再只靠右侧小开关命中。

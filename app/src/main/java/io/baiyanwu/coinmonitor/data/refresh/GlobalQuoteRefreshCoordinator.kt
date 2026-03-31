@@ -4,11 +4,14 @@ import io.baiyanwu.coinmonitor.domain.model.WatchItem
 import io.baiyanwu.coinmonitor.domain.repository.AppPreferencesRepository
 import io.baiyanwu.coinmonitor.domain.repository.MarketQuoteRepository
 import io.baiyanwu.coinmonitor.domain.repository.NetworkLogRepository
+import io.baiyanwu.coinmonitor.domain.repository.QuoteRepository
 import io.baiyanwu.coinmonitor.domain.repository.WatchlistRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
@@ -20,6 +23,7 @@ import kotlinx.coroutines.launch
 class GlobalQuoteRefreshCoordinator(
     private val scope: CoroutineScope,
     private val watchlistRepository: WatchlistRepository,
+    private val quoteRepository: QuoteRepository,
     private val appPreferencesRepository: AppPreferencesRepository,
     marketQuoteRepository: MarketQuoteRepository,
     okxCredentialsProvider: suspend () -> io.baiyanwu.coinmonitor.domain.model.OkxApiCredentials? = { null },
@@ -30,12 +34,16 @@ class GlobalQuoteRefreshCoordinator(
     private val refreshEngine: QuoteRefreshEngine = StreamingQuoteRefreshEngine(
         scope = scope,
         watchlistRepository = watchlistRepository,
+        quoteRepository = quoteRepository,
         marketQuoteRepository = marketQuoteRepository,
         okxCredentialsProvider = okxCredentialsProvider,
         networkLogRepository = networkLogRepository
     )
 
     private var observeJob: Job? = null
+    private var persistJob: Job? = null
+    private var currentItems: List<WatchItem> = emptyList()
+    private var wasRunning: Boolean = false
 
     init {
         start()
@@ -58,9 +66,14 @@ class GlobalQuoteRefreshCoordinator(
     }
 
     fun stop() {
+        scope.launch {
+            persistLatestSnapshot()
+        }
         refreshEngine.stop()
         observeJob?.cancel()
         observeJob = null
+        persistJob?.cancel()
+        persistJob = null
     }
 
     private fun start() {
@@ -79,6 +92,13 @@ class GlobalQuoteRefreshCoordinator(
                     shouldRun = isHomeActive || isOverlayActive
                 )
             }.collect { snapshot ->
+                currentItems = snapshot.items
+                quoteRepository.seedFromWatchItems(snapshot.items)
+                quoteRepository.retainOnly(snapshot.items.map { it.id }.toSet())
+                if (wasRunning && !snapshot.shouldRun) {
+                    persistLatestSnapshot()
+                }
+                wasRunning = snapshot.shouldRun
                 refreshEngine.updateConfig(
                     QuoteRefreshConfig(
                         enabled = snapshot.shouldRun,
@@ -88,6 +108,22 @@ class GlobalQuoteRefreshCoordinator(
                 )
             }
         }
+        persistJob = scope.launch {
+            while (isActive) {
+                delay(SNAPSHOT_PERSIST_INTERVAL_MILLIS)
+                if (homeActive.value || overlayActive.value) {
+                    persistLatestSnapshot()
+                }
+            }
+        }
+    }
+
+    private suspend fun persistLatestSnapshot() {
+        val items = currentItems
+        if (items.isEmpty()) return
+        val quotes = quoteRepository.getQuotes(items.map { it.id })
+        if (quotes.isEmpty()) return
+        watchlistRepository.persistQuoteSnapshot(quotes)
     }
 
     private data class RefreshSnapshot(
@@ -95,4 +131,8 @@ class GlobalQuoteRefreshCoordinator(
         val refreshIntervalMillis: Long,
         val shouldRun: Boolean
     )
+
+    private companion object {
+        private const val SNAPSHOT_PERSIST_INTERVAL_MILLIS = 15 * 60 * 1000L
+    }
 }

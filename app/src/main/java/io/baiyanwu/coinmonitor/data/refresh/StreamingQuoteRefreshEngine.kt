@@ -10,6 +10,7 @@ import io.baiyanwu.coinmonitor.domain.model.OkxApiCredentials
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
 import io.baiyanwu.coinmonitor.domain.repository.MarketQuoteRepository
 import io.baiyanwu.coinmonitor.domain.repository.NetworkLogRepository
+import io.baiyanwu.coinmonitor.domain.repository.QuoteRepository
 import io.baiyanwu.coinmonitor.domain.repository.WatchlistRepository
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -47,6 +48,7 @@ import java.util.concurrent.TimeUnit
 class StreamingQuoteRefreshEngine(
     private val scope: CoroutineScope,
     private val watchlistRepository: WatchlistRepository,
+    private val quoteRepository: QuoteRepository,
     private val marketQuoteRepository: MarketQuoteRepository,
     private val okxCredentialsProvider: suspend () -> OkxApiCredentials? = { null },
     private val networkLogRepository: NetworkLogRepository
@@ -532,7 +534,7 @@ class StreamingQuoteRefreshEngine(
         refreshMutex.withLock {
             val quotes = marketQuoteRepository.fetchQuotes(items)
             if (quotes.isNotEmpty()) {
-                watchlistRepository.updateQuotes(quotes)
+                quoteRepository.applyQuotes(quotes)
             }
         }
     }
@@ -556,7 +558,7 @@ class StreamingQuoteRefreshEngine(
             pendingQuotes.clear()
             snapshot
         }
-        watchlistRepository.updateQuotes(quotesToFlush)
+        quoteRepository.applyQuotes(quotesToFlush)
     }
 
     private fun closeSockets() {

@@ -15,6 +15,7 @@ import io.baiyanwu.coinmonitor.data.repository.DefaultNetworkLogRepository
 import io.baiyanwu.coinmonitor.data.repository.DefaultOkxCredentialsRepository
 import io.baiyanwu.coinmonitor.data.repository.DefaultOverlayRepository
 import io.baiyanwu.coinmonitor.data.repository.DefaultWatchlistRepository
+import io.baiyanwu.coinmonitor.data.repository.InMemoryQuoteRepository
 import io.baiyanwu.coinmonitor.domain.repository.AppPreferencesRepository
 import io.baiyanwu.coinmonitor.domain.repository.AiChatRepository
 import io.baiyanwu.coinmonitor.domain.repository.AiConfigRepository
@@ -24,6 +25,7 @@ import io.baiyanwu.coinmonitor.domain.repository.MarketSearchRepository
 import io.baiyanwu.coinmonitor.domain.repository.NetworkLogRepository
 import io.baiyanwu.coinmonitor.domain.repository.OkxCredentialsRepository
 import io.baiyanwu.coinmonitor.domain.repository.OverlayRepository
+import io.baiyanwu.coinmonitor.domain.repository.QuoteRepository
 import io.baiyanwu.coinmonitor.domain.repository.WatchlistRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -51,6 +53,8 @@ class AppContainer(context: Context) {
     val appPreferencesRepository: AppPreferencesRepository = DefaultAppPreferencesRepository(
         context = appContext
     )
+
+    val quoteRepository: QuoteRepository = InMemoryQuoteRepository()
 
     val watchlistRepository: WatchlistRepository = DefaultWatchlistRepository(
         watchItemDao = database.watchItemDao()
@@ -101,6 +105,7 @@ class AppContainer(context: Context) {
     val globalQuoteRefreshCoordinator = GlobalQuoteRefreshCoordinator(
         scope = appScope,
         watchlistRepository = watchlistRepository,
+        quoteRepository = quoteRepository,
         appPreferencesRepository = appPreferencesRepository,
         marketQuoteRepository = marketQuoteRepository,
         okxCredentialsProvider = { okxCredentialsRepository.getCredentials() },

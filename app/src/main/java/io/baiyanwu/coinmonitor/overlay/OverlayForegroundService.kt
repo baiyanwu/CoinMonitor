@@ -50,6 +50,7 @@ class OverlayForegroundService : Service() {
         coordinator = OverlayPriceRefreshCoordinator(
             scope = serviceScope,
             overlayRepository = container.overlayRepository,
+            quoteRepository = container.quoteRepository,
         ) { items, settings ->
             // 临时隐藏属于运行态，后续行情刷新时也必须继续尊重这个状态。
             if (settings.enabled && !OverlayRuntimeSession.temporarilyHidden.value) {

@@ -17,12 +17,15 @@ import io.baiyanwu.coinmonitor.domain.model.KlineSource
 import io.baiyanwu.coinmonitor.domain.model.MarketType
 import io.baiyanwu.coinmonitor.domain.model.OpenAiCompatibleConfig
 import io.baiyanwu.coinmonitor.domain.model.AppPreferences
+import io.baiyanwu.coinmonitor.domain.model.QuoteState
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
+import io.baiyanwu.coinmonitor.domain.model.withQuote
 import io.baiyanwu.coinmonitor.domain.repository.AppPreferencesRepository
 import io.baiyanwu.coinmonitor.domain.repository.AiChatRepository
 import io.baiyanwu.coinmonitor.domain.repository.AiConfigRepository
 import io.baiyanwu.coinmonitor.domain.repository.MarketKlineRepository
 import io.baiyanwu.coinmonitor.domain.repository.OkxCredentialsRepository
+import io.baiyanwu.coinmonitor.domain.repository.QuoteRepository
 import io.baiyanwu.coinmonitor.domain.repository.WatchlistRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -63,6 +66,7 @@ data class KlineUiState(
  */
 class KlineViewModel(
     private val watchlistRepository: WatchlistRepository,
+    private val quoteRepository: QuoteRepository,
     private val marketKlineRepository: MarketKlineRepository,
     private val appPreferencesRepository: AppPreferencesRepository,
     private val aiConfigRepository: AiConfigRepository,
@@ -83,6 +87,7 @@ class KlineViewModel(
         viewModelScope.launch {
             combine(
                 watchlistRepository.observeWatchlist(),
+                quoteRepository.quotes,
                 selectionStore.selectedItemId,
                 sourcePreference,
                 intervalPreference,
@@ -90,12 +95,14 @@ class KlineViewModel(
             ) { values ->
                 @Suppress("UNCHECKED_CAST")
                 val items = values[0] as List<WatchItem>
-                val selectedItemId = values[1] as String?
-                val source = values[2] as KlineSource?
-                val interval = values[3] as KlineInterval
-                val preferences = values[4] as AppPreferences
+                val quotes = values[1] as Map<String, QuoteState>
+                val selectedItemId = values[2] as String?
+                val source = values[3] as KlineSource?
+                val interval = values[4] as KlineInterval
+                val preferences = values[5] as AppPreferences
+                val resolvedItems = items.map { item -> item.withQuote(quotes[item.id]) }
                 PrimarySnapshot(
-                    items = items,
+                    items = resolvedItems,
                     selectedItemId = selectedItemId,
                     sourcePreference = source,
                     interval = interval,
@@ -380,6 +387,7 @@ class KlineViewModel(
             initializer {
                 KlineViewModel(
                     watchlistRepository = container.watchlistRepository,
+                    quoteRepository = container.quoteRepository,
                     marketKlineRepository = container.marketKlineRepository,
                     appPreferencesRepository = container.appPreferencesRepository,
                     aiConfigRepository = container.aiConfigRepository,

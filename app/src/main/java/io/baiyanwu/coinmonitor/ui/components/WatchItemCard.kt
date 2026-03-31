@@ -1,8 +1,6 @@
 package io.baiyanwu.coinmonitor.ui.components
 
 import android.view.MotionEvent
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,13 +15,14 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInteropFilter
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.testTag
@@ -33,16 +32,18 @@ import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
 import io.baiyanwu.coinmonitor.domain.model.ExchangeSource
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
+import io.baiyanwu.coinmonitor.domain.model.withQuote
+import io.baiyanwu.coinmonitor.domain.repository.QuoteRepository
 import io.baiyanwu.coinmonitor.overlay.QuoteFormatter
 import io.baiyanwu.coinmonitor.ui.resolveChangeColor
 import io.baiyanwu.coinmonitor.ui.resolveLivePriceColor
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 import io.baiyanwu.coinmonitor.R
 
-@OptIn(ExperimentalFoundationApi::class, ExperimentalComposeUiApi::class)
 @Composable
 fun WatchItemCard(
     item: WatchItem,
+    quoteRepository: QuoteRepository,
     overlaySelected: Boolean,
     onClick: () -> Unit = {},
     onLongPress: (anchorInRoot: IntOffset) -> Unit
@@ -60,39 +61,20 @@ fun WatchItemCard(
                     x = position.x.roundToInt(),
                     y = position.y.roundToInt()
                 )
-                gestureAnchor.cardSize = coordinates.size
             }
-            .pointerInteropFilter { motionEvent ->
-                if (motionEvent.actionMasked == MotionEvent.ACTION_DOWN) {
-                    gestureAnchor.lastTouchOffset = Offset(motionEvent.x, motionEvent.y)
-                }
-                false
-            }
-            .combinedClickable(
-                onClick = onClick,
-                onLongClick = {
-                    val anchorX = if (gestureAnchor.lastTouchOffset != Offset.Zero) {
-                        gestureAnchor.lastTouchOffset.x.roundToInt()
-                    } else if (gestureAnchor.cardSize.width > 0) {
-                        gestureAnchor.cardSize.width / 2
-                    } else {
-                        180
-                    }
-                    val anchorY = if (gestureAnchor.lastTouchOffset != Offset.Zero) {
-                        gestureAnchor.lastTouchOffset.y.roundToInt()
-                    } else if (gestureAnchor.cardSize.height > 0) {
-                        gestureAnchor.cardSize.height / 2
-                    } else {
-                        24
-                    }
-                    onLongPress(
-                        IntOffset(
-                            x = gestureAnchor.cardRootOffset.x + anchorX,
-                            y = gestureAnchor.cardRootOffset.y + anchorY
+            .pointerInput(item.id, onClick, onLongPress) {
+                detectTapGestures(
+                    onTap = { onClick() },
+                    onLongPress = { offset ->
+                        onLongPress(
+                            IntOffset(
+                                x = gestureAnchor.cardRootOffset.x + offset.x.roundToInt(),
+                                y = gestureAnchor.cardRootOffset.y + offset.y.roundToInt()
+                            )
                         )
-                    )
-                }
-            )
+                    }
+                )
+            }
     ) {
         Row(
             modifier = Modifier
@@ -133,33 +115,51 @@ fun WatchItemCard(
                 horizontalAlignment = Alignment.End,
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                Text(
-                    text = QuoteFormatter.formatPrice(item.lastPrice),
-                    style = MaterialTheme.typography.titleSmall,
-                    color = item.resolveLivePriceColor(
-                        colors = colors,
-                        defaultColor = colors.primaryText
-                    ),
-                    fontWeight = FontWeight.SemiBold
-                )
-                Text(
-                    text = QuoteFormatter.formatChange(item.change24hPercent),
-                    color = item.resolveChangeColor(
-                        colors = colors,
-                        defaultColor = colors.secondaryText
-                    ),
-                    style = MaterialTheme.typography.bodySmall,
-                    fontWeight = FontWeight.Medium
+                WatchItemLiveQuote(
+                    item = item,
+                    quoteRepository = quoteRepository
                 )
             }
         }
     }
 }
 
+@Composable
+private fun WatchItemLiveQuote(
+    item: WatchItem,
+    quoteRepository: QuoteRepository
+) {
+    val colors = CoinMonitorThemeTokens.colors
+    val quoteFlow = remember(item.id, quoteRepository) {
+        quoteRepository.observeQuote(item.id)
+    }
+    val quoteState = quoteFlow
+        .collectAsStateWithLifecycle(initialValue = quoteRepository.getQuote(item.id))
+        .value
+    val resolvedItem = item.withQuote(quoteState)
+
+    Text(
+        text = QuoteFormatter.formatPrice(resolvedItem.lastPrice),
+        style = MaterialTheme.typography.titleSmall,
+        color = resolvedItem.resolveLivePriceColor(
+            colors = colors,
+            defaultColor = colors.primaryText
+        ),
+        fontWeight = FontWeight.SemiBold
+    )
+    Text(
+        text = QuoteFormatter.formatChange(resolvedItem.change24hPercent),
+        color = resolvedItem.resolveChangeColor(
+            colors = colors,
+            defaultColor = colors.secondaryText
+        ),
+        style = MaterialTheme.typography.bodySmall,
+        fontWeight = FontWeight.Medium
+    )
+}
+
 private class WatchItemGestureAnchor {
     var cardRootOffset: IntOffset = IntOffset.Zero
-    var cardSize: IntSize = IntSize.Zero
-    var lastTouchOffset: Offset = Offset.Zero
 }
 
 @Composable

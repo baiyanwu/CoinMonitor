@@ -116,6 +116,7 @@ fun HomeRoute(
         onNavigateSearch = onNavigateSearch,
         onNavigateOverlaySettings = onNavigateOverlaySettings,
         onNavigateKline = onNavigateKline,
+        quoteRepository = container.quoteRepository,
         onRemoveWatchItem = viewModel::removeWatchItem,
         onToggleOverlay = viewModel::toggleOverlay,
         onRefresh = viewModel::refreshNow
@@ -130,6 +131,7 @@ internal fun HomeScreen(
     onNavigateSearch: () -> Unit,
     onNavigateOverlaySettings: () -> Unit,
     onNavigateKline: (String) -> Unit,
+    quoteRepository: io.baiyanwu.coinmonitor.domain.repository.QuoteRepository,
     onRemoveWatchItem: (String) -> Unit,
     onToggleOverlay: (String) -> Unit,
     onRefresh: () -> Unit
@@ -215,6 +217,7 @@ internal fun HomeScreen(
                             Box(modifier = Modifier.fillMaxWidth()) {
                                 WatchItemCard(
                                     item = item,
+                                    quoteRepository = quoteRepository,
                                     overlaySelected = state.overlayIds.contains(item.id),
                                     onClick = {
                                         quickMenuState = null
