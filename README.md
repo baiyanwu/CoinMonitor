@@ -55,6 +55,8 @@ This project is currently designed and iterated primarily through `vibecoding`, 
 - Added a separate indicator settings screen with grouped main/sub indicator configuration
 - Added K-line network logging hooks to help debug request and rendering flow across sources
 - Split chart colors from the app surface theme so dark-mode grid, text, and candle colors can be tuned independently
+- Reworked the K-line chart so the main chart and indicator area stay aligned during browsing and interaction
+- Improved K-line gesture behavior to reduce accidental scaling when touching the right-side price area
 
 ## On-chain Notes
 

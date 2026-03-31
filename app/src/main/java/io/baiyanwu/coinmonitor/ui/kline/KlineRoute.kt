@@ -22,7 +22,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.draw.clip
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AutoAwesome
@@ -41,7 +40,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -179,127 +177,119 @@ private fun KlineScreen(
                 }
             }
 
-            PullToRefreshBox(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f),
-                isRefreshing = state.isRefreshing,
-                onRefresh = onRefresh
+                verticalArrangement = Arrangement.spacedBy(0.dp)
             ) {
-                Column(
+                Spacer(modifier = Modifier.height(16.dp))
+
+                IntervalRow(
+                    selected = state.selectedInterval,
+                    onSelect = onSelectInterval
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                IndicatorRow(
+                    mainSelected = state.selectedMainIndicator,
+                    onSelectMain = onSelectMainIndicator,
+                    subSelected = state.selectedSubIndicator,
+                    onSelectSub = onSelectSubIndicator,
+                    onOpenIndicatorSettings = onOpenIndicatorSettings
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                ElevatedCard(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(0.dp)
+                        .fillMaxWidth()
+                        .padding(top = 2.dp)
+                        .height(460.dp),
+                    shape = RoundedCornerShape(24.dp)
                 ) {
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(colors.cardBackground)
+                    ) {
+                        when {
+                            state.availableItems.isEmpty() -> EmptyStateText(R.string.kline_empty_watchlist)
+                            state.isLoading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                            state.errorMessage != null -> ErrorState(
+                                message = state.errorMessage,
+                                onRetry = onRetry
+                            )
+                            state.selectedItem == null -> EmptyStateText(R.string.kline_empty_watchlist)
+                            state.candles.isEmpty() -> EmptyStateText(R.string.kline_loading)
+                            else -> {
+                                KlineChartSection(
+                                    state = state,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
+                        }
+                    }
+                }
 
-                    IntervalRow(
-                        selected = state.selectedInterval,
-                        onSelect = onSelectInterval
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    IndicatorRow(
-                        mainSelected = state.selectedMainIndicator,
-                        onSelectMain = onSelectMainIndicator,
-                        subSelected = state.selectedSubIndicator,
-                        onSelectSub = onSelectSubIndicator,
-                        onOpenIndicatorSettings = onOpenIndicatorSettings
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    ElevatedCard(
+                state.selectedItem?.let { item ->
+                    Surface(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 2.dp)
-                            .height(460.dp),
-                        shape = RoundedCornerShape(24.dp)
+                            .padding(top = 8.dp),
+                        shape = RoundedCornerShape(20.dp),
+                        color = colors.cardBackground
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(colors.cardBackground)
+                        Column(
+                            modifier = Modifier.padding(14.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            when {
-                                state.availableItems.isEmpty() -> EmptyStateText(R.string.kline_empty_watchlist)
-                                state.isLoading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-                                state.errorMessage != null -> ErrorState(
-                                    message = state.errorMessage,
-                                    onRetry = onRetry
-                                )
-                                state.selectedItem == null -> EmptyStateText(R.string.kline_empty_watchlist)
-                                state.candles.isEmpty() -> EmptyStateText(R.string.kline_loading)
-                                else -> {
-                                    KlineChartSection(
-                                        state = state,
-                                        modifier = Modifier.fillMaxSize()
-                                    )
+                            Text(
+                                text = item.symbol,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                text = stringResource(
+                                    R.string.kline_summary_meta,
+                                    state.selectedSource?.title.orEmpty(),
+                                    state.selectedInterval.label,
+                                    state.selectedMainIndicator.label,
+                                    state.selectedSubIndicator.label
+                                ),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = colors.secondaryText
+                            )
+                            Text(
+                                text = stringResource(
+                                    R.string.kline_summary_quote,
+                                    item.lastPrice?.toString() ?: "--",
+                                    item.change24hPercent?.toString() ?: "--"
+                                ),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = colors.secondaryText
+                            )
+                            Text(
+                                text = stringResource(R.string.kline_attribution),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = colors.secondaryText,
+                                modifier = Modifier.clickable {
+                                    uriHandler.openUri("https://www.tradingview.com/")
                                 }
-                            }
-                        }
-                    }
-
-                    state.selectedItem?.let { item ->
-                        Surface(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 8.dp),
-                            shape = RoundedCornerShape(20.dp),
-                            color = colors.cardBackground
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(14.dp),
-                                verticalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
+                            )
+                            if (state.isRefreshing) {
                                 Text(
-                                    text = item.symbol,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                                Text(
-                                    text = stringResource(
-                                        R.string.kline_summary_meta,
-                                        state.selectedSource?.title.orEmpty(),
-                                        state.selectedInterval.label,
-                                        state.selectedMainIndicator.label,
-                                        state.selectedSubIndicator.label
-                                    ),
+                                    text = stringResource(R.string.kline_refreshing),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = colors.secondaryText
                                 )
-                                Text(
-                                    text = stringResource(
-                                        R.string.kline_summary_quote,
-                                        item.lastPrice?.toString() ?: "--",
-                                        item.change24hPercent?.toString() ?: "--"
-                                    ),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = colors.secondaryText
-                                )
-                                Text(
-                                    text = stringResource(R.string.kline_attribution),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = colors.secondaryText,
-                                    modifier = Modifier.clickable {
-                                        uriHandler.openUri("https://www.tradingview.com/")
-                                    }
-                                )
-                                if (state.isRefreshing) {
-                                    Text(
-                                        text = stringResource(R.string.kline_refreshing),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = colors.secondaryText
-                                    )
-                                }
                             }
                         }
                     }
-
-                    Spacer(modifier = Modifier.height(96.dp))
                 }
+
+                Spacer(modifier = Modifier.height(96.dp))
             }
         }
         ExtendedFloatingActionButton(

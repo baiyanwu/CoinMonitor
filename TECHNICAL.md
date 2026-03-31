@@ -56,13 +56,21 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 ### K-line
 
 - 底部导航新增独立 `K线` tab，K 线页和首页/设置页并列
-- 图表内核当前使用 `TradingView Lightweight Charts Android wrapper`
+- 图表内核当前基于仓库内 vendored 的 `TradingView Lightweight Charts Android wrapper` 源码模块
+- 第三方图表源码当前直接放在 `third_party/lightweightlibrary`，应用不再依赖外部 `aar`，方便直接调试 wrapper 和内嵌 JS core
 - K 线数据统一走 `MarketKlineRepository`，对 `Binance / Binance Alpha / OKX / OKX On-chain` 做统一 candle 映射
 - 主图支持 `MA / EMA / BOLL`，副图支持 `VOL / MACD / RSI / KDJ`
 - 指标设置使用独立 `Activity`，通过本地偏好持久化完整配置模型
 - 当前图表已经消费 `开关 / 参数 / 颜色 / 基础样式`，并按配置重绘，不会因为改指标参数而重新请求行情接口
 - 图表实现和页面实现之间通过 `KlineChartContract` 解耦，方便后续继续替换成自研 K 线内核
 - 图表颜色当前通过独立 `KlineChartPalette` 管理，不直接复用应用页面主题色；夜间模式下网格、文字和主副图颜色可以独立调整
+- 当前实现已经从“双 `ChartsView` 手工同步”切到“单 chart + pane”结构，主图和副图共用同一套十字线、时间轴和缩放逻辑
+- wrapper 本地补齐了官方已有但 Android 侧未暴露的 pane 和 logical range 能力，用于把副图指标 series 移入独立 pane 并保持时间轴一致
+- vendored wrapper 当前内嵌的 JS core 已切到 `lightweight-charts v5.1.0`
+- 当前对价格轴手势只做了一处集中修正：在 vendored JS core 内屏蔽价格轴区域的双指放大异常，保留主绘图区的正常 pinch 缩放
+- 当前为了隔离 K 线问题，页面仍保留两项临时测试约束：
+  - 周期入口固定为 `4H`
+  - K 线页外层暂时移除了下拉刷新和纵向滚动，避免额外手势干扰
 
 ### On-chain
 
@@ -169,6 +177,8 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 - 搜索页的交易所模式和链上模式已经彻底分流，链上模式不会再混发交易所搜索请求。
 - 行情刷新已经拆成“全局协调器 + 可替换刷新引擎”两层结构，为交易所与链上的 `WSS` 接入预留接口。
 - 流式引擎内部已经对订阅集合做指纹比较，避免价格回流导致重复重建长连接。
+- 当前 vendored chart wrapper 关闭了 `WebView` 自身页面缩放，避免系统层缩放和图表手势混在一起。
+- vendored wrapper 生成产物当前直接提交 `src/main/assets/com/tradingview/lightweightcharts/scripts/app/main.js`，这样工程在不执行 `npm run compile` 时也能直接构建运行。
 
 ## Open Source Notes
 

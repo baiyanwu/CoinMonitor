@@ -1,18 +1,18 @@
 package io.baiyanwu.coinmonitor.ui.kline.chart
 
 import android.content.Context
-import android.view.Gravity
 import android.view.View
-import android.widget.FrameLayout
-import android.widget.LinearLayout
 import com.tradingview.lightweightcharts.api.chart.models.color.toIntColor
 import com.tradingview.lightweightcharts.api.chart.models.color.surface.SolidColor
+import com.tradingview.lightweightcharts.api.interfaces.PaneApi
 import com.tradingview.lightweightcharts.api.interfaces.SeriesApi
 import com.tradingview.lightweightcharts.api.options.models.HandleScaleOptions
 import com.tradingview.lightweightcharts.api.options.models.HandleScrollOptions
 import com.tradingview.lightweightcharts.api.options.models.PriceScaleMargins
 import com.tradingview.lightweightcharts.api.options.models.PriceScaleOptions
 import com.tradingview.lightweightcharts.api.options.models.TimeScaleOptions
+import com.tradingview.lightweightcharts.api.options.models.AxisDoubleClickOptions
+import com.tradingview.lightweightcharts.api.options.models.AxisPressedMouseMoveOptions
 import com.tradingview.lightweightcharts.api.options.models.applyLineSeriesOptions
 import com.tradingview.lightweightcharts.api.options.models.candlestickSeriesOptions
 import com.tradingview.lightweightcharts.api.options.models.chartOptions
@@ -44,18 +44,9 @@ class TradingViewKlineChartEngine(
 ) : KlineChartEngine {
 
     override val view: View
-        get() = rootView
+        get() = chartView
 
-    private val rootView = LinearLayout(context).apply {
-        orientation = LinearLayout.VERTICAL
-    }
-    private val mainChartView = ChartsView(context)
-    private val indicatorContainer = FrameLayout(context)
-    private val indicatorChartView = ChartsView(context)
-    private val indicatorTouchShield = View(context).apply {
-        isClickable = true
-        isFocusable = false
-    }
+    private val chartView = ChartsView(context)
 
     private val maSeries = MutableList(MAX_MA_LINE_COUNT) { null as SeriesApi? }
     private val emaSeries = MutableList(MAX_EMA_LINE_COUNT) { null as SeriesApi? }
@@ -67,15 +58,13 @@ class TradingViewKlineChartEngine(
     private var indicatorLineSecondarySeries: SeriesApi? = null
     private var indicatorLineTertiarySeries: SeriesApi? = null
 
-    private var isMainReady = false
-    private var isIndicatorReady = false
-    private var syncSubscribed = false
+    private var mainPane: PaneApi? = null
+    private var indicatorPane: PaneApi? = null
+    private var isChartReady = false
     private var released = false
-    private var isIndicatorPaneActive = false
     private var pendingModel: KlineChartRenderModel? = null
 
     init {
-        buildLayout()
         subscribeChartState()
     }
 
@@ -99,63 +88,18 @@ class TradingViewKlineChartEngine(
         }
     }
 
-    private fun buildLayout() {
-        rootView.addView(
-            mainChartView,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                0,
-                1f
-            )
-        )
-        indicatorContainer.addView(
-            indicatorChartView,
-            FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.MATCH_PARENT
-            )
-        )
-        indicatorContainer.addView(
-            indicatorTouchShield,
-            FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                Gravity.CENTER
-            )
-        )
-        rootView.addView(
-            indicatorContainer,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                dpToPx(rootView.context, 122)
-            )
-        )
-        indicatorContainer.visibility = View.GONE
-    }
-
-    /**
-     * 监听两个图表的 ready 状态。
-     */
     private fun subscribeChartState() {
-        mainChartView.subscribeOnChartStateChange { state ->
-            if (released || state !is ChartsView.State.Ready || isMainReady) return@subscribeOnChartStateChange
-            isMainReady = true
-            configureMainChart()
-            createMainSeries()
-            renderIfPossible()
-        }
-        indicatorChartView.subscribeOnChartStateChange { state ->
-            if (released || state !is ChartsView.State.Ready || isIndicatorReady) return@subscribeOnChartStateChange
-            isIndicatorReady = true
-            configureIndicatorChart()
-            createIndicatorSeries()
-            bindVisibleRangeSync()
+        chartView.subscribeOnChartStateChange { state ->
+            if (released || state !is ChartsView.State.Ready || isChartReady) return@subscribeOnChartStateChange
+            isChartReady = true
+            configureChart()
+            createSeries()
             renderIfPossible()
         }
     }
 
-    private fun configureMainChart() {
-        mainChartView.api.applyOptions(
+    private fun configureChart() {
+        chartView.api.applyOptions(
             chartOptions {
                 layout = layoutOptions { }
                 handleScroll = HandleScrollOptions(
@@ -166,7 +110,15 @@ class TradingViewKlineChartEngine(
                 )
                 handleScale = HandleScaleOptions(
                     mouseWheel = true,
-                    pinch = true
+                    pinch = true,
+                    axisPressedMouseMove = AxisPressedMouseMoveOptions(
+                        time = true,
+                        price = true
+                    ),
+                    axisDoubleClickReset = AxisDoubleClickOptions(
+                        time = true,
+                        price = true
+                    )
                 )
                 rightPriceScale = PriceScaleOptions(
                     visible = true,
@@ -185,56 +137,23 @@ class TradingViewKlineChartEngine(
         )
     }
 
-    private fun configureIndicatorChart() {
-        indicatorChartView.api.applyOptions(
-            chartOptions {
-                layout = layoutOptions { }
-                handleScroll = HandleScrollOptions(
-                    mouseWheel = false,
-                    pressedMouseMove = false,
-                    horzTouchDrag = false,
-                    vertTouchDrag = false
-                )
-                handleScale = HandleScaleOptions(
-                    mouseWheel = false,
-                    pinch = false
-                )
-                rightPriceScale = PriceScaleOptions(
-                    visible = true,
-                    borderVisible = false,
-                    scaleMargins = PriceScaleMargins(
-                        top = 0.15f,
-                        bottom = 0.1f
-                    )
-                )
-                leftPriceScale = PriceScaleOptions(
-                    visible = false
-                )
-                timeScale = TimeScaleOptions(
-                    visible = false,
-                    borderVisible = false
-                )
-            }
-        )
-    }
-
     /**
-     * 主图固定创建 1 组蜡烛 + 10 条 MA + 10 条 EMA + 3 条 BOLL。
-     *
-     * 这样能够覆盖首版配置页里的所有主图线条数量，同时避免运行期反复增删 series。
+     * 单图模式下统一创建主图与副图 series，再把副图 series 移到 pane 1。
      */
-    private fun createMainSeries() {
-        val api = mainChartView.api
+    private fun createSeries() {
+        val api = chartView.api
         val strokeStyle = KlineChartStyleDefaults.strokeStyle
         val maLineWidth = resolveLineWidth(strokeStyle.movingAverageLineWidth)
         val emaLineWidth = resolveLineWidth(strokeStyle.exponentialMovingAverageLineWidth)
         val bollLineWidth = resolveLineWidth(strokeStyle.bollLineWidth)
+        val indicatorLineWidth = resolveLineWidth(KlineChartStyleDefaults.strokeStyle.macdSignalLineWidth)
 
         api.addCandlestickSeries(candlestickSeriesOptions {
             lastValueVisible = true
             priceLineVisible = false
         }) {
             candleSeries = it
+            bindMainPane(it)
             renderIfPossible()
         }
 
@@ -270,57 +189,65 @@ class TradingViewKlineChartEngine(
                 renderIfPossible()
             }
         }
-    }
 
-    private fun createIndicatorSeries() {
-        val api = indicatorChartView.api
-        val resolvedLineWidth = resolveLineWidth(KlineChartStyleDefaults.strokeStyle.macdSignalLineWidth)
         api.addHistogramSeries(histogramSeriesOptions {
             lastValueVisible = false
             priceLineVisible = false
             priceFormat = PriceFormat(type = PriceFormat.Type.VOLUME)
         }) {
             indicatorHistogramSeries = it
+            bindIndicatorPane(it)
             renderIfPossible()
         }
         api.addLineSeries(lineSeriesOptions {
-            lineWidth = resolvedLineWidth
+            lineWidth = indicatorLineWidth
             lastValueVisible = false
             priceLineVisible = false
         }) {
             indicatorLinePrimarySeries = it
+            bindIndicatorPane(it)
             renderIfPossible()
         }
         api.addLineSeries(lineSeriesOptions {
-            lineWidth = resolvedLineWidth
+            lineWidth = indicatorLineWidth
             lastValueVisible = false
             priceLineVisible = false
         }) {
             indicatorLineSecondarySeries = it
+            bindIndicatorPane(it)
             renderIfPossible()
         }
         api.addLineSeries(lineSeriesOptions {
-            lineWidth = resolvedLineWidth
+            lineWidth = indicatorLineWidth
             lastValueVisible = false
             priceLineVisible = false
         }) {
             indicatorLineTertiarySeries = it
+            bindIndicatorPane(it)
             renderIfPossible()
         }
     }
 
-    /**
-     * 用主图时间范围驱动副图。
-     */
-    private fun bindVisibleRangeSync() {
-        if (syncSubscribed || !isMainReady || !isIndicatorReady) return
-        syncSubscribed = true
-        mainChartView.api.timeScale.subscribeVisibleTimeRangeChange { range ->
-            if (range == null || !isIndicatorPaneActive) return@subscribeVisibleTimeRangeChange
-            runCatching {
-                indicatorChartView.api.timeScale.setVisibleRange(range)
-            }
+    private fun bindMainPane(series: SeriesApi) {
+        series.getPane { pane ->
+            mainPane = pane
+            applyPaneStretchFactors()
+            renderIfPossible()
         }
+    }
+
+    private fun bindIndicatorPane(series: SeriesApi) {
+        series.moveToPane(INDICATOR_PANE_INDEX)
+        series.getPane { pane ->
+            indicatorPane = pane
+            applyPaneStretchFactors()
+            renderIfPossible()
+        }
+    }
+
+    private fun applyPaneStretchFactors() {
+        mainPane?.setStretchFactor(MAIN_PANE_STRETCH_FACTOR)
+        indicatorPane?.setStretchFactor(INDICATOR_PANE_STRETCH_FACTOR)
     }
 
     private fun renderIfPossible() {
@@ -330,16 +257,12 @@ class TradingViewKlineChartEngine(
         applyMainChartData(model)
         applyIndicatorChartData(model)
         if (model.candles.isNotEmpty()) {
-            mainChartView.api.timeScale.fitContent()
-        }
-        if (isIndicatorPaneActive) {
-            indicatorChartView.api.timeScale.fitContent()
+            chartView.api.timeScale.fitContent()
         }
     }
 
     private fun isReadyToRender(): Boolean {
-        return isMainReady &&
-            isIndicatorReady &&
+        return isChartReady &&
             candleSeries != null &&
             maSeries.all { it != null } &&
             emaSeries.all { it != null } &&
@@ -347,12 +270,14 @@ class TradingViewKlineChartEngine(
             indicatorHistogramSeries != null &&
             indicatorLinePrimarySeries != null &&
             indicatorLineSecondarySeries != null &&
-            indicatorLineTertiarySeries != null
+            indicatorLineTertiarySeries != null &&
+            mainPane != null &&
+            indicatorPane != null
     }
 
     private fun applyPalette(model: KlineChartRenderModel) {
         val palette = model.palette
-        mainChartView.api.applyOptions(
+        chartView.api.applyOptions(
             chartOptions {
                 layout = layoutOptions {
                     background = SolidColor(palette.backgroundColor)
@@ -378,39 +303,28 @@ class TradingViewKlineChartEngine(
                 rightPriceScale = PriceScaleOptions(
                     visible = true,
                     borderVisible = false,
-                    borderColor = palette.gridColor.toIntColor(),
-                    scaleMargins = PriceScaleMargins(top = 0.08f, bottom = 0.1f)
+                    borderColor = palette.gridColor.toIntColor()
+                )
+                leftPriceScale = PriceScaleOptions(
+                    visible = false
                 )
             }
         )
-        indicatorChartView.api.applyOptions(
-            chartOptions {
-                layout = layoutOptions {
-                    background = SolidColor(palette.backgroundColor)
-                    textColor = palette.textColor.toIntColor()
-                }
-                grid = gridOptions {
-                    vertLines = gridLineOptions {
-                        color = palette.gridColor.toIntColor()
-                        visible = true
-                    }
-                    horzLines = gridLineOptions {
-                        color = palette.gridColor.toIntColor()
-                        visible = true
-                    }
-                }
-                rightPriceScale = PriceScaleOptions(
-                    visible = true,
-                    borderVisible = false,
-                    borderColor = palette.gridColor.toIntColor(),
-                    scaleMargins = PriceScaleMargins(top = 0.15f, bottom = 0.08f)
-                )
-                timeScale = TimeScaleOptions(
-                    visible = false,
-                    borderVisible = false,
-                    borderColor = palette.gridColor.toIntColor()
-                )
-            }
+        candleSeries?.priceScale()?.applyOptions(
+            PriceScaleOptions(
+                visible = true,
+                borderVisible = false,
+                borderColor = palette.gridColor.toIntColor(),
+                scaleMargins = PriceScaleMargins(top = 0.08f, bottom = 0.1f)
+            )
+        )
+        indicatorHistogramSeries?.priceScale()?.applyOptions(
+            PriceScaleOptions(
+                visible = true,
+                borderVisible = false,
+                borderColor = palette.gridColor.toIntColor(),
+                scaleMargins = PriceScaleMargins(top = 0.15f, bottom = 0.08f)
+            )
         )
     }
 
@@ -497,19 +411,7 @@ class TradingViewKlineChartEngine(
 
     private fun applyIndicatorChartData(model: KlineChartRenderModel) {
         val settings = model.indicatorSettings
-        val shouldShowIndicatorPane = model.subIndicator in setOf(
-            KlineIndicator.VOL,
-            KlineIndicator.MACD,
-            KlineIndicator.RSI,
-            KlineIndicator.KDJ
-        )
-        isIndicatorPaneActive = shouldShowIndicatorPane
-        indicatorContainer.visibility = if (shouldShowIndicatorPane) View.VISIBLE else View.GONE
-
-        if (!shouldShowIndicatorPane) {
-            clearIndicatorData()
-            return
-        }
+        applyIndicatorPriceFormat(model.subIndicator)
 
         when (model.subIndicator) {
             KlineIndicator.VOL -> {
@@ -643,6 +545,33 @@ class TradingViewKlineChartEngine(
         }
     }
 
+    private fun applyIndicatorPriceFormat(subIndicator: KlineIndicator) {
+        val priceFormat = when (subIndicator) {
+            KlineIndicator.VOL -> PriceFormat(type = PriceFormat.Type.VOLUME)
+            else -> PriceFormat(type = PriceFormat.Type.PRICE)
+        }
+        indicatorHistogramSeries?.applyOptions(
+            histogramSeriesOptions {
+                lastValueVisible = false
+                priceLineVisible = false
+                this.priceFormat = priceFormat
+            }
+        )
+        listOf(
+            indicatorLinePrimarySeries,
+            indicatorLineSecondarySeries,
+            indicatorLineTertiarySeries
+        ).forEach { series ->
+            series?.applyOptions(
+                lineSeriesOptions {
+                    lastValueVisible = false
+                    priceLineVisible = false
+                    this.priceFormat = priceFormat
+                }
+            )
+        }
+    }
+
     private fun clearIndicatorData() {
         indicatorHistogramSeries?.setData(emptyList())
         indicatorLinePrimarySeries?.setData(emptyList())
@@ -654,6 +583,9 @@ class TradingViewKlineChartEngine(
         private const val MAX_MA_LINE_COUNT = 10
         private const val MAX_EMA_LINE_COUNT = 10
         private const val BOLL_LINE_COUNT = 3
+        private const val INDICATOR_PANE_INDEX = 1
+        private const val MAIN_PANE_STRETCH_FACTOR = 3f
+        private const val INDICATOR_PANE_STRETCH_FACTOR = 1f
     }
 }
 
@@ -762,8 +694,4 @@ private fun List<CandleEntry>.toMacdHistogramData(
             color = resolvedColor.toIntColor()
         )
     }
-}
-
-private fun dpToPx(context: Context, dp: Int): Int {
-    return (dp * context.resources.displayMetrics.density).toInt()
 }
