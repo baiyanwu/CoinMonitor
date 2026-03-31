@@ -24,45 +24,13 @@ This project is currently designed and iterated primarily through `vibecoding`, 
 
 ---
 
-## Highlights
+## Core Features
 
-- Search spot pairs from `Binance Alpha`, `Binance`, and `OKX`
-- Search on-chain tokens by keyword or contract address, with current support focused on `EVM` and `Solana`
-- Let users provide their own `OKX` API credentials locally for on-chain search and pricing, without any project-hosted backend
-- Add a dedicated `Kline` tab with multi-source chart switching across `Binance / Alpha / OKX / On-chain`
-- Support interval switching, main/sub indicator switching, and a separate indicator settings screen
-- Configure `MA / EMA / BOLL / VOL / MACD / RSI / KDJ` with toggles, parameters, colors, and style presets
-- Split search-page behavior by entry: watchlist management from Home, direct pair selection and return when opened from Kline
-- Maintain a watchlist with pull-to-refresh and long-press quick actions
-- Add or remove items from the floating overlay directly from the home screen
-- Configure overlay behavior including drag lock, opacity, max item count, leading display mode, and font sizing
-- Temporarily hide or restore the overlay from the foreground notification, while immediately releasing touch interception
-- Snap the overlay to the screen edge and switch into a marquee sidebar mode to reduce obstruction
-- Use one shared global refresh pipeline across the home screen and overlay: custom `3-10s`, `30s`, or `1 min`
-- Keep the overlay alive with a foreground service and restore it only when runtime conditions are still valid
-- Fall back to grayscale chain icons when an on-chain token does not provide its own logo, with processed icon bitmaps cached for reuse
-
-## What's New In 1.0.2
-
-- Switched the main quote pipeline to exchange and on-chain `WSS`, covering `Binance Spot` / `Binance Alpha` / `OKX Spot` / `OKX On-chain`
-- Added `REST` snapshot fallback and subscription fingerprinting so reconnects stay stable when the watchlist keeps receiving live price updates
-- Moved the search-page loading spinner into the search field icon slot instead of showing a separate indicator below
-- Rounded floating-overlay token icons to keep the overlay visuals aligned with the in-app list
-
-## In Progress For 1.0.3
-
-- Added a dedicated bottom `Kline` tab powered by `TradingView Lightweight Charts`
-- Added a separate indicator settings screen with grouped main/sub indicator configuration
-- Added K-line network logging hooks to help debug request and rendering flow across sources
-- Split chart colors from the app surface theme so dark-mode grid, text, and candle colors can be tuned independently
-- Reworked the K-line chart so the main chart and indicator area stay aligned during browsing and interaction
-- Improved K-line gesture behavior to reduce accidental scaling when touching the right-side price area
-- Reduced dark-mode flashing when the K-line chart is first opened
-- Kept the K-line chart state more stable when switching between bottom tabs
-- Unified exchange badges across watchlist and search results
-- Made watchlist icons and overlay icons more stable during scrolling and live updates
-- Refined snapped-overlay ticker behavior so items rotate more naturally instead of resetting on every live price push
-- Added an overlay selection limit to stop users from adding more than 10 items at once
+- Search and track spot pairs from `Binance Alpha`, `Binance`, and `OKX`, plus on-chain tokens through `OKX DEX Market API`
+- Manage a watchlist with quick actions, live quote refresh, and stable icon/badge presentation across the app
+- Pin selected items into a floating overlay with drag lock, edge snapping, adaptive layouts, and foreground-service persistence
+- Browse a dedicated `Kline` tab with multi-source switching, interval selection, and configurable `MA / EMA / BOLL / VOL / MACD / RSI / KDJ`
+- Keep quotes flowing through `WSS` first with snapshot fallback, while local settings control refresh behavior and on-chain credentials
 
 ## On-chain Notes
 
@@ -95,12 +63,7 @@ cd CoinMonitor
 
 ## Roadmap
 
-- User-selectable quote refresh mode: `Auto / WSS / API`
-- More K-line interaction and visual polish
 - AI-assisted analysis
-  - The `AI Analysis` entry and local config structure exist
-  - The actual AI chat / analysis pipeline is still TODO and not shipped yet
-- More watchlist and overlay polish
 
 ## Disclaimer
 
