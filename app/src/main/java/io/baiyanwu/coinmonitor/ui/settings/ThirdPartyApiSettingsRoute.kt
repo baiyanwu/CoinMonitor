@@ -31,6 +31,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -75,7 +77,10 @@ private fun ThirdPartyApiSettingsScreen(
     onClear: () -> Unit
 ) {
     val colors = CoinMonitorThemeTokens.colors
+    val context = LocalContext.current
+    val uriHandler = LocalUriHandler.current
     var showValidationError by rememberSaveable { mutableStateOf(false) }
+    val okxOnchainPortalUrl = rememberOkxOnchainPortalUrl(context)
 
     Column(
         modifier = Modifier
@@ -107,6 +112,22 @@ private fun ThirdPartyApiSettingsScreen(
                     text = stringResource(R.string.third_party_api_settings_disclaimer),
                     style = MaterialTheme.typography.bodySmall,
                     color = colors.secondaryText
+                )
+                Text(
+                    text = stringResource(R.string.third_party_api_settings_okx_onchain_portal),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.accent,
+                    modifier = Modifier.clickable {
+                        uriHandler.openUri(okxOnchainPortalUrl)
+                    }
+                )
+                Text(
+                    text = okxOnchainPortalUrl,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.accent,
+                    modifier = Modifier.clickable {
+                        uriHandler.openUri(okxOnchainPortalUrl)
+                    }
                 )
                 if (!state.secureStorageAvailable) {
                     Text(
@@ -283,5 +304,22 @@ private fun SettingSwitchRow(
             onCheckedChange = onCheckedChange,
             colors = CoinMonitorComponentDefaults.switchColors()
         )
+    }
+}
+
+@Composable
+private fun rememberOkxOnchainPortalUrl(
+    context: android.content.Context
+): String {
+    val languageTag = context.resources.configuration.locales
+        .takeIf { !it.isEmpty }
+        ?.get(0)
+        ?.toLanguageTag()
+        .orEmpty()
+
+    return if (languageTag.startsWith("zh", ignoreCase = true)) {
+        "https://web3.okx.com/zh-hans/onchainos/dev-portal"
+    } else {
+        "https://web3.okx.com/onchainos/dev-portal"
     }
 }

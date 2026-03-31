@@ -35,6 +35,7 @@ import okhttp3.Request
 import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
+import java.util.concurrent.TimeUnit
 
 /**
  * 行情刷新默认优先走交易所官方 WSS，把“每轮全量 HTTP 询价”改成“增量推送”。
@@ -53,7 +54,9 @@ class StreamingQuoteRefreshEngine(
         ignoreUnknownKeys = true
         explicitNulls = false
     }
-    private val okHttpClient = OkHttpClient.Builder().build()
+    private val okHttpClient = OkHttpClient.Builder()
+        .pingInterval(25, TimeUnit.SECONDS)
+        .build()
     private val refreshMutex = Mutex()
     private val pendingQuoteMutex = Mutex()
 
@@ -90,6 +93,10 @@ class StreamingQuoteRefreshEngine(
 
     override suspend fun refreshNow() {
         refreshQuotes(currentConfig.items)
+    }
+
+    override fun reconnect() {
+        restart(currentConfig)
     }
 
     override fun stop() {

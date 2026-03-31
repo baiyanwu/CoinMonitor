@@ -141,6 +141,7 @@ class OverlayForegroundService : Service() {
                 startForegroundIfNeeded()
                 serviceScope.launch {
                     if (!renderLatestOverlay()) return@launch
+                    container.globalQuoteRefreshCoordinator.reconnect()
                     container.globalQuoteRefreshCoordinator.refreshNow()
                 }
                 return START_STICKY
@@ -231,15 +232,8 @@ class OverlayForegroundService : Service() {
 
         val contentText = when {
             temporarilyHidden -> localizedContext.getString(R.string.overlay_notification_hidden_text)
-            settings.locked -> localizedContext.getString(
-                R.string.overlay_notification_locked_text,
-                preferences.refreshIntervalSeconds
-            )
-
-            else -> localizedContext.getString(
-                R.string.overlay_notification_unlocked_text,
-                preferences.refreshIntervalSeconds
-            )
+            settings.locked -> localizedContext.getString(R.string.overlay_notification_locked_text)
+            else -> localizedContext.getString(R.string.overlay_notification_unlocked_text)
         }
 
         val customContent = buildNotificationContentView(

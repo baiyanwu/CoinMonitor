@@ -53,6 +53,10 @@ class GlobalQuoteRefreshCoordinator(
         refreshEngine.refreshNow()
     }
 
+    fun reconnect() {
+        refreshEngine.reconnect()
+    }
+
     fun stop() {
         refreshEngine.stop()
         observeJob?.cancel()

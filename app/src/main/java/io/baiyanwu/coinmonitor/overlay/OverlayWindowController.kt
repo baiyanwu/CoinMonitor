@@ -185,7 +185,14 @@ class OverlayWindowController(
         )
         root.background = GradientDrawable().apply {
             cornerRadius = metrics.cornerRadiusPx.toFloat()
-            setColor(overlayColors.overlayBackground.copy(alpha = opacity).toArgb())
+            setColor(
+                overlayColors.overlayBackground.copy(
+                    alpha = opacity.coerceIn(
+                        minimumValue = OverlaySettings.MIN_OPACITY,
+                        maximumValue = OverlaySettings.MAX_OPACITY
+                    )
+                ).toArgb()
+            )
             setStroke(1.dp, overlayColors.overlayBorder.toArgb())
         }
     }

@@ -13,6 +13,8 @@ interface QuoteRefreshEngine {
 
     suspend fun refreshNow()
 
+    fun reconnect()
+
     fun stop()
 }
 

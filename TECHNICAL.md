@@ -90,6 +90,7 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 - `仅 API` 模式继续复用现有轮询引擎和刷新间隔配置，作为弱网、代理环境和问题排查时的稳定兜底
 - 给 `REST` 快照刷新和 `WSS` 推送补统一时序保护，避免手动下拉刷新时旧快照短暂覆盖更晚到达的实时价格
 - 可选实现方向包括“按报价时间戳丢弃旧写入”或“把 `REST / WSS` 更新统一串行到同一条写库通道”
+- 重新核对 `Binance Spot / Binance Alpha / OKX Spot / OKX On-chain` 的官方 `WSS` 心跳与断线判定要求，按交易所收口保活策略，避免把 `ping/pong` 逻辑混用后留下“假在线但不推送”的长连接状态
 
 ## Implementation Notes
 

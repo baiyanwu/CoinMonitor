@@ -41,6 +41,10 @@ class PollingQuoteRefreshEngine(
         refreshQuotes(currentConfig.items)
     }
 
+    override fun reconnect() {
+        restartLoop(currentConfig)
+    }
+
     override fun stop() {
         refreshJob?.cancel()
         refreshJob = null

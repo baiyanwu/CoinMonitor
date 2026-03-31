@@ -38,7 +38,6 @@ class HomeViewModel(
     private var manualRefreshing: Boolean = false
 
     init {
-        quoteRefreshCoordinator.setHomeActive(true)
         viewModelScope.launch {
             combine(
                 watchlistRepository.observeWatchlist(),
@@ -83,6 +82,10 @@ class HomeViewModel(
             manualRefreshing = false
             publishUiState(isLoaded = _uiState.value.isLoaded)
         }
+    }
+
+    fun setScreenActive(active: Boolean) {
+        quoteRefreshCoordinator.setHomeActive(active)
     }
 
     override fun onCleared() {

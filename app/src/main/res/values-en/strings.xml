@@ -66,20 +66,22 @@
     <string name="language_system">System</string>
     <string name="language_chinese">简体中文</string>
     <string name="language_english">English</string>
-    <string name="settings_refresh_interval_title">Refresh Rate</string>
-    <string name="settings_refresh_interval_value">Auto refresh interval: %1$d s</string>
-    <string name="settings_refresh_interval_min_label">Fastest %1$d s</string>
-    <string name="settings_refresh_interval_max_label">Slowest %1$d s</string>
-    <string name="settings_refresh_mode_title">Refresh Mode</string>
-    <string name="settings_refresh_mode_custom">Slider</string>
-    <string name="settings_refresh_mode_thirty_seconds">30 s</string>
-    <string name="settings_refresh_mode_one_minute">1 min</string>
     <string name="settings_third_party_api_title">Third-party API Settings</string>
     <string name="settings_third_party_api_subtitle">OKX credentials are provided by the user and stored on-device only.</string>
+    <string name="network_log_title">Network Log</string>
+    <string name="network_log_settings_subtitle">Inspect HTTP and WSS request line logs in chronological order.</string>
+    <string name="network_log_start">Start recording</string>
+    <string name="network_log_stop">Stop recording</string>
+    <string name="network_log_clear">Clear log</string>
+    <string name="network_log_status_running">Recording</string>
+    <string name="network_log_status_stopped">Stopped</string>
+    <string name="network_log_count">%1$d entries</string>
+    <string name="network_log_empty">No logs yet. Tap the start action in the top right and try again.</string>
 
     <string name="third_party_api_settings_title">Third-party API Settings</string>
     <string name="third_party_api_settings_section_okx">OKX Onchain</string>
     <string name="third_party_api_settings_disclaimer">Credentials are stored only on this device for direct OKX requests and are never uploaded to the developer server.</string>
+    <string name="third_party_api_settings_okx_onchain_portal">Open the OKX Onchain developer portal to create credentials</string>
     <string name="third_party_api_settings_enable_okx">Enable OKX credentials</string>
     <string name="third_party_api_settings_api_key">API Key</string>
     <string name="third_party_api_settings_secret_key">Secret Key</string>
@@ -118,10 +120,9 @@
     <string name="overlay_page_format">Page %1$s</string>
 
     <string name="overlay_notification_title">CoinMonitor floating window is running</string>
-    <string name="overlay_notification_text">The floating price panel refreshes every %1$d s.</string>
     <string name="overlay_notification_hidden_text">The floating window is temporarily hidden. Restore it from the notification at any time.</string>
-    <string name="overlay_notification_locked_text">The floating panel refreshes every %1$d s and dragging is currently locked.</string>
-    <string name="overlay_notification_unlocked_text">The floating panel refreshes every %1$d s and can be dragged right now.</string>
+    <string name="overlay_notification_locked_text">The floating panel is running and dragging is currently locked.</string>
+    <string name="overlay_notification_unlocked_text">The floating panel is running and can be dragged right now.</string>
     <string name="overlay_notification_hide">Hide</string>
     <string name="overlay_notification_restore">Restore</string>
     <string name="overlay_notification_hide_short">Hide now</string>
@@ -133,5 +134,5 @@
     <string name="overlay_notification_toggle_drag">Drag</string>
     <string name="overlay_notification_stop">Close floating window</string>
     <string name="overlay_channel_name">Floating window service</string>
-    <string name="overlay_channel_description">Keeps the floating window alive and refreshes prices.</string>
+    <string name="overlay_channel_description">Keeps the floating window alive and updates prices in real time.</string>
 </resources>
