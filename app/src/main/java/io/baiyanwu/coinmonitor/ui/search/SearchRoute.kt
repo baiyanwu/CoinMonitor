@@ -799,24 +799,12 @@ private fun SearchResultRow(
 @Composable
 private fun ExchangeSourceBadge(source: ExchangeSource) {
     val colors = CoinMonitorThemeTokens.colors
-    val (label, containerColor, contentColor) = when (source) {
-        ExchangeSource.BINANCE -> Triple(
-            stringResource(R.string.exchange_badge_binance),
-            colors.heroBackground,
-            colors.secondaryText
-        )
-
-        ExchangeSource.BINANCE_ALPHA -> Triple(
-            stringResource(R.string.exchange_badge_binance_alpha),
-            colors.accent.copy(alpha = 0.16f),
-            colors.accent
-        )
-
-        ExchangeSource.OKX -> Triple(
-            stringResource(R.string.exchange_badge_okx),
-            colors.heroBackground,
-            colors.secondaryText
-        )
+    val containerColor = colors.accent.copy(alpha = 0.16f)
+    val contentColor = colors.accent
+    val label = when (source) {
+        ExchangeSource.BINANCE -> stringResource(R.string.exchange_badge_binance)
+        ExchangeSource.BINANCE_ALPHA -> stringResource(R.string.exchange_badge_binance_alpha)
+        ExchangeSource.OKX -> stringResource(R.string.exchange_badge_okx)
     }
 
     Surface(

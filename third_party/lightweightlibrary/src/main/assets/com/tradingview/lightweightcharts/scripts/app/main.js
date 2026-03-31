@@ -18148,13 +18148,30 @@ window.onresize = () => {
 }
 
 onload = () => {
+    document.documentElement.style.margin = '0'
+    document.documentElement.style.padding = '0'
+    document.documentElement.style.width = '100%'
+    document.documentElement.style.height = '100%'
+    document.documentElement.style.background = 'transparent'
+    document.body.style.margin = '0'
+    document.body.style.padding = '0'
+    document.body.style.width = '100%'
+    document.body.style.height = '100%'
+    document.body.style.background = 'transparent'
+
     window.chart = app_createChart(document.body, {
-        width: window.innerWidth, 
+        width: window.innerWidth,
         height: window.innerHeight,
         layout: {
-            //default value is transparent background
-            backgroundColor: "#00000000"
-        }
+            background: {
+                type: 'solid',
+                color: '#00000000',
+            },
+            panes: {
+                separatorColor: '#00000000',
+                separatorHoverColor: '#00000000',
+            },
+        },
     });
 }
 

@@ -16,6 +16,7 @@ class KlineChartHostView @JvmOverloads constructor(
 ) : FrameLayout(context, attrs) {
 
     private val engine: KlineChartEngine = KlineChartEngineFactory.create(context)
+    private var released = false
 
     init {
         addView(
@@ -28,11 +29,13 @@ class KlineChartHostView @JvmOverloads constructor(
      * 把页面层组装好的统一模型交给具体图表引擎渲染。
      */
     fun render(model: KlineChartRenderModel) {
+        if (released) return
         engine.render(model)
     }
 
-    override fun onDetachedFromWindow() {
+    fun release() {
+        if (released) return
+        released = true
         engine.release()
-        super.onDetachedFromWindow()
     }
 }

@@ -68,9 +68,9 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 - wrapper 本地补齐了官方已有但 Android 侧未暴露的 pane 和 logical range 能力，用于把副图指标 series 移入独立 pane 并保持时间轴一致
 - vendored wrapper 当前内嵌的 JS core 已切到 `lightweight-charts v5.1.0`
 - 当前对价格轴手势只做了一处集中修正：在 vendored JS core 内屏蔽价格轴区域的双指放大异常，保留主绘图区的正常 pinch 缩放
-- 当前为了隔离 K 线问题，页面仍保留两项临时测试约束：
-  - 周期入口固定为 `4H`
-  - K 线页外层暂时移除了下拉刷新和纵向滚动，避免额外手势干扰
+- 当前 K 线页通过在 `NavHost` 级别复用 `KlineChartHostView`，避免底部 tab 切换时整块 chart 被销毁重建
+- 夜间模式下的 WebView 首帧白底和 pane 分隔白线，当前收口在 vendored wrapper 的加载页与 JS 初始化层做透明背景修正
+- 为了隔离 K 线问题，K 线页外层仍暂时移除了下拉刷新和纵向滚动，避免额外手势干扰；周期切换已经恢复为真实生效
 
 ### On-chain
 
@@ -175,6 +175,7 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 - 调试网络日志只在 Debug 构建输出，Release 默认关闭。
 - 悬浮窗启停规则已经统一，避免 UI 开关状态和真实运行状态不一致。
 - 搜索页的交易所模式和链上模式已经彻底分流，链上模式不会再混发交易所搜索请求。
+- 首页列表和搜索结果页当前共用同一套交易所 badge 视觉：`Binance / Binance Alpha / OKX` 都按统一的强调色标签渲染，避免跨页面样式漂移。
 - 行情刷新已经拆成“全局协调器 + 可替换刷新引擎”两层结构，为交易所与链上的 `WSS` 接入预留接口。
 - 流式引擎内部已经对订阅集合做指纹比较，避免价格回流导致重复重建长连接。
 - 当前 vendored chart wrapper 关闭了 `WebView` 自身页面缩放，避免系统层缩放和图表手势混在一起。

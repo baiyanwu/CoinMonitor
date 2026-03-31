@@ -57,6 +57,9 @@ This project is currently designed and iterated primarily through `vibecoding`, 
 - Split chart colors from the app surface theme so dark-mode grid, text, and candle colors can be tuned independently
 - Reworked the K-line chart so the main chart and indicator area stay aligned during browsing and interaction
 - Improved K-line gesture behavior to reduce accidental scaling when touching the right-side price area
+- Reduced dark-mode flashing when the K-line chart is first opened
+- Kept the K-line chart state more stable when switching between bottom tabs
+- Unified exchange badges across watchlist and search results
 
 ## On-chain Notes
 

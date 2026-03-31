@@ -41,6 +41,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -80,6 +81,7 @@ import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 @Composable
 fun KlineRoute(
     container: AppContainer,
+    chartHostView: KlineChartHostView,
     onOpenSearch: () -> Unit,
     onOpenIndicatorSettings: () -> Unit
 ) {
@@ -93,6 +95,7 @@ fun KlineRoute(
         onSelectSubIndicator = viewModel::setSubIndicator,
         onOpenSearch = onOpenSearch,
         onOpenIndicatorSettings = onOpenIndicatorSettings,
+        chartHostView = chartHostView,
         onRefresh = viewModel::refreshNow,
         onRetry = viewModel::retry,
         onSendMessage = viewModel::sendMessage
@@ -112,6 +115,7 @@ private fun KlineScreen(
     onSelectSubIndicator: (KlineIndicator) -> Unit,
     onOpenSearch: () -> Unit,
     onOpenIndicatorSettings: () -> Unit,
+    chartHostView: KlineChartHostView,
     onRefresh: () -> Unit,
     onRetry: () -> Unit,
     onSendMessage: (String) -> Unit
@@ -226,6 +230,7 @@ private fun KlineScreen(
                             else -> {
                                 KlineChartSection(
                                     state = state,
+                                    chartHostView = chartHostView,
                                     modifier = Modifier.fillMaxSize()
                                 )
                             }
@@ -323,6 +328,7 @@ private fun KlineScreen(
 @Composable
 private fun KlineChartSection(
     state: KlineUiState,
+    chartHostView: KlineChartHostView,
     modifier: Modifier = Modifier
 ) {
     val isDarkChart = MaterialTheme.colorScheme.background.luminance() < 0.5f
@@ -346,7 +352,7 @@ private fun KlineChartSection(
 
     AndroidView(
         modifier = modifier,
-        factory = { context -> KlineChartHostView(context) },
+        factory = { chartHostView },
         update = { hostView ->
             hostView.render(renderModel)
         }

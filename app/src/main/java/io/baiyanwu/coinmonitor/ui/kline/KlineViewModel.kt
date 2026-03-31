@@ -32,8 +32,6 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-private val FIXED_TEST_INTERVAL = KlineInterval.FOUR_HOURS
-
 /**
  * K 线页状态。
  */
@@ -43,7 +41,7 @@ data class KlineUiState(
     val availableSources: List<KlineSource> = emptyList(),
     val selectedSource: KlineSource? = null,
     val selectedItem: WatchItem? = null,
-    val selectedInterval: KlineInterval = FIXED_TEST_INTERVAL,
+    val selectedInterval: KlineInterval = KlineInterval.ONE_HOUR,
     val selectedMainIndicator: KlineIndicator = KlineIndicator.MA,
     val selectedSubIndicator: KlineIndicator = KlineIndicator.VOL,
     val indicatorSettings: KlineIndicatorSettings = KlineIndicatorSettings(),
@@ -76,7 +74,7 @@ class KlineViewModel(
     val uiState: StateFlow<KlineUiState> = _uiState.asStateFlow()
 
     private val sourcePreference = MutableStateFlow<KlineSource?>(null)
-    private val intervalPreference = MutableStateFlow(FIXED_TEST_INTERVAL)
+    private val intervalPreference = MutableStateFlow(KlineInterval.ONE_HOUR)
     private val chatMessages = MutableStateFlow<List<AiChatMessage>>(emptyList())
     private val aiSending = MutableStateFlow(false)
     private var lastLoadedRequestKey: CandleRequestKey? = null
@@ -150,7 +148,7 @@ class KlineViewModel(
      * 切换周期。
      */
     fun setInterval(interval: KlineInterval) {
-        intervalPreference.value = FIXED_TEST_INTERVAL
+        intervalPreference.value = interval
     }
 
     /**
