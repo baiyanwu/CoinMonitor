@@ -25,8 +25,11 @@
     <string name="home_title">关注</string>
     <string name="home_open_search">搜索币对</string>
     <string name="home_overlay_tag">悬浮</string>
+    <string name="home_pinned_tag">置顶</string>
     <string name="home_quick_overlay_add">加入悬浮</string>
     <string name="home_quick_overlay_remove">移出悬浮</string>
+    <string name="home_quick_pin_add">置顶</string>
+    <string name="home_quick_pin_remove">取消置顶</string>
     <string name="home_overlay_enable_dialog_title">启用悬浮窗</string>
     <string name="home_overlay_enable_dialog_message">当前还没有开启悬浮窗功能，是否前往悬浮窗设置页开启？</string>
     <string name="home_overlay_enable_dialog_confirm">开启</string>

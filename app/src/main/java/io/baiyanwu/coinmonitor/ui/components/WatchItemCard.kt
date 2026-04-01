@@ -1,6 +1,6 @@
 package io.baiyanwu.coinmonitor.ui.components
 
-import android.view.MotionEvent
+import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -19,15 +18,19 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.input.pointer.PointerInputChange
+import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
+import androidx.compose.ui.input.pointer.positionChangeIgnoreConsumed
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
 import io.baiyanwu.coinmonitor.domain.model.ExchangeSource
@@ -39,22 +42,36 @@ import io.baiyanwu.coinmonitor.ui.resolveChangeColor
 import io.baiyanwu.coinmonitor.ui.resolveLivePriceColor
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 import io.baiyanwu.coinmonitor.R
+import kotlinx.coroutines.withTimeoutOrNull
 
 @Composable
 fun WatchItemCard(
     item: WatchItem,
     quoteRepository: QuoteRepository,
     overlaySelected: Boolean,
+    modifier: Modifier = Modifier,
+    dragOffsetY: Float = 0f,
     onClick: () -> Unit = {},
-    onLongPress: (anchorInRoot: IntOffset) -> Unit
+    onLongPress: (anchorInRoot: IntOffset) -> Unit,
+    onDragStart: () -> Unit = {},
+    onDragBy: (Float) -> Unit = {},
+    onDragEnd: () -> Unit = {},
+    onDragCancel: () -> Unit = {}
 ) {
     val colors = CoinMonitorThemeTokens.colors
     val gestureAnchor = remember { WatchItemGestureAnchor() }
+    val viewConfiguration = LocalViewConfiguration.current
+    val dragLongPressTimeoutMillis = DRAG_LONG_PRESS_TIMEOUT_MILLIS
+    val quickMenuLongPressTimeoutMillis = QUICK_MENU_LONG_PRESS_TIMEOUT_MILLIS
+    val touchSlop = viewConfiguration.touchSlop
 
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .testTag("watch-item-${item.id}")
+            .graphicsLayer {
+                translationY = dragOffsetY
+            }
             .onGloballyPositioned { coordinates ->
                 val position = coordinates.positionInRoot()
                 gestureAnchor.cardRootOffset = IntOffset(
@@ -62,18 +79,107 @@ fun WatchItemCard(
                     y = position.y.roundToInt()
                 )
             }
-            .pointerInput(item.id, onClick, onLongPress) {
-                detectTapGestures(
-                    onTap = { onClick() },
-                    onLongPress = { offset ->
-                        onLongPress(
-                            IntOffset(
-                                x = gestureAnchor.cardRootOffset.x + offset.x.roundToInt(),
-                                y = gestureAnchor.cardRootOffset.y + offset.y.roundToInt()
-                            )
-                        )
+            .pointerInput(
+                item.id,
+                onClick,
+                onLongPress,
+                onDragStart,
+                onDragBy,
+                onDragEnd,
+                onDragCancel,
+                dragLongPressTimeoutMillis,
+                quickMenuLongPressTimeoutMillis,
+                touchSlop
+            ) {
+                awaitEachGesture {
+                    val down = awaitFirstDown()
+                    val downPosition = down.position
+                    var latestPosition = down.position
+                    var elapsedMillis = 0L
+                    var dragArmed = false
+                    var dragActive = false
+                    var quickMenuOpened = false
+                    var dragReference = down.position
+
+                    while (true) {
+                        when {
+                            !dragArmed && elapsedMillis >= dragLongPressTimeoutMillis -> {
+                                dragArmed = true
+                                dragReference = latestPosition
+                                continue
+                            }
+
+                            !quickMenuOpened && !dragActive && elapsedMillis >= quickMenuLongPressTimeoutMillis -> {
+                                quickMenuOpened = true
+                                onLongPress(
+                                    IntOffset(
+                                        x = gestureAnchor.cardRootOffset.x + latestPosition.x.roundToInt(),
+                                        y = gestureAnchor.cardRootOffset.y + latestPosition.y.roundToInt()
+                                    )
+                                )
+                                break
+                            }
+                        }
+
+                        val nextTimeoutMillis = when {
+                            dragActive -> null
+                            !dragArmed -> dragLongPressTimeoutMillis
+                            else -> quickMenuLongPressTimeoutMillis
+                        }
+                        val event = if (nextTimeoutMillis == null) {
+                            awaitPointerEvent()
+                        } else {
+                            val waitMillis = (nextTimeoutMillis - elapsedMillis).coerceAtLeast(1L)
+                            withTimeoutOrNull(waitMillis) {
+                                awaitPointerEvent()
+                            }
+                        }
+                        if (event == null) {
+                            elapsedMillis = nextTimeoutMillis ?: elapsedMillis
+                            continue
+                        }
+                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                        latestPosition = change.position
+                        elapsedMillis = change.uptimeMillis - down.uptimeMillis
+
+                        if (!dragActive && change.isConsumed) {
+                            onDragCancel()
+                            break
+                        }
+
+                        if (change.changedToUpIgnoreConsumed()) {
+                            when {
+                                dragActive -> onDragEnd()
+                                !dragArmed && !quickMenuOpened && (latestPosition - downPosition).getDistance() <= touchSlop -> onClick()
+                                else -> onDragCancel()
+                            }
+                            break
+                        }
+
+                        if (!dragActive && dragArmed) {
+                            val dragDistance = (latestPosition - dragReference).getDistance()
+                            if (dragDistance > touchSlop) {
+                                dragActive = true
+                                change.consume()
+                                onDragStart()
+                                val initialDelta = latestPosition - dragReference
+                                if (initialDelta != Offset.Zero) {
+                                    onDragBy(initialDelta.y)
+                                }
+                                dragReference = latestPosition
+                                continue
+                            }
+                        }
+
+                        if (dragActive) {
+                            val delta = change.positionChangeIgnoreConsumed()
+                            if (delta != Offset.Zero) {
+                                change.consume()
+                                onDragBy(delta.y)
+                            }
+                        }
                     }
-                )
+                }
             }
     ) {
         Row(
@@ -101,6 +207,13 @@ fun WatchItemCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     ExchangeBadge(source = item.exchangeSource)
+                    if (item.homePinned) {
+                        MiniTag(
+                            text = stringResource(R.string.home_pinned_tag),
+                            containerColor = colors.accent.copy(alpha = 0.16f),
+                            contentColor = colors.accent
+                        )
+                    }
                     if (overlaySelected) {
                         MiniTag(
                             text = stringResource(R.string.home_overlay_tag),
@@ -161,6 +274,17 @@ private fun WatchItemLiveQuote(
 private class WatchItemGestureAnchor {
     var cardRootOffset: IntOffset = IntOffset.Zero
 }
+
+private suspend fun androidx.compose.ui.input.pointer.AwaitPointerEventScope.awaitFirstDown(): PointerInputChange {
+    while (true) {
+        val event = awaitPointerEvent()
+        val down = event.changes.firstOrNull { it.pressed } ?: continue
+        return down
+    }
+}
+
+private const val DRAG_LONG_PRESS_TIMEOUT_MILLIS = 400L
+private const val QUICK_MENU_LONG_PRESS_TIMEOUT_MILLIS = 650L
 
 @Composable
 private fun ExchangeBadge(source: ExchangeSource) {

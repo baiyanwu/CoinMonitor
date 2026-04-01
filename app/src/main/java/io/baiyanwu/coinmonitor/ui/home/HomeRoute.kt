@@ -7,6 +7,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,14 +20,17 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Layers
+import androidx.compose.material.icons.rounded.VerticalAlignTop
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -43,6 +47,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -55,6 +60,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -66,14 +72,24 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.baiyanwu.coinmonitor.data.AppContainer
+import io.baiyanwu.coinmonitor.domain.model.WatchItem
 import io.baiyanwu.coinmonitor.ui.components.WatchItemCard
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorComponentDefaults
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 import io.baiyanwu.coinmonitor.R
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 
 private data class HomeQuickMenuState(
     val itemId: String,
     val anchorInRoot: IntOffset
+)
+
+private data class HomeDragState(
+    val itemId: String,
+    val homePinned: Boolean,
+    val dragOffsetY: Float = 0f,
+    val didReorder: Boolean = false
 )
 
 @Composable
@@ -119,6 +135,9 @@ fun HomeRoute(
         quoteRepository = container.quoteRepository,
         onRemoveWatchItem = viewModel::removeWatchItem,
         onToggleOverlay = viewModel::toggleOverlay,
+        onSetHomePinned = viewModel::setHomePinned,
+        onMoveHomeItem = viewModel::moveHomeItem,
+        onMovePinnedHomeItem = viewModel::movePinnedHomeItem,
         onRefresh = viewModel::refreshNow
     )
 }
@@ -134,17 +153,30 @@ internal fun HomeScreen(
     quoteRepository: io.baiyanwu.coinmonitor.domain.repository.QuoteRepository,
     onRemoveWatchItem: (String) -> Unit,
     onToggleOverlay: (String) -> Unit,
+    onSetHomePinned: (String, Boolean) -> Unit,
+    onMoveHomeItem: (String, String?) -> Unit,
+    onMovePinnedHomeItem: (String, String?) -> Unit,
     onRefresh: () -> Unit
 ) {
     var quickMenuState by remember { mutableStateOf<HomeQuickMenuState?>(null) }
     var showOverlayEnableDialog by remember { mutableStateOf(false) }
     var rootSize by remember { mutableStateOf(IntSize.Zero) }
+    var displayItems by remember { mutableStateOf(state.items) }
+    var dragState by remember { mutableStateOf<HomeDragState?>(null) }
     val colors = CoinMonitorThemeTokens.colors
     val dismissInteractionSource = remember { MutableInteractionSource() }
+    val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
     val overlayEnableDialogTitle = stringResource(R.string.home_overlay_enable_dialog_title)
     val overlayEnableDialogMessage = stringResource(R.string.home_overlay_enable_dialog_message)
     val overlayEnableDialogDismiss = stringResource(R.string.common_cancel)
     val overlayEnableDialogConfirm = stringResource(R.string.home_overlay_enable_dialog_confirm)
+
+    LaunchedEffect(state.items) {
+        if (dragState == null) {
+            displayItems = state.items
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -205,6 +237,7 @@ internal fun HomeScreen(
                 } else {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
+                        state = listState,
                         contentPadding = PaddingValues(
                             start = 0.dp,
                             end = 0.dp,
@@ -213,12 +246,23 @@ internal fun HomeScreen(
                         ),
                         verticalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
-                        items(state.items, key = { it.id }) { item ->
-                            Box(modifier = Modifier.fillMaxWidth()) {
+                        items(displayItems, key = { it.id }) { item ->
+                            val isDragging = dragState?.itemId == item.id
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .zIndex(if (isDragging) 1f else 0f)
+                            ) {
                                 WatchItemCard(
                                     item = item,
+                                    modifier = Modifier.fillMaxWidth(),
                                     quoteRepository = quoteRepository,
                                     overlaySelected = state.overlayIds.contains(item.id),
+                                    dragOffsetY = if (isDragging) {
+                                        dragState?.dragOffsetY ?: 0f
+                                    } else {
+                                        0f
+                                    },
                                     onClick = {
                                         quickMenuState = null
                                         onNavigateKline(item.id)
@@ -232,6 +276,56 @@ internal fun HomeScreen(
                                                 anchorInRoot = anchorInRoot
                                             )
                                         }
+                                    },
+                                    onDragStart = {
+                                        quickMenuState = null
+                                        dragState = HomeDragState(
+                                            itemId = item.id,
+                                            homePinned = item.homePinned
+                                        )
+                                    },
+                                    onDragBy = { dragAmount ->
+                                        val currentDragState = dragState
+                                        if (currentDragState != null && currentDragState.itemId == item.id) {
+                                            val updatedDragState = currentDragState.copy(
+                                                dragOffsetY = currentDragState.dragOffsetY + dragAmount
+                                            )
+                                            dragState = updatedDragState
+                                            maybeMoveDraggedItem(
+                                                items = displayItems,
+                                                listState = listState,
+                                                dragState = updatedDragState
+                                            )?.let { result ->
+                                                displayItems = result.items
+                                                dragState = updatedDragState.copy(
+                                                    dragOffsetY = result.adjustedDragOffsetY,
+                                                    didReorder = true
+                                                )
+                                            }
+                                            scrollDraggedItemIntoView(
+                                                scope = scope,
+                                                listState = listState,
+                                                dragState = dragState
+                                            )
+                                        }
+                                    },
+                                    onDragEnd = {
+                                        finalizeDrag(
+                                            dragState = dragState,
+                                            items = displayItems,
+                                            onMoveHomeItem = onMoveHomeItem,
+                                            onMovePinnedHomeItem = onMovePinnedHomeItem
+                                        )
+                                        dragState = null
+                                    },
+                                    onDragCancel = {
+                                        finalizeDrag(
+                                            dragState = dragState,
+                                            items = displayItems,
+                                            onMoveHomeItem = onMoveHomeItem,
+                                            onMovePinnedHomeItem = onMovePinnedHomeItem
+                                        )
+                                        dragState = null
                                     }
                                 )
                             }
@@ -242,10 +336,12 @@ internal fun HomeScreen(
         }
 
         quickMenuState?.let { menuState ->
+            val menuItem = state.items.firstOrNull { it.id == menuState.itemId } ?: return@let
             HomeQuickActionsOverlay(
                 quickMenuState = menuState,
                 screenWidthPx = rootSize.width,
                 overlaySelected = state.overlayIds.contains(menuState.itemId),
+                homePinned = menuItem.homePinned,
                 onDismiss = { quickMenuState = null },
                 onToggleOverlay = {
                     val shouldAddToOverlay = !state.overlayIds.contains(menuState.itemId)
@@ -258,6 +354,10 @@ internal fun HomeScreen(
                 },
                 onDelete = {
                     onRemoveWatchItem(menuState.itemId)
+                    quickMenuState = null
+                },
+                onTogglePin = {
+                    onSetHomePinned(menuState.itemId, !menuItem.homePinned)
                     quickMenuState = null
                 },
                 dismissInteractionSource = dismissInteractionSource
@@ -309,8 +409,10 @@ private fun HomeLoadingState() {
 private fun HomeQuickActionsMenuContent(
     modifier: Modifier = Modifier,
     overlaySelected: Boolean,
+    homePinned: Boolean,
     onToggleOverlay: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onTogglePin: () -> Unit
 ) {
     val colors = CoinMonitorThemeTokens.colors
 
@@ -365,6 +467,31 @@ private fun HomeQuickActionsMenuContent(
                 onClick = onToggleOverlay,
                 testTag = "home-quick-action-overlay"
             )
+
+            Box(
+                modifier = Modifier
+                    .size(width = 1.dp, height = 18.dp)
+                    .background(colors.divider)
+            )
+
+            HomeQuickActionItem(
+                label = stringResource(
+                    if (homePinned) {
+                        R.string.home_quick_pin_remove
+                    } else {
+                        R.string.home_quick_pin_add
+                    }
+                ),
+                icon = {
+                    Icon(
+                        imageVector = Icons.Rounded.VerticalAlignTop,
+                        contentDescription = null,
+                        modifier = Modifier.size(13.dp)
+                    )
+                },
+                onClick = onTogglePin,
+                testTag = "home-quick-action-pin"
+            )
         }
     }
 }
@@ -409,13 +536,15 @@ private fun HomeQuickActionsOverlay(
     quickMenuState: HomeQuickMenuState,
     screenWidthPx: Int,
     overlaySelected: Boolean,
+    homePinned: Boolean,
     onDismiss: () -> Unit,
     onToggleOverlay: () -> Unit,
     onDelete: () -> Unit,
+    onTogglePin: () -> Unit,
     dismissInteractionSource: MutableInteractionSource
 ) {
     val density = androidx.compose.ui.platform.LocalDensity.current
-    var menuSize by remember(quickMenuState.itemId, overlaySelected) { mutableStateOf(IntSize.Zero) }
+    var menuSize by remember(quickMenuState.itemId, overlaySelected, homePinned) { mutableStateOf(IntSize.Zero) }
     var animateIn by remember(quickMenuState.itemId, quickMenuState.anchorInRoot) { mutableStateOf(false) }
     val menuReady = menuSize.width > 0 && menuSize.height > 0
     val menuWidthPx = menuSize.width
@@ -484,8 +613,10 @@ private fun HomeQuickActionsOverlay(
                     menuSize = coordinates.size
                 },
                 overlaySelected = overlaySelected,
+                homePinned = homePinned,
                 onToggleOverlay = onToggleOverlay,
-                onDelete = onDelete
+                onDelete = onDelete,
+                onTogglePin = onTogglePin
             )
         }
     }
@@ -508,5 +639,84 @@ private fun SearchEntryButton(onClick: () -> Unit) {
                 tint = colors.fabContent
             )
         }
+    }
+}
+
+private data class HomeDragReorderResult(
+    val items: List<WatchItem>,
+    val adjustedDragOffsetY: Float
+)
+
+private fun maybeMoveDraggedItem(
+    items: List<WatchItem>,
+    listState: LazyListState,
+    dragState: HomeDragState
+): HomeDragReorderResult? {
+    val draggedInfo = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.key == dragState.itemId }
+        ?: return null
+    val draggedIndex = items.indexOfFirst { it.id == dragState.itemId }
+    if (draggedIndex < 0) return null
+    val draggedMidY = draggedInfo.offset + dragState.dragOffsetY + (draggedInfo.size / 2f)
+    val targetInfo = listState.layoutInfo.visibleItemsInfo.firstOrNull { itemInfo ->
+        if (itemInfo.key == dragState.itemId) {
+            return@firstOrNull false
+        }
+        val candidate = items.firstOrNull { it.id == itemInfo.key } ?: return@firstOrNull false
+        candidate.homePinned == dragState.homePinned &&
+            draggedMidY in itemInfo.offset.toFloat()..(itemInfo.offset + itemInfo.size).toFloat()
+    } ?: return null
+    val targetIndex = items.indexOfFirst { it.id == targetInfo.key }
+    if (targetIndex < 0 || targetIndex == draggedIndex) return null
+    val reorderedItems = items.toMutableList().apply {
+        add(targetIndex, removeAt(draggedIndex))
+    }
+    return HomeDragReorderResult(
+        items = reorderedItems,
+        adjustedDragOffsetY = dragState.dragOffsetY - (targetInfo.offset - draggedInfo.offset).toFloat()
+    )
+}
+
+private fun finalizeDrag(
+    dragState: HomeDragState?,
+    items: List<WatchItem>,
+    onMoveHomeItem: (String, String?) -> Unit,
+    onMovePinnedHomeItem: (String, String?) -> Unit
+) {
+    val currentDragState = dragState ?: return
+    if (!currentDragState.didReorder) return
+    val currentIndex = items.indexOfFirst { it.id == currentDragState.itemId }
+    if (currentIndex < 0) return
+    val targetBeforeId = items
+        .drop(currentIndex + 1)
+        .firstOrNull { it.homePinned == currentDragState.homePinned }
+        ?.id
+    if (currentDragState.homePinned) {
+        onMovePinnedHomeItem(currentDragState.itemId, targetBeforeId)
+    } else {
+        onMoveHomeItem(currentDragState.itemId, targetBeforeId)
+    }
+}
+
+private fun scrollDraggedItemIntoView(
+    scope: CoroutineScope,
+    listState: LazyListState,
+    dragState: HomeDragState?
+) {
+    val currentDragState = dragState ?: return
+    val draggedInfo = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.key == currentDragState.itemId }
+        ?: return
+    val viewportStart = listState.layoutInfo.viewportStartOffset.toFloat()
+    val viewportEnd = listState.layoutInfo.viewportEndOffset.toFloat()
+    val edgeThreshold = 88f
+    val top = draggedInfo.offset + currentDragState.dragOffsetY
+    val bottom = top + draggedInfo.size
+    val scrollBy = when {
+        bottom > viewportEnd - edgeThreshold -> (bottom - (viewportEnd - edgeThreshold)).coerceAtMost(52f)
+        top < viewportStart + edgeThreshold -> (top - (viewportStart + edgeThreshold)).coerceAtLeast(-52f)
+        else -> 0f
+    }
+    if (scrollBy == 0f) return
+    scope.launch {
+        listState.scrollBy(scrollBy)
     }
 }

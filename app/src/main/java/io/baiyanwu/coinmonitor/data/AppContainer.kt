@@ -42,7 +42,8 @@ class AppContainer(context: Context) {
         "coin_monitor.db"
     ).addMigrations(
         CoinMonitorDatabase.MIGRATION_4_5,
-        CoinMonitorDatabase.MIGRATION_5_6
+        CoinMonitorDatabase.MIGRATION_5_6,
+        CoinMonitorDatabase.MIGRATION_6_7
     ).build()
 
     val networkLogRepository: NetworkLogRepository = DefaultNetworkLogRepository()
@@ -57,7 +58,7 @@ class AppContainer(context: Context) {
     val quoteRepository: QuoteRepository = InMemoryQuoteRepository()
 
     val watchlistRepository: WatchlistRepository = DefaultWatchlistRepository(
-        watchItemDao = database.watchItemDao()
+        database = database
     )
 
     val overlayRepository: OverlayRepository = DefaultOverlayRepository(

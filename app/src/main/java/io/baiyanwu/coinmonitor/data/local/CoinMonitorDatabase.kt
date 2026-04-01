@@ -9,7 +9,7 @@ import io.baiyanwu.coinmonitor.data.local.dao.WatchItemDao
 
 @Database(
     entities = [WatchItemEntity::class, OverlaySettingsEntity::class],
-    version = 6,
+    version = 7,
     exportSchema = true
 )
 abstract class CoinMonitorDatabase : RoomDatabase() {
@@ -44,6 +44,23 @@ abstract class CoinMonitorDatabase : RoomDatabase() {
                 )
                 database.execSQL(
                     "ALTER TABLE watch_items ADD COLUMN iconUrl TEXT"
+                )
+            }
+        }
+
+        val MIGRATION_6_7: Migration = object : Migration(6, 7) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    "ALTER TABLE watch_items ADD COLUMN homePinned INTEGER NOT NULL DEFAULT 0"
+                )
+                database.execSQL(
+                    "ALTER TABLE watch_items ADD COLUMN homeOrder INTEGER NOT NULL DEFAULT 0"
+                )
+                database.execSQL(
+                    "ALTER TABLE watch_items ADD COLUMN homePinnedOrder INTEGER"
+                )
+                database.execSQL(
+                    "UPDATE watch_items SET homeOrder = addedAt"
                 )
             }
         }
