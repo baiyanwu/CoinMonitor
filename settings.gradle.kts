@@ -22,4 +22,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "CoinMonitor"
 include(":app")
-
+include(":third_party:lightweightlibrary")

@@ -6,6 +6,9 @@
 /build
 /captures
 **/build
+.DS_Store
+.memsearch/
+third_party/lightweightlibrary/node_modules/
 
 # Signing files
 /keystore/

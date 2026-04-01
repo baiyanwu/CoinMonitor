@@ -35,16 +35,29 @@ fun CoinSymbolIcon(
     size: Dp = 20.dp
 ) {
     val context = LocalContext.current
-    var bitmap by remember(symbol, iconUrl, fallbackIconUrl) { mutableStateOf<Bitmap?>(null) }
+    val iconService = remember(context) { CoinIconService.get(context) }
+    var bitmap by remember(symbol, iconUrl, fallbackIconUrl) {
+        mutableStateOf(
+            iconService.peekBitmap(
+                symbol = symbol,
+                preferredIconUrl = iconUrl,
+                fallbackIconUrl = fallbackIconUrl,
+                grayscaleFallback = fallbackIconUrl != null
+            )
+        )
+    }
     val iconModifier = modifier.size(size)
 
     LaunchedEffect(symbol, iconUrl, fallbackIconUrl) {
-        bitmap = CoinIconService.Companion.get(context).loadBitmap(
+        val loadedBitmap = iconService.loadBitmap(
             symbol = symbol,
             preferredIconUrl = iconUrl,
             fallbackIconUrl = fallbackIconUrl,
             grayscaleFallback = fallbackIconUrl != null
         )
+        if (loadedBitmap != null) {
+            bitmap = loadedBitmap
+        }
     }
 
     if (bitmap != null) {

@@ -5,10 +5,12 @@ import io.baiyanwu.coinmonitor.data.network.OkxOnChainRequestSigner
 import io.baiyanwu.coinmonitor.domain.model.ExchangeSource
 import io.baiyanwu.coinmonitor.domain.model.MarketQuote
 import io.baiyanwu.coinmonitor.domain.model.MarketType
+import io.baiyanwu.coinmonitor.domain.model.NetworkLogProtocol
 import io.baiyanwu.coinmonitor.domain.model.OkxApiCredentials
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
 import io.baiyanwu.coinmonitor.domain.repository.MarketQuoteRepository
 import io.baiyanwu.coinmonitor.domain.repository.NetworkLogRepository
+import io.baiyanwu.coinmonitor.domain.repository.QuoteRepository
 import io.baiyanwu.coinmonitor.domain.repository.WatchlistRepository
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -35,6 +37,7 @@ import okhttp3.Request
 import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
+import java.util.concurrent.TimeUnit
 
 /**
  * 行情刷新默认优先走交易所官方 WSS，把“每轮全量 HTTP 询价”改成“增量推送”。
@@ -45,6 +48,7 @@ import okhttp3.WebSocketListener
 class StreamingQuoteRefreshEngine(
     private val scope: CoroutineScope,
     private val watchlistRepository: WatchlistRepository,
+    private val quoteRepository: QuoteRepository,
     private val marketQuoteRepository: MarketQuoteRepository,
     private val okxCredentialsProvider: suspend () -> OkxApiCredentials? = { null },
     private val networkLogRepository: NetworkLogRepository
@@ -53,7 +57,9 @@ class StreamingQuoteRefreshEngine(
         ignoreUnknownKeys = true
         explicitNulls = false
     }
-    private val okHttpClient = OkHttpClient.Builder().build()
+    private val okHttpClient = OkHttpClient.Builder()
+        .pingInterval(25, TimeUnit.SECONDS)
+        .build()
     private val refreshMutex = Mutex()
     private val pendingQuoteMutex = Mutex()
 
@@ -90,6 +96,10 @@ class StreamingQuoteRefreshEngine(
 
     override suspend fun refreshNow() {
         refreshQuotes(currentConfig.items)
+    }
+
+    override fun reconnect() {
+        restart(currentConfig)
     }
 
     override fun stop() {
@@ -524,7 +534,7 @@ class StreamingQuoteRefreshEngine(
         refreshMutex.withLock {
             val quotes = marketQuoteRepository.fetchQuotes(items)
             if (quotes.isNotEmpty()) {
-                watchlistRepository.updateQuotes(quotes)
+                quoteRepository.applyQuotes(quotes)
             }
         }
     }
@@ -548,7 +558,7 @@ class StreamingQuoteRefreshEngine(
             pendingQuotes.clear()
             snapshot
         }
-        watchlistRepository.updateQuotes(quotesToFlush)
+        quoteRepository.applyQuotes(quotesToFlush)
     }
 
     private fun closeSockets() {
@@ -813,7 +823,11 @@ class StreamingQuoteRefreshEngine(
     }
 
     private fun logWs(line: String, detail: String = line) {
-        networkLogRepository.append(line = line, detail = detail)
+        networkLogRepository.append(
+            protocol = NetworkLogProtocol.WSS,
+            line = line,
+            detail = detail
+        )
     }
 
     companion object {

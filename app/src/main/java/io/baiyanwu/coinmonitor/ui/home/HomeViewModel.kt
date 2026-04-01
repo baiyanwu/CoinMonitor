@@ -1,5 +1,6 @@
 package io.baiyanwu.coinmonitor.ui.home
 
+import io.baiyanwu.coinmonitor.R
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -21,10 +22,12 @@ data class HomeUiState(
     val items: List<WatchItem> = emptyList(),
     val overlayIds: Set<String> = emptySet(),
     val overlayEnabled: Boolean = false,
-    val isRefreshing: Boolean = false
+    val isRefreshing: Boolean = false,
+    val noticeMessage: String? = null
 )
 
 class HomeViewModel(
+    private val appContainer: AppContainer,
     private val watchlistRepository: WatchlistRepository,
     private val overlayRepository: OverlayRepository,
     private val quoteRefreshCoordinator: GlobalQuoteRefreshCoordinator
@@ -36,9 +39,9 @@ class HomeViewModel(
     private var currentOverlayIds: Set<String> = emptySet()
     private var currentOverlayEnabled: Boolean = false
     private var manualRefreshing: Boolean = false
+    private var currentNoticeMessage: String? = null
 
     init {
-        quoteRefreshCoordinator.setHomeActive(true)
         viewModelScope.launch {
             combine(
                 watchlistRepository.observeWatchlist(),
@@ -68,8 +71,20 @@ class HomeViewModel(
 
     fun toggleOverlay(id: String) {
         viewModelScope.launch {
-            overlayRepository.toggleItem(id)
+            runCatching {
+                overlayRepository.toggleItem(id)
+            }.onFailure { throwable ->
+                currentNoticeMessage = throwable.message
+                    ?: appContainer.appContext.getString(R.string.overlay_add_failed)
+                publishUiState(isLoaded = _uiState.value.isLoaded)
+            }
         }
+    }
+
+    fun consumeNotice() {
+        if (currentNoticeMessage == null) return
+        currentNoticeMessage = null
+        publishUiState(isLoaded = _uiState.value.isLoaded)
     }
 
     fun refreshNow() {
@@ -85,6 +100,10 @@ class HomeViewModel(
         }
     }
 
+    fun setScreenActive(active: Boolean) {
+        quoteRefreshCoordinator.setHomeActive(active)
+    }
+
     override fun onCleared() {
         quoteRefreshCoordinator.setHomeActive(false)
         super.onCleared()
@@ -96,7 +115,8 @@ class HomeViewModel(
             items = currentItems,
             overlayIds = currentOverlayIds,
             overlayEnabled = currentOverlayEnabled,
-            isRefreshing = manualRefreshing
+            isRefreshing = manualRefreshing,
+            noticeMessage = currentNoticeMessage
         )
     }
 
@@ -104,6 +124,7 @@ class HomeViewModel(
         fun factory(container: AppContainer): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 HomeViewModel(
+                    appContainer = container,
                     watchlistRepository = container.watchlistRepository,
                     overlayRepository = container.overlayRepository,
                     quoteRefreshCoordinator = container.globalQuoteRefreshCoordinator

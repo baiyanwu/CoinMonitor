@@ -1,6 +1,7 @@
 package io.baiyanwu.coinmonitor.domain.repository
 
 import io.baiyanwu.coinmonitor.domain.model.MarketQuote
+import io.baiyanwu.coinmonitor.domain.model.QuoteState
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
 import kotlinx.coroutines.flow.Flow
 
@@ -10,5 +11,5 @@ interface WatchlistRepository {
     suspend fun add(item: WatchItem)
     suspend fun remove(id: String)
     suspend fun updateQuotes(quotes: List<MarketQuote>)
+    suspend fun persistQuoteSnapshot(quotes: Map<String, QuoteState>)
 }
-

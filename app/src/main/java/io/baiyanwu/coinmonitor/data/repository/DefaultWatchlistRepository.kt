@@ -5,6 +5,7 @@ import io.baiyanwu.coinmonitor.data.local.toDomain
 import io.baiyanwu.coinmonitor.data.local.toEntity
 import io.baiyanwu.coinmonitor.domain.model.LivePriceTrend
 import io.baiyanwu.coinmonitor.domain.model.MarketQuote
+import io.baiyanwu.coinmonitor.domain.model.QuoteState
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
 import io.baiyanwu.coinmonitor.domain.repository.WatchlistRepository
 import kotlinx.coroutines.flow.Flow
@@ -40,23 +41,37 @@ class DefaultWatchlistRepository(
     }
 
     override suspend fun updateQuotes(quotes: List<MarketQuote>) {
+        if (quotes.isEmpty()) return
+        val snapshot = quotes.associate { quote ->
+            quote.id to QuoteState(
+                lastPrice = quote.priceUsd,
+                change24hPercent = quote.change24hPercent,
+                lastUpdatedAt = System.currentTimeMillis()
+            )
+        }
+        persistQuoteSnapshot(snapshot)
+    }
+
+    override suspend fun persistQuoteSnapshot(quotes: Map<String, QuoteState>) {
+        if (quotes.isEmpty()) return
         val now = System.currentTimeMillis()
-        quotes.forEach { quote ->
-            val existing = watchItemDao.findById(quote.id)
-            val existingTrend = existing?.liveTrend?.let(LivePriceTrend::valueOf) ?: LivePriceTrend.NEUTRAL
+        val existingById = watchItemDao.getWatchItems().associateBy { it.id }
+        quotes.forEach { (id, quote) ->
+            val existing = existingById[id] ?: return@forEach
+            val existingTrend = LivePriceTrend.valueOf(existing.liveTrend)
             val liveTrend = when {
-                existing?.lastPrice == null -> existingTrend
-                quote.priceUsd > existing.lastPrice -> LivePriceTrend.UP
-                quote.priceUsd < existing.lastPrice -> LivePriceTrend.DOWN
+                existing.lastPrice == null -> quote.liveTrend.takeIf { it != LivePriceTrend.NEUTRAL } ?: existingTrend
+                quote.lastPrice > existing.lastPrice -> LivePriceTrend.UP
+                quote.lastPrice < existing.lastPrice -> LivePriceTrend.DOWN
                 else -> existingTrend
             }
             watchItemDao.updateQuote(
-                id = quote.id,
-                lastPrice = quote.priceUsd,
-                previousPrice = existing?.lastPrice,
+                id = id,
+                lastPrice = quote.lastPrice,
+                previousPrice = existing.lastPrice,
                 liveTrend = liveTrend.name,
                 change24hPercent = quote.change24hPercent,
-                lastUpdatedAt = now
+                lastUpdatedAt = quote.lastUpdatedAt ?: now
             )
         }
     }

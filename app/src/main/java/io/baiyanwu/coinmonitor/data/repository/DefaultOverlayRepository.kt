@@ -1,5 +1,7 @@
 package io.baiyanwu.coinmonitor.data.repository
 
+import android.content.Context
+import io.baiyanwu.coinmonitor.R
 import io.baiyanwu.coinmonitor.data.local.OverlaySettingsEntity
 import io.baiyanwu.coinmonitor.data.local.dao.OverlaySettingsDao
 import io.baiyanwu.coinmonitor.data.local.dao.WatchItemDao
@@ -12,6 +14,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
 class DefaultOverlayRepository(
+    private val context: Context,
     private val overlaySettingsDao: OverlaySettingsDao,
     private val watchItemDao: WatchItemDao
 ) : OverlayRepository {
@@ -33,6 +36,14 @@ class DefaultOverlayRepository(
 
     override suspend fun toggleItem(id: String) {
         val item = watchItemDao.findById(id) ?: return
+        if (!item.overlaySelected) {
+            val selectedCount = watchItemDao.getWatchItems().count { it.overlaySelected }
+            if (selectedCount >= OverlaySettings.MAX_SELECTABLE_ITEMS) {
+                throw IllegalStateException(
+                    context.getString(R.string.overlay_select_limit_reached, OverlaySettings.MAX_SELECTABLE_ITEMS)
+                )
+            }
+        }
         watchItemDao.updateOverlaySelected(id, !item.overlaySelected)
     }
 
@@ -52,7 +63,7 @@ class DefaultOverlayRepository(
     }
 
     override suspend fun setMaxCount(maxCount: Int) {
-        updateSettings { it.copy(maxItems = maxCount.coerceIn(1, 10)) }
+        updateSettings { it.copy(maxItems = maxCount.coerceIn(1, OverlaySettings.MAX_SELECTABLE_ITEMS)) }
     }
 
     override suspend fun setLeadingDisplayMode(mode: OverlayLeadingDisplayMode) {

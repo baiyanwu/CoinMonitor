@@ -1,5 +1,6 @@
 package io.baiyanwu.coinmonitor.ui.home
 
+import android.widget.Toast
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -23,9 +24,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Layers
-import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -37,6 +38,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -49,6 +51,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
@@ -57,7 +60,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.baiyanwu.coinmonitor.data.AppContainer
 import io.baiyanwu.coinmonitor.ui.components.WatchItemCard
@@ -75,15 +81,42 @@ fun HomeRoute(
     container: AppContainer,
     contentBottomInset: Dp = 0.dp,
     onNavigateSearch: () -> Unit,
-    onNavigateOverlaySettings: () -> Unit
+    onNavigateOverlaySettings: () -> Unit,
+    onNavigateKline: (String) -> Unit
 ) {
     val viewModel: HomeViewModel = viewModel(factory = HomeViewModel.factory(container))
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val context = LocalContext.current
+
+    DisposableEffect(lifecycleOwner, viewModel) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> viewModel.setScreenActive(true)
+                Lifecycle.Event.ON_PAUSE -> viewModel.setScreenActive(false)
+                else -> Unit
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            viewModel.setScreenActive(false)
+        }
+    }
+
+    LaunchedEffect(state.noticeMessage) {
+        val message = state.noticeMessage ?: return@LaunchedEffect
+        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+        viewModel.consumeNotice()
+    }
+
     HomeScreen(
         state = state,
         contentBottomInset = contentBottomInset,
         onNavigateSearch = onNavigateSearch,
         onNavigateOverlaySettings = onNavigateOverlaySettings,
+        onNavigateKline = onNavigateKline,
+        quoteRepository = container.quoteRepository,
         onRemoveWatchItem = viewModel::removeWatchItem,
         onToggleOverlay = viewModel::toggleOverlay,
         onRefresh = viewModel::refreshNow
@@ -97,6 +130,8 @@ internal fun HomeScreen(
     contentBottomInset: Dp,
     onNavigateSearch: () -> Unit,
     onNavigateOverlaySettings: () -> Unit,
+    onNavigateKline: (String) -> Unit,
+    quoteRepository: io.baiyanwu.coinmonitor.domain.repository.QuoteRepository,
     onRemoveWatchItem: (String) -> Unit,
     onToggleOverlay: (String) -> Unit,
     onRefresh: () -> Unit
@@ -182,11 +217,11 @@ internal fun HomeScreen(
                             Box(modifier = Modifier.fillMaxWidth()) {
                                 WatchItemCard(
                                     item = item,
+                                    quoteRepository = quoteRepository,
                                     overlaySelected = state.overlayIds.contains(item.id),
                                     onClick = {
-                                        if (quickMenuState?.itemId == item.id) {
-                                            quickMenuState = null
-                                        }
+                                        quickMenuState = null
+                                        onNavigateKline(item.id)
                                     },
                                     onLongPress = { anchorInRoot ->
                                         if (quickMenuState?.itemId == item.id) {
@@ -468,7 +503,7 @@ private fun SearchEntryButton(onClick: () -> Unit) {
     ) {
         Box(contentAlignment = Alignment.Center) {
             Icon(
-                imageVector = Icons.Rounded.Search,
+                imageVector = Icons.Rounded.Add,
                 contentDescription = stringResource(R.string.home_open_search),
                 tint = colors.fabContent
             )

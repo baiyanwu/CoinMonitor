@@ -5,9 +5,13 @@ import android.content.SharedPreferences
 import io.baiyanwu.coinmonitor.domain.model.AppLanguage
 import io.baiyanwu.coinmonitor.domain.model.AppPreferences
 import io.baiyanwu.coinmonitor.domain.model.AppThemeMode
+import io.baiyanwu.coinmonitor.domain.model.KlineIndicator
+import io.baiyanwu.coinmonitor.domain.model.KlineIndicatorSettings
 import io.baiyanwu.coinmonitor.domain.model.RefreshIntervalMode
 import io.baiyanwu.coinmonitor.domain.model.ThemeTemplateId
 import io.baiyanwu.coinmonitor.domain.repository.AppPreferencesRepository
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,6 +19,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 
 class DefaultAppPreferencesRepository(context: Context) : AppPreferencesRepository {
+    private val json = Json {
+        ignoreUnknownKeys = true
+        encodeDefaults = true
+    }
+
     private val sharedPreferences: SharedPreferences =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
@@ -73,6 +82,32 @@ class DefaultAppPreferencesRepository(context: Context) : AppPreferencesReposito
         }
     }
 
+    override suspend fun setKlineMainIndicator(indicator: KlineIndicator) {
+        withContext(Dispatchers.IO) {
+            val current = preferencesFlow.value.klineIndicatorSettings
+            setKlineIndicatorSettings(
+                current.copy(selectedMainIndicator = indicator)
+            )
+        }
+    }
+
+    override suspend fun setKlineSubIndicator(indicator: KlineIndicator) {
+        withContext(Dispatchers.IO) {
+            val current = preferencesFlow.value.klineIndicatorSettings
+            setKlineIndicatorSettings(
+                current.copy(selectedSubIndicator = indicator)
+            )
+        }
+    }
+
+    override suspend fun setKlineIndicatorSettings(settings: KlineIndicatorSettings) {
+        withContext(Dispatchers.IO) {
+            sharedPreferences.edit()
+                .putString(KEY_KLINE_INDICATOR_SETTINGS, json.encodeToString(settings))
+                .apply()
+        }
+    }
+
     private fun readPreferences(): AppPreferences {
         val themeMode = sharedPreferences.getString(KEY_THEME_MODE, AppThemeMode.SYSTEM.name)
             ?.let(AppThemeMode::valueOf)
@@ -93,13 +128,18 @@ class DefaultAppPreferencesRepository(context: Context) : AppPreferencesReposito
                 AppPreferences.DEFAULT_CUSTOM_REFRESH_INTERVAL_SECONDS
             )
         )
+        val klineIndicatorSettings = sharedPreferences.getString(KEY_KLINE_INDICATOR_SETTINGS, null)
+            ?.let { raw ->
+                runCatching { json.decodeFromString<KlineIndicatorSettings>(raw) }.getOrNull()
+            } ?: KlineIndicatorSettings()
 
         return AppPreferences(
             themeMode = themeMode,
             language = language,
             themeTemplate = themeTemplate,
             refreshIntervalMode = refreshIntervalMode,
-            customRefreshIntervalSeconds = customRefreshIntervalSeconds
+            customRefreshIntervalSeconds = customRefreshIntervalSeconds,
+            klineIndicatorSettings = klineIndicatorSettings
         )
     }
 
@@ -117,5 +157,6 @@ class DefaultAppPreferencesRepository(context: Context) : AppPreferencesReposito
         const val KEY_THEME_TEMPLATE = "theme_template"
         const val KEY_REFRESH_INTERVAL_MODE = "refresh_interval_mode"
         const val KEY_REFRESH_INTERVAL_SECONDS = "refresh_interval_seconds"
+        const val KEY_KLINE_INDICATOR_SETTINGS = "kline_indicator_settings"
     }
 }

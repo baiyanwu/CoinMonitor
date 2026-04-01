@@ -1,5 +1,6 @@
 package io.baiyanwu.coinmonitor.ui.settings
 
+import io.baiyanwu.coinmonitor.R
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -20,15 +21,18 @@ import kotlinx.coroutines.launch
 data class OverlaySettingsUiState(
     val settings: OverlaySettings = OverlaySettings(),
     val items: List<WatchItem> = emptyList(),
-    val isLoaded: Boolean = false
+    val isLoaded: Boolean = false,
+    val noticeMessage: String? = null
 )
 
 class OverlaySettingsViewModel(
+    private val appContainer: AppContainer,
     private val overlayRepository: OverlayRepository,
     private val watchlistRepository: WatchlistRepository
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(OverlaySettingsUiState())
     val uiState: StateFlow<OverlaySettingsUiState> = _uiState.asStateFlow()
+    private var currentNoticeMessage: String? = null
 
     init {
         viewModelScope.launch {
@@ -39,7 +43,8 @@ class OverlaySettingsViewModel(
                 OverlaySettingsUiState(
                     settings = settings,
                     items = items,
-                    isLoaded = true
+                    isLoaded = true,
+                    noticeMessage = currentNoticeMessage
                 )
             }.collect {
                 _uiState.value = it
@@ -91,14 +96,27 @@ class OverlaySettingsViewModel(
 
     fun toggleItem(id: String) {
         viewModelScope.launch {
-            overlayRepository.toggleItem(id)
+            runCatching {
+                overlayRepository.toggleItem(id)
+            }.onFailure { throwable ->
+                currentNoticeMessage = throwable.message
+                    ?: appContainer.appContext.getString(R.string.overlay_add_failed)
+                _uiState.value = _uiState.value.copy(noticeMessage = currentNoticeMessage)
+            }
         }
+    }
+
+    fun consumeNotice() {
+        if (currentNoticeMessage == null) return
+        currentNoticeMessage = null
+        _uiState.value = _uiState.value.copy(noticeMessage = null)
     }
 
     companion object {
         fun factory(container: AppContainer): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 OverlaySettingsViewModel(
+                    appContainer = container,
                     overlayRepository = container.overlayRepository,
                     watchlistRepository = container.watchlistRepository
                 )

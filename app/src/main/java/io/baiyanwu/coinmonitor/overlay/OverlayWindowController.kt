@@ -1,12 +1,12 @@
 package io.baiyanwu.coinmonitor.overlay
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.Outline
 import android.graphics.Paint
 import android.graphics.PixelFormat
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
-import android.text.TextUtils
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.MotionEvent
@@ -14,6 +14,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.ViewOutlineProvider
 import android.view.WindowManager
+import android.view.animation.AccelerateDecelerateInterpolator
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -55,7 +56,8 @@ class OverlayWindowController(
     private var currentRenderMode: OverlayRenderMode? = null
     private var footerView: TextView? = null
     private var emptyView: TextView? = null
-    private var sidebarView: TextView? = null
+    private var sidebarTickerHolder: SidebarTickerHolder? = null
+    private val iconBitmapCache = LinkedHashMap<String, Bitmap>()
 
     private val overlayColors
         get() = resolveCoinMonitorColors(context, appPreferencesRepository.getPreferences())
@@ -132,7 +134,9 @@ class OverlayWindowController(
         currentRenderMode = null
         footerView = null
         emptyView = null
-        sidebarView = null
+        sidebarTickerHolder?.stop()
+        sidebarTickerHolder = null
+        iconBitmapCache.clear()
         rootView = null
         layoutParams = null
     }
@@ -185,7 +189,14 @@ class OverlayWindowController(
         )
         root.background = GradientDrawable().apply {
             cornerRadius = metrics.cornerRadiusPx.toFloat()
-            setColor(overlayColors.overlayBackground.copy(alpha = opacity).toArgb())
+            setColor(
+                overlayColors.overlayBackground.copy(
+                    alpha = opacity.coerceIn(
+                        minimumValue = OverlaySettings.MIN_OPACITY,
+                        maximumValue = OverlaySettings.MAX_OPACITY
+                    )
+                ).toArgb()
+            )
             setStroke(1.dp, overlayColors.overlayBorder.toArgb())
         }
     }
@@ -250,32 +261,6 @@ class OverlayWindowController(
             setTypeface(typeface, Typeface.BOLD)
             setTextSize(TypedValue.COMPLEX_UNIT_SP, metrics.footerTextSizeSp)
             setPadding(0, metrics.footerTopPaddingPx, 0, 0)
-        }
-    }
-
-    private fun buildSidebarText(
-        items: List<WatchItem>,
-        metrics: OverlayMetrics
-    ): TextView {
-        val sidebarText = items.joinToString(separator = "   |   ") { item ->
-            "${item.symbol.uppercase()} ${QuoteFormatter.formatPrice(item.lastPrice)}"
-        }
-
-        return TextView(context).apply {
-            text = sidebarText
-            maxLines = 1
-            isSingleLine = true
-            isSelected = true
-            ellipsize = TextUtils.TruncateAt.MARQUEE
-            marqueeRepeatLimit = -1
-            setHorizontallyScrolling(true)
-            setTextColor(overlayColors.overlayText.copy(alpha = 0.96f).toArgb())
-            setTypeface(typeface, Typeface.BOLD)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, metrics.sidebarTextSizeSp)
-            layoutParams = LinearLayout.LayoutParams(
-                metrics.sidebarWidthPx,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            )
         }
     }
 
@@ -449,21 +434,135 @@ class OverlayWindowController(
         currentRenderMode = OverlayRenderMode.SIDEBAR
         currentBatchIds = items.map { it.id }
         currentLeadingDisplayMode = null
-        val view = sidebarView ?: buildSidebarText(items, metrics).also { sidebarView = it }
-        val sidebarText = items.joinToString(separator = "   |   ") { item ->
-            "${item.symbol.uppercase()} ${QuoteFormatter.formatPrice(item.lastPrice)}"
+        val contentWidth = measureSidebarTickerWidth(items, metrics)
+        val holder = sidebarTickerHolder ?: SidebarTickerHolder(buildSidebarTickerContainer(contentWidth)).also {
+            sidebarTickerHolder = it
         }
-        view.text = sidebarText
-        view.setTextColor(overlayColors.overlayText.copy(alpha = 0.96f).toArgb())
-        view.setTextSize(TypedValue.COMPLEX_UNIT_SP, metrics.sidebarTextSizeSp)
-        view.layoutParams = LinearLayout.LayoutParams(
-            metrics.sidebarWidthPx,
-            ViewGroup.LayoutParams.WRAP_CONTENT
-        )
+        holder.bind(items, metrics, contentWidth)
+        val view = holder.container
         if (view.parent !== root || root.childCount != 1) {
             root.removeAllViews()
             root.addView(view)
         }
+    }
+
+    private fun buildSidebarTickerContainer(contentWidth: Int): FrameLayout {
+        return FrameLayout(context).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                contentWidth,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+            clipChildren = true
+            clipToPadding = true
+        }
+    }
+
+    private fun createSidebarItemView(metrics: OverlayMetrics, contentWidth: Int): SidebarItemView {
+        val row = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            layoutParams = FrameLayout.LayoutParams(
+                contentWidth,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+        }
+        val iconContainer = FrameLayout(context).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                metrics.iconSizePx + metrics.leadingSpacingPx,
+                metrics.iconSizePx
+            ).also {
+                it.marginEnd = metrics.leadingSpacingPx
+            }
+        }
+        val iconView = ImageView(context).apply {
+            scaleType = ImageView.ScaleType.FIT_CENTER
+            layoutParams = FrameLayout.LayoutParams(metrics.iconSizePx, metrics.iconSizePx).apply {
+                gravity = Gravity.CENTER_VERTICAL
+            }
+            background = buildDefaultBitcoinDrawable(metrics)
+            clipToOutline = true
+            outlineProvider = object : ViewOutlineProvider() {
+                override fun getOutline(view: View, outline: Outline) {
+                    outline.setOval(0, 0, view.width, view.height)
+                }
+            }
+            setImageDrawable(buildDefaultBitcoinDrawable(metrics))
+        }
+        val priceView = TextView(context).apply {
+            maxLines = 1
+            setTypeface(typeface, Typeface.BOLD)
+        }
+        iconContainer.addView(iconView)
+        row.addView(iconContainer)
+        row.addView(priceView)
+        return SidebarItemView(
+            root = row,
+            iconView = iconView,
+            priceView = priceView
+        )
+    }
+
+    private fun bindSidebarItemView(
+        sidebarItemView: SidebarItemView,
+        item: WatchItem,
+        metrics: OverlayMetrics
+    ) {
+        val priceText = QuoteFormatter.formatPrice(item.lastPrice)
+        sidebarItemView.priceView.text = priceText
+        sidebarItemView.priceView.setTextColor(
+            item.resolveLivePriceColor(
+                colors = overlayColors,
+                defaultColor = overlayColors.overlayText
+            ).toArgb()
+        )
+        sidebarItemView.priceView.setTextSize(TypedValue.COMPLEX_UNIT_SP, metrics.sidebarTextSizeSp)
+        sidebarItemView.priceView.layoutParams = LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        )
+        val iconSignature = listOf(
+            item.id,
+            item.iconUrl,
+            item.chainIndex,
+            item.baseSymbol,
+            metrics.iconSizePx,
+            overlayColors.overlayFallbackBorder.toArgb()
+        ).joinToString("|")
+        if (sidebarItemView.iconSignature != iconSignature) {
+            sidebarItemView.iconSignature = iconSignature
+            val cachedBitmap = iconBitmapCache[iconSignature]
+            if (cachedBitmap != null) {
+                sidebarItemView.iconView.setImageBitmap(cachedBitmap)
+            } else {
+                sidebarItemView.iconView.setImageDrawable(buildDefaultBitcoinDrawable(metrics))
+                scope.launch {
+                    val bitmap = coinIconService.loadBitmap(
+                        symbol = item.baseSymbol,
+                        preferredIconUrl = item.iconUrl,
+                        fallbackIconUrl = OnchainChainIconRegistry.resolveIconUrl(item.chainIndex),
+                        grayscaleFallback = item.chainIndex != null
+                    )
+                    if (bitmap != null) {
+                        iconBitmapCache[iconSignature] = bitmap
+                        if (sidebarItemView.iconSignature == iconSignature) {
+                            sidebarItemView.iconView.setImageBitmap(bitmap)
+                        }
+                    } else if (sidebarItemView.iconSignature == iconSignature) {
+                        sidebarItemView.iconView.setImageDrawable(buildDefaultBitcoinDrawable(metrics))
+                    }
+                }
+            }
+        }
+    }
+
+    private fun measureSidebarTickerWidth(
+        items: List<WatchItem>,
+        metrics: OverlayMetrics
+    ): Int {
+        val priceWidth = measurePriceColumnWidth(items, metrics)
+        return metrics.iconSizePx +
+            (metrics.leadingSpacingPx * 2) +
+            priceWidth
     }
 
     private fun renderStandardRows(
@@ -731,6 +830,127 @@ class OverlayWindowController(
         var leadingSignature: String? = null
     )
 
+    private data class SidebarItemView(
+        val root: LinearLayout,
+        val iconView: ImageView,
+        val priceView: TextView,
+        var iconSignature: String? = null
+    )
+
+    private inner class SidebarTickerHolder(
+        val container: FrameLayout
+    ) {
+        private var items: List<WatchItem> = emptyList()
+        private var currentIndex: Int = 0
+        private var currentView: SidebarItemView? = null
+        private var nextView: SidebarItemView? = null
+        private var metrics: OverlayMetrics? = null
+        private var isSwitchScheduled: Boolean = false
+        private var isAnimating: Boolean = false
+        private val switchRunnable = Runnable { animateToNext() }
+
+        fun bind(items: List<WatchItem>, metrics: OverlayMetrics, contentWidth: Int) {
+            val previousCurrentId = this.items.getOrNull(currentIndex)?.id
+            this.items = items
+            this.metrics = metrics
+            currentIndex = previousCurrentId?.let { id ->
+                items.indexOfFirst { it.id == id }.takeIf { it >= 0 }
+            } ?: 0
+            if (items.isEmpty()) {
+                stop()
+                container.removeAllViews()
+                currentView = null
+                nextView = null
+                return
+            }
+            ensureViews(metrics, contentWidth)
+            val visibleView = currentView ?: return
+            bindSidebarItemView(visibleView, items[currentIndex], metrics)
+            visibleView.root.translationX = 0f
+            visibleView.root.visibility = View.VISIBLE
+            if (items.size == 1) {
+                container.removeCallbacks(switchRunnable)
+                isSwitchScheduled = false
+                isAnimating = false
+                nextView?.root?.visibility = View.GONE
+                return
+            }
+            val preparedNext = nextView ?: return
+            bindSidebarItemView(preparedNext, items[nextIndex()], metrics)
+            preparedNext.root.translationX = contentWidth.toFloat()
+            preparedNext.root.visibility = View.VISIBLE
+            if (!isSwitchScheduled && !isAnimating) {
+                scheduleNext()
+            }
+        }
+
+        fun stop() {
+            container.removeCallbacks(switchRunnable)
+            isSwitchScheduled = false
+            isAnimating = false
+            currentView?.root?.animate()?.cancel()
+            nextView?.root?.animate()?.cancel()
+        }
+
+        private fun ensureViews(metrics: OverlayMetrics, contentWidth: Int) {
+            if (currentView != null && nextView != null) {
+                updateLayout(contentWidth)
+                return
+            }
+            container.removeAllViews()
+            currentView = createSidebarItemView(metrics, contentWidth)
+            nextView = createSidebarItemView(metrics, contentWidth)
+            container.addView(currentView!!.root)
+            container.addView(nextView!!.root)
+            updateLayout(contentWidth)
+        }
+
+        private fun updateLayout(contentWidth: Int) {
+            (container.layoutParams as? LinearLayout.LayoutParams)?.width = contentWidth
+            (currentView?.root?.layoutParams as? FrameLayout.LayoutParams)?.width = contentWidth
+            (nextView?.root?.layoutParams as? FrameLayout.LayoutParams)?.width = contentWidth
+        }
+
+        private fun scheduleNext() {
+            isSwitchScheduled = true
+            container.postDelayed(switchRunnable, SIDEBAR_SWITCH_INTERVAL_MS)
+        }
+
+        private fun animateToNext() {
+            val metrics = metrics ?: return
+            if (items.size <= 1) return
+            isSwitchScheduled = false
+            isAnimating = true
+            val outgoing = currentView ?: return
+            val incoming = nextView ?: return
+            val contentWidth = (container.layoutParams as? LinearLayout.LayoutParams)?.width ?: return
+            incoming.root.translationX = contentWidth.toFloat()
+            incoming.root.visibility = View.VISIBLE
+            outgoing.root.animate()
+                .translationX(-contentWidth.toFloat())
+                .setDuration(SIDEBAR_SWITCH_DURATION_MS)
+                .setInterpolator(AccelerateDecelerateInterpolator())
+                .start()
+            incoming.root.animate()
+                .translationX(0f)
+                .setDuration(SIDEBAR_SWITCH_DURATION_MS)
+                .setInterpolator(AccelerateDecelerateInterpolator())
+                .withEndAction {
+                    outgoing.root.translationX = contentWidth.toFloat()
+                    outgoing.root.visibility = View.VISIBLE
+                    currentIndex = nextIndex()
+                    currentView = incoming
+                    nextView = outgoing
+                    bindSidebarItemView(outgoing, items[nextIndex()], metrics)
+                    isAnimating = false
+                    scheduleNext()
+                }
+                .start()
+        }
+
+        private fun nextIndex(): Int = (currentIndex + 1).mod(items.size)
+    }
+
     private enum class OverlayRenderMode {
         EMPTY,
         SIDEBAR,
@@ -790,5 +1010,10 @@ class OverlayWindowController(
                 )
             }
         }
+    }
+
+    private companion object {
+        const val SIDEBAR_SWITCH_INTERVAL_MS = 2200L
+        const val SIDEBAR_SWITCH_DURATION_MS = 420L
     }
 }

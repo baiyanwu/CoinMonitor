@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Home
+import androidx.compose.material.icons.rounded.ShowChart
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -13,10 +14,12 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -26,12 +29,15 @@ import androidx.navigation.compose.rememberNavController
 import io.baiyanwu.coinmonitor.data.AppContainer
 import io.baiyanwu.coinmonitor.R
 import io.baiyanwu.coinmonitor.ui.home.HomeRoute
+import io.baiyanwu.coinmonitor.ui.kline.KlineRoute
+import io.baiyanwu.coinmonitor.ui.kline.chart.KlineChartHostView
 import io.baiyanwu.coinmonitor.ui.settings.SettingsRoute
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorComponentDefaults
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 
 private object Destinations {
     const val HOME = "home"
+    const val KLINE = "kline"
     const val SETTINGS = "settings"
 }
 
@@ -45,16 +51,26 @@ private data class MainTab(
 fun CoinMonitorNavHost(
     container: AppContainer,
     onOpenSearch: () -> Unit,
+    onOpenKlineSearch: () -> Unit,
+    onOpenKlineIndicatorSettings: () -> Unit,
     onOpenOverlaySettings: () -> Unit,
     onOpenThirdPartyApiSettings: () -> Unit,
     onOpenNetworkLog: () -> Unit
 ) {
+    val context = LocalContext.current
     val navController = rememberNavController()
+    val klineChartHostView = remember(context) { KlineChartHostView(context) }
     val tabs = remember {
         listOf(
             MainTab(Destinations.HOME, R.string.tab_home, Icons.Rounded.Home),
+            MainTab(Destinations.KLINE, R.string.tab_kline, Icons.Rounded.ShowChart),
             MainTab(Destinations.SETTINGS, R.string.tab_settings, Icons.Rounded.Settings)
         )
+    }
+    DisposableEffect(klineChartHostView) {
+        onDispose {
+            klineChartHostView.release()
+        }
     }
     val navigateToTopLevel: (String) -> Unit = { route ->
         navController.navigate(route) {
@@ -107,7 +123,19 @@ fun CoinMonitorNavHost(
                 HomeRoute(
                     container = container,
                     onNavigateSearch = onOpenSearch,
-                    onNavigateOverlaySettings = onOpenOverlaySettings
+                    onNavigateOverlaySettings = onOpenOverlaySettings,
+                    onNavigateKline = { itemId ->
+                        container.klineSelectionStore.select(itemId)
+                        navigateToTopLevel(Destinations.KLINE)
+                    }
+                )
+            }
+            composable(Destinations.KLINE) {
+                KlineRoute(
+                    container = container,
+                    chartHostView = klineChartHostView,
+                    onOpenSearch = onOpenKlineSearch,
+                    onOpenIndicatorSettings = onOpenKlineIndicatorSettings
                 )
             }
             composable(Destinations.SETTINGS) {

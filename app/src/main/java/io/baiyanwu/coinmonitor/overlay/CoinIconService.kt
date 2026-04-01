@@ -70,6 +70,25 @@ class CoinIconService private constructor(private val context: Context) {
         }
     }
 
+    fun peekBitmap(
+        symbol: String,
+        preferredIconUrl: String? = null,
+        fallbackIconUrl: String? = null,
+        grayscaleFallback: Boolean = false
+    ): Bitmap? {
+        val normalized = symbol.uppercase()
+        val directRequests = buildDirectIconRequests(
+            preferredIconUrl = preferredIconUrl,
+            fallbackIconUrl = fallbackIconUrl,
+            grayscaleFallback = grayscaleFallback
+        )
+        directRequests.forEach { request ->
+            loadCachedBitmap(request.cacheKey)?.let { return it }
+        }
+        memoryCache[normalized]?.let { return it }
+        return loadFromDisk(normalized)?.also { memoryCache[normalized] = it }
+    }
+
     private fun loadCachedBitmap(cacheKey: String): Bitmap? {
         memoryCache[cacheKey]?.let { return it }
         return loadFromDisk(cacheKey)?.also { memoryCache[cacheKey] = it }

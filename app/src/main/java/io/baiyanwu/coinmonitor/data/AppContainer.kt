@@ -5,19 +5,27 @@ import androidx.room.Room
 import io.baiyanwu.coinmonitor.data.local.CoinMonitorDatabase
 import io.baiyanwu.coinmonitor.data.network.NetworkFactory
 import io.baiyanwu.coinmonitor.data.refresh.GlobalQuoteRefreshCoordinator
+import io.baiyanwu.coinmonitor.data.repository.DefaultAiChatRepository
+import io.baiyanwu.coinmonitor.data.repository.DefaultAiConfigRepository
 import io.baiyanwu.coinmonitor.data.repository.DefaultAppPreferencesRepository
+import io.baiyanwu.coinmonitor.data.repository.DefaultMarketKlineRepository
 import io.baiyanwu.coinmonitor.data.repository.DefaultMarketQuoteRepository
 import io.baiyanwu.coinmonitor.data.repository.DefaultMarketSearchRepository
 import io.baiyanwu.coinmonitor.data.repository.DefaultNetworkLogRepository
 import io.baiyanwu.coinmonitor.data.repository.DefaultOkxCredentialsRepository
 import io.baiyanwu.coinmonitor.data.repository.DefaultOverlayRepository
 import io.baiyanwu.coinmonitor.data.repository.DefaultWatchlistRepository
+import io.baiyanwu.coinmonitor.data.repository.InMemoryQuoteRepository
 import io.baiyanwu.coinmonitor.domain.repository.AppPreferencesRepository
+import io.baiyanwu.coinmonitor.domain.repository.AiChatRepository
+import io.baiyanwu.coinmonitor.domain.repository.AiConfigRepository
+import io.baiyanwu.coinmonitor.domain.repository.MarketKlineRepository
 import io.baiyanwu.coinmonitor.domain.repository.MarketQuoteRepository
 import io.baiyanwu.coinmonitor.domain.repository.MarketSearchRepository
 import io.baiyanwu.coinmonitor.domain.repository.NetworkLogRepository
 import io.baiyanwu.coinmonitor.domain.repository.OkxCredentialsRepository
 import io.baiyanwu.coinmonitor.domain.repository.OverlayRepository
+import io.baiyanwu.coinmonitor.domain.repository.QuoteRepository
 import io.baiyanwu.coinmonitor.domain.repository.WatchlistRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -26,6 +34,7 @@ import kotlinx.coroutines.SupervisorJob
 class AppContainer(context: Context) {
     val appContext: Context = context.applicationContext
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    val klineSelectionStore = KlineSelectionStore()
 
     private val database = Room.databaseBuilder(
         appContext,
@@ -45,16 +54,23 @@ class AppContainer(context: Context) {
         context = appContext
     )
 
+    val quoteRepository: QuoteRepository = InMemoryQuoteRepository()
+
     val watchlistRepository: WatchlistRepository = DefaultWatchlistRepository(
         watchItemDao = database.watchItemDao()
     )
 
     val overlayRepository: OverlayRepository = DefaultOverlayRepository(
+        context = appContext,
         overlaySettingsDao = database.overlaySettingsDao(),
         watchItemDao = database.watchItemDao()
     )
 
     val okxCredentialsRepository: OkxCredentialsRepository = DefaultOkxCredentialsRepository(
+        context = appContext
+    )
+
+    val aiConfigRepository: AiConfigRepository = DefaultAiConfigRepository(
         context = appContext
     )
 
@@ -74,9 +90,22 @@ class AppContainer(context: Context) {
         okxCredentialsProvider = { okxCredentialsRepository.getCredentials() }
     )
 
+    val marketKlineRepository: MarketKlineRepository = DefaultMarketKlineRepository(
+        alphaApi = networkFactory.alphaApi,
+        binanceApi = networkFactory.binanceApi,
+        okxApi = networkFactory.okxApi,
+        okxOnChainApi = networkFactory.okxOnChainApi,
+        okxCredentialsProvider = { okxCredentialsRepository.getCredentials() }
+    )
+
+    val aiChatRepository: AiChatRepository = DefaultAiChatRepository(
+        aiConfigRepository = aiConfigRepository
+    )
+
     val globalQuoteRefreshCoordinator = GlobalQuoteRefreshCoordinator(
         scope = appScope,
         watchlistRepository = watchlistRepository,
+        quoteRepository = quoteRepository,
         appPreferencesRepository = appPreferencesRepository,
         marketQuoteRepository = marketQuoteRepository,
         okxCredentialsProvider = { okxCredentialsRepository.getCredentials() },

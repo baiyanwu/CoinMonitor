@@ -24,6 +24,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -37,9 +38,13 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import io.baiyanwu.coinmonitor.R
 import io.baiyanwu.coinmonitor.data.AppContainer
 import io.baiyanwu.coinmonitor.domain.model.NetworkLogEntry
+import io.baiyanwu.coinmonitor.domain.model.NetworkLogProtocol
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorComponentDefaults
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 
+/**
+ * 网络日志页路由入口。
+ */
 @Composable
 fun NetworkLogRoute(
     container: AppContainer,
@@ -54,17 +59,24 @@ fun NetworkLogRoute(
         onToggleRecording = {
             viewModel.setRecordingEnabled(!state.recordingEnabled)
         },
+        onHttpEnabledChange = viewModel::setHttpEnabled,
+        onWssEnabledChange = viewModel::setWssEnabled,
         onClear = viewModel::clear,
         onEntryClick = viewModel::onEntryClick
     )
 }
 
+/**
+ * 网络日志页主界面。
+ */
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
 private fun NetworkLogScreen(
     state: NetworkLogUiState,
     onBack: () -> Unit,
     onToggleRecording: () -> Unit,
+    onHttpEnabledChange: (Boolean) -> Unit,
+    onWssEnabledChange: (Boolean) -> Unit,
     onClear: () -> Unit,
     onEntryClick: (Long) -> Unit
 ) {
@@ -150,6 +162,17 @@ private fun NetworkLogScreen(
                         color = colors.secondaryText
                     )
                 }
+
+                ProtocolSwitchRow(
+                    title = stringResource(R.string.network_log_protocol_http),
+                    checked = state.httpEnabled,
+                    onCheckedChange = onHttpEnabledChange
+                )
+                ProtocolSwitchRow(
+                    title = stringResource(R.string.network_log_protocol_wss),
+                    checked = state.wssEnabled,
+                    onCheckedChange = onWssEnabledChange
+                )
             }
 
             if (state.entries.isEmpty()) {
@@ -184,6 +207,36 @@ private fun NetworkLogScreen(
     }
 }
 
+/**
+ * 协议开关行。
+ */
+@Composable
+private fun ProtocolSwitchRow(
+    title: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 14.dp, vertical = 2.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.bodyMedium
+        )
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange
+        )
+    }
+}
+
+/**
+ * 单条网络日志行。
+ */
 @Composable
 private fun NetworkLogRow(
     entry: NetworkLogEntry,
@@ -196,10 +249,23 @@ private fun NetworkLogRow(
             .clickable(onClick = onClick),
         colors = CoinMonitorComponentDefaults.elevatedCardColors()
     ) {
-        Text(
-            text = entry.detail,
+        Column(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-            style = MaterialTheme.typography.bodySmall
-        )
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text(
+                text = if (entry.protocol == NetworkLogProtocol.HTTP) {
+                    stringResource(R.string.network_log_protocol_http)
+                } else {
+                    stringResource(R.string.network_log_protocol_wss)
+                },
+                style = MaterialTheme.typography.labelMedium,
+                color = CoinMonitorThemeTokens.colors.secondaryText
+            )
+            Text(
+                text = entry.detail,
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
     }
 }
