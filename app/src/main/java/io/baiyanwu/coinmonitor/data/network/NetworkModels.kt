@@ -87,6 +87,24 @@ interface OkxOnChainApi {
         @Body requestBody: List<OkxOnChainPriceRequest>
     ): OkxOnChainTokenPriceResponse
 
+    @POST("api/v6/dex/market/token/basic-info")
+    suspend fun getTokenBasicInfo(
+        @Header("OK-ACCESS-KEY") accessKey: String,
+        @Header("OK-ACCESS-SIGN") accessSign: String,
+        @Header("OK-ACCESS-TIMESTAMP") accessTimestamp: String,
+        @Header("OK-ACCESS-PASSPHRASE") accessPassphrase: String,
+        @Body requestBody: List<OkxOnChainPriceRequest>
+    ): OkxOnChainTokenBasicInfoResponse
+
+    @POST("api/v6/dex/market/price-info")
+    suspend fun getTokenPriceInfo(
+        @Header("OK-ACCESS-KEY") accessKey: String,
+        @Header("OK-ACCESS-SIGN") accessSign: String,
+        @Header("OK-ACCESS-TIMESTAMP") accessTimestamp: String,
+        @Header("OK-ACCESS-PASSPHRASE") accessPassphrase: String,
+        @Body requestBody: List<OkxOnChainPriceRequest>
+    ): OkxOnChainTokenPriceInfoResponse
+
     @GET("api/v6/dex/market/candles")
     suspend fun getCandles(
         @Header("OK-ACCESS-KEY") accessKey: String,
@@ -174,6 +192,20 @@ data class OkxOnChainTokenPriceResponse(
 )
 
 @Serializable
+data class OkxOnChainTokenBasicInfoResponse(
+    val code: String,
+    val msg: String? = null,
+    val data: List<OkxOnChainTokenBasicInfoRow> = emptyList()
+)
+
+@Serializable
+data class OkxOnChainTokenPriceInfoResponse(
+    val code: String,
+    val msg: String? = null,
+    val data: List<OkxOnChainTokenPriceInfoRow> = emptyList()
+)
+
+@Serializable
 data class OkxOnChainCandlesResponse(
     val code: String,
     val msg: String? = null,
@@ -205,7 +237,10 @@ data class OkxOnChainTokenRow(
     @SerialName("decimal") val decimal: String? = null,
     @SerialName("explorerUrl") val explorerUrl: String? = null,
     @SerialName("price") val price: String? = null,
-    @SerialName("change") val change: String? = null
+    @SerialName("change") val change: String? = null,
+    @SerialName("holders") val holders: String? = null,
+    @SerialName("liquidity") val liquidity: String? = null,
+    @SerialName("marketCap") val marketCap: String? = null
 )
 
 @Serializable
@@ -214,6 +249,38 @@ data class OkxOnChainTokenPriceRow(
     @SerialName("tokenContractAddress") val tokenContractAddress: String? = null,
     @SerialName("time") val time: String? = null,
     @SerialName("price") val price: String? = null
+)
+
+@Serializable
+data class OkxOnChainTokenBasicInfoRow(
+    @SerialName("chainIndex") val chainIndex: String? = null,
+    @SerialName("tokenContractAddress") val tokenContractAddress: String? = null,
+    @SerialName("tokenName") val tokenName: String? = null,
+    @SerialName("tokenSymbol") val tokenSymbol: String? = null,
+    @SerialName("tokenLogoUrl") val tokenLogoUrl: String? = null,
+    @SerialName("decimal") val decimal: String? = null,
+    @SerialName("officialWebsite") val officialWebsite: String? = null,
+    @SerialName("explorerUrl") val explorerUrl: String? = null,
+    @SerialName("tagList") val tagList: OkxOnChainTokenTagList? = null
+)
+
+@Serializable
+data class OkxOnChainTokenPriceInfoRow(
+    @SerialName("chainIndex") val chainIndex: String? = null,
+    @SerialName("tokenContractAddress") val tokenContractAddress: String? = null,
+    @SerialName("price") val price: String? = null,
+    @SerialName("change") val change: String? = null,
+    @SerialName("marketCap") val marketCap: String? = null,
+    @SerialName("holders") val holders: String? = null,
+    @SerialName("liquidity") val liquidity: String? = null,
+    @SerialName("volume24h") val volume24h: String? = null,
+    @SerialName("fdv") val fdv: String? = null,
+    @SerialName("time") val time: String? = null
+)
+
+@Serializable
+data class OkxOnChainTokenTagList(
+    @SerialName("communityRecognized") val communityRecognized: Boolean? = null
 )
 
 internal fun JsonObject.isAlphaSuccess(): Boolean {

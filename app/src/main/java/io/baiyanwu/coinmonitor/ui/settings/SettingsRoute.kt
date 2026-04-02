@@ -42,6 +42,7 @@ import io.baiyanwu.coinmonitor.R
 @Composable
 fun SettingsRoute(
     container: AppContainer,
+    contentTopInset: Dp = 0.dp,
     contentBottomInset: Dp = 0.dp,
     onNavigateOverlaySettings: () -> Unit,
     onNavigateThirdPartyApiSettings: () -> Unit,
@@ -52,6 +53,7 @@ fun SettingsRoute(
 
     SettingsScreen(
         state = state,
+        contentTopInset = contentTopInset,
         contentBottomInset = contentBottomInset,
         onNavigateOverlaySettings = onNavigateOverlaySettings,
         onNavigateThirdPartyApiSettings = onNavigateThirdPartyApiSettings,
@@ -64,6 +66,7 @@ fun SettingsRoute(
 @Composable
 private fun SettingsScreen(
     state: SettingsUiState,
+    contentTopInset: Dp,
     contentBottomInset: Dp,
     onNavigateOverlaySettings: () -> Unit,
     onNavigateThirdPartyApiSettings: () -> Unit,
@@ -77,7 +80,12 @@ private fun SettingsScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(colors.pageBackground)
-            .padding(start = 14.dp, top = 12.dp, end = 14.dp, bottom = 12.dp + contentBottomInset),
+            .padding(
+                start = 14.dp,
+                top = 12.dp + contentTopInset,
+                end = 14.dp,
+                bottom = 12.dp + contentBottomInset
+            ),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {

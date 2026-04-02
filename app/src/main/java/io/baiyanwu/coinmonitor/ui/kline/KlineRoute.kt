@@ -1,18 +1,24 @@
 package io.baiyanwu.coinmonitor.ui.kline
-
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -22,17 +28,18 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.automirrored.rounded.Send
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.StopCircle
 import androidx.compose.material.icons.rounded.Tune
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ElevatedCard
-import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -41,8 +48,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -51,10 +58,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
-import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -62,28 +72,29 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.baiyanwu.coinmonitor.R
 import io.baiyanwu.coinmonitor.data.AppContainer
+import io.baiyanwu.coinmonitor.domain.model.AiAnalysisOption
 import io.baiyanwu.coinmonitor.domain.model.AiChatRole
 import io.baiyanwu.coinmonitor.domain.model.KlineIndicator
 import io.baiyanwu.coinmonitor.domain.model.KlineInterval
 import io.baiyanwu.coinmonitor.domain.model.KlineSource
 import io.baiyanwu.coinmonitor.ui.kline.chart.KlineChartHostView
-import io.baiyanwu.coinmonitor.ui.kline.chart.KlineChartPalette
 import io.baiyanwu.coinmonitor.ui.kline.chart.KlineChartRenderModel
 import io.baiyanwu.coinmonitor.ui.kline.chart.KlineChartStyleDefaults
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 
-private const val SHOW_KLINE_AI_ENTRY = false
+private val KLINE_HEADER_HEIGHT = 38.dp
 
 /**
  * K 线页路由入口。
  *
- * 页面层只负责组装状态、交互和统一渲染模型，
- * 具体图表库相关逻辑全部收口到 `ui.kline.chart` 包中。
+ * 当前页面以 AI 聊天为主，K 线和周期指标作为顶部可折叠参考面板展示。
  */
 @Composable
 fun KlineRoute(
     container: AppContainer,
     chartHostView: KlineChartHostView,
+    contentTopInset: androidx.compose.ui.unit.Dp = 0.dp,
+    contentBottomInset: androidx.compose.ui.unit.Dp = 0.dp,
     onOpenSearch: () -> Unit,
     onOpenIndicatorSettings: () -> Unit
 ) {
@@ -98,16 +109,14 @@ fun KlineRoute(
         onOpenSearch = onOpenSearch,
         onOpenIndicatorSettings = onOpenIndicatorSettings,
         chartHostView = chartHostView,
-        onRefresh = viewModel::refreshNow,
+        contentTopInset = contentTopInset,
+        contentBottomInset = contentBottomInset,
         onRetry = viewModel::retry,
-        onSendMessage = viewModel::sendMessage
+        onSendMessage = viewModel::sendMessage,
+        onStopGeneration = viewModel::stopAiGeneration
     )
 }
 
-/**
- * K 线页主界面。
- */
-@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 private fun KlineScreen(
     state: KlineUiState,
@@ -118,37 +127,229 @@ private fun KlineScreen(
     onOpenSearch: () -> Unit,
     onOpenIndicatorSettings: () -> Unit,
     chartHostView: KlineChartHostView,
-    onRefresh: () -> Unit,
+    contentTopInset: androidx.compose.ui.unit.Dp,
+    contentBottomInset: androidx.compose.ui.unit.Dp,
     onRetry: () -> Unit,
-    onSendMessage: (String) -> Unit
+    onSendMessage: (String, Set<AiAnalysisOption>) -> Unit,
+    onStopGeneration: () -> Unit
 ) {
     val colors = CoinMonitorThemeTokens.colors
-    val uriHandler = LocalUriHandler.current
+    var klineExpanded by rememberSaveable { mutableStateOf(true) }
     var pairMenuExpanded by remember { mutableStateOf(false) }
-    var chatDialogVisible by rememberSaveable { mutableStateOf(false) }
+    var composerHeightPx by remember { mutableIntStateOf(0) }
+    val density = LocalDensity.current
+    val composerHeight = with(density) { composerHeightPx.toDp() }
+    val imeBottomInset = with(density) { WindowInsets.ime.getBottom(this).toDp() }
+    val bottomDockInset = if (imeBottomInset > contentBottomInset) imeBottomInset else contentBottomInset
+    val topInset = if (klineExpanded) {
+        contentTopInset + KLINE_HEADER_HEIGHT + (LocalConfiguration.current.screenHeightDp.dp * 0.30f) + 56.dp
+    } else {
+        contentTopInset + KLINE_HEADER_HEIGHT + 18.dp
+    }
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(colors.pageBackground)
+        modifier = Modifier.fillMaxSize(),
     ) {
-        Column(
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .height(contentTopInset)
+                .background(colors.pageBackground.copy(alpha = 0.97f))
+        )
+
+        KlineAiChatMessages(
+            state = state,
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 14.dp, vertical = 14.dp)
+                .background(colors.pageBackground),
+            topInset = topInset,
+            bottomInset = composerHeight + bottomDockInset
+        )
+
+        KlineTopOverlay(
+            state = state,
+            expanded = klineExpanded,
+            pairMenuExpanded = pairMenuExpanded,
+            chartHostView = chartHostView,
+            onExpandedChange = { klineExpanded = it },
+            onPairMenuExpandedChange = { pairMenuExpanded = it },
+            onSelectItem = onSelectItem,
+            onSelectInterval = onSelectInterval,
+            onSelectMainIndicator = onSelectMainIndicator,
+            onSelectSubIndicator = onSelectSubIndicator,
+            onOpenSearch = onOpenSearch,
+            onOpenIndicatorSettings = onOpenIndicatorSettings,
+            onRetry = onRetry,
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = contentTopInset)
+        )
+
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = bottomDockInset)
+        ) {
+            KlineChatComposerBar(
+                state = state,
+                onSendMessage = onSendMessage,
+                onStopGeneration = onStopGeneration,
+                modifier = Modifier.onGloballyPositioned { coordinates ->
+                    composerHeightPx = coordinates.size.height
+                }
+            )
+        }
+    }
+}
+
+@Composable
+private fun KlineTopOverlay(
+    state: KlineUiState,
+    expanded: Boolean,
+    pairMenuExpanded: Boolean,
+    chartHostView: KlineChartHostView,
+    onExpandedChange: (Boolean) -> Unit,
+    onPairMenuExpandedChange: (Boolean) -> Unit,
+    onSelectItem: (String) -> Unit,
+    onSelectInterval: (KlineInterval) -> Unit,
+    onSelectMainIndicator: (KlineIndicator) -> Unit,
+    onSelectSubIndicator: (KlineIndicator) -> Unit,
+    onOpenSearch: () -> Unit,
+    onOpenIndicatorSettings: () -> Unit,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val colors = CoinMonitorThemeTokens.colors
+    val configuration = LocalConfiguration.current
+    val chartHeight = configuration.screenHeightDp.dp * 0.24f
+
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        color = colors.pageBackground.copy(alpha = 0.97f),
+        shadowElevation = 0.dp,
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(bottomStart = 22.dp, bottomEnd = 22.dp)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Box(modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp)) {
+                KlineOverlayHeader(
+                    selectedSymbol = state.selectedItem?.symbol.orEmpty(),
+                    sourceTitle = state.selectedSource?.title.orEmpty(),
+                    expanded = expanded,
+                    pairMenuExpanded = pairMenuExpanded,
+                    onExpandedChange = onExpandedChange,
+                    onPairMenuExpandedChange = onPairMenuExpandedChange,
+                    onOpenSearch = onOpenSearch,
+                    onSelectItem = onSelectItem,
+                    availableItems = state.availableItems
+                )
+            }
+
+            AnimatedVisibility(
+                visible = expanded,
+                enter = expandVertically(
+                    animationSpec = spring(
+                        dampingRatio = 0.9f,
+                        stiffness = 500f
+                    )
+                ) + fadeIn(),
+                exit = shrinkVertically(
+                    animationSpec = spring(
+                        dampingRatio = 0.9f,
+                        stiffness = 500f
+                    )
+                ) + fadeOut()
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Box(modifier = Modifier.padding(horizontal = 12.dp)) {
+                        CompactIntervalRow(
+                            selected = state.selectedInterval,
+                            onSelect = onSelectInterval
+                        )
+                    }
+                    Box(modifier = Modifier.padding(horizontal = 12.dp)) {
+                        CompactIndicatorRow(
+                            mainSelected = state.selectedMainIndicator,
+                            onSelectMain = onSelectMainIndicator,
+                            subSelected = state.selectedSubIndicator,
+                            onSelectSub = onSelectSubIndicator,
+                            onOpenIndicatorSettings = onOpenIndicatorSettings
+                        )
+                    }
+                    KlineChartOverlayCard(
+                        state = state,
+                        chartHostView = chartHostView,
+                        chartHeight = chartHeight,
+                        onRetry = onRetry
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun KlineOverlayHeader(
+    selectedSymbol: String,
+    sourceTitle: String,
+    expanded: Boolean,
+    pairMenuExpanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
+    onPairMenuExpandedChange: (Boolean) -> Unit,
+    onOpenSearch: () -> Unit,
+    onSelectItem: (String) -> Unit,
+    availableItems: List<io.baiyanwu.coinmonitor.domain.model.WatchItem>
+) {
+    val colors = CoinMonitorThemeTokens.colors
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Surface(
+            modifier = Modifier.weight(1f),
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+            color = colors.fabContainer
         ) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(KLINE_HEADER_HEIGHT)
+                    .padding(horizontal = 1.dp),
+                horizontalArrangement = Arrangement.spacedBy(1.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                PairSelectorField(
-                    value = state.selectedItem?.symbol.orEmpty(),
-                    badge = state.selectedSource?.title.orEmpty(),
-                    enabled = false,
-                    expanded = pairMenuExpanded,
-                    onExpandedChange = { pairMenuExpanded = it }
+                Surface(
+                    onClick = onOpenSearch,
+                    shape = CircleShape,
+                    color = Color.Transparent,
+                    modifier = Modifier.size(28.dp)
                 ) {
-                    state.availableItems.forEach { item ->
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Rounded.Search,
+                            contentDescription = stringResource(R.string.open_search),
+                            tint = colors.fabContent,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+
+                CompactPairSelector(
+                    modifier = Modifier.weight(1f),
+                    value = selectedSymbol,
+                    badge = sourceTitle,
+                    expanded = pairMenuExpanded,
+                    onExpandedChange = onPairMenuExpandedChange
+                ) {
+                    availableItems.forEach { item ->
                         DropdownMenuItem(
                             text = {
                                 PairMenuLabel(
@@ -157,172 +358,81 @@ private fun KlineScreen(
                                 )
                             },
                             onClick = {
-                                pairMenuExpanded = false
+                                onPairMenuExpandedChange(false)
                                 onSelectItem(item.id)
                             }
                         )
                     }
                 }
-
-                Spacer(modifier = Modifier.weight(1f))
-
-                Surface(
-                    onClick = onOpenSearch,
-                    shape = CircleShape,
-                    color = colors.fabContainer,
-                    tonalElevation = 0.dp,
-                    modifier = Modifier.size(40.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = Icons.Rounded.Search,
-                            contentDescription = stringResource(R.string.open_search),
-                            tint = colors.fabContent
-                        )
-                    }
-                }
-            }
-
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                verticalArrangement = Arrangement.spacedBy(0.dp)
-            ) {
-                Spacer(modifier = Modifier.height(16.dp))
-
-                IntervalRow(
-                    selected = state.selectedInterval,
-                    onSelect = onSelectInterval
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                IndicatorRow(
-                    mainSelected = state.selectedMainIndicator,
-                    onSelectMain = onSelectMainIndicator,
-                    subSelected = state.selectedSubIndicator,
-                    onSelectSub = onSelectSubIndicator,
-                    onOpenIndicatorSettings = onOpenIndicatorSettings
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                ElevatedCard(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 2.dp)
-                        .height(460.dp),
-                    shape = RoundedCornerShape(24.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(colors.cardBackground)
-                    ) {
-                        when {
-                            state.availableItems.isEmpty() -> EmptyStateText(R.string.kline_empty_watchlist)
-                            state.isLoading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-                            state.errorMessage != null -> ErrorState(
-                                message = state.errorMessage,
-                                onRetry = onRetry
-                            )
-                            state.selectedItem == null -> EmptyStateText(R.string.kline_empty_watchlist)
-                            state.candles.isEmpty() -> EmptyStateText(R.string.kline_loading)
-                            else -> {
-                                KlineChartSection(
-                                    state = state,
-                                    chartHostView = chartHostView,
-                                    modifier = Modifier.fillMaxSize()
-                                )
-                            }
-                        }
-                    }
-                }
-
-                state.selectedItem?.let { item ->
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 8.dp),
-                        shape = RoundedCornerShape(20.dp),
-                        color = colors.cardBackground
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(14.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            Text(
-                                text = item.symbol,
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Text(
-                                text = stringResource(
-                                    R.string.kline_summary_meta,
-                                    state.selectedSource?.title.orEmpty(),
-                                    state.selectedInterval.label,
-                                    state.selectedMainIndicator.label,
-                                    state.selectedSubIndicator.label
-                                ),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = colors.secondaryText
-                            )
-                            Text(
-                                text = stringResource(
-                                    R.string.kline_summary_quote,
-                                    item.lastPrice?.toString() ?: "--",
-                                    item.change24hPercent?.toString() ?: "--"
-                                ),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = colors.secondaryText
-                            )
-                            Text(
-                                text = stringResource(R.string.kline_attribution),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = colors.secondaryText,
-                                modifier = Modifier.clickable {
-                                    uriHandler.openUri("https://www.tradingview.com/")
-                                }
-                            )
-                            if (state.isRefreshing) {
-                                Text(
-                                    text = stringResource(R.string.kline_refreshing),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = colors.secondaryText
-                                )
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(96.dp))
             }
         }
-        if (SHOW_KLINE_AI_ENTRY) {
-            ExtendedFloatingActionButton(
-                onClick = { chatDialogVisible = true },
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(18.dp),
-                icon = {
-                    Icon(
-                        imageVector = Icons.Rounded.AutoAwesome,
-                        contentDescription = null
-                    )
-                },
-                text = { Text(stringResource(R.string.kline_chat_button_short)) },
-                shape = CircleShape
-            )
+
+        Surface(
+            onClick = { onExpandedChange(!expanded) },
+            shape = CircleShape,
+            color = colors.fabContainer,
+            modifier = Modifier.size(28.dp)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = if (expanded) Icons.Rounded.KeyboardArrowUp else Icons.Rounded.KeyboardArrowDown,
+                    contentDescription = if (expanded) stringResource(R.string.common_close) else stringResource(R.string.kline_chat),
+                    tint = colors.fabContent,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
         }
     }
+}
 
-    if (chatDialogVisible) {
-        KlineChatDialog(
-            state = state,
-            onDismiss = { chatDialogVisible = false },
-            onSendMessage = onSendMessage
-        )
+@Composable
+private fun KlineChartOverlayCard(
+    state: KlineUiState,
+    chartHostView: KlineChartHostView,
+    chartHeight: androidx.compose.ui.unit.Dp,
+    onRetry: () -> Unit
+) {
+    val colors = CoinMonitorThemeTokens.colors
+    val uriHandler = LocalUriHandler.current
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(chartHeight)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(colors.cardBackground)
+        ) {
+            when {
+                state.availableItems.isEmpty() -> EmptyStateText(R.string.kline_empty_watchlist)
+                state.isLoading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                state.errorMessage != null -> ErrorState(
+                    message = state.errorMessage,
+                    onRetry = onRetry
+                )
+                state.selectedItem == null -> EmptyStateText(R.string.kline_empty_watchlist)
+                state.candles.isEmpty() -> EmptyStateText(R.string.kline_loading)
+                else -> {
+                    KlineChartSection(
+                        state = state,
+                        chartHostView = chartHostView,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+            }
+
+            Text(
+                text = stringResource(R.string.kline_attribution),
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(horizontal = 8.dp, vertical = 6.dp)
+                    .clickable { uriHandler.openUri("https://www.tradingview.com/") },
+                style = MaterialTheme.typography.labelSmall,
+                color = colors.fabContent.copy(alpha = 0.58f)
+            )
+        }
     }
 }
 
@@ -337,13 +447,15 @@ private fun KlineChartSection(
 ) {
     val isDarkChart = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val palette = remember(isDarkChart) {
-        if (isDarkChart) {
-            KlineChartStyleDefaults.darkPalette
-        } else {
-            KlineChartStyleDefaults.lightPalette
-        }
+        if (isDarkChart) KlineChartStyleDefaults.darkPalette else KlineChartStyleDefaults.lightPalette
     }
-    val renderModel = remember(state.candles, state.selectedMainIndicator, state.selectedSubIndicator, state.indicatorSettings, palette) {
+    val renderModel = remember(
+        state.candles,
+        state.selectedMainIndicator,
+        state.selectedSubIndicator,
+        state.indicatorSettings,
+        palette
+    ) {
         KlineChartRenderModel(
             candles = state.candles,
             mainIndicator = state.selectedMainIndicator,
@@ -357,54 +469,40 @@ private fun KlineChartSection(
     AndroidView(
         modifier = modifier,
         factory = { chartHostView },
-        update = { hostView ->
-            hostView.render(renderModel)
-        }
+        update = { hostView -> hostView.render(renderModel) }
     )
 }
 
-/**
- * 顶部币对选择框。
- */
 @Composable
-private fun PairSelectorField(
+private fun CompactPairSelector(
     modifier: Modifier = Modifier,
     value: String,
     badge: String,
-    enabled: Boolean = true,
     expanded: Boolean,
     onExpandedChange: (Boolean) -> Unit,
     content: @Composable () -> Unit
 ) {
     val colors = CoinMonitorThemeTokens.colors
-    Box {
-        Surface(
+    Box(modifier = modifier) {
+        Row(
             modifier = Modifier
-                .then(modifier)
-                .widthIn(max = 280.dp)
-                .height(40.dp)
-                // 这里暂时关闭点击展开行为，后续如果要恢复币对下拉切换，只需要把 enabled 改回 true。
-                .clickable(enabled = enabled) { onExpandedChange(true) },
-            shape = RoundedCornerShape(18.dp),
-            color = colors.fabContainer
+                .fillMaxWidth()
+                .height(22.dp)
+                .clickable { onExpandedChange(true) }
+                .padding(horizontal = 0.dp),
+            horizontalArrangement = Arrangement.spacedBy(3.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .padding(horizontal = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = value.ifBlank { "--" },
-                    color = CoinMonitorThemeTokens.colors.chipSelectedContent,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                SourceMiniTag(sourceTitle = badge)
-            }
+            Text(
+                text = value.ifBlank { "--" },
+                color = colors.fabContent,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false)
+            )
+            SourceMiniTag(sourceTitle = badge)
         }
         DropdownMenu(
             expanded = expanded,
@@ -415,9 +513,6 @@ private fun PairSelectorField(
     }
 }
 
-/**
- * 下拉菜单中的币对标签。
- */
 @Composable
 private fun PairMenuLabel(
     symbol: String,
@@ -436,91 +531,75 @@ private fun PairMenuLabel(
     }
 }
 
-/**
- * 来源小标签。
- */
 @Composable
 private fun SourceMiniTag(sourceTitle: String) {
     val colors = CoinMonitorThemeTokens.colors
-    val (containerColor, contentColor) = when (sourceTitle) {
-        "Alpha" -> colors.cardBackground to colors.primaryText
-        else -> colors.cardBackground to colors.primaryText
-    }
-
     Surface(
-        shape = RoundedCornerShape(999.dp),
-        color = containerColor
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(999.dp),
+        color = colors.fabContent.copy(alpha = 0.12f)
     ) {
-        Box {
-            Text(
-                text = sourceTitle.uppercase(),
-                modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
-                color = contentColor,
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.SemiBold
-            )
-        }
+        Text(
+            text = sourceTitle.uppercase(),
+            modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
+            color = colors.fabContent.copy(alpha = 0.88f),
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.SemiBold
+        )
     }
 }
 
-/**
- * 周期选择行。
- */
 @Composable
-private fun IntervalRow(
+private fun CompactIntervalRow(
     selected: KlineInterval,
     onSelect: (KlineInterval) -> Unit
 ) {
     var moreMenuExpanded by remember { mutableStateOf(false) }
     val extendedInterval = selected.takeIf { it in EXTENDED_INTERVALS }
     val moreIntervalLabel = stringResource(R.string.kline_more_intervals)
-    Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
-        Row(
-            modifier = Modifier
-                .heightIn(min = 32.dp)
-                .horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-            verticalAlignment = Alignment.CenterVertically
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 20.dp)
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        PRIMARY_INTERVALS.forEach { interval ->
+            CompactTextToggle(
+                text = interval.label,
+                selected = interval == selected,
+                onClick = { onSelect(interval) }
+            )
+        }
+        Box(
+            modifier = Modifier.wrapContentHeight(align = Alignment.CenterVertically)
         ) {
-            PRIMARY_INTERVALS.forEach { interval ->
-                SelectionPill(
-                    text = interval.label,
-                    selected = interval == selected,
-                    onClick = { onSelect(interval) }
-                )
-            }
-            Box(
-                modifier = Modifier.wrapContentHeight(align = Alignment.CenterVertically)
+            CompactTextToggle(
+                text = extendedInterval?.label ?: moreIntervalLabel,
+                selected = extendedInterval != null,
+                onClick = { moreMenuExpanded = true }
+            )
+            DropdownMenu(
+                expanded = moreMenuExpanded,
+                onDismissRequest = { moreMenuExpanded = false }
             ) {
-                SelectionPill(
-                    text = extendedInterval?.label ?: moreIntervalLabel,
-                    selected = extendedInterval != null,
-                    onClick = { moreMenuExpanded = true }
-                )
-                DropdownMenu(
-                    expanded = moreMenuExpanded,
-                    onDismissRequest = { moreMenuExpanded = false }
-                ) {
-                    EXTENDED_INTERVALS.forEach { interval ->
-                        DropdownMenuItem(
-                            text = { Text(interval.label) },
-                            onClick = {
-                                moreMenuExpanded = false
-                                onSelect(interval)
-                            }
-                        )
-                    }
+                EXTENDED_INTERVALS.forEach { interval ->
+                    DropdownMenuItem(
+                        text = { Text(interval.label) },
+                        onClick = {
+                            moreMenuExpanded = false
+                            onSelect(interval)
+                        }
+                    )
                 }
             }
         }
     }
 }
 
-/**
- * 主副指标合并行。
- */
 @Composable
-private fun IndicatorRow(
+private fun CompactIndicatorRow(
     mainSelected: KlineIndicator,
     onSelectMain: (KlineIndicator) -> Unit,
     subSelected: KlineIndicator,
@@ -529,93 +608,275 @@ private fun IndicatorRow(
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(
             modifier = Modifier
                 .weight(1f)
                 .horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             listOf(KlineIndicator.MA, KlineIndicator.EMA, KlineIndicator.BOLL).forEach { indicator ->
-                SelectionPill(
+                CompactTextToggle(
                     text = indicator.label,
                     selected = indicator == mainSelected,
                     onClick = { onSelectMain(indicator) }
                 )
             }
-
-            Box(
-                modifier = Modifier
-                    .height(16.dp)
-                    .widthIn(min = 1.dp, max = 1.dp)
-                    .background(CoinMonitorThemeTokens.colors.divider)
-            )
-
-            listOf(KlineIndicator.VOL, KlineIndicator.MACD, KlineIndicator.RSI, KlineIndicator.KDJ)
-                .forEach { indicator ->
-                    SelectionPill(
-                        text = indicator.label,
-                        selected = indicator == subSelected,
-                        onClick = { onSelectSub(indicator) }
-                    )
-                }
+            listOf(KlineIndicator.VOL, KlineIndicator.MACD, KlineIndicator.RSI, KlineIndicator.KDJ).forEach { indicator ->
+                CompactTextToggle(
+                    text = indicator.label,
+                    selected = indicator == subSelected,
+                    onClick = { onSelectSub(indicator) }
+                )
+            }
         }
 
         Surface(
             onClick = onOpenIndicatorSettings,
             shape = CircleShape,
-            color = CoinMonitorThemeTokens.colors.fabContainer,
+            color = Color.Transparent,
             tonalElevation = 0.dp,
-            modifier = Modifier.size(32.dp)
+            modifier = Modifier.size(24.dp)
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(
                     imageVector = Icons.Rounded.Tune,
                     contentDescription = stringResource(R.string.kline_indicator_settings_title),
-                    tint = CoinMonitorThemeTokens.colors.fabContent,
-                    modifier = Modifier.size(18.dp)
+                    tint = CoinMonitorThemeTokens.colors.secondaryText,
+                    modifier = Modifier.size(14.dp)
                 )
             }
         }
     }
 }
 
-/**
- * 统一轻量选择胶囊。
- */
 @Composable
-private fun SelectionPill(
-    modifier: Modifier = Modifier,
+private fun CompactTextToggle(
     text: String,
     selected: Boolean,
     onClick: () -> Unit
 ) {
     val colors = CoinMonitorThemeTokens.colors
-    Box(
+    Text(
+        text = text,
         modifier = Modifier
-            .then(modifier)
-            .heightIn(min = 32.dp)
-            .clip(RoundedCornerShape(999.dp))
-            .background(
-                if (selected) {
-                    colors.fabContainer
-                } else {
-                    Color.Transparent
-                }
-            )
             .clickable(onClick = onClick)
-            .padding(horizontal = 8.dp, vertical = 4.dp),
-        contentAlignment = Alignment.Center
+            .padding(vertical = 0.dp),
+        color = if (selected) colors.chipSelectedContainer else colors.secondaryText,
+        style = MaterialTheme.typography.labelSmall,
+        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
+    )
+}
+
+@Composable
+private fun KlineAiChatMessages(
+    state: KlineUiState,
+    modifier: Modifier = Modifier,
+    topInset: androidx.compose.ui.unit.Dp = 0.dp,
+    bottomInset: androidx.compose.ui.unit.Dp = 0.dp,
+) {
+    val colors = CoinMonitorThemeTokens.colors
+    LazyColumn(
+        modifier = modifier
+            .background(colors.pageBackground)
+            .padding(horizontal = 14.dp),
+        contentPadding = PaddingValues(
+            top = topInset + 10.dp,
+            bottom = bottomInset + 10.dp
+        ),
+        reverseLayout = true,
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        item(key = "ai-ready-tip") {
+            if (!state.aiReady) {
+                Text(
+                    text = stringResource(R.string.kline_ai_not_ready),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+        }
+        items(
+            items = state.chatMessages.asReversed(),
+            key = { message -> message.id }
+        ) { message ->
+            val isStreamingPlaceholder = state.isAiSending &&
+                message.role == AiChatRole.ASSISTANT &&
+                message.content.isBlank()
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = if (message.role == AiChatRole.USER) Arrangement.End else Arrangement.Start
+            ) {
+                Surface(
+                    modifier = Modifier.widthIn(max = 320.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    color = if (message.role == AiChatRole.USER) colors.fabContainer else colors.cardBackground
+                ) {
+                    if (isStreamingPlaceholder) {
+                        Row(
+                            modifier = Modifier.padding(10.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(14.dp),
+                                strokeWidth = 2.dp
+                            )
+                            Text(
+                                text = stringResource(R.string.kline_ai_thinking),
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    } else {
+                        Text(
+                            text = message.content,
+                            modifier = Modifier.padding(10.dp),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (message.role == AiChatRole.USER) colors.fabContent else colors.primaryText
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun KlineChatComposerBar(
+    state: KlineUiState,
+    onSendMessage: (String, Set<AiAnalysisOption>) -> Unit,
+    onStopGeneration: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var input by rememberSaveable { mutableStateOf("") }
+    var selectedOptions by rememberSaveable {
+        mutableStateOf(AiAnalysisOption.defaultSelection.map { it.name }.toSet())
+    }
+    val resolvedOptions = selectedOptions.map(AiAnalysisOption::valueOf).toSet()
+    val colors = CoinMonitorThemeTokens.colors
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(colors.pageBackground)
+            .padding(start = 14.dp, top = 8.dp, end = 14.dp, bottom = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            AiAnalysisOption.entries.forEach { option ->
+                ChatSelectionPill(
+                    text = stringResource(option.labelResId()),
+                    selected = option.name in selectedOptions,
+                    enabled = !state.isAiSending,
+                    onClick = {
+                        selectedOptions = selectedOptions.toMutableSet().apply {
+                            if (!add(option.name)) remove(option.name)
+                        }.toSet()
+                    }
+                )
+            }
+        }
+        if (resolvedOptions.isEmpty()) {
+            Text(
+                text = stringResource(R.string.kline_ai_analysis_required),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error
+            )
+        }
+        OutlinedTextField(
+            value = input,
+            onValueChange = { input = it },
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text(stringResource(R.string.kline_chat_hint)) },
+            singleLine = false,
+            maxLines = 4,
+            keyboardActions = KeyboardActions(
+                onSend = {
+                    if (!state.isAiSending && input.isNotBlank() && state.aiReady && resolvedOptions.isNotEmpty()) {
+                        onSendMessage(input, resolvedOptions)
+                        input = ""
+                    }
+                }
+            ),
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+            trailingIcon = {
+                if (state.isAiSending) {
+                    IconButton(onClick = onStopGeneration) {
+                        Icon(
+                            imageVector = Icons.Rounded.StopCircle,
+                            contentDescription = "停止",
+                            tint = colors.secondaryText
+                        )
+                    }
+                } else {
+                    IconButton(
+                        onClick = {
+                            onSendMessage(input, resolvedOptions)
+                            input = ""
+                        },
+                        enabled = input.isNotBlank() && state.aiReady && resolvedOptions.isNotEmpty()
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Rounded.Send,
+                            contentDescription = stringResource(R.string.kline_chat_send)
+                        )
+                    }
+                }
+            }
+        )
+        if (state.isAiSending) {
+            Text(
+                text = stringResource(R.string.kline_ai_thinking),
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.secondaryText
+            )
+        }
+    }
+}
+
+@Composable
+private fun ChatSelectionPill(
+    text: String,
+    selected: Boolean,
+    enabled: Boolean = true,
+    onClick: () -> Unit
+) {
+    val colors = CoinMonitorThemeTokens.colors
+    Surface(
+        onClick = onClick,
+        enabled = enabled,
+        shape = RoundedCornerShape(999.dp),
+        color = if (selected) colors.fabContainer else colors.cardBackground
     ) {
         Text(
             text = text,
-            color = if (selected) colors.fabContent else colors.primaryText,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            color = when {
+                selected -> colors.fabContent
+                enabled -> colors.primaryText
+                else -> colors.secondaryText
+            },
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.Medium
         )
+    }
+}
+
+private fun AiAnalysisOption.labelResId(): Int {
+    return when (this) {
+        AiAnalysisOption.INDICATOR_INFO -> R.string.kline_ai_option_indicator_info
+        AiAnalysisOption.BINANCE_ANNOUNCEMENT -> R.string.kline_ai_option_binance_announcement
+        AiAnalysisOption.OKX_ANNOUNCEMENT -> R.string.kline_ai_option_okx_announcement
+        AiAnalysisOption.PROJECT_INFO -> R.string.kline_ai_option_project_info
     }
 }
 
@@ -634,9 +895,6 @@ private val EXTENDED_INTERVALS = listOf(
     KlineInterval.ONE_MONTH
 )
 
-/**
- * 错误态。
- */
 @Composable
 private fun ErrorState(
     message: String,
@@ -658,9 +916,6 @@ private fun ErrorState(
     }
 }
 
-/**
- * 空态。
- */
 @Composable
 private fun EmptyStateText(textRes: Int) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -669,90 +924,4 @@ private fun EmptyStateText(textRes: Int) {
             style = MaterialTheme.typography.bodyMedium
         )
     }
-}
-
-/**
- * AI 聊天弹窗。
- */
-@Composable
-private fun KlineChatDialog(
-    state: KlineUiState,
-    onDismiss: () -> Unit,
-    onSendMessage: (String) -> Unit
-) {
-    var input by rememberSaveable { mutableStateOf("") }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(stringResource(R.string.kline_chat))
-        },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                if (!state.aiReady) {
-                    Text(
-                        text = stringResource(R.string.kline_ai_not_ready),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                }
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(220.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(state.chatMessages) { message ->
-                        Surface(
-                            shape = RoundedCornerShape(14.dp),
-                            color = if (message.role == AiChatRole.USER) {
-                                CoinMonitorThemeTokens.colors.heroBackground
-                            } else {
-                                CoinMonitorThemeTokens.colors.cardBackground
-                            }
-                        ) {
-                            Text(
-                                text = message.content,
-                                modifier = Modifier.padding(10.dp),
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                        }
-                    }
-                }
-                OutlinedTextField(
-                    value = input,
-                    onValueChange = { input = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(R.string.kline_chat_hint)) }
-                )
-                if (state.isAiSending) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                        Text(
-                            text = stringResource(R.string.kline_ai_thinking),
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    onSendMessage(input)
-                    input = ""
-                },
-                enabled = input.isNotBlank() && state.aiReady && !state.isAiSending
-            ) {
-                Text(stringResource(R.string.kline_chat_send))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.common_close))
-            }
-        }
-    )
 }

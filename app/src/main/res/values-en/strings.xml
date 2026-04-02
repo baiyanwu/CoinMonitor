@@ -120,6 +120,12 @@
     <string name="kline_chat_send">Send</string>
     <string name="kline_ai_not_ready">Configure AI access in Settings first.</string>
     <string name="kline_ai_thinking">AI is analyzing…</string>
+    <string name="kline_ai_analysis_sources">Analysis Sources</string>
+    <string name="kline_ai_analysis_required">Select at least one analysis input.</string>
+    <string name="kline_ai_option_indicator_info">Indicator Info</string>
+    <string name="kline_ai_option_binance_announcement">Binance News</string>
+    <string name="kline_ai_option_okx_announcement">OKX News</string>
+    <string name="kline_ai_option_project_info">Project Info</string>
     <string name="kline_onchain_credentials_missing">On-chain K-line requires configured OKX credentials.</string>
     <string name="kline_attribution">Charts powered by TradingView Lightweight Charts</string>
     <string name="kline_summary_meta">Source: %1$s  Interval: %2$s  Main: %3$s  Sub: %4$s</string>

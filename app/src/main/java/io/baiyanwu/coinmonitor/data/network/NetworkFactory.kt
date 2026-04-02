@@ -17,7 +17,7 @@ class NetworkFactory(
         explicitNulls = false
     }
 
-    private val okHttpClient: OkHttpClient = OkHttpClient.Builder()
+    val okHttpClient: OkHttpClient = OkHttpClient.Builder()
         .addInterceptor(NetworkLogInterceptor(networkLogRepository))
         .addInterceptor(
             HttpLoggingInterceptor().apply {

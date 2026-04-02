@@ -1,5 +1,7 @@
 package io.baiyanwu.coinmonitor.domain.model
 
+import java.util.UUID
+
 /**
  * K 线来源枚举。
  */
@@ -66,6 +68,7 @@ data class CandleEntry(
 )
 
 data class AiChatMessage(
+    val id: String = UUID.randomUUID().toString(),
     val role: AiChatRole,
     val content: String,
     val timestampMillis: Long = System.currentTimeMillis()

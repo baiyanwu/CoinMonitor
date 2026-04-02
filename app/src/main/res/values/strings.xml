@@ -3,6 +3,7 @@
 
     <string name="tab_home">首页</string>
     <string name="tab_kline">K线</string>
+    <string name="tab_ime_demo">Demo</string>
     <string name="tab_search">搜索</string>
     <string name="tab_settings">设置</string>
 
@@ -120,6 +121,16 @@
     <string name="kline_chat_send">发送</string>
     <string name="kline_ai_not_ready">请先在设置页完成 AI 配置</string>
     <string name="kline_ai_thinking">AI 正在分析…</string>
+    <string name="kline_ai_analysis_sources">分析来源</string>
+    <string name="kline_ai_analysis_required">请至少选择一个分析项</string>
+    <string name="kline_ai_option_indicator_info">指标信息</string>
+    <string name="kline_ai_option_binance_announcement">币安公告</string>
+    <string name="kline_ai_option_okx_announcement">OKX 公告</string>
+    <string name="kline_ai_option_project_info">项目信息</string>
+    <string name="ime_demo_title">Compose IME Demo</string>
+    <string name="ime_demo_subtitle">这页按 Android 官方文档的最小样例实现：LazyColumn 使用 imePadding()，底部再放一个 Spacer(WindowInsets.systemBars)。</string>
+    <string name="ime_demo_input_label">官方示例输入框</string>
+    <string name="ime_demo_input_placeholder">点这里弹出键盘，观察输入框和输入法的距离</string>
     <string name="kline_onchain_credentials_missing">链上 K 线需要先配置 OKX Onchain 凭证</string>
     <string name="kline_attribution">图表由 TradingView Lightweight Charts 提供</string>
     <string name="kline_summary_meta">来源：%1$s  周期：%2$s  主图：%3$s  副图：%4$s</string>

@@ -7,6 +7,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import io.baiyanwu.coinmonitor.data.AppContainer
 import io.baiyanwu.coinmonitor.data.KlineSelectionStore
+import io.baiyanwu.coinmonitor.domain.model.AiAnalysisOption
 import io.baiyanwu.coinmonitor.domain.model.AiChatMessage
 import io.baiyanwu.coinmonitor.domain.model.AiChatRole
 import io.baiyanwu.coinmonitor.domain.model.CandleEntry
@@ -32,7 +33,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 /**
@@ -82,6 +86,7 @@ class KlineViewModel(
     private val chatMessages = MutableStateFlow<List<AiChatMessage>>(emptyList())
     private val aiSending = MutableStateFlow(false)
     private var lastLoadedRequestKey: CandleRequestKey? = null
+    private var aiStreamJob: Job? = null
 
     init {
         viewModelScope.launch {
@@ -213,9 +218,17 @@ class KlineViewModel(
     /**
      * 发送一条 AI 对话消息，并把当前 K 线上下文一起带给后端。
      */
-    fun sendMessage(prompt: String) {
+    fun sendMessage(
+        prompt: String,
+        analysisOptions: Set<AiAnalysisOption>
+    ) {
         val content = prompt.trim()
         if (content.isBlank()) return
+        if (analysisOptions.isEmpty()) {
+            _uiState.update { it.copy(errorMessage = "请至少选择一个分析项") }
+            return
+        }
+        aiStreamJob?.cancel()
         val state = _uiState.value
         val item = state.selectedItem ?: return
         if (!state.aiReady) {
@@ -226,30 +239,96 @@ class KlineViewModel(
             role = AiChatRole.USER,
             content = content
         )
-        chatMessages.value = updatedMessages
+        val placeholderMessage = AiChatMessage(
+            role = AiChatRole.ASSISTANT,
+            content = ""
+        )
+        chatMessages.value = updatedMessages + placeholderMessage
         aiSending.value = true
-        viewModelScope.launch {
+        aiStreamJob = viewModelScope.launch {
             runCatching {
-                aiChatRepository.sendMessage(
+                var hasStreamedContent = false
+                aiChatRepository.streamMessage(
                     item = item,
                     interval = state.selectedInterval,
                     indicators = setOf(state.selectedMainIndicator, state.selectedSubIndicator),
+                    indicatorSettings = state.indicatorSettings,
+                    analysisOptions = analysisOptions,
                     candles = state.candles,
                     messages = updatedMessages
-                )
-            }.onSuccess { reply ->
-                chatMessages.value = updatedMessages + AiChatMessage(
-                    role = AiChatRole.ASSISTANT,
-                    content = reply
-                )
+                ).onCompletion {
+                    if (!hasStreamedContent) {
+                        updateAssistantPlaceholder(
+                            messageId = placeholderMessage.id,
+                            content = "AI 未返回任何内容"
+                        )
+                    }
+                }.collect { delta ->
+                    hasStreamedContent = true
+                    appendAssistantDelta(
+                        messageId = placeholderMessage.id,
+                        delta = delta
+                    )
+                }
             }.onFailure { throwable ->
-                chatMessages.value = updatedMessages + AiChatMessage(
-                    role = AiChatRole.ASSISTANT,
-                    content = throwable.message ?: "AI 请求失败"
-                )
+                when (throwable) {
+                    is CancellationException -> {
+                        updateAssistantPlaceholder(
+                            messageId = placeholderMessage.id,
+                            content = currentAssistantContent(placeholderMessage.id)
+                                .ifBlank { "已停止生成" }
+                        )
+                    }
+
+                    else -> {
+                        updateAssistantPlaceholder(
+                            messageId = placeholderMessage.id,
+                            content = throwable.message ?: "AI 请求失败"
+                        )
+                    }
+                }
             }
             aiSending.value = false
+            aiStreamJob = null
         }
+    }
+
+    fun stopAiGeneration() {
+        aiStreamJob?.cancel()
+    }
+
+    private fun appendAssistantDelta(
+        messageId: String,
+        delta: String
+    ) {
+        chatMessages.update { messages ->
+            messages.map { message ->
+                if (message.id == messageId) {
+                    message.copy(content = message.content + delta)
+                } else {
+                    message
+                }
+            }
+        }
+    }
+
+    private fun updateAssistantPlaceholder(
+        messageId: String,
+        content: String
+    ) {
+        chatMessages.update { messages ->
+            messages.map { message ->
+                if (message.id == messageId) {
+                    message.copy(content = content)
+                } else {
+                    message
+                }
+            }
+        }
+    }
+
+    private fun currentAssistantContent(messageId: String): String {
+        return chatMessages.value.firstOrNull { it.id == messageId }?.content.orEmpty()
     }
 
     /**

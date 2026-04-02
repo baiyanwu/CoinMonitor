@@ -45,7 +45,7 @@ import io.baiyanwu.coinmonitor.data.AppContainer
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorComponentDefaults
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 
-private const val SHOW_AI_SETTINGS_ENTRY = false
+private const val SHOW_AI_SETTINGS_ENTRY = true
 
 @Composable
 fun ThirdPartyApiSettingsRoute(

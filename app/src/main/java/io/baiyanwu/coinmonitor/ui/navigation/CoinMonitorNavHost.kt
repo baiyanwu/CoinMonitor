@@ -3,11 +3,10 @@ package io.baiyanwu.coinmonitor.ui.navigation
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Home
-import androidx.compose.material.icons.rounded.ShowChart
 import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.ShowChart
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -26,8 +25,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import io.baiyanwu.coinmonitor.data.AppContainer
 import io.baiyanwu.coinmonitor.R
+import io.baiyanwu.coinmonitor.data.AppContainer
 import io.baiyanwu.coinmonitor.ui.home.HomeRoute
 import io.baiyanwu.coinmonitor.ui.kline.KlineRoute
 import io.baiyanwu.coinmonitor.ui.kline.chart.KlineChartHostView
@@ -113,7 +112,7 @@ fun CoinMonitorNavHost(
         NavHost(
             navController = navController,
             startDestination = Destinations.HOME,
-            modifier = Modifier.padding(innerPadding),
+            modifier = Modifier.fillMaxSize(),
             enterTransition = { EnterTransition.None },
             exitTransition = { ExitTransition.None },
             popEnterTransition = { EnterTransition.None },
@@ -122,6 +121,8 @@ fun CoinMonitorNavHost(
             composable(Destinations.HOME) {
                 HomeRoute(
                     container = container,
+                    contentTopInset = innerPadding.calculateTopPadding(),
+                    contentBottomInset = innerPadding.calculateBottomPadding(),
                     onNavigateSearch = onOpenSearch,
                     onNavigateOverlaySettings = onOpenOverlaySettings,
                     onNavigateKline = { itemId ->
@@ -134,6 +135,8 @@ fun CoinMonitorNavHost(
                 KlineRoute(
                     container = container,
                     chartHostView = klineChartHostView,
+                    contentTopInset = innerPadding.calculateTopPadding(),
+                    contentBottomInset = innerPadding.calculateBottomPadding(),
                     onOpenSearch = onOpenKlineSearch,
                     onOpenIndicatorSettings = onOpenKlineIndicatorSettings
                 )
@@ -141,6 +144,8 @@ fun CoinMonitorNavHost(
             composable(Destinations.SETTINGS) {
                 SettingsRoute(
                     container = container,
+                    contentTopInset = innerPadding.calculateTopPadding(),
+                    contentBottomInset = innerPadding.calculateBottomPadding(),
                     onNavigateOverlaySettings = onOpenOverlaySettings,
                     onNavigateThirdPartyApiSettings = onOpenThirdPartyApiSettings,
                     onNavigateNetworkLog = onOpenNetworkLog

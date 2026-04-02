@@ -3,6 +3,10 @@ package io.baiyanwu.coinmonitor.data
 import android.content.Context
 import androidx.room.Room
 import io.baiyanwu.coinmonitor.data.local.CoinMonitorDatabase
+import io.baiyanwu.coinmonitor.data.ai.AppAnalysisHost
+import io.baiyanwu.coinmonitor.data.ai.market.BinanceAnnouncementAdapter
+import io.baiyanwu.coinmonitor.data.ai.market.OkxAnnouncementAdapter
+import io.baiyanwu.coinmonitor.data.ai.market.ProjectInfoAdapter
 import io.baiyanwu.coinmonitor.data.network.NetworkFactory
 import io.baiyanwu.coinmonitor.data.refresh.GlobalQuoteRefreshCoordinator
 import io.baiyanwu.coinmonitor.data.repository.DefaultAiChatRepository
@@ -27,6 +31,7 @@ import io.baiyanwu.coinmonitor.domain.repository.OkxCredentialsRepository
 import io.baiyanwu.coinmonitor.domain.repository.OverlayRepository
 import io.baiyanwu.coinmonitor.domain.repository.QuoteRepository
 import io.baiyanwu.coinmonitor.domain.repository.WatchlistRepository
+import io.baiyanwu.coinmonitor.lib.agents.AnalysisService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -98,8 +103,22 @@ class AppContainer(context: Context) {
         okxCredentialsProvider = { okxCredentialsRepository.getCredentials() }
     )
 
+    private val analysisHost = AppAnalysisHost(
+        analysisService = AnalysisService(
+            marketSourceAdapters = listOf(
+                BinanceAnnouncementAdapter(networkFactory.okHttpClient),
+                OkxAnnouncementAdapter(networkFactory.okHttpClient),
+                ProjectInfoAdapter(
+                    okxOnChainApi = networkFactory.okxOnChainApi,
+                    okxCredentialsProvider = { okxCredentialsRepository.getCredentials() }
+                )
+            )
+        )
+    )
+
     val aiChatRepository: AiChatRepository = DefaultAiChatRepository(
-        aiConfigRepository = aiConfigRepository
+        aiConfigRepository = aiConfigRepository,
+        analysisHost = analysisHost
     )
 
     val globalQuoteRefreshCoordinator = GlobalQuoteRefreshCoordinator(

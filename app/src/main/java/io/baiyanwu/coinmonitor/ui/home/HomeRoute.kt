@@ -79,6 +79,7 @@ private data class HomeQuickMenuState(
 @Composable
 fun HomeRoute(
     container: AppContainer,
+    contentTopInset: Dp = 0.dp,
     contentBottomInset: Dp = 0.dp,
     onNavigateSearch: () -> Unit,
     onNavigateOverlaySettings: () -> Unit,
@@ -112,6 +113,7 @@ fun HomeRoute(
 
     HomeScreen(
         state = state,
+        contentTopInset = contentTopInset,
         contentBottomInset = contentBottomInset,
         onNavigateSearch = onNavigateSearch,
         onNavigateOverlaySettings = onNavigateOverlaySettings,
@@ -127,6 +129,7 @@ fun HomeRoute(
 @Composable
 internal fun HomeScreen(
     state: HomeUiState,
+    contentTopInset: Dp,
     contentBottomInset: Dp,
     onNavigateSearch: () -> Unit,
     onNavigateOverlaySettings: () -> Unit,
@@ -150,7 +153,7 @@ internal fun HomeScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(colors.pageBackground)
-            .padding(bottom = contentBottomInset)
+            .padding(top = contentTopInset, bottom = contentBottomInset)
             .onSizeChanged { rootSize = it }
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
