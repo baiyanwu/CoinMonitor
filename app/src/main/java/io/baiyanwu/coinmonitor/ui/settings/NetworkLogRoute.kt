@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.PauseCircle
 import androidx.compose.material.icons.rounded.PlayCircle
@@ -31,7 +32,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -41,6 +45,7 @@ import io.baiyanwu.coinmonitor.domain.model.NetworkLogEntry
 import io.baiyanwu.coinmonitor.domain.model.NetworkLogProtocol
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorComponentDefaults
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
+import android.widget.Toast
 
 /**
  * 网络日志页路由入口。
@@ -242,6 +247,8 @@ private fun NetworkLogRow(
     entry: NetworkLogEntry,
     onClick: () -> Unit
 ) {
+    val clipboardManager = LocalClipboardManager.current
+    val context = LocalContext.current
     ElevatedCard(
         shape = RoundedCornerShape(16.dp),
         modifier = Modifier
@@ -253,15 +260,36 @@ private fun NetworkLogRow(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            Text(
-                text = if (entry.protocol == NetworkLogProtocol.HTTP) {
-                    stringResource(R.string.network_log_protocol_http)
-                } else {
-                    stringResource(R.string.network_log_protocol_wss)
-                },
-                style = MaterialTheme.typography.labelMedium,
-                color = CoinMonitorThemeTokens.colors.secondaryText
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = if (entry.protocol == NetworkLogProtocol.HTTP) {
+                        stringResource(R.string.network_log_protocol_http)
+                    } else {
+                        stringResource(R.string.network_log_protocol_wss)
+                    },
+                    style = MaterialTheme.typography.labelMedium,
+                    color = CoinMonitorThemeTokens.colors.secondaryText
+                )
+                IconButton(
+                    onClick = {
+                        clipboardManager.setText(AnnotatedString(entry.detail))
+                        Toast.makeText(
+                            context,
+                            context.getString(R.string.network_log_copied),
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.ContentCopy,
+                        contentDescription = stringResource(R.string.network_log_copy)
+                    )
+                }
+            }
             Text(
                 text = entry.detail,
                 style = MaterialTheme.typography.bodySmall

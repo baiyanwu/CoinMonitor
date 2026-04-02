@@ -6,6 +6,7 @@ import io.baiyanwu.coinmonitor.data.local.CoinMonitorDatabase
 import io.baiyanwu.coinmonitor.data.ai.AppAnalysisHost
 import io.baiyanwu.coinmonitor.data.ai.market.BinanceAnnouncementAdapter
 import io.baiyanwu.coinmonitor.data.ai.market.OkxAnnouncementAdapter
+import io.baiyanwu.coinmonitor.data.ai.OpenAiCompatibleStreamingClient
 import io.baiyanwu.coinmonitor.data.ai.market.ProjectInfoAdapter
 import io.baiyanwu.coinmonitor.data.network.NetworkFactory
 import io.baiyanwu.coinmonitor.data.refresh.GlobalQuoteRefreshCoordinator
@@ -35,6 +36,7 @@ import io.baiyanwu.coinmonitor.lib.agents.AnalysisService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import java.util.concurrent.TimeUnit
 
 class AppContainer(context: Context) {
     val appContext: Context = context.applicationContext
@@ -118,7 +120,15 @@ class AppContainer(context: Context) {
 
     val aiChatRepository: AiChatRepository = DefaultAiChatRepository(
         aiConfigRepository = aiConfigRepository,
-        analysisHost = analysisHost
+        analysisHost = analysisHost,
+        streamingClient = OpenAiCompatibleStreamingClient(
+            okHttpClient = networkFactory.okHttpClient.newBuilder()
+                .connectTimeout(20, TimeUnit.SECONDS)
+                .readTimeout(0, TimeUnit.SECONDS)
+                .writeTimeout(60, TimeUnit.SECONDS)
+                .callTimeout(0, TimeUnit.SECONDS)
+                .build()
+        )
     )
 
     val globalQuoteRefreshCoordinator = GlobalQuoteRefreshCoordinator(

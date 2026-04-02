@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -66,6 +67,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.baiyanwu.coinmonitor.data.AppContainer
+import io.baiyanwu.coinmonitor.ui.components.TopBarCircleActionButton
 import io.baiyanwu.coinmonitor.ui.components.WatchItemCard
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorComponentDefaults
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
@@ -157,18 +159,22 @@ internal fun HomeScreen(
             .onSizeChanged { rootSize = it }
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            Box(
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 4.dp)
             ) {
-                Text(
-                    text = stringResource(R.string.home_title),
-                    style = MaterialTheme.typography.headlineSmall
-                )
-                SearchEntryButton(onClick = onNavigateSearch)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(38.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = stringResource(R.string.home_title),
+                        style = MaterialTheme.typography.headlineSmall
+                    )
+                    SearchEntryButton(onClick = onNavigateSearch)
+                }
             }
 
             PullToRefreshBox(
@@ -496,20 +502,9 @@ private fun HomeQuickActionsOverlay(
 
 @Composable
 private fun SearchEntryButton(onClick: () -> Unit) {
-    val colors = CoinMonitorThemeTokens.colors
-    Surface(
-        onClick = onClick,
-        shape = CircleShape,
-        color = colors.fabContainer,
-        tonalElevation = 0.dp,
-        modifier = Modifier.size(40.dp)
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            Icon(
-                imageVector = Icons.Rounded.Add,
-                contentDescription = stringResource(R.string.home_open_search),
-                tint = colors.fabContent
-            )
-        }
-    }
+    TopBarCircleActionButton(
+        imageVector = Icons.Rounded.Add,
+        contentDescription = stringResource(R.string.home_open_search),
+        onClick = onClick
+    )
 }

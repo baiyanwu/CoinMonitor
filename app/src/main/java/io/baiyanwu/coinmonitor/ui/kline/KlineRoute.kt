@@ -51,6 +51,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -67,6 +68,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -77,6 +79,11 @@ import io.baiyanwu.coinmonitor.domain.model.AiChatRole
 import io.baiyanwu.coinmonitor.domain.model.KlineIndicator
 import io.baiyanwu.coinmonitor.domain.model.KlineInterval
 import io.baiyanwu.coinmonitor.domain.model.KlineSource
+import io.baiyanwu.coinmonitor.domain.model.WatchItem
+import io.baiyanwu.coinmonitor.overlay.QuoteFormatter
+import io.baiyanwu.coinmonitor.ui.components.TopBarCircleActionButton
+import io.baiyanwu.coinmonitor.ui.resolveChangeColor
+import io.baiyanwu.coinmonitor.ui.resolveLivePriceColor
 import io.baiyanwu.coinmonitor.ui.kline.chart.KlineChartHostView
 import io.baiyanwu.coinmonitor.ui.kline.chart.KlineChartRenderModel
 import io.baiyanwu.coinmonitor.ui.kline.chart.KlineChartStyleDefaults
@@ -137,33 +144,35 @@ private fun KlineScreen(
     var klineExpanded by rememberSaveable { mutableStateOf(true) }
     var pairMenuExpanded by remember { mutableStateOf(false) }
     var composerHeightPx by remember { mutableIntStateOf(0) }
+    var topOverlayHeightPx by remember { mutableIntStateOf(0) }
+    var stableTopOverlayHeightPx by rememberSaveable { mutableIntStateOf(0) }
     val density = LocalDensity.current
     val composerHeight = with(density) { composerHeightPx.toDp() }
     val imeBottomInset = with(density) { WindowInsets.ime.getBottom(this).toDp() }
     val bottomDockInset = if (imeBottomInset > contentBottomInset) imeBottomInset else contentBottomInset
-    val topInset = if (klineExpanded) {
-        contentTopInset + KLINE_HEADER_HEIGHT + (LocalConfiguration.current.screenHeightDp.dp * 0.30f) + 56.dp
-    } else {
-        contentTopInset + KLINE_HEADER_HEIGHT + 18.dp
+    val stableTopInset = with(density) { stableTopOverlayHeightPx.toDp() }
+
+    /**
+     * 顶部悬浮层展开时记住最大高度，聊天列表始终按稳定高度留白，
+     * 避免收起/展开 K 线时把中间消息区整体顶着滚动。
+     */
+    LaunchedEffect(klineExpanded, topOverlayHeightPx) {
+        if (klineExpanded && topOverlayHeightPx > 0) {
+            stableTopOverlayHeightPx = maxOf(stableTopOverlayHeightPx, topOverlayHeightPx)
+        } else if (stableTopOverlayHeightPx == 0 && topOverlayHeightPx > 0) {
+            stableTopOverlayHeightPx = topOverlayHeightPx
+        }
     }
 
     Box(
         modifier = Modifier.fillMaxSize(),
     ) {
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .fillMaxWidth()
-                .height(contentTopInset)
-                .background(colors.pageBackground.copy(alpha = 0.97f))
-        )
-
         KlineAiChatMessages(
             state = state,
             modifier = Modifier
                 .fillMaxSize()
                 .background(colors.pageBackground),
-            topInset = topInset,
+            topInset = stableTopInset,
             bottomInset = composerHeight + bottomDockInset
         )
 
@@ -172,6 +181,7 @@ private fun KlineScreen(
             expanded = klineExpanded,
             pairMenuExpanded = pairMenuExpanded,
             chartHostView = chartHostView,
+            contentTopInset = contentTopInset,
             onExpandedChange = { klineExpanded = it },
             onPairMenuExpandedChange = { pairMenuExpanded = it },
             onSelectItem = onSelectItem,
@@ -183,7 +193,9 @@ private fun KlineScreen(
             onRetry = onRetry,
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .padding(top = contentTopInset)
+                .onGloballyPositioned { coordinates ->
+                    topOverlayHeightPx = coordinates.size.height
+                }
         )
 
         Box(
@@ -209,6 +221,7 @@ private fun KlineTopOverlay(
     expanded: Boolean,
     pairMenuExpanded: Boolean,
     chartHostView: KlineChartHostView,
+    contentTopInset: androidx.compose.ui.unit.Dp,
     onExpandedChange: (Boolean) -> Unit,
     onPairMenuExpandedChange: (Boolean) -> Unit,
     onSelectItem: (String) -> Unit,
@@ -226,17 +239,18 @@ private fun KlineTopOverlay(
 
     Surface(
         modifier = modifier.fillMaxWidth(),
-        color = colors.pageBackground.copy(alpha = 0.97f),
+        color = colors.pageBackground,
         shadowElevation = 0.dp,
         shape = androidx.compose.foundation.shape.RoundedCornerShape(bottomStart = 22.dp, bottomEnd = 22.dp)
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = contentTopInset)
         ) {
-            Box(modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp)) {
+            Box(modifier = Modifier.padding(horizontal = 14.dp, vertical = 4.dp)) {
                 KlineOverlayHeader(
-                    selectedSymbol = state.selectedItem?.symbol.orEmpty(),
+                    selectedItem = state.selectedItem,
                     sourceTitle = state.selectedSource?.title.orEmpty(),
                     expanded = expanded,
                     pairMenuExpanded = pairMenuExpanded,
@@ -264,7 +278,9 @@ private fun KlineTopOverlay(
                 ) + fadeOut()
             ) {
                 Column(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Box(modifier = Modifier.padding(horizontal = 12.dp)) {
@@ -296,7 +312,7 @@ private fun KlineTopOverlay(
 
 @Composable
 private fun KlineOverlayHeader(
-    selectedSymbol: String,
+    selectedItem: WatchItem?,
     sourceTitle: String,
     expanded: Boolean,
     pairMenuExpanded: Boolean,
@@ -308,8 +324,8 @@ private fun KlineOverlayHeader(
 ) {
     val colors = CoinMonitorThemeTokens.colors
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
+    Row(
+        modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -322,29 +338,13 @@ private fun KlineOverlayHeader(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(KLINE_HEADER_HEIGHT)
-                    .padding(horizontal = 1.dp),
-                horizontalArrangement = Arrangement.spacedBy(1.dp),
+                    .padding(horizontal = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Surface(
-                    onClick = onOpenSearch,
-                    shape = CircleShape,
-                    color = Color.Transparent,
-                    modifier = Modifier.size(28.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = Icons.Rounded.Search,
-                            contentDescription = stringResource(R.string.open_search),
-                            tint = colors.fabContent,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
-
                 CompactPairSelector(
                     modifier = Modifier.weight(1f),
-                    value = selectedSymbol,
+                    item = selectedItem,
                     badge = sourceTitle,
                     expanded = pairMenuExpanded,
                     onExpandedChange = onPairMenuExpandedChange
@@ -364,24 +364,30 @@ private fun KlineOverlayHeader(
                         )
                     }
                 }
+
+                Surface(
+                    onClick = onOpenSearch,
+                    shape = CircleShape,
+                    color = Color.Transparent,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Rounded.Search,
+                            contentDescription = stringResource(R.string.open_search),
+                            tint = colors.fabContent,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
             }
         }
 
-        Surface(
-            onClick = { onExpandedChange(!expanded) },
-            shape = CircleShape,
-            color = colors.fabContainer,
-            modifier = Modifier.size(28.dp)
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    imageVector = if (expanded) Icons.Rounded.KeyboardArrowUp else Icons.Rounded.KeyboardArrowDown,
-                    contentDescription = if (expanded) stringResource(R.string.common_close) else stringResource(R.string.kline_chat),
-                    tint = colors.fabContent,
-                    modifier = Modifier.size(16.dp)
-                )
-            }
-        }
+        TopBarCircleActionButton(
+            imageVector = if (expanded) Icons.Rounded.KeyboardArrowUp else Icons.Rounded.KeyboardArrowDown,
+            contentDescription = if (expanded) stringResource(R.string.common_close) else stringResource(R.string.kline_chat),
+            onClick = { onExpandedChange(!expanded) }
+        )
     }
 }
 
@@ -476,33 +482,57 @@ private fun KlineChartSection(
 @Composable
 private fun CompactPairSelector(
     modifier: Modifier = Modifier,
-    value: String,
+    item: WatchItem?,
     badge: String,
     expanded: Boolean,
     onExpandedChange: (Boolean) -> Unit,
     content: @Composable () -> Unit
 ) {
     val colors = CoinMonitorThemeTokens.colors
+    val symbol = item?.symbol.orEmpty().ifBlank { "--" }
+    val priceText = QuoteFormatter.formatPrice(item?.lastPrice)
+    val changeText = QuoteFormatter.formatChange(item?.change24hPercent)
+    val priceColor = item?.resolveLivePriceColor(colors, colors.fabContent) ?: colors.fabContent
+    val changeColor = item?.resolveChangeColor(colors, colors.secondaryText) ?: colors.secondaryText
     Box(modifier = modifier) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(22.dp)
+                .height(24.dp)
                 .clickable { onExpandedChange(true) }
                 .padding(horizontal = 0.dp),
-            horizontalArrangement = Arrangement.spacedBy(3.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = value.ifBlank { "--" },
-                color = colors.fabContent,
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f, fill = false)
-            )
-            SourceMiniTag(sourceTitle = badge)
+            Row(
+                modifier = Modifier.weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = symbol,
+                    color = colors.fabContent,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                SourceMiniTag(sourceTitle = badge)
+                Text(
+                    text = priceText,
+                    color = priceColor,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1
+                )
+                Text(
+                    text = changeText,
+                    color = changeColor,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1
+                )
+            }
         }
         DropdownMenu(
             expanded = expanded,
@@ -536,12 +566,12 @@ private fun SourceMiniTag(sourceTitle: String) {
     val colors = CoinMonitorThemeTokens.colors
     Surface(
         shape = androidx.compose.foundation.shape.RoundedCornerShape(999.dp),
-        color = colors.fabContent.copy(alpha = 0.12f)
+        color = colors.accent.copy(alpha = 0.16f)
     ) {
         Text(
             text = sourceTitle.uppercase(),
-            modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
-            color = colors.fabContent.copy(alpha = 0.88f),
+            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
+            color = colors.accent,
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.SemiBold
         )
@@ -645,7 +675,7 @@ private fun CompactIndicatorRow(
                 Icon(
                     imageVector = Icons.Rounded.Tune,
                     contentDescription = stringResource(R.string.kline_indicator_settings_title),
-                    tint = CoinMonitorThemeTokens.colors.secondaryText,
+                    tint = CoinMonitorThemeTokens.colors.primaryText,
                     modifier = Modifier.size(14.dp)
                 )
             }
@@ -665,7 +695,7 @@ private fun CompactTextToggle(
         modifier = Modifier
             .clickable(onClick = onClick)
             .padding(vertical = 0.dp),
-        color = if (selected) colors.chipSelectedContainer else colors.secondaryText,
+        color = if (selected) colors.accent else colors.primaryText,
         style = MaterialTheme.typography.labelSmall,
         fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
     )
@@ -684,8 +714,8 @@ private fun KlineAiChatMessages(
             .background(colors.pageBackground)
             .padding(horizontal = 14.dp),
         contentPadding = PaddingValues(
-            top = topInset + 10.dp,
-            bottom = bottomInset + 10.dp
+            top = topInset + 6.dp,
+            bottom = bottomInset + 4.dp
         ),
         reverseLayout = true,
         verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -757,13 +787,14 @@ private fun KlineChatComposerBar(
     }
     val resolvedOptions = selectedOptions.map(AiAnalysisOption::valueOf).toSet()
     val colors = CoinMonitorThemeTokens.colors
+    val inputTextStyle = MaterialTheme.typography.bodyMedium.copy(lineHeight = 18.sp)
 
     Column(
         modifier = modifier
             .fillMaxWidth()
             .background(colors.pageBackground)
-            .padding(start = 14.dp, top = 8.dp, end = 14.dp, bottom = 10.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
+            .padding(start = 14.dp, top = 4.dp, end = 14.dp, bottom = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
         Row(
             modifier = Modifier
@@ -795,10 +826,19 @@ private fun KlineChatComposerBar(
         OutlinedTextField(
             value = input,
             onValueChange = { input = it },
-            modifier = Modifier.fillMaxWidth(),
-            label = { Text(stringResource(R.string.kline_chat_hint)) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 32.dp),
+            placeholder = {
+                Text(
+                    text = stringResource(R.string.kline_chat_hint),
+                    style = inputTextStyle
+                )
+            },
+            textStyle = inputTextStyle,
             singleLine = false,
-            maxLines = 4,
+            minLines = 1,
+            maxLines = 3,
             keyboardActions = KeyboardActions(
                 onSend = {
                     if (!state.isAiSending && input.isNotBlank() && state.aiReady && resolvedOptions.isNotEmpty()) {
@@ -813,25 +853,28 @@ private fun KlineChatComposerBar(
                     IconButton(onClick = onStopGeneration) {
                         Icon(
                             imageVector = Icons.Rounded.StopCircle,
-                            contentDescription = "停止",
+                            contentDescription = stringResource(R.string.kline_chat_stop),
                             tint = colors.secondaryText
                         )
                     }
                 } else {
+                    val sendEnabled = input.isNotBlank() && state.aiReady && resolvedOptions.isNotEmpty()
                     IconButton(
                         onClick = {
                             onSendMessage(input, resolvedOptions)
                             input = ""
                         },
-                        enabled = input.isNotBlank() && state.aiReady && resolvedOptions.isNotEmpty()
+                        enabled = sendEnabled
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Rounded.Send,
-                            contentDescription = stringResource(R.string.kline_chat_send)
+                            contentDescription = stringResource(R.string.kline_chat_send),
+                            tint = if (sendEnabled) colors.accent else colors.secondaryText
                         )
                     }
                 }
-            }
+            },
+            shape = RoundedCornerShape(16.dp)
         )
         if (state.isAiSending) {
             Text(

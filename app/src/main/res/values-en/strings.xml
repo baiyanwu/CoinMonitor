@@ -80,6 +80,8 @@
     <string name="network_log_empty">No logs yet. Tap the start action in the top right and try again.</string>
     <string name="network_log_protocol_http">HTTP Logs</string>
     <string name="network_log_protocol_wss">WSS Logs</string>
+    <string name="network_log_copy">Copy log</string>
+    <string name="network_log_copied">Log content copied</string>
 
     <string name="third_party_api_settings_title">Third-party API Settings</string>
     <string name="third_party_api_settings_section_okx">OKX Onchain</string>
@@ -116,8 +118,9 @@
     <string name="kline_sub_indicator_hint">Sub indicators are shown in the lower panel.</string>
     <string name="kline_chat">AI Analysis</string>
     <string name="kline_chat_button_short">AI</string>
-    <string name="kline_chat_hint">Ask something like: How does this structure look on this timeframe?</string>
+    <string name="kline_chat_hint">Ask a question</string>
     <string name="kline_chat_send">Send</string>
+    <string name="kline_chat_stop">Stop</string>
     <string name="kline_ai_not_ready">Configure AI access in Settings first.</string>
     <string name="kline_ai_thinking">AI is analyzing…</string>
     <string name="kline_ai_analysis_sources">Analysis Sources</string>

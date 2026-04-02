@@ -81,6 +81,8 @@
     <string name="network_log_empty">暂无日志，点击右上角开始按钮后再试。</string>
     <string name="network_log_protocol_http">HTTP 日志</string>
     <string name="network_log_protocol_wss">WSS 日志</string>
+    <string name="network_log_copy">复制日志</string>
+    <string name="network_log_copied">已复制日志内容</string>
 
     <string name="third_party_api_settings_title">第三方 API 设置</string>
     <string name="third_party_api_settings_section_okx">OKX Onchain</string>
@@ -117,8 +119,9 @@
     <string name="kline_sub_indicator_hint">副图指标会显示在下方独立面板中。</string>
     <string name="kline_chat">AI 分析</string>
     <string name="kline_chat_button_short">AI</string>
-    <string name="kline_chat_hint">输入你想问的问题，例如“这个周期结构怎么看？”</string>
+    <string name="kline_chat_hint">输入问题</string>
     <string name="kline_chat_send">发送</string>
+    <string name="kline_chat_stop">停止</string>
     <string name="kline_ai_not_ready">请先在设置页完成 AI 配置</string>
     <string name="kline_ai_thinking">AI 正在分析…</string>
     <string name="kline_ai_analysis_sources">分析来源</string>
