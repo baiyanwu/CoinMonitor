@@ -3,16 +3,23 @@ package io.baiyanwu.coinmonitor.data.repository
 import io.baiyanwu.coinmonitor.data.ai.OpenAiCompatibleAiClient
 import io.baiyanwu.coinmonitor.data.ai.AppAnalysisHost
 import io.baiyanwu.coinmonitor.data.ai.OpenAiCompatibleStreamingClient
+import io.baiyanwu.coinmonitor.data.local.dao.AiChatDao
+import io.baiyanwu.coinmonitor.data.local.toDomain
+import io.baiyanwu.coinmonitor.data.local.toEntity
 import io.baiyanwu.coinmonitor.domain.model.AiAnalysisOption
 import io.baiyanwu.coinmonitor.domain.model.AiChatMessage
 import io.baiyanwu.coinmonitor.domain.model.AiChatRole
+import io.baiyanwu.coinmonitor.domain.model.AiChatSession
+import io.baiyanwu.coinmonitor.domain.model.AiChatSessionSummary
 import io.baiyanwu.coinmonitor.domain.model.CandleEntry
 import io.baiyanwu.coinmonitor.domain.model.KlineIndicator
 import io.baiyanwu.coinmonitor.domain.model.KlineIndicatorSettings
 import io.baiyanwu.coinmonitor.domain.model.KlineInterval
+import io.baiyanwu.coinmonitor.domain.model.KlineSource
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
 import io.baiyanwu.coinmonitor.domain.repository.AiChatRepository
 import io.baiyanwu.coinmonitor.domain.repository.AiConfigRepository
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.emitAll
@@ -23,8 +30,72 @@ import kotlinx.serialization.json.put
 class DefaultAiChatRepository(
     private val aiConfigRepository: AiConfigRepository,
     private val analysisHost: AppAnalysisHost = AppAnalysisHost(),
+    private val aiChatDao: AiChatDao,
     private val streamingClient: OpenAiCompatibleAiClient = OpenAiCompatibleStreamingClient()
 ) : AiChatRepository {
+    override fun observeSessionSummaries(): Flow<List<AiChatSessionSummary>> {
+        return aiChatDao.observeSessionSummaries().map { rows ->
+            rows.map { row -> row.toDomain() }
+        }
+    }
+
+    override fun observeMessages(sessionId: String): Flow<List<AiChatMessage>> {
+        return aiChatDao.observeMessages(sessionId).map { entities ->
+            entities.map { entity -> entity.toDomain() }
+        }
+    }
+
+    override suspend fun getSession(sessionId: String): AiChatSession? {
+        return aiChatDao.getSessionById(sessionId)?.toDomain()
+    }
+
+    override suspend fun getLatestSession(): AiChatSession? {
+        return aiChatDao.getLatestSession()?.toDomain()
+    }
+
+    override suspend fun createSession(item: WatchItem?): AiChatSession {
+        val now = System.currentTimeMillis()
+        val session = AiChatSession(
+            itemId = item?.id,
+            symbol = item?.symbol,
+            sourceTitle = item?.let { resolveSourceTitle(it) },
+            createdAt = now,
+            updatedAt = now
+        )
+        aiChatDao.insertSession(session.toEntity())
+        return session
+    }
+
+    override suspend fun updateSessionContext(sessionId: String, item: WatchItem?) {
+        val current = aiChatDao.getSessionById(sessionId) ?: return
+        aiChatDao.updateSessionSnapshot(
+            sessionId = sessionId,
+            title = current.title,
+            itemId = item?.id,
+            symbol = item?.symbol,
+            sourceTitle = item?.let { resolveSourceTitle(it) },
+            updatedAt = System.currentTimeMillis()
+        )
+    }
+
+    override suspend fun appendMessage(sessionId: String, message: AiChatMessage) {
+        val normalized = message.copy(sessionId = sessionId)
+        aiChatDao.insertMessage(normalized.toEntity())
+        val current = aiChatDao.getSessionById(sessionId) ?: return
+        aiChatDao.updateSessionSnapshot(
+            sessionId = sessionId,
+            title = resolveSessionTitle(current.title, normalized),
+            itemId = current.itemId,
+            symbol = current.symbol,
+            sourceTitle = current.sourceTitle,
+            updatedAt = normalized.timestampMillis
+        )
+    }
+
+    override suspend fun updateMessageContent(messageId: String, content: String) {
+        aiChatDao.updateMessageContent(messageId, content)
+    }
+
     override fun streamMessage(
         item: WatchItem,
         interval: KlineInterval,
@@ -96,6 +167,19 @@ class DefaultAiChatRepository(
                 payload = requestJson
             )
         )
+    }
+
+    private fun resolveSessionTitle(currentTitle: String?, message: AiChatMessage): String? {
+        if (!currentTitle.isNullOrBlank()) return currentTitle
+        if (message.role != AiChatRole.USER) return currentTitle
+        return message.content.trim()
+            .replace('\n', ' ')
+            .take(24)
+            .ifBlank { null }
+    }
+
+    private fun resolveSourceTitle(item: WatchItem): String {
+        return KlineSource.fromWatchItem(item).title
     }
 
     private fun buildSystemPrompt(

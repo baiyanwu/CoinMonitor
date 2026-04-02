@@ -72,6 +72,7 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 - 当前 K 线页通过在 `NavHost` 级别复用 `KlineChartHostView`，避免底部 tab 切换时整块 chart 被销毁重建
 - 夜间模式下的 WebView 首帧白底和 pane 分隔白线，当前收口在 vendored wrapper 的加载页与 JS 初始化层做透明背景修正
 - 为了隔离 K 线问题，K 线页外层仍暂时移除了下拉刷新和纵向滚动，避免额外手势干扰；周期切换已经恢复为真实生效
+- AI 聊天当前已经切到“会话 + 消息”两层持久化模型，K 线页支持新建会话，并通过独立历史页回看和切换旧会话
 
 ### On-chain
 

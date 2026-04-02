@@ -51,6 +51,7 @@ fun CoinMonitorNavHost(
     container: AppContainer,
     onOpenSearch: () -> Unit,
     onOpenKlineSearch: () -> Unit,
+    onOpenKlineHistory: () -> Unit,
     onOpenKlineIndicatorSettings: () -> Unit,
     onOpenOverlaySettings: () -> Unit,
     onOpenThirdPartyApiSettings: () -> Unit,
@@ -138,6 +139,7 @@ fun CoinMonitorNavHost(
                     contentTopInset = innerPadding.calculateTopPadding(),
                     contentBottomInset = innerPadding.calculateBottomPadding(),
                     onOpenSearch = onOpenKlineSearch,
+                    onOpenHistory = onOpenKlineHistory,
                     onOpenIndicatorSettings = onOpenKlineIndicatorSettings
                 )
             }

@@ -37,6 +37,11 @@
             android:screenOrientation="portrait" />
 
         <activity
+            android:name="io.baiyanwu.coinmonitor.ui.kline.AiChatHistoryActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
+        <activity
             android:name="io.baiyanwu.coinmonitor.ui.kline.KlineIndicatorSettingsActivity"
             android:exported="false"
             android:screenOrientation="portrait" />

@@ -121,6 +121,10 @@
     <string name="kline_chat_hint">Ask a question</string>
     <string name="kline_chat_send">Send</string>
     <string name="kline_chat_stop">Stop</string>
+    <string name="kline_chat_history">Chat History</string>
+    <string name="kline_chat_new_session">New Chat</string>
+    <string name="kline_chat_history_empty">No chat history yet</string>
+    <string name="kline_chat_history_empty_message">No messages yet</string>
     <string name="kline_ai_not_ready">Configure AI access in Settings first.</string>
     <string name="kline_ai_thinking">AI is analyzing…</string>
     <string name="kline_ai_analysis_sources">Analysis Sources</string>

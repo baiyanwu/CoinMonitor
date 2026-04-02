@@ -32,6 +32,8 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Send
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material.icons.rounded.Search
@@ -103,6 +105,7 @@ fun KlineRoute(
     contentTopInset: androidx.compose.ui.unit.Dp = 0.dp,
     contentBottomInset: androidx.compose.ui.unit.Dp = 0.dp,
     onOpenSearch: () -> Unit,
+    onOpenHistory: () -> Unit,
     onOpenIndicatorSettings: () -> Unit
 ) {
     val viewModel: KlineViewModel = viewModel(factory = KlineViewModel.factory(container))
@@ -120,7 +123,9 @@ fun KlineRoute(
         contentBottomInset = contentBottomInset,
         onRetry = viewModel::retry,
         onSendMessage = viewModel::sendMessage,
-        onStopGeneration = viewModel::stopAiGeneration
+        onStopGeneration = viewModel::stopAiGeneration,
+        onOpenHistory = onOpenHistory,
+        onCreateNewSession = viewModel::createNewSession
     )
 }
 
@@ -138,7 +143,9 @@ private fun KlineScreen(
     contentBottomInset: androidx.compose.ui.unit.Dp,
     onRetry: () -> Unit,
     onSendMessage: (String, Set<AiAnalysisOption>) -> Unit,
-    onStopGeneration: () -> Unit
+    onStopGeneration: () -> Unit,
+    onOpenHistory: () -> Unit,
+    onCreateNewSession: () -> Unit
 ) {
     val colors = CoinMonitorThemeTokens.colors
     var klineExpanded by rememberSaveable { mutableStateOf(true) }
@@ -207,6 +214,8 @@ private fun KlineScreen(
                 state = state,
                 onSendMessage = onSendMessage,
                 onStopGeneration = onStopGeneration,
+                onOpenHistory = onOpenHistory,
+                onCreateNewSession = onCreateNewSession,
                 modifier = Modifier.onGloballyPositioned { coordinates ->
                     composerHeightPx = coordinates.size.height
                 }
@@ -779,6 +788,8 @@ private fun KlineChatComposerBar(
     state: KlineUiState,
     onSendMessage: (String, Set<AiAnalysisOption>) -> Unit,
     onStopGeneration: () -> Unit,
+    onOpenHistory: () -> Unit,
+    onCreateNewSession: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var input by rememberSaveable { mutableStateOf("") }
@@ -823,59 +834,83 @@ private fun KlineChatComposerBar(
                 color = MaterialTheme.colorScheme.error
             )
         }
-        OutlinedTextField(
-            value = input,
-            onValueChange = { input = it },
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 32.dp),
-            placeholder = {
-                Text(
-                    text = stringResource(R.string.kline_chat_hint),
-                    style = inputTextStyle
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(
+                onClick = onOpenHistory,
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.History,
+                    contentDescription = stringResource(R.string.kline_chat_history)
                 )
-            },
-            textStyle = inputTextStyle,
-            singleLine = false,
-            minLines = 1,
-            maxLines = 3,
-            keyboardActions = KeyboardActions(
-                onSend = {
-                    if (!state.isAiSending && input.isNotBlank() && state.aiReady && resolvedOptions.isNotEmpty()) {
-                        onSendMessage(input, resolvedOptions)
-                        input = ""
-                    }
-                }
-            ),
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-            trailingIcon = {
-                if (state.isAiSending) {
-                    IconButton(onClick = onStopGeneration) {
-                        Icon(
-                            imageVector = Icons.Rounded.StopCircle,
-                            contentDescription = stringResource(R.string.kline_chat_stop),
-                            tint = colors.secondaryText
-                        )
-                    }
-                } else {
-                    val sendEnabled = input.isNotBlank() && state.aiReady && resolvedOptions.isNotEmpty()
-                    IconButton(
-                        onClick = {
+            }
+            IconButton(
+                onClick = onCreateNewSession,
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Add,
+                    contentDescription = stringResource(R.string.kline_chat_new_session)
+                )
+            }
+            OutlinedTextField(
+                value = input,
+                onValueChange = { input = it },
+                modifier = Modifier
+                    .weight(1f)
+                    .heightIn(min = 36.dp),
+                placeholder = {
+                    Text(
+                        text = stringResource(R.string.kline_chat_hint),
+                        style = inputTextStyle
+                    )
+                },
+                textStyle = inputTextStyle,
+                singleLine = false,
+                minLines = 1,
+                maxLines = 3,
+                keyboardActions = KeyboardActions(
+                    onSend = {
+                        if (!state.isAiSending && input.isNotBlank() && state.aiReady && resolvedOptions.isNotEmpty()) {
                             onSendMessage(input, resolvedOptions)
                             input = ""
-                        },
-                        enabled = sendEnabled
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.Send,
-                            contentDescription = stringResource(R.string.kline_chat_send),
-                            tint = if (sendEnabled) colors.accent else colors.secondaryText
-                        )
+                        }
                     }
-                }
-            },
-            shape = RoundedCornerShape(16.dp)
-        )
+                ),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                trailingIcon = {
+                    if (state.isAiSending) {
+                        IconButton(onClick = onStopGeneration) {
+                            Icon(
+                                imageVector = Icons.Rounded.StopCircle,
+                                contentDescription = stringResource(R.string.kline_chat_stop),
+                                tint = colors.secondaryText
+                            )
+                        }
+                    } else {
+                        val sendEnabled = input.isNotBlank() && state.aiReady && resolvedOptions.isNotEmpty()
+                        IconButton(
+                            onClick = {
+                                onSendMessage(input, resolvedOptions)
+                                input = ""
+                            },
+                            enabled = sendEnabled
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Rounded.Send,
+                                contentDescription = stringResource(R.string.kline_chat_send),
+                                tint = if (sendEnabled) colors.accent else colors.secondaryText
+                            )
+                        }
+                    }
+                },
+                shape = RoundedCornerShape(16.dp)
+            )
+        }
         if (state.isAiSending) {
             Text(
                 text = stringResource(R.string.kline_ai_thinking),

@@ -8,8 +8,8 @@ import io.baiyanwu.coinmonitor.data.ai.market.BinanceAnnouncementAdapter
 import io.baiyanwu.coinmonitor.data.ai.market.OkxAnnouncementAdapter
 import io.baiyanwu.coinmonitor.data.ai.OpenAiCompatibleStreamingClient
 import io.baiyanwu.coinmonitor.data.ai.market.ProjectInfoAdapter
-import io.baiyanwu.coinmonitor.data.network.NetworkFactory
 import io.baiyanwu.coinmonitor.data.refresh.GlobalQuoteRefreshCoordinator
+import io.baiyanwu.coinmonitor.data.network.NetworkFactory
 import io.baiyanwu.coinmonitor.data.repository.DefaultAiChatRepository
 import io.baiyanwu.coinmonitor.data.repository.DefaultAiConfigRepository
 import io.baiyanwu.coinmonitor.data.repository.DefaultAppPreferencesRepository
@@ -42,6 +42,7 @@ class AppContainer(context: Context) {
     val appContext: Context = context.applicationContext
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     val klineSelectionStore = KlineSelectionStore()
+    val aiChatSessionSelectionStore = AiChatSessionSelectionStore()
 
     private val database = Room.databaseBuilder(
         appContext,
@@ -49,7 +50,8 @@ class AppContainer(context: Context) {
         "coin_monitor.db"
     ).addMigrations(
         CoinMonitorDatabase.MIGRATION_4_5,
-        CoinMonitorDatabase.MIGRATION_5_6
+        CoinMonitorDatabase.MIGRATION_5_6,
+        CoinMonitorDatabase.MIGRATION_6_7
     ).build()
 
     val networkLogRepository: NetworkLogRepository = DefaultNetworkLogRepository()
@@ -121,6 +123,7 @@ class AppContainer(context: Context) {
     val aiChatRepository: AiChatRepository = DefaultAiChatRepository(
         aiConfigRepository = aiConfigRepository,
         analysisHost = analysisHost,
+        aiChatDao = database.aiChatDao(),
         streamingClient = OpenAiCompatibleStreamingClient(
             okHttpClient = networkFactory.okHttpClient.newBuilder()
                 .connectTimeout(20, TimeUnit.SECONDS)

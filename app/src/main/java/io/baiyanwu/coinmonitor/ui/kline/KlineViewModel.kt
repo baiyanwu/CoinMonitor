@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import io.baiyanwu.coinmonitor.data.AppContainer
+import io.baiyanwu.coinmonitor.data.AiChatSessionSelectionStore
 import io.baiyanwu.coinmonitor.data.KlineSelectionStore
 import io.baiyanwu.coinmonitor.domain.model.AiAnalysisOption
 import io.baiyanwu.coinmonitor.domain.model.AiChatMessage
@@ -33,6 +34,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.Job
@@ -43,6 +46,7 @@ import kotlinx.coroutines.launch
  * K 线页状态。
  */
 data class KlineUiState(
+    val currentSessionId: String? = null,
     val availableItems: List<WatchItem> = emptyList(),
     val filteredItems: List<WatchItem> = emptyList(),
     val availableSources: List<KlineSource> = emptyList(),
@@ -76,7 +80,8 @@ class KlineViewModel(
     private val aiConfigRepository: AiConfigRepository,
     private val aiChatRepository: AiChatRepository,
     private val okxCredentialsRepository: OkxCredentialsRepository,
-    private val selectionStore: KlineSelectionStore
+    private val selectionStore: KlineSelectionStore,
+    private val aiChatSessionSelectionStore: AiChatSessionSelectionStore
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(KlineUiState())
     val uiState: StateFlow<KlineUiState> = _uiState.asStateFlow()
@@ -84,11 +89,34 @@ class KlineViewModel(
     private val sourcePreference = MutableStateFlow<KlineSource?>(null)
     private val intervalPreference = MutableStateFlow(KlineInterval.ONE_HOUR)
     private val chatMessages = MutableStateFlow<List<AiChatMessage>>(emptyList())
+    private val currentSessionId = MutableStateFlow<String?>(null)
     private val aiSending = MutableStateFlow(false)
     private var lastLoadedRequestKey: CandleRequestKey? = null
     private var aiStreamJob: Job? = null
 
     init {
+        viewModelScope.launch {
+            val initialSession = aiChatRepository.getLatestSession()
+                ?: aiChatRepository.createSession(item = null)
+            currentSessionId.value = initialSession.id
+            _uiState.update { it.copy(currentSessionId = initialSession.id) }
+        }
+        viewModelScope.launch {
+            currentSessionId
+                .filterNotNull()
+                .flatMapLatest { sessionId -> aiChatRepository.observeMessages(sessionId) }
+                .collectLatest { messages ->
+                    chatMessages.value = messages
+                }
+        }
+        viewModelScope.launch {
+            aiChatSessionSelectionStore.selectedSessionId
+                .filterNotNull()
+                .collectLatest { sessionId ->
+                    switchSession(sessionId)
+                    aiChatSessionSelectionStore.clear()
+                }
+        }
         viewModelScope.launch {
             combine(
                 watchlistRepository.observeWatchlist(),
@@ -231,21 +259,26 @@ class KlineViewModel(
         aiStreamJob?.cancel()
         val state = _uiState.value
         val item = state.selectedItem ?: return
+        val sessionId = state.currentSessionId ?: return
         if (!state.aiReady) {
             _uiState.update { it.copy(errorMessage = "请先在设置页完成 AI 配置") }
             return
         }
         val updatedMessages = chatMessages.value + AiChatMessage(
+            sessionId = sessionId,
             role = AiChatRole.USER,
             content = content
         )
         val placeholderMessage = AiChatMessage(
+            sessionId = sessionId,
             role = AiChatRole.ASSISTANT,
             content = ""
         )
         chatMessages.value = updatedMessages + placeholderMessage
         aiSending.value = true
         aiStreamJob = viewModelScope.launch {
+            aiChatRepository.appendMessage(sessionId, updatedMessages.last())
+            aiChatRepository.appendMessage(sessionId, placeholderMessage)
             runCatching {
                 var hasStreamedContent = false
                 aiChatRepository.streamMessage(
@@ -297,6 +330,28 @@ class KlineViewModel(
         aiStreamJob?.cancel()
     }
 
+    fun createNewSession() {
+        viewModelScope.launch {
+            if (aiSending.value) {
+                aiStreamJob?.cancel()
+                aiSending.value = false
+            }
+            val session = aiChatRepository.createSession(_uiState.value.selectedItem)
+            currentSessionId.value = session.id
+            _uiState.update { it.copy(currentSessionId = session.id) }
+            chatMessages.value = emptyList()
+        }
+    }
+
+    private suspend fun switchSession(sessionId: String) {
+        if (aiSending.value) {
+            aiStreamJob?.cancel()
+            aiSending.value = false
+        }
+        currentSessionId.value = sessionId
+        _uiState.update { it.copy(currentSessionId = sessionId) }
+    }
+
     private fun appendAssistantDelta(
         messageId: String,
         delta: String
@@ -309,6 +364,10 @@ class KlineViewModel(
                     message
                 }
             }
+        }
+        val updatedContent = currentAssistantContent(messageId)
+        viewModelScope.launch {
+            aiChatRepository.updateMessageContent(messageId, updatedContent)
         }
     }
 
@@ -324,6 +383,9 @@ class KlineViewModel(
                     message
                 }
             }
+        }
+        viewModelScope.launch {
+            aiChatRepository.updateMessageContent(messageId, content)
         }
     }
 
@@ -366,6 +428,7 @@ class KlineViewModel(
 
         _uiState.update {
             it.copy(
+                currentSessionId = currentSessionId.value,
                 availableItems = snapshot.items,
                 filteredItems = filteredItems,
                 availableSources = availableSources,
@@ -393,6 +456,13 @@ class KlineViewModel(
                 )
             }
             return
+        }
+
+        currentSessionId.value?.let { sessionId ->
+            aiChatRepository.updateSessionContext(
+                sessionId = sessionId,
+                item = selectedItem
+            )
         }
 
         if (selectedItem.marketType == MarketType.ONCHAIN_TOKEN && !snapshot.hasOkxCredentials) {
@@ -472,7 +542,8 @@ class KlineViewModel(
                     aiConfigRepository = container.aiConfigRepository,
                     aiChatRepository = container.aiChatRepository,
                     okxCredentialsRepository = container.okxCredentialsRepository,
-                    selectionStore = container.klineSelectionStore
+                    selectionStore = container.klineSelectionStore,
+                    aiChatSessionSelectionStore = container.aiChatSessionSelectionStore
                 )
             }
         }

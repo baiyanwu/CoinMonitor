@@ -122,6 +122,10 @@
     <string name="kline_chat_hint">输入问题</string>
     <string name="kline_chat_send">发送</string>
     <string name="kline_chat_stop">停止</string>
+    <string name="kline_chat_history">历史会话</string>
+    <string name="kline_chat_new_session">新会话</string>
+    <string name="kline_chat_history_empty">还没有会话历史</string>
+    <string name="kline_chat_history_empty_message">暂无消息</string>
     <string name="kline_ai_not_ready">请先在设置页完成 AI 配置</string>
     <string name="kline_ai_thinking">AI 正在分析…</string>
     <string name="kline_ai_analysis_sources">分析来源</string>

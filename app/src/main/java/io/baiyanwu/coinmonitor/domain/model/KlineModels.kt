@@ -69,9 +69,25 @@ data class CandleEntry(
 
 data class AiChatMessage(
     val id: String = UUID.randomUUID().toString(),
+    val sessionId: String = "",
     val role: AiChatRole,
     val content: String,
     val timestampMillis: Long = System.currentTimeMillis()
+)
+
+data class AiChatSession(
+    val id: String = UUID.randomUUID().toString(),
+    val title: String? = null,
+    val itemId: String? = null,
+    val symbol: String? = null,
+    val sourceTitle: String? = null,
+    val createdAt: Long = System.currentTimeMillis(),
+    val updatedAt: Long = System.currentTimeMillis()
+)
+
+data class AiChatSessionSummary(
+    val session: AiChatSession,
+    val latestMessagePreview: String?
 )
 
 enum class AiChatRole {

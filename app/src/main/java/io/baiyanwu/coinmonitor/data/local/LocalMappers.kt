@@ -2,6 +2,10 @@ package io.baiyanwu.coinmonitor.data.local
 
 import io.baiyanwu.coinmonitor.domain.model.ChainFamily
 import io.baiyanwu.coinmonitor.domain.model.ExchangeSource
+import io.baiyanwu.coinmonitor.domain.model.AiChatMessage
+import io.baiyanwu.coinmonitor.domain.model.AiChatRole
+import io.baiyanwu.coinmonitor.domain.model.AiChatSession
+import io.baiyanwu.coinmonitor.domain.model.AiChatSessionSummary
 import io.baiyanwu.coinmonitor.domain.model.LivePriceTrend
 import io.baiyanwu.coinmonitor.domain.model.MarketType
 import io.baiyanwu.coinmonitor.domain.model.OverlayLeadingDisplayMode
@@ -83,5 +87,64 @@ fun OverlaySettings.toEntity(): OverlaySettingsEntity {
         snapToEdge = snapToEdge,
         windowX = windowX,
         windowY = windowY
+    )
+}
+
+fun AiChatSessionEntity.toDomain(): AiChatSession {
+    return AiChatSession(
+        id = id,
+        title = title,
+        itemId = itemId,
+        symbol = symbol,
+        sourceTitle = sourceTitle,
+        createdAt = createdAt,
+        updatedAt = updatedAt
+    )
+}
+
+fun AiChatSession.toEntity(): AiChatSessionEntity {
+    return AiChatSessionEntity(
+        id = id,
+        title = title,
+        itemId = itemId,
+        symbol = symbol,
+        sourceTitle = sourceTitle,
+        createdAt = createdAt,
+        updatedAt = updatedAt
+    )
+}
+
+fun AiChatMessageEntity.toDomain(): AiChatMessage {
+    return AiChatMessage(
+        id = id,
+        sessionId = sessionId,
+        role = AiChatRole.valueOf(role),
+        content = content,
+        timestampMillis = timestampMillis
+    )
+}
+
+fun AiChatMessage.toEntity(): AiChatMessageEntity {
+    return AiChatMessageEntity(
+        id = id,
+        sessionId = sessionId,
+        role = role.name,
+        content = content,
+        timestampMillis = timestampMillis
+    )
+}
+
+fun AiChatSessionSummaryRow.toDomain(): AiChatSessionSummary {
+    return AiChatSessionSummary(
+        session = AiChatSession(
+            id = id,
+            title = title,
+            itemId = itemId,
+            symbol = symbol,
+            sourceTitle = sourceTitle,
+            createdAt = createdAt,
+            updatedAt = updatedAt
+        ),
+        latestMessagePreview = latestMessagePreview
     )
 }

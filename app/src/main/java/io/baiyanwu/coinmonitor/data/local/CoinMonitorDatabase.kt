@@ -4,17 +4,24 @@ import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import io.baiyanwu.coinmonitor.data.local.dao.AiChatDao
 import io.baiyanwu.coinmonitor.data.local.dao.OverlaySettingsDao
 import io.baiyanwu.coinmonitor.data.local.dao.WatchItemDao
 
 @Database(
-    entities = [WatchItemEntity::class, OverlaySettingsEntity::class],
-    version = 6,
+    entities = [
+        WatchItemEntity::class,
+        OverlaySettingsEntity::class,
+        AiChatSessionEntity::class,
+        AiChatMessageEntity::class
+    ],
+    version = 7,
     exportSchema = true
 )
 abstract class CoinMonitorDatabase : RoomDatabase() {
     abstract fun watchItemDao(): WatchItemDao
     abstract fun overlaySettingsDao(): OverlaySettingsDao
+    abstract fun aiChatDao(): AiChatDao
 
     companion object {
         val MIGRATION_4_5: Migration = object : Migration(4, 5) {
@@ -44,6 +51,42 @@ abstract class CoinMonitorDatabase : RoomDatabase() {
                 )
                 database.execSQL(
                     "ALTER TABLE watch_items ADD COLUMN iconUrl TEXT"
+                )
+            }
+        }
+
+        val MIGRATION_6_7: Migration = object : Migration(6, 7) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS ai_chat_sessions (
+                        id TEXT NOT NULL PRIMARY KEY,
+                        title TEXT,
+                        itemId TEXT,
+                        symbol TEXT,
+                        sourceTitle TEXT,
+                        createdAt INTEGER NOT NULL,
+                        updatedAt INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
+                database.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS ai_chat_messages (
+                        id TEXT NOT NULL PRIMARY KEY,
+                        sessionId TEXT NOT NULL,
+                        role TEXT NOT NULL,
+                        content TEXT NOT NULL,
+                        timestampMillis INTEGER NOT NULL,
+                        FOREIGN KEY(sessionId) REFERENCES ai_chat_sessions(id) ON DELETE CASCADE
+                    )
+                    """.trimIndent()
+                )
+                database.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_ai_chat_messages_sessionId ON ai_chat_messages(sessionId)"
+                )
+                database.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_ai_chat_messages_timestampMillis ON ai_chat_messages(timestampMillis)"
                 )
             }
         }
