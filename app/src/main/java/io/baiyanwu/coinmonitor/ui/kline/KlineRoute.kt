@@ -28,6 +28,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -45,7 +46,6 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -60,6 +60,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
@@ -857,59 +858,83 @@ private fun KlineChatComposerBar(
                     contentDescription = stringResource(R.string.kline_chat_new_session)
                 )
             }
-            OutlinedTextField(
-                value = input,
-                onValueChange = { input = it },
+            Surface(
                 modifier = Modifier
                     .weight(1f)
                     .heightIn(min = 36.dp),
-                placeholder = {
-                    Text(
-                        text = stringResource(R.string.kline_chat_hint),
-                        style = inputTextStyle
-                    )
-                },
-                textStyle = inputTextStyle,
-                singleLine = false,
-                minLines = 1,
-                maxLines = 3,
-                keyboardActions = KeyboardActions(
-                    onSend = {
-                        if (!state.isAiSending && input.isNotBlank() && state.aiReady && resolvedOptions.isNotEmpty()) {
-                            onSendMessage(input, resolvedOptions)
-                            input = ""
-                        }
-                    }
-                ),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                trailingIcon = {
-                    if (state.isAiSending) {
-                        IconButton(onClick = onStopGeneration) {
-                            Icon(
-                                imageVector = Icons.Rounded.StopCircle,
-                                contentDescription = stringResource(R.string.kline_chat_stop),
-                                tint = colors.secondaryText
-                            )
-                        }
-                    } else {
-                        val sendEnabled = input.isNotBlank() && state.aiReady && resolvedOptions.isNotEmpty()
-                        IconButton(
-                            onClick = {
+                shape = RoundedCornerShape(16.dp),
+                color = colors.cardBackground
+            ) {
+                BasicTextField(
+                    value = input,
+                    onValueChange = { input = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    textStyle = inputTextStyle.copy(color = colors.primaryText),
+                    cursorBrush = SolidColor(colors.accent),
+                    singleLine = false,
+                    minLines = 1,
+                    maxLines = 3,
+                    keyboardActions = KeyboardActions(
+                        onSend = {
+                            if (!state.isAiSending && input.isNotBlank() && state.aiReady && resolvedOptions.isNotEmpty()) {
                                 onSendMessage(input, resolvedOptions)
                                 input = ""
-                            },
-                            enabled = sendEnabled
+                            }
+                        }
+                    ),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                    decorationBox = { innerTextField ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(start = 12.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Rounded.Send,
-                                contentDescription = stringResource(R.string.kline_chat_send),
-                                tint = if (sendEnabled) colors.accent else colors.secondaryText
-                            )
+                            Box(
+                                modifier = Modifier.weight(1f),
+                                contentAlignment = Alignment.CenterStart
+                            ) {
+                                if (input.isEmpty()) {
+                                    Text(
+                                        text = stringResource(R.string.kline_chat_hint),
+                                        style = inputTextStyle,
+                                        color = colors.secondaryText
+                                    )
+                                }
+                                innerTextField()
+                            }
+                            if (state.isAiSending) {
+                                CompactComposerActionButton(
+                                    onClick = onStopGeneration,
+                                    enabled = true
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.StopCircle,
+                                        contentDescription = stringResource(R.string.kline_chat_stop),
+                                        tint = colors.secondaryText
+                                    )
+                                }
+                            } else {
+                                val sendEnabled = input.isNotBlank() && state.aiReady && resolvedOptions.isNotEmpty()
+                                CompactComposerActionButton(
+                                    onClick = {
+                                        onSendMessage(input, resolvedOptions)
+                                        input = ""
+                                    },
+                                    enabled = sendEnabled
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Rounded.Send,
+                                        contentDescription = stringResource(R.string.kline_chat_send),
+                                        tint = if (sendEnabled) colors.accent else colors.secondaryText
+                                    )
+                                }
+                            }
                         }
                     }
-                },
-                shape = RoundedCornerShape(16.dp)
-            )
+                )
+            }
         }
         if (state.isAiSending) {
             Text(
@@ -918,6 +943,22 @@ private fun KlineChatComposerBar(
                 color = colors.secondaryText
             )
         }
+    }
+}
+
+@Composable
+private fun CompactComposerActionButton(
+    onClick: () -> Unit,
+    enabled: Boolean,
+    content: @Composable () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .size(24.dp)
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        content()
     }
 }
 

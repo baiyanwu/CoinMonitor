@@ -332,6 +332,16 @@ class KlineViewModel(
 
     fun createNewSession() {
         viewModelScope.launch {
+            val hasConversation = chatMessages.value.any { message ->
+                when (message.role) {
+                    AiChatRole.USER -> message.content.isNotBlank()
+                    AiChatRole.ASSISTANT -> message.content.isNotBlank()
+                    AiChatRole.SYSTEM -> false
+                }
+            }
+            if (!hasConversation) {
+                return@launch
+            }
             if (aiSending.value) {
                 aiStreamJob?.cancel()
                 aiSending.value = false

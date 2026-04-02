@@ -29,6 +29,11 @@ interface AiChatDao {
                 LIMIT 1
             ) AS latestMessagePreview
         FROM ai_chat_sessions s
+        WHERE EXISTS (
+            SELECT 1
+            FROM ai_chat_messages m
+            WHERE m.sessionId = s.id
+        )
         ORDER BY s.updatedAt DESC
         """
     )
