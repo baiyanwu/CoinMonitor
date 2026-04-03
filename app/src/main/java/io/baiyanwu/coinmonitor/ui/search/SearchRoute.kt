@@ -25,6 +25,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowDropDown
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -33,6 +34,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -109,6 +111,7 @@ fun SearchRoute(
     container: AppContainer,
     entryMode: SearchEntryMode = SearchEntryMode.HOME,
     onBack: () -> Unit,
+    onOpenThirdPartyApiSettings: () -> Unit = {},
     onSelectForKline: (String) -> Unit = {}
 ) {
     val viewModel: SearchViewModel = viewModel(factory = SearchViewModel.factory(container))
@@ -122,6 +125,7 @@ fun SearchRoute(
         onSearch = viewModel::search,
         onSearchModeChange = viewModel::setSearchMode,
         onToggleItem = viewModel::toggleWatchItem,
+        onOpenThirdPartyApiSettings = onOpenThirdPartyApiSettings,
         onSelectForKline = { item ->
             viewModel.selectItemForKline(item, onSelectForKline)
         }
@@ -138,6 +142,7 @@ private fun SearchScreen(
     onSearch: (OnchainSearchSelection?) -> Unit,
     onSearchModeChange: (SearchMode) -> Unit,
     onToggleItem: (WatchItem) -> Unit,
+    onOpenThirdPartyApiSettings: () -> Unit,
     onSelectForKline: (WatchItem) -> Unit
 ) {
     val colors = CoinMonitorThemeTokens.colors
@@ -197,6 +202,7 @@ private fun SearchScreen(
         }
     }
     val showCredentialHint = state.searchMode == SearchMode.ONCHAIN && !state.hasOkxCredentials
+    var showCredentialDialog by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -210,6 +216,10 @@ private fun SearchScreen(
             onQueryChange = onQueryChange,
             onClearQuery = onClearQuery,
             onSearch = {
+                if (state.searchMode == SearchMode.ONCHAIN && !state.hasOkxCredentials) {
+                    showCredentialDialog = true
+                    return@SearchHeader
+                }
                 val onchainSelection = if (state.searchMode == SearchMode.ONCHAIN) {
                     val chainIndex = if (onchainTab == TAB_ONCHAIN_SOL) {
                         SOLANA_CHAIN_INDEX
@@ -251,12 +261,26 @@ private fun SearchScreen(
                         color = colors.cardBackground,
                         shape = RoundedCornerShape(18.dp)
                     ) {
-                        Text(
-                            text = stringResource(R.string.search_onchain_credential_tip),
+                        Row(
                             modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                            color = colors.secondaryText,
-                            style = MaterialTheme.typography.bodySmall
-                        )
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = stringResource(R.string.search_onchain_credential_tip),
+                                modifier = Modifier.weight(1f),
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                            Text(
+                                text = stringResource(R.string.search_onchain_go_settings),
+                                modifier = Modifier
+                                    .clickable { onOpenThirdPartyApiSettings() }
+                                    .padding(start = 8.dp),
+                                color = colors.accent,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
                     }
                 }
             }
@@ -327,6 +351,27 @@ private fun SearchScreen(
                     }
                 }
             }
+        }
+
+        if (showCredentialDialog) {
+            AlertDialog(
+                onDismissRequest = { showCredentialDialog = false },
+                title = { Text(text = stringResource(R.string.search_onchain_configure_dialog_title)) },
+                text = { Text(text = stringResource(R.string.search_onchain_configure_dialog_message)) },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showCredentialDialog = false
+                        onOpenThirdPartyApiSettings()
+                    }) {
+                        Text(text = stringResource(R.string.search_onchain_go_settings))
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showCredentialDialog = false }) {
+                        Text(text = stringResource(android.R.string.cancel))
+                    }
+                }
+            )
         }
     }
 }

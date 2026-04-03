@@ -67,6 +67,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.baiyanwu.coinmonitor.data.AppContainer
+import io.baiyanwu.coinmonitor.ui.components.MainTabTopBar
+import io.baiyanwu.coinmonitor.ui.components.SearchEntryButton
 import io.baiyanwu.coinmonitor.ui.components.TopBarCircleActionButton
 import io.baiyanwu.coinmonitor.ui.components.WatchItemCard
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorComponentDefaults
@@ -159,22 +161,13 @@ internal fun HomeScreen(
             .onSizeChanged { rootSize = it }
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            Box(
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 4.dp)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(38.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = stringResource(R.string.home_title),
-                        style = MaterialTheme.typography.headlineSmall
-                    )
-                    SearchEntryButton(onClick = onNavigateSearch)
-                }
+            MainTabTopBar {
+                Text(
+                    text = stringResource(R.string.home_title),
+                    style = MaterialTheme.typography.headlineSmall
+                )
+                Box(modifier = Modifier.weight(1f))
+                SearchEntryButton(onClick = onNavigateSearch)
             }
 
             PullToRefreshBox(
@@ -500,11 +493,3 @@ private fun HomeQuickActionsOverlay(
     }
 }
 
-@Composable
-private fun SearchEntryButton(onClick: () -> Unit) {
-    TopBarCircleActionButton(
-        imageVector = Icons.Rounded.Add,
-        contentDescription = stringResource(R.string.home_open_search),
-        onClick = onClick
-    )
-}

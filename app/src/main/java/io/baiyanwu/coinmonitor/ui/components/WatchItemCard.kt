@@ -173,8 +173,8 @@ private fun ExchangeBadge(source: ExchangeSource) {
 
     MiniTag(
         text = label,
-        containerColor = colors.accent.copy(alpha = 0.16f),
-        contentColor = colors.accent
+        containerColor = colors.cardBackground,
+        contentColor = colors.secondaryText
     )
 }
 

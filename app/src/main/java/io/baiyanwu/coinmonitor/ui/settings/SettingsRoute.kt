@@ -35,6 +35,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import io.baiyanwu.coinmonitor.data.AppContainer
 import io.baiyanwu.coinmonitor.domain.model.AppLanguage
 import io.baiyanwu.coinmonitor.domain.model.AppThemeMode
+import io.baiyanwu.coinmonitor.ui.components.MainTabTopBar
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorComponentDefaults
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 import io.baiyanwu.coinmonitor.R
@@ -76,24 +77,30 @@ private fun SettingsScreen(
 ) {
     val colors = CoinMonitorThemeTokens.colors
 
-    LazyColumn(
+    Column(
         modifier = Modifier
             .fillMaxSize()
             .background(colors.pageBackground)
-            .padding(
-                start = 14.dp,
-                top = 12.dp + contentTopInset,
-                end = 14.dp,
-                bottom = 12.dp + contentBottomInset
-            ),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+            .padding(top = contentTopInset, bottom = contentBottomInset)
     ) {
-        item {
+        MainTabTopBar {
             Text(
                 text = stringResource(R.string.settings_title),
                 style = MaterialTheme.typography.headlineSmall
             )
         }
+
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(
+                    start = 14.dp,
+                    end = 14.dp,
+                    top = 12.dp,
+                    bottom = 12.dp
+                ),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
 
         item {
             ElevatedCard(
@@ -225,6 +232,7 @@ private fun SettingsScreen(
             }
         }
 
+        }
     }
 }
 

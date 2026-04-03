@@ -53,7 +53,10 @@
     <string name="search_tab_sol">SOL</string>
     <string name="search_tag_alpha">Alpha</string>
     <string name="search_onchain_credential_missing">链上搜索需要先配置 OKX API 凭证</string>
-    <string name="search_onchain_credential_tip">请先前往“设置 &gt; 第三方 API 设置”填写 OKX API Key、Secret Key 与 Passphrase。</string>
+    <string name="search_onchain_credential_tip">请先前往”设置 &gt; 第三方 API 设置”填写 OKX API Key、Secret Key 与 Passphrase。</string>
+    <string name="search_onchain_go_settings">去设置</string>
+    <string name="search_onchain_configure_dialog_title">链上搜索未配置</string>
+    <string name="search_onchain_configure_dialog_message">链上搜索需要先配置 OKX API 凭证，请前往”设置 &gt; 第三方 API 设置”完成配置。</string>
     <string name="error_search_retry">搜索失败，请稍后重试</string>
 
     <string name="settings_title">设置</string>
@@ -127,6 +130,9 @@
     <string name="kline_chat_history_empty">还没有会话历史</string>
     <string name="kline_chat_history_empty_message">暂无消息</string>
     <string name="kline_ai_not_ready">请先在设置页完成 AI 配置</string>
+    <string name="kline_ai_configure_dialog_title">AI 未配置</string>
+    <string name="kline_ai_configure_dialog_message">请先在第三方 API 设置中配置 AI，配置完成后即可使用 AI 分析功能。</string>
+    <string name="kline_ai_configure_dialog_go">去设置</string>
     <string name="kline_ai_thinking">AI 正在分析…</string>
     <string name="kline_ai_analysis_sources">分析来源</string>
     <string name="kline_ai_analysis_required">请至少选择一个分析项</string>
@@ -134,10 +140,6 @@
     <string name="kline_ai_option_binance_announcement">币安公告</string>
     <string name="kline_ai_option_okx_announcement">OKX 公告</string>
     <string name="kline_ai_option_project_info">项目信息</string>
-    <string name="ime_demo_title">Compose IME Demo</string>
-    <string name="ime_demo_subtitle">这页按 Android 官方文档的最小样例实现：LazyColumn 使用 imePadding()，底部再放一个 Spacer(WindowInsets.systemBars)。</string>
-    <string name="ime_demo_input_label">官方示例输入框</string>
-    <string name="ime_demo_input_placeholder">点这里弹出键盘，观察输入框和输入法的距离</string>
     <string name="kline_onchain_credentials_missing">链上 K 线需要先配置 OKX Onchain 凭证</string>
     <string name="kline_attribution">图表由 TradingView Lightweight Charts 提供</string>
     <string name="kline_summary_meta">来源：%1$s  周期：%2$s  主图：%3$s  副图：%4$s</string>

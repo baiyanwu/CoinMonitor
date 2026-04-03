@@ -53,6 +53,9 @@
     <string name="search_tag_alpha">Alpha</string>
     <string name="search_onchain_credential_missing">On-chain search requires configured OKX API credentials.</string>
     <string name="search_onchain_credential_tip">Go to &quot;Settings &gt; Third-Party API Settings&quot; and fill in OKX API Key, Secret Key, and Passphrase first.</string>
+    <string name="search_onchain_go_settings">Go to Settings</string>
+    <string name="search_onchain_configure_dialog_title">On-chain Search Not Configured</string>
+    <string name="search_onchain_configure_dialog_message">On-chain search requires OKX API credentials. Please go to "Settings &gt; Third-Party API Settings" to configure.</string>
     <string name="error_search_retry">Search failed. Please try again later.</string>
 
     <string name="settings_title">Settings</string>
@@ -126,6 +129,9 @@
     <string name="kline_chat_history_empty">No chat history yet</string>
     <string name="kline_chat_history_empty_message">No messages yet</string>
     <string name="kline_ai_not_ready">Configure AI access in Settings first.</string>
+    <string name="kline_ai_configure_dialog_title">AI Not Configured</string>
+    <string name="kline_ai_configure_dialog_message">Please configure AI in Third-party API Settings first to use AI analysis.</string>
+    <string name="kline_ai_configure_dialog_go">Go to Settings</string>
     <string name="kline_ai_thinking">AI is analyzing…</string>
     <string name="kline_ai_analysis_sources">Analysis Sources</string>
     <string name="kline_ai_analysis_required">Select at least one analysis input.</string>

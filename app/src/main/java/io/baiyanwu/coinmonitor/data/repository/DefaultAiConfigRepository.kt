@@ -2,6 +2,7 @@ package io.baiyanwu.coinmonitor.data.repository
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.util.Log
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import io.baiyanwu.coinmonitor.domain.model.OpenAiCompatibleConfig
@@ -92,9 +93,51 @@ class DefaultAiConfigRepository(
                     EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
                 )
             )
-        } catch (_: Throwable) {
+        } catch (e: Throwable) {
+            Log.e("SecureStorage", "Failed to create EncryptedSharedPreferences for AI", e)
+            if (e.isCorruptedDataError()) {
+                Log.w("SecureStorage", "Corrupted data detected, clearing and retrying")
+                tryCreateAfterCleanup(context)
+            } else {
+                SecurePreferencesResult(available = false, preferences = null)
+            }
+        }
+    }
+
+    private fun tryCreateAfterCleanup(context: Context): SecurePreferencesResult {
+        return try {
+            context.deleteSharedPreferences(PREFS_NAME)
+            val masterKey = MasterKey.Builder(context)
+                .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                .build()
+            SecurePreferencesResult(
+                available = true,
+                preferences = EncryptedSharedPreferences.create(
+                    context,
+                    PREFS_NAME,
+                    masterKey,
+                    EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                    EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+                )
+            )
+        } catch (e: Throwable) {
+            Log.e("SecureStorage", "Retry also failed for AI", e)
             SecurePreferencesResult(available = false, preferences = null)
         }
+    }
+
+    private fun Throwable.isCorruptedDataError(): Boolean {
+        var cause: Throwable? = this
+        while (cause != null) {
+            val message = cause.message.orEmpty()
+            if (message.contains("VERIFICATION_FAILED", ignoreCase = true) ||
+                message.contains("Signature/MAC verification failed", ignoreCase = true)
+            ) {
+                return true
+            }
+            cause = cause.cause
+        }
+        return false
     }
 
     private fun requirePreferences(): SharedPreferences {

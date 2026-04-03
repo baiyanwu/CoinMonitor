@@ -140,7 +140,8 @@ fun CoinMonitorNavHost(
                     contentBottomInset = innerPadding.calculateBottomPadding(),
                     onOpenSearch = onOpenKlineSearch,
                     onOpenHistory = onOpenKlineHistory,
-                    onOpenIndicatorSettings = onOpenKlineIndicatorSettings
+                    onOpenIndicatorSettings = onOpenKlineIndicatorSettings,
+                    onOpenThirdPartyApiSettings = onOpenThirdPartyApiSettings
                 )
             }
             composable(Destinations.SETTINGS) {

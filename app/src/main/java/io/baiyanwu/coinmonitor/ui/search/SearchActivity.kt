@@ -5,6 +5,7 @@ import android.content.Intent
 import android.os.Bundle
 import io.baiyanwu.coinmonitor.ui.CoinMonitorComposeActivity
 import io.baiyanwu.coinmonitor.ui.navigation.DetailPageTransitions
+import io.baiyanwu.coinmonitor.ui.settings.ThirdPartyApiSettingsActivity
 
 class SearchActivity : CoinMonitorComposeActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -15,6 +16,7 @@ class SearchActivity : CoinMonitorComposeActivity() {
                 container = container,
                 entryMode = entryMode,
                 onBack = { finish() },
+                onOpenThirdPartyApiSettings = { ThirdPartyApiSettingsActivity.start(this) },
                 onSelectForKline = { itemId ->
                     container.klineSelectionStore.select(itemId)
                     finish()

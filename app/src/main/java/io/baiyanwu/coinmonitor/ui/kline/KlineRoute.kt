@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -41,6 +42,7 @@ import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.StopCircle
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -86,7 +88,9 @@ import io.baiyanwu.coinmonitor.domain.model.WatchItem
 import io.baiyanwu.coinmonitor.overlay.QuoteFormatter
 import io.baiyanwu.coinmonitor.ui.components.TopBarCircleActionButton
 import io.baiyanwu.coinmonitor.ui.resolveChangeColor
+import io.baiyanwu.coinmonitor.ui.resolveChangeColorMuted
 import io.baiyanwu.coinmonitor.ui.resolveLivePriceColor
+import io.baiyanwu.coinmonitor.ui.resolveLivePriceColorMuted
 import io.baiyanwu.coinmonitor.ui.kline.chart.KlineChartHostView
 import io.baiyanwu.coinmonitor.ui.kline.chart.KlineChartRenderModel
 import io.baiyanwu.coinmonitor.ui.kline.chart.KlineChartStyleDefaults
@@ -107,7 +111,8 @@ fun KlineRoute(
     contentBottomInset: androidx.compose.ui.unit.Dp = 0.dp,
     onOpenSearch: () -> Unit,
     onOpenHistory: () -> Unit,
-    onOpenIndicatorSettings: () -> Unit
+    onOpenIndicatorSettings: () -> Unit,
+    onOpenThirdPartyApiSettings: () -> Unit
 ) {
     val viewModel: KlineViewModel = viewModel(factory = KlineViewModel.factory(container))
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -126,7 +131,8 @@ fun KlineRoute(
         onSendMessage = viewModel::sendMessage,
         onStopGeneration = viewModel::stopAiGeneration,
         onOpenHistory = onOpenHistory,
-        onCreateNewSession = viewModel::createNewSession
+        onCreateNewSession = viewModel::createNewSession,
+        onOpenThirdPartyApiSettings = onOpenThirdPartyApiSettings
     )
 }
 
@@ -146,7 +152,8 @@ private fun KlineScreen(
     onSendMessage: (String, Set<AiAnalysisOption>) -> Unit,
     onStopGeneration: () -> Unit,
     onOpenHistory: () -> Unit,
-    onCreateNewSession: () -> Unit
+    onCreateNewSession: () -> Unit,
+    onOpenThirdPartyApiSettings: () -> Unit
 ) {
     val colors = CoinMonitorThemeTokens.colors
     var klineExpanded by rememberSaveable { mutableStateOf(true) }
@@ -217,6 +224,7 @@ private fun KlineScreen(
                 onStopGeneration = onStopGeneration,
                 onOpenHistory = onOpenHistory,
                 onCreateNewSession = onCreateNewSession,
+                onOpenThirdPartyApiSettings = onOpenThirdPartyApiSettings,
                 modifier = Modifier.onGloballyPositioned { coordinates ->
                     composerHeightPx = coordinates.size.height
                 }
@@ -502,8 +510,8 @@ private fun CompactPairSelector(
     val symbol = item?.symbol.orEmpty().ifBlank { "--" }
     val priceText = QuoteFormatter.formatPrice(item?.lastPrice)
     val changeText = QuoteFormatter.formatChange(item?.change24hPercent)
-    val priceColor = item?.resolveLivePriceColor(colors, colors.fabContent) ?: colors.fabContent
-    val changeColor = item?.resolveChangeColor(colors, colors.secondaryText) ?: colors.secondaryText
+    val priceColor = item?.resolveLivePriceColorMuted(colors, colors.fabContent) ?: colors.fabContent
+    val changeColor = item?.resolveChangeColorMuted(colors, colors.secondaryText) ?: colors.secondaryText
     Box(modifier = modifier) {
         Row(
             modifier = Modifier
@@ -576,12 +584,12 @@ private fun SourceMiniTag(sourceTitle: String) {
     val colors = CoinMonitorThemeTokens.colors
     Surface(
         shape = androidx.compose.foundation.shape.RoundedCornerShape(999.dp),
-        color = colors.accent.copy(alpha = 0.16f)
+        color = colors.cardBackground
     ) {
         Text(
             text = sourceTitle.uppercase(),
             modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
-            color = colors.accent,
+            color = colors.secondaryText,
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.SemiBold
         )
@@ -730,15 +738,6 @@ private fun KlineAiChatMessages(
         reverseLayout = true,
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        item(key = "ai-ready-tip") {
-            if (!state.aiReady) {
-                Text(
-                    text = stringResource(R.string.kline_ai_not_ready),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error
-                )
-            }
-        }
         items(
             items = state.chatMessages.asReversed(),
             key = { message -> message.id }
@@ -791,9 +790,11 @@ private fun KlineChatComposerBar(
     onStopGeneration: () -> Unit,
     onOpenHistory: () -> Unit,
     onCreateNewSession: () -> Unit,
+    onOpenThirdPartyApiSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var input by rememberSaveable { mutableStateOf("") }
+    var showAiConfigureDialog by remember { mutableStateOf(false) }
     var selectedOptions by rememberSaveable {
         mutableStateOf(AiAnalysisOption.defaultSelection.map { it.name }.toSet())
     }
@@ -808,6 +809,24 @@ private fun KlineChatComposerBar(
             .padding(start = 14.dp, top = 4.dp, end = 14.dp, bottom = 8.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
+        if (!state.aiReady) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = stringResource(R.string.kline_ai_not_ready),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Spacer(modifier = Modifier.size(10.dp))
+                Text(
+                    text = stringResource(R.string.search_onchain_go_settings),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.accent,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.clickable { onOpenThirdPartyApiSettings() }
+                )
+            }
+        }
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -876,9 +895,13 @@ private fun KlineChatComposerBar(
                     maxLines = 3,
                     keyboardActions = KeyboardActions(
                         onSend = {
-                            if (!state.isAiSending && input.isNotBlank() && state.aiReady && resolvedOptions.isNotEmpty()) {
-                                onSendMessage(input, resolvedOptions)
-                                input = ""
+                            if (!state.isAiSending && input.isNotBlank() && resolvedOptions.isNotEmpty()) {
+                                if (!state.aiReady) {
+                                    showAiConfigureDialog = true
+                                } else {
+                                    onSendMessage(input, resolvedOptions)
+                                    input = ""
+                                }
                             }
                         }
                     ),
@@ -916,11 +939,15 @@ private fun KlineChatComposerBar(
                                     )
                                 }
                             } else {
-                                val sendEnabled = input.isNotBlank() && state.aiReady && resolvedOptions.isNotEmpty()
+                                val sendEnabled = input.isNotBlank() && resolvedOptions.isNotEmpty()
                                 CompactComposerActionButton(
                                     onClick = {
-                                        onSendMessage(input, resolvedOptions)
-                                        input = ""
+                                        if (!state.aiReady) {
+                                            showAiConfigureDialog = true
+                                        } else {
+                                            onSendMessage(input, resolvedOptions)
+                                            input = ""
+                                        }
                                     },
                                     enabled = sendEnabled
                                 ) {
@@ -941,6 +968,26 @@ private fun KlineChatComposerBar(
                 text = stringResource(R.string.kline_ai_thinking),
                 style = MaterialTheme.typography.bodySmall,
                 color = colors.secondaryText
+            )
+        }
+        if (showAiConfigureDialog) {
+            AlertDialog(
+                onDismissRequest = { showAiConfigureDialog = false },
+                title = { Text(stringResource(R.string.kline_ai_configure_dialog_title)) },
+                text = { Text(stringResource(R.string.kline_ai_configure_dialog_message)) },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showAiConfigureDialog = false
+                        onOpenThirdPartyApiSettings()
+                    }) {
+                        Text(stringResource(R.string.kline_ai_configure_dialog_go))
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showAiConfigureDialog = false }) {
+                        Text(stringResource(R.string.common_cancel))
+                    }
+                }
             )
         }
     }

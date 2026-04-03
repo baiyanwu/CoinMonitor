@@ -101,7 +101,11 @@ class OpenAiCompatibleStreamingClient(
 
     private fun buildEndpoint(baseUrl: String): String {
         val normalized = baseUrl.trim().trimEnd('/')
-        return if (normalized.endsWith("/v1")) {
+        if (normalized.endsWith("/v1")) {
+            return "$normalized/chat/completions"
+        }
+        val pathAfterHost = normalized.substringAfter("://", "").substringAfter('/', "")
+        return if (pathAfterHost.isNotEmpty()) {
             "$normalized/chat/completions"
         } else {
             "$normalized/v1/chat/completions"
