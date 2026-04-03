@@ -58,6 +58,18 @@ abstract class CoinMonitorDatabase : RoomDatabase() {
         val MIGRATION_6_7: Migration = object : Migration(6, 7) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL(
+                    "ALTER TABLE watch_items ADD COLUMN homePinned INTEGER NOT NULL DEFAULT 0"
+                )
+                database.execSQL(
+                    "ALTER TABLE watch_items ADD COLUMN homeOrder INTEGER NOT NULL DEFAULT 0"
+                )
+                database.execSQL(
+                    "ALTER TABLE watch_items ADD COLUMN homePinnedOrder INTEGER"
+                )
+                database.execSQL(
+                    "UPDATE watch_items SET homeOrder = addedAt"
+                )
+                database.execSQL(
                     """
                     CREATE TABLE IF NOT EXISTS ai_chat_sessions (
                         id TEXT NOT NULL PRIMARY KEY,

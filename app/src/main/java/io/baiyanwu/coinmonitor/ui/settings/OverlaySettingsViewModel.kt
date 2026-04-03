@@ -38,7 +38,7 @@ class OverlaySettingsViewModel(
         viewModelScope.launch {
             combine(
                 overlayRepository.observeSettings(),
-                watchlistRepository.observeWatchlist()
+                watchlistRepository.observeHomeWatchlist()
             ) { settings, items ->
                 OverlaySettingsUiState(
                     settings = settings,

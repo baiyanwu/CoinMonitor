@@ -9,13 +9,37 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface WatchItemDao {
-    @Query("SELECT * FROM watch_items ORDER BY addedAt ASC")
+    @Query("SELECT * FROM watch_items ORDER BY homeOrder ASC, addedAt ASC, id ASC")
     fun observeWatchItems(): Flow<List<WatchItemEntity>>
 
-    @Query("SELECT * FROM watch_items ORDER BY addedAt ASC")
+    @Query("SELECT * FROM watch_items ORDER BY homeOrder ASC, addedAt ASC, id ASC")
     suspend fun getWatchItems(): List<WatchItemEntity>
 
-    @Query("SELECT * FROM watch_items WHERE overlaySelected = 1 ORDER BY addedAt ASC")
+    @Query(
+        """
+        SELECT * FROM watch_items
+        ORDER BY
+            homePinned DESC,
+            CASE WHEN homePinned = 1 THEN homePinnedOrder END ASC,
+            CASE WHEN homePinned = 0 THEN homeOrder END ASC,
+            addedAt ASC,
+            id ASC
+        """
+    )
+    fun observeHomeOrderedWatchItems(): Flow<List<WatchItemEntity>>
+
+    @Query(
+        """
+        SELECT * FROM watch_items
+        WHERE overlaySelected = 1
+        ORDER BY
+            homePinned DESC,
+            CASE WHEN homePinned = 1 THEN homePinnedOrder END ASC,
+            CASE WHEN homePinned = 0 THEN homeOrder END ASC,
+            addedAt ASC,
+            id ASC
+        """
+    )
     fun observeOverlayItems(): Flow<List<WatchItemEntity>>
 
     @Query("SELECT * FROM watch_items WHERE id = :id LIMIT 1")
@@ -29,6 +53,26 @@ interface WatchItemDao {
 
     @Query("UPDATE watch_items SET overlaySelected = :selected WHERE id = :id")
     suspend fun updateOverlaySelected(id: String, selected: Boolean)
+
+    @Query(
+        """
+        UPDATE watch_items
+        SET homePinned = :pinned,
+            homePinnedOrder = :homePinnedOrder
+        WHERE id = :id
+        """
+    )
+    suspend fun updateHomePinnedState(
+        id: String,
+        pinned: Boolean,
+        homePinnedOrder: Long?
+    )
+
+    @Query("UPDATE watch_items SET homeOrder = :homeOrder WHERE id = :id")
+    suspend fun updateHomeOrder(id: String, homeOrder: Long)
+
+    @Query("UPDATE watch_items SET homePinnedOrder = :homePinnedOrder WHERE id = :id")
+    suspend fun updateHomePinnedOrder(id: String, homePinnedOrder: Long)
 
     @Query(
         """

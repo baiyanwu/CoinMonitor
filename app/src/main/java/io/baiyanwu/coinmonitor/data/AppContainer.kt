@@ -66,7 +66,7 @@ class AppContainer(context: Context) {
     val quoteRepository: QuoteRepository = InMemoryQuoteRepository()
 
     val watchlistRepository: WatchlistRepository = DefaultWatchlistRepository(
-        watchItemDao = database.watchItemDao()
+        database = database
     )
 
     val overlayRepository: OverlayRepository = DefaultOverlayRepository(

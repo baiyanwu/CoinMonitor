@@ -44,7 +44,7 @@ class HomeViewModel(
     init {
         viewModelScope.launch {
             combine(
-                watchlistRepository.observeWatchlist(),
+                watchlistRepository.observeHomeWatchlist(),
                 overlayRepository.observeOverlayItems(),
                 overlayRepository.observeSettings()
             ) { items, overlayItems, settings ->
@@ -78,6 +78,24 @@ class HomeViewModel(
                     ?: appContainer.appContext.getString(R.string.overlay_add_failed)
                 publishUiState(isLoaded = _uiState.value.isLoaded)
             }
+        }
+    }
+
+    fun setHomePinned(id: String, pinned: Boolean) {
+        viewModelScope.launch {
+            watchlistRepository.setHomePinned(id = id, pinned = pinned)
+        }
+    }
+
+    fun moveHomeItem(id: String, targetBeforeId: String?) {
+        viewModelScope.launch {
+            watchlistRepository.moveHomeItem(id = id, targetBeforeId = targetBeforeId)
+        }
+    }
+
+    fun movePinnedHomeItem(id: String, targetBeforeId: String?) {
+        viewModelScope.launch {
+            watchlistRepository.movePinnedHomeItem(id = id, targetBeforeId = targetBeforeId)
         }
     }
 

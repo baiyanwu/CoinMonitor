@@ -25,8 +25,11 @@
     <string name="home_title">Watch</string>
     <string name="home_open_search">Search pairs</string>
     <string name="home_overlay_tag">Overlay</string>
+    <string name="home_pinned_tag">Pinned</string>
     <string name="home_quick_overlay_add">Overlay</string>
     <string name="home_quick_overlay_remove">Unoverlay</string>
+    <string name="home_quick_pin_add">Pin to top</string>
+    <string name="home_quick_pin_remove">Unpin</string>
     <string name="home_overlay_enable_dialog_title">Enable Overlay</string>
     <string name="home_overlay_enable_dialog_message">The floating overlay is not enabled yet. Open overlay settings now?</string>
     <string name="home_overlay_enable_dialog_confirm">Enable</string>
