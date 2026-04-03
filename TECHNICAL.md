@@ -163,8 +163,8 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 - 可选实现方向包括“按报价时间戳丢弃旧写入”或“把 `REST / WSS` 更新统一串行到同一条写库通道”
 - 重新核对 `Binance Spot / Binance Alpha / OKX Spot / OKX On-chain` 的官方 `WSS` 心跳与断线判定要求，按交易所收口保活策略，避免把 `ping/pong` 逻辑混用后留下“假在线但不推送”的长连接状态
 - 补齐 `AI 分析` 能力
-  - 当前只完成入口、设置结构和页面占位
-  - 尚未完成真正的 AI 请求链路、K 线上下文拼装、会话态管理和失败兜底
+  - 当前已支持 OpenAI 兼容接口的流式响应、K 线上下文拼装、会话态管理和失败兜底
+  - 用户可在设置页自行配置 Base URL、API Key、Model 和 System Prompt
 
 ## Implementation Notes
 
