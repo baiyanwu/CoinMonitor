@@ -68,18 +68,7 @@ git add app/build.gradle.kts
 git commit -m "Bump version to 1.0.4"
 ```
 
-### 3. 发布分支验证通过后，合入 `main`
-
-示例：
-
-```bash
-git checkout main
-git pull
-git merge release/1.0.4
-git push origin main
-```
-
-### 4. 打 tag
+### 3. 发布分支验证通过后，打 tag
 
 规则：
 
@@ -92,12 +81,23 @@ git tag v1.0.4
 git push origin v1.0.4
 ```
 
-### 5. 创建 GitHub Release
+### 4. 创建 GitHub Release
 
 示例：
 
 ```bash
 gh release create v1.0.4 --title v1.0.4 --generate-notes
+```
+
+### 5. 合入 `main`
+
+示例：
+
+```bash
+git checkout main
+git pull
+git merge release/1.0.4
+git push origin main
 ```
 
 ### 6. 把发布分支回合并到 `dev`
@@ -175,15 +175,15 @@ git add app/build.gradle.kts
 git commit -m "Bump version to 1.0.4"
 git push origin release/1.0.4
 
-git checkout main
-git pull
-git merge release/1.0.4
-git push origin main
-
 git tag v1.0.4
 git push origin v1.0.4
 
 gh release create v1.0.4 --title v1.0.4 --generate-notes
+
+git checkout main
+git pull
+git merge release/1.0.4
+git push origin main
 
 git checkout dev
 git pull
