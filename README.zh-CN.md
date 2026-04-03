@@ -30,6 +30,7 @@
 - 提供观察列表、快捷操作和稳定的实时行情刷新，并统一了列表与搜索结果中的图标和来源标签体验
 - 支持系统悬浮窗盯盘，包含锁定拖动、吸附靠边、自适应布局、通知栏隐藏恢复与前台服务保活
 - 提供独立 `K线` 页，支持多来源切换、周期切换，以及 `MA / EMA / BOLL / VOL / MACD / RSI / KDJ` 指标配置
+- K线页内置 AI 分析功能，支持用户自行配置 OpenAI 兼容接口，提供流式响应与会话历史
 - 行情链路优先使用 `WSS`，并保留快照兜底，同时支持本地配置链上凭证与刷新方式
 
 ## 链上说明
@@ -60,11 +61,6 @@ cd CoinMonitor
 - 技术实现说明：[TECHNICAL.md](./TECHNICAL.md)
 - 英文 README：[README.md](./README.md)
 - 贡献说明：[CONTRIBUTING.md](./CONTRIBUTING.md)
-
-## Roadmap
-
-- AI 分析能力接入
-
 
 ## Disclaimer
 

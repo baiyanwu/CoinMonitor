@@ -30,6 +30,7 @@ This project is currently designed and iterated primarily through `vibecoding`, 
 - Manage a watchlist with quick actions, live quote refresh, and stable icon/badge presentation across the app
 - Pin selected items into a floating overlay with drag lock, edge snapping, adaptive layouts, and foreground-service persistence
 - Browse a dedicated `Kline` tab with multi-source switching, interval selection, and configurable `MA / EMA / BOLL / VOL / MACD / RSI / KDJ`
+- Built-in AI analysis on the Kline page, powered by user-configured OpenAI-compatible endpoints with streaming responses and chat history
 - Keep quotes flowing through `WSS` first with snapshot fallback, while local settings control refresh behavior and on-chain credentials
 
 ## On-chain Notes
@@ -60,10 +61,6 @@ cd CoinMonitor
 - Technical implementation: [TECHNICAL.md](./TECHNICAL.md)
 - Chinese README: [README.zh-CN.md](./README.zh-CN.md)
 - Contributing guide: [CONTRIBUTING.md](./CONTRIBUTING.md)
-
-## Roadmap
-
-- AI-assisted analysis
 
 ## Disclaimer
 
