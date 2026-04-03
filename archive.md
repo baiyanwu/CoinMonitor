@@ -81,7 +81,7 @@ git tag v1.0.4
 git push origin v1.0.4
 ```
 
-### 4. 创建 GitHub Release
+### 4. 创建 GitHub Release 并等待打包成功
 
 示例：
 
@@ -89,7 +89,20 @@ git push origin v1.0.4
 gh release create v1.0.4 --title v1.0.4 --generate-notes
 ```
 
-### 5. 合入 `main`
+Release 创建后 GitHub Actions 会自动打包上传 APK。**必须等待打包成功后再合入 main**，否则打包失败时 main 上已经有错误版本。
+
+等待方式：创建 Release 后，每 2 分钟检查一次打包状态，直到成功或失败。
+
+```bash
+# 每2分钟检查一次
+gh run list --workflow=android-release.yml --limit 1
+# 或直接查看 Release 页面的 Actions 状态
+```
+
+- 打包成功：继续下一步合入 main
+- 打包失败：在 release 分支上修复，重新提交，重新创建 Release
+
+### 5. 打包成功后，合入 `main`
 
 示例：
 
@@ -179,6 +192,9 @@ git tag v1.0.4
 git push origin v1.0.4
 
 gh release create v1.0.4 --title v1.0.4 --generate-notes
+
+# 等待 GitHub Actions 打包成功（每2分钟检查一次）
+gh run list --workflow=android-release.yml --limit 1
 
 git checkout main
 git pull
