@@ -2,7 +2,7 @@
 
 这个文档用于集中说明 `CoinMonitor` 的技术实现细节、工程结构和当前设计取舍。
 
-项目当前主要通过 `vibecoding` 的方式完成设计、实现和迭代，但代码层面仍然按 Android 常规工程结构收口，优先保证可运行、可维护和便于后续继续演进。
+项目按 Android 常规工程结构收口，优先保证可运行、可维护和便于后续继续演进。
 
 ## Tech Stack
 
@@ -12,13 +12,6 @@
 - Retrofit + OkHttp + Kotlinx Serialization
 - Foreground Service
 - WindowManager Overlay
-
-## Requirements
-
-- Android Studio Koala 及以上版本
-- JDK 17
-- Android `minSdk 26`
-- Android `targetSdk 35`
 
 ## Architecture
 
@@ -159,87 +152,60 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 
 ## TODO
 
-- 增加“行情刷新方式”设置项，允许用户在 `智能 / 仅 WSS / 仅 API` 三种模式之间切换
+- 增加”行情刷新方式”设置项，允许用户在 `智能 / 仅 WSS / 仅 API` 三种模式之间切换
 - `智能` 模式优先走交易所与链上的 `WSS`，连接异常或当前市场不支持时自动回退到 `API`
 - `仅 API` 模式继续复用现有轮询引擎和刷新间隔配置，作为弱网、代理环境和问题排查时的稳定兜底
 - 给 `REST` 快照刷新和 `WSS` 推送补统一时序保护，避免手动下拉刷新时旧快照短暂覆盖更晚到达的实时价格
-- 可选实现方向包括“按报价时间戳丢弃旧写入”或“把 `REST / WSS` 更新统一串行到同一条写库通道”
-- 精简通知栏文案，去掉“每 3 秒刷新一次”这类频率提示，避免在 `WSS` 模式下继续显示过时的轮询描述
-- 补齐 `AI 分析` 能力
-  - 当前已支持 OpenAI 兼容接口的流式响应、K 线上下文拼装、会话态管理和失败兜底
-  - 用户可在设置页自行配置 Base URL、API Key、Model 和 System Prompt
+- 精简通知栏文案，去掉”每 3 秒刷新一次”这类频率提示，避免在 `WSS` 模式下继续显示过时的轮询描述
+- 补齐 `AI 分析` 剩余能力：指标标签选择、结构化指标上下文入 prompt、会话持久化与裁剪、快捷提问模板
+
+## CI/CD
+
+自动 workflow：
+
+- `.github/workflows/android.yml` — CI：单测 + lint + debug 构建
+- `.github/workflows/android-release.yml` — Release：单测 + lint + release 构建 + 上传 APK
+
+触发规则：
+
+- `release/*`、`hotfix/*`、`dev`、`main` 的 push 都会触发 `Android CI`
+- Release 创建（GitHub Release 发布）或手动触发 `workflow_dispatch` 会触发 `Android Release`
+- 仅推送 tag 不等于自动发布
+
+Release 自动流程：
+
+1. `testDebugUnitTest`
+2. `:app:lintDebug`
+3. `:app:assembleRelease`
+4. 上传 APK 到 GitHub Release
 
 ## Implementation Notes
 
 - 首页长按快捷菜单挂在同一棵 Compose 树里渲染，不走独立 `PopupWindow`；菜单会先测量真实宽度，再按手指落点附近定位，并补一段轻量的入场动画。
 - 首页列表在 ViewModel 首次收到本地数据前会先展示加载态，避免把默认空列表误判为空页面。
-- 首页 `CoinSymbolIcon` 当前会先同步读取本地 / 内存图标缓存，再异步补齐，避免列表滚动时反复闪回占位图。
-- 首页实时价格读取已经下沉到单行价格子树；每个 item 只订阅自己的 quote flow，避免任意一个币价变化时唤醒整屏可见项。
-- 首页列表项手势当前统一收口在自定义 `awaitEachGesture` 流程里：点击、拖动和长按菜单共用一套状态机，避免多套手势监听互相抢占。
-- 首页拖动入口已经改成整卡长按，不再依赖右侧专门的拖动把手；当前交互时序固定为 `400ms` 进入拖动、`650ms` 直接弹出快捷菜单。
+- 首页 `CoinSymbolIcon` 会先同步读取本地 / 内存图标缓存，再异步补齐，避免列表滚动时反复闪回占位图。
+- 首页实时价格读取下沉到单行价格子树；每个 item 只订阅自己的 quote flow，避免任意一个币价变化时唤醒整屏可见项。
+- 首页列表项手势统一收口在自定义 `awaitEachGesture` 流程里：点击、拖动和长按菜单共用一套状态机，避免多套手势监听互相抢占。
+- 首页拖动入口为整卡长按，交互时序为 `400ms` 进入拖动、`650ms` 弹出快捷菜单。
 - 搜索页和悬浮窗设置页使用独立 `Activity`，避免和主 `NavHost` 的底部导航、转场动画、窗口 inset 相互耦合。
-- 首页刷新已经切换成 `PullToRefreshBox`，并在 ViewModel 里补了手动刷新态，避免手势刷新和后台轮询互相打架。
-- 设置页里涉及 `Switch` 的横向行当前都支持整行点击，不再只靠右侧小开关命中。
-- 悬浮窗仍然使用 `WindowManager + View`，没有改成 Compose，以降低系统悬浮场景下的重排、生命周期和兼容性风险。
-- 悬浮窗当前把“临时隐藏”单独建模为运行态，不落库；隐藏时会立即 `removeViewImmediate`，保证原位置点击可以穿透到底层应用。
-- 标准悬浮窗行视图会复用已有 `ImageView` / `TextView`，避免高频价格刷新时反复重建 leading 区域导致图标闪动。
-- 吸附侧边栏 ticker 当前额外做了图标 bitmap 复用和宽度按内容自适应，避免图标闪烁和右侧留白过宽。
+- 首页刷新使用 `PullToRefreshBox`，ViewModel 里维护手动刷新态，避免手势刷新和后台轮询互相打架。
+- 设置页里涉及 `Switch` 的横向行都支持整行点击，不只靠右侧小开关命中。
+- 悬浮窗使用 `WindowManager + View`，没有改成 Compose，以降低系统悬浮场景下的重排、生命周期和兼容性风险。
+- 悬浮窗”临时隐藏”建模为运行态，不落库；隐藏时立即 `removeViewImmediate`，保证原位置点击可以穿透到底层应用。
+- 标准悬浮窗行视图复用已有 `ImageView` / `TextView`，避免高频价格刷新时反复重建 leading 区域导致图标闪动。
+- 吸附侧边栏 ticker 做了图标 bitmap 复用和宽度按内容自适应，避免图标闪烁和右侧留白过宽。
 - 悬浮窗图标在 `WindowManager` 视图层单独做圆形裁剪，保留外层定宽布局，避免改成圆形后把价格列对齐打乱。
 - 前台通知使用自定义 `RemoteViews` 内容布局，统一正文与操作按钮的对齐方式。
-- 数据库已移除默认破坏性迁移，并开启 Room schema 导出，为后续显式 migration 留出接口。
-- 当前 Room schema 已升级到 `v5`，用于承载悬浮窗字体大小和吸附靠边配置。
-- 当前 Room schema 已升级到 `v6`，用于承载链上观察项所需的链信息与图标字段。
-- 当前 Room schema 已升级到 `v7`，用于承载首页排序与置顶字段：`homePinned`、`homeOrder`、`homePinnedOrder`。
+- 数据库移除默认破坏性迁移，开启 Room schema 导出，为后续显式 migration 留出接口。
+- Room schema 为 `v7`，迁移路径：v4→v5（悬浮窗字体/吸附）→v6（链上字段）→v7（首页排序与置顶 + AI 聊天表）。
 - 调试网络日志只在 Debug 构建输出，Release 默认关闭。
-- AI 聊天当前已经复用同一套带网络日志拦截器的 `OkHttpClient`，因此 `K线 AI` 请求也会进入网络日志页。
-- HTTP 网络日志当前会记录请求头与请求体预览；其中 `Authorization` 会做脱敏，响应体仍不主动展开，避免影响流式 AI 返回。
-- 悬浮窗启停规则已经统一，避免 UI 开关状态和真实运行状态不一致。
-- 搜索页的交易所模式和链上模式已经彻底分流，链上模式不会再混发交易所搜索请求。
-- 首页列表和搜索结果页当前共用同一套交易所 badge 视觉：`Binance / Binance Alpha / OKX` 都按统一的强调色标签渲染，避免跨页面样式漂移。
-- 行情刷新已经拆成“全局协调器 + 可替换刷新引擎”两层结构，为交易所与链上的 `WSS` 接入预留接口。
-- 流式引擎内部已经对订阅集合做指纹比较，避免价格回流导致重复重建长连接。
-- 当前 vendored chart wrapper 关闭了 `WebView` 自身页面缩放，避免系统层缩放和图表手势混在一起。
-- vendored wrapper 生成产物当前直接提交 `src/main/assets/com/tradingview/lightweightcharts/scripts/app/main.js`，这样工程在不执行 `npm run compile` 时也能直接构建运行。
+- AI 聊天复用同一套带网络日志拦截器的 `OkHttpClient`，`K线 AI` 请求也会进入网络日志页。
+- HTTP 网络日志记录请求头与请求体预览；`Authorization` 会脱敏，响应体不主动展开，避免影响流式 AI 返回。
+- 悬浮窗启停规则已统一，避免 UI 开关状态和真实运行状态不一致。
+- 搜索页的交易所模式和链上模式已分流，链上模式不会再混发交易所搜索请求。
+- 首页列表和搜索结果页共用同一套交易所 badge 视觉：`Binance / Binance Alpha / OKX` 都按统一的强调色标签渲染，避免跨页面样式漂移。
+- 行情刷新拆成”全局协调器 + 可替换刷新引擎”两层结构，为交易所与链上的 `WSS` 接入预留接口。
+- 流式引擎内部对订阅集合做指纹比较，避免价格回流导致重复重建长连接。
+- vendored chart wrapper 关闭了 `WebView` 自身页面缩放，避免系统层缩放和图表手势混在一起。
+- vendored wrapper 生成产物直接提交 `src/main/assets/com/tradingview/lightweightcharts/scripts/app/main.js`，不执行 `npm run compile` 时也能直接构建运行。
 
-## Open Source Notes
-
-仓库公开时建议保持以下约束：
-
-- 不要提交 `local.properties`
-- 不要提交签名文件、私钥、发行版 keystore
-- 不要把任何私有 API Key、鉴权头或内部环境地址写入仓库
-- 交易所现货数据仍然使用公开接口
-- 链上搜索与报价依赖用户自行填写的 `OKX` 凭证，项目本身不托管任何密钥
-- 不要把测试用 `OKX` 密钥、鉴权头或抓包结果提交进仓库
-
-## Release Signing
-
-本地签名和 CI 签名都已经预留好接入点：
-
-- 本地开发默认从 `local.properties` 读取 release 签名参数
-- GitHub Actions 默认从 secrets 注入 release 签名参数
-
-本地参数键如下：
-
-- `release.storeFile`
-- `release.storePassword`
-- `release.keyAlias`
-- `release.keyPassword`
-
-GitHub Actions secrets 约定如下：
-
-- `ANDROID_KEYSTORE_BASE64`
-- `ANDROID_RELEASE_STORE_PASSWORD`
-- `ANDROID_RELEASE_KEY_ALIAS`
-- `ANDROID_RELEASE_KEY_PASSWORD`
-
-其中 `ANDROID_KEYSTORE_BASE64` 需要由 keystore 文件 base64 编码后写入 GitHub Secrets。
-
-## Release Notes
-
-- 当前 GitHub Release 采用 `releaseX.Y.Z` 的 tag / title 命名
-- Android 应用内版本号使用 `versionName` / `versionCode` 单独维护
-- 发布新版时建议同步更新：
-  - `app/build.gradle.kts` 中的 `versionName`
-  - `app/build.gradle.kts` 中的 `versionCode`
-  - `README.md` / `README.zh-CN.md` 的更新说明

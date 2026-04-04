@@ -7,16 +7,12 @@
 <p align="center">
   <a href="./README.zh-CN.md">简体中文</a>
   ·
-  <a href="./TECHNICAL.md">Technical Notes</a>
+  <a href="./docs/TECHNICAL.md">Technical Notes</a>
   ·
   <a href="./LICENSE">Apache-2.0</a>
 </p>
 
-`CoinMonitor` is an Android app focused on one simple path: search assets, add them to a watchlist, and optionally pin selected items into a floating overlay for quick monitoring across apps.
-
-It supports spot pair search from `Binance Alpha`, `Binance`, and `OKX`, and also supports on-chain token search and price tracking through `OKX DEX Market API`. Once an item is added, you can track it inside the app or send it to the overlay, where a foreground service keeps prices refreshed in the background.
-
-This project is currently designed and iterated primarily through `vibecoding`, while still being kept in a conventional Android project structure so it stays runnable, readable, and maintainable.
+`CoinMonitor` is an Android app focused on one simple path: search assets, add them to a watchlist, and optionally pin selected items into a floating overlay for quick monitoring across apps. The project is built and iterated primarily through vibecoding.
 
 <div align="center">
   <img src="./artwork/screenshot.png" alt="CoinMonitor preview" width="960" />
@@ -37,7 +33,6 @@ This project is currently designed and iterated primarily through `vibecoding`, 
 
 - On-chain support is intentionally limited to `search + latest price`; the app does not provide swap, order, or execution capabilities.
 - `OKX` credentials are entered by the user inside app settings and stored only on the local device.
-- Current architecture already routes home-screen refresh and overlay refresh through one global coordinator, making a later move from polling to `WSS` easier.
 
 ## Requirements
 
@@ -58,9 +53,9 @@ cd CoinMonitor
 
 ## Documentation
 
-- Technical implementation: [TECHNICAL.md](./TECHNICAL.md)
 - Chinese README: [README.zh-CN.md](./README.zh-CN.md)
-- Contributing guide: [CONTRIBUTING.md](./CONTRIBUTING.md)
+- Technical implementation: [TECHNICAL.md](./docs/TECHNICAL.md)
+- Contributing guide: [CONTRIBUTING.md](./docs/CONTRIBUTING.md)
 
 ## Disclaimer
 

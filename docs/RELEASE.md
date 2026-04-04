@@ -1,11 +1,5 @@
 # 发布流程
 
-说明：
-
-- 历史版本保持现状，不追溯修改旧分支名或旧 tag
-- 从下一个版本开始，统一使用 `release/x.y.z` 分支模式
-- 从下一个版本开始，tag 示例统一写成 `vX.Y.Z`
-
 ## 分支约定
 
 - `dev`：日常开发分支
@@ -29,8 +23,29 @@
 
 规则：
 
-- `versionName`: 例如 `1.0.3`（示例）
+- `versionName`: 例如 `1.0.4`
 - `versionCode`: 单调递增
+
+## 签名配置
+
+本地签名和 CI 签名都已经预留好接入点：
+
+- 本地开发默认从 `local.properties` 读取 release 签名参数
+- GitHub Actions 默认从 secrets 注入 release 签名参数
+
+本地参数键（写入 `local.properties`）：
+
+- `release.storeFile`
+- `release.storePassword`
+- `release.keyAlias`
+- `release.keyPassword`
+
+GitHub Actions secrets 约定：
+
+- `ANDROID_KEYSTORE_BASE64`（keystore 文件 base64 编码）
+- `ANDROID_RELEASE_STORE_PASSWORD`
+- `ANDROID_RELEASE_KEY_ALIAS`
+- `ANDROID_RELEASE_KEY_PASSWORD`
 
 ## 发布前本地检查
 
@@ -124,26 +139,6 @@ git merge release/1.0.4
 git push origin dev
 ```
 
-## GitHub Actions
-
-自动 workflow：
-
-- `.github/workflows/android.yml`
-- `.github/workflows/android-release.yml`
-
-Release 创建后会自动：
-
-1. 跑 `testDebugUnitTest`
-2. 跑 `:app:lintDebug`
-3. 跑 `:app:assembleRelease`
-4. 上传 APK 到 GitHub Release
-
-补充：
-
-- `release/*`、`hotfix/*`、`dev`、`main` 的 push 都会触发 `Android CI`
-- 仅推送 tag 不等于自动发布
-- 当前自动打包入口是 GitHub Release 发布，或手动触发 `workflow_dispatch`
-
 ## 热修流程
 
 如果正式发布后需要紧急修复：
@@ -164,6 +159,7 @@ git checkout -b hotfix/1.0.4
 
 ## 关键注意点
 
+- CI 流程细节见 TECHNICAL.md「CI/CD」章节
 - 单测失败会直接导致 `Android CI` 和 `Android Release` 失败
 - 普通 push 不会自动重跑已经存在的旧 release tag
 - 不要在 `main` 直接做日常开发修复
@@ -171,38 +167,3 @@ git checkout -b hotfix/1.0.4
 - 线上紧急问题优先修在 `hotfix/x.y.z`
 - `release/x.y.z` 是后续规范，历史版本不追溯调整
 
-## 最小命令顺序
-
-下面命令中的版本号、tag、commit message、分支名都是示例，需要按当次发布替换：
-
-```bash
-git checkout dev
-git pull
-git checkout -b release/1.0.4
-
-./gradlew :app:compileDebugKotlin
-./gradlew testDebugUnitTest
-./gradlew :app:lintDebug
-
-git add app/build.gradle.kts
-git commit -m "Bump version to 1.0.4"
-git push origin release/1.0.4
-
-git tag v1.0.4
-git push origin v1.0.4
-
-gh release create v1.0.4 --title v1.0.4 --generate-notes
-
-# 等待 GitHub Actions 打包成功（每2分钟检查一次）
-gh run list --workflow=android-release.yml --limit 1
-
-git checkout main
-git pull
-git merge release/1.0.4
-git push origin main
-
-git checkout dev
-git pull
-git merge release/1.0.4
-git push origin dev
-```
