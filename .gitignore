@@ -16,3 +16,5 @@ third_party/lightweightlibrary/node_modules/
 *.keystore
 *.pem
 *.p12
+# 统一 debug 签名（允许提交）
+!/app/debug.keystore

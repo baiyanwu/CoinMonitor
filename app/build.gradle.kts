@@ -73,6 +73,15 @@ android {
     }
 
     buildTypes {
+        debug {
+            // 统一 debug 签名，避免不同开发者编译的开发版需要重新覆盖安装
+            signingConfig = signingConfigs.getByName("debug").apply {
+                storeFile = file("debug.keystore")
+                storePassword = "android"
+                keyAlias = "androiddebugkey"
+                keyPassword = "android"
+            }
+        }
         release {
             isMinifyEnabled = false
             if (hasReleaseSigning) {
