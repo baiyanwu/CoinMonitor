@@ -1,5 +1,7 @@
 package io.baiyanwu.coinmonitor.ui.components
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,11 +15,16 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
@@ -44,6 +51,12 @@ import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 import io.baiyanwu.coinmonitor.R
 import kotlinx.coroutines.withTimeoutOrNull
 
+private enum class WatchItemDragVisualState {
+    Idle,
+    Armed,
+    Dragging
+}
+
 @Composable
 fun WatchItemCard(
     item: WatchItem,
@@ -64,6 +77,16 @@ fun WatchItemCard(
     val dragLongPressTimeoutMillis = DRAG_LONG_PRESS_TIMEOUT_MILLIS
     val quickMenuLongPressTimeoutMillis = QUICK_MENU_LONG_PRESS_TIMEOUT_MILLIS
     val touchSlop = viewConfiguration.touchSlop
+    var dragVisualState by remember(item.id) { mutableStateOf(WatchItemDragVisualState.Idle) }
+    val pressTintAlpha by animateFloatAsState(
+        targetValue = when (dragVisualState) {
+            WatchItemDragVisualState.Idle -> 0f
+            WatchItemDragVisualState.Armed -> 0.08f
+            WatchItemDragVisualState.Dragging -> 0.12f
+        },
+        animationSpec = tween(durationMillis = 120),
+        label = "watch_item_press_tint"
+    )
 
     Box(
         modifier = modifier
@@ -92,93 +115,110 @@ fun WatchItemCard(
                 touchSlop
             ) {
                 awaitEachGesture {
-                    val down = awaitFirstDown()
-                    val downPosition = down.position
-                    var latestPosition = down.position
-                    var elapsedMillis = 0L
-                    var dragArmed = false
-                    var dragActive = false
-                    var quickMenuOpened = false
-                    var dragReference = down.position
+                    try {
+                        val down = awaitFirstDown()
+                        val downPosition = down.position
+                        var latestPosition = down.position
+                        var elapsedMillis = 0L
+                        var dragArmed = false
+                        var dragActive = false
+                        var quickMenuOpened = false
+                        var dragReference = down.position
 
-                    while (true) {
-                        when {
-                            !dragArmed && elapsedMillis >= dragLongPressTimeoutMillis -> {
-                                dragArmed = true
-                                dragReference = latestPosition
-                                continue
+                        while (true) {
+                            when {
+                                !dragArmed && elapsedMillis >= dragLongPressTimeoutMillis -> {
+                                    // 首页排序是两段式长按：先进入拖拽预备态，再通过位移确认真正拖动。
+                                    dragArmed = true
+                                    dragVisualState = WatchItemDragVisualState.Armed
+                                    dragReference = latestPosition
+                                    continue
+                                }
+
+                                !quickMenuOpened && !dragActive && elapsedMillis >= quickMenuLongPressTimeoutMillis -> {
+                                    quickMenuOpened = true
+                                    onLongPress(
+                                        IntOffset(
+                                            x = gestureAnchor.cardRootOffset.x + latestPosition.x.roundToInt(),
+                                            y = gestureAnchor.cardRootOffset.y + latestPosition.y.roundToInt()
+                                        )
+                                    )
+                                    break
+                                }
                             }
 
-                            !quickMenuOpened && !dragActive && elapsedMillis >= quickMenuLongPressTimeoutMillis -> {
-                                quickMenuOpened = true
-                                onLongPress(
-                                    IntOffset(
-                                        x = gestureAnchor.cardRootOffset.x + latestPosition.x.roundToInt(),
-                                        y = gestureAnchor.cardRootOffset.y + latestPosition.y.roundToInt()
-                                    )
-                                )
+                            val nextTimeoutMillis = when {
+                                dragActive -> null
+                                !dragArmed -> dragLongPressTimeoutMillis
+                                else -> quickMenuLongPressTimeoutMillis
+                            }
+                            val event = if (nextTimeoutMillis == null) {
+                                awaitPointerEvent()
+                            } else {
+                                val waitMillis = (nextTimeoutMillis - elapsedMillis).coerceAtLeast(1L)
+                                withTimeoutOrNull(waitMillis) {
+                                    awaitPointerEvent()
+                                }
+                            }
+                            if (event == null) {
+                                elapsedMillis = nextTimeoutMillis ?: elapsedMillis
+                                continue
+                            }
+                            val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                            latestPosition = change.position
+                            elapsedMillis = change.uptimeMillis - down.uptimeMillis
+
+                            if (!dragActive && change.isConsumed) {
+                                onDragCancel()
                                 break
                             }
-                        }
 
-                        val nextTimeoutMillis = when {
-                            dragActive -> null
-                            !dragArmed -> dragLongPressTimeoutMillis
-                            else -> quickMenuLongPressTimeoutMillis
-                        }
-                        val event = if (nextTimeoutMillis == null) {
-                            awaitPointerEvent()
-                        } else {
-                            val waitMillis = (nextTimeoutMillis - elapsedMillis).coerceAtLeast(1L)
-                            withTimeoutOrNull(waitMillis) {
-                                awaitPointerEvent()
-                            }
-                        }
-                        if (event == null) {
-                            elapsedMillis = nextTimeoutMillis ?: elapsedMillis
-                            continue
-                        }
-                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                        latestPosition = change.position
-                        elapsedMillis = change.uptimeMillis - down.uptimeMillis
-
-                        if (!dragActive && change.isConsumed) {
-                            onDragCancel()
-                            break
-                        }
-
-                        if (change.changedToUpIgnoreConsumed()) {
-                            when {
-                                dragActive -> onDragEnd()
-                                !dragArmed && !quickMenuOpened && (latestPosition - downPosition).getDistance() <= touchSlop -> onClick()
-                                else -> onDragCancel()
-                            }
-                            break
-                        }
-
-                        if (!dragActive && dragArmed) {
-                            val dragDistance = (latestPosition - dragReference).getDistance()
-                            if (dragDistance > touchSlop) {
-                                dragActive = true
-                                change.consume()
-                                onDragStart()
-                                val initialDelta = latestPosition - dragReference
-                                if (initialDelta != Offset.Zero) {
-                                    onDragBy(initialDelta.y)
+                            if (change.changedToUpIgnoreConsumed()) {
+                                when {
+                                    dragActive -> onDragEnd()
+                                    !dragArmed && !quickMenuOpened && (latestPosition - downPosition).getDistance() <= touchSlop -> onClick()
+                                    else -> onDragCancel()
                                 }
-                                dragReference = latestPosition
-                                continue
+                                break
                             }
-                        }
 
-                        if (dragActive) {
-                            val delta = change.positionChangeIgnoreConsumed()
-                            if (delta != Offset.Zero) {
-                                change.consume()
-                                onDragBy(delta.y)
+                            if (!dragActive && dragArmed) {
+                                val dragDistance = (latestPosition - dragReference).getDistance()
+                                if (dragDistance > touchSlop) {
+                                    dragActive = true
+                                    dragVisualState = WatchItemDragVisualState.Dragging
+                                    change.consume()
+                                    onDragStart()
+                                    val initialDelta = latestPosition - dragReference
+                                    if (initialDelta != Offset.Zero) {
+                                        onDragBy(initialDelta.y)
+                                    }
+                                    dragReference = latestPosition
+                                    continue
+                                }
+                            }
+
+                            if (dragActive) {
+                                val delta = change.positionChangeIgnoreConsumed()
+                                if (delta != Offset.Zero) {
+                                    change.consume()
+                                    onDragBy(delta.y)
+                                }
                             }
                         }
+                    } finally {
+                        dragVisualState = WatchItemDragVisualState.Idle
                     }
+                }
+            }
+            .drawWithContent {
+                drawContent()
+                if (pressTintAlpha > 0f) {
+                    // 只给已经绘制出来的内容做按压压暗，避免把整行透明区域也涂成一条底板。
+                    drawRect(
+                        color = colors.primaryText.copy(alpha = pressTintAlpha),
+                        blendMode = BlendMode.SrcAtop
+                    )
                 }
             }
     ) {
@@ -283,8 +323,11 @@ private suspend fun androidx.compose.ui.input.pointer.AwaitPointerEventScope.awa
     }
 }
 
-private const val DRAG_LONG_PRESS_TIMEOUT_MILLIS = 400L
-private const val QUICK_MENU_LONG_PRESS_TIMEOUT_MILLIS = 650L
+// 第一阶段用于进入拖拽预备态，给用户明确的按压反馈，但不会立刻打断继续拖动的操作节奏。
+private const val DRAG_LONG_PRESS_TIMEOUT_MILLIS = 350L
+
+// 第二阶段用于弹出快捷操作菜单，刻意比拖拽预备态更晚，避免想排序时太容易误触弹框。
+private const val QUICK_MENU_LONG_PRESS_TIMEOUT_MILLIS = 900L
 
 @Composable
 private fun ExchangeBadge(source: ExchangeSource) {
