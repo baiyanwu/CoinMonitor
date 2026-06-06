@@ -11,6 +11,8 @@ data class OverlaySettingsEntity(
     val opacity: Float = 0.42f,
     val maxItems: Int = 5,
     val leadingDisplayMode: String = "ICON",
+    val fontScale: Float = 1f,
+    val snapToEdge: Boolean = false,
     val windowX: Int? = null,
     val windowY: Int? = null
 ) {

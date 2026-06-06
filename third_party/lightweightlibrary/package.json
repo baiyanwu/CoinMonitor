@@ -1,0 +1,22 @@
+{
+  "private": true,
+  "name": "lightweight-android",
+  "version": "5.1.0",
+  "description": "Financial lightweight charts built with HTML5 canvas",
+  "author": "TradingView, Inc.",
+  "license": "Apache-2.0",
+  "main": "src/index.js",
+  "dependencies": {
+    "lightweight-charts": "5.1.0"
+  },
+  "devDependencies": {
+    "webpack": "^5.48.0",
+    "webpack-cli": "^4.7.2"
+  },
+  "scripts": {
+    "compile": "npx webpack ./lib/app/index.js --config ./webpack.config.js --output-path ./src/main/assets/com/tradingview/lightweightcharts/scripts/app",
+    "compile-price-formatter": "npx webpack ./lib/plugins/price-formatter/index.js --output-path ./src/main/assets/com/tradingview/lightweightcharts/scripts/plugins/price-formatter/",
+    "compile-time-formatter": "npx webpack ./lib/plugins/time-formatter/index.js --output-path ./src/main/assets/com/tradingview/lightweightcharts/scripts/plugins/time-formatter/",
+    "compile-eval-plugin": "npx webpack ./lib/plugins/eval-plugin/index.js --output-path ./src/main/assets/com/tradingview/lightweightcharts/scripts/plugins/eval-plugin/"
+  }
+}

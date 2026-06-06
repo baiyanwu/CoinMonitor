@@ -25,3 +25,19 @@ fun WatchItem.resolveChangeColor(colors: CoinMonitorColors, defaultColor: Color)
         else -> defaultColor
     }
 }
+
+fun WatchItem.resolveLivePriceColorMuted(colors: CoinMonitorColors, defaultColor: Color): Color {
+    return when (liveTrend) {
+        LivePriceTrend.UP -> colors.positiveMuted
+        LivePriceTrend.DOWN -> colors.negativeMuted
+        LivePriceTrend.NEUTRAL -> defaultColor
+    }
+}
+
+fun WatchItem.resolveChangeColorMuted(colors: CoinMonitorColors, defaultColor: Color): Color {
+    return when {
+        (change24hPercent ?: 0.0) > 0 -> colors.positiveMuted
+        (change24hPercent ?: 0.0) < 0 -> colors.negativeMuted
+        else -> defaultColor
+    }
+}

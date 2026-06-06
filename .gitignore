@@ -6,6 +6,9 @@
 /build
 /captures
 **/build
+.DS_Store
+.memsearch/
+third_party/lightweightlibrary/node_modules/
 
 # Signing files
 /keystore/
@@ -13,3 +16,5 @@
 *.keystore
 *.pem
 *.p12
+# 统一 debug 签名（允许提交）
+!/app/debug.keystore

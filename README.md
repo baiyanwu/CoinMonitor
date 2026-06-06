@@ -7,16 +7,12 @@
 <p align="center">
   <a href="./README.zh-CN.md">简体中文</a>
   ·
-  <a href="./TECHNICAL.md">Technical Notes</a>
+  <a href="./docs/TECHNICAL.md">Technical Notes</a>
   ·
   <a href="./LICENSE">Apache-2.0</a>
 </p>
 
-`CoinMonitor` is an Android app focused on one simple path: search pairs, add them to a watchlist, and optionally pin selected pairs into a floating overlay for quick monitoring across apps.
-
-It supports spot pair search from `Binance Alpha`, `Binance`, and `OKX`. Once a pair is added, you can track it inside the app or send it to the overlay, where a foreground service keeps prices refreshed in the background.
-
-This project is currently designed and iterated primarily through `vibecoding`, while still being kept in a conventional Android project structure so it stays runnable, readable, and maintainable.
+`CoinMonitor` is an Android app focused on one simple path: search assets, add them to a watchlist, and optionally pin selected items into a floating overlay for quick monitoring across apps. The project is built and iterated primarily through vibecoding.
 
 <div align="center">
   <img src="./artwork/screenshot.png" alt="CoinMonitor preview" width="960" />
@@ -24,14 +20,18 @@ This project is currently designed and iterated primarily through `vibecoding`, 
 
 ---
 
-## Highlights
+## Core Features
 
-- Search spot pairs from `Binance Alpha`, `Binance`, and `OKX`
-- Maintain a watchlist with manual refresh and long-press quick actions
-- Add or remove items from the floating overlay directly from the home screen
-- Configure overlay behavior including drag lock, opacity, max item count, and leading display mode
-- Use shared refresh intervals across the home screen and overlay: custom `3-10s`, `30s`, or `1 min`
-- Keep the overlay alive with a foreground service and restore it only when runtime conditions are still valid
+- Search and track spot pairs from `Binance Alpha`, `Binance`, and `OKX`, plus on-chain tokens through `OKX DEX Market API`
+- Manage a watchlist with quick actions, live quote refresh, and stable icon/badge presentation across the app
+- Pin selected items into a floating overlay with drag lock, edge snapping, adaptive layouts, and foreground-service persistence
+- Tune overlay behavior with a fixed-header settings flow for permissions, opacity, font size, edge snapping, and selected symbols
+- Keep quotes flowing through `WSS` first with snapshot fallback, while local settings control refresh behavior and OKX on-chain credentials
+
+## On-chain Notes
+
+- On-chain support is intentionally limited to `search + latest price`; the app does not provide swap, order, or execution capabilities.
+- `OKX` credentials are entered by the user inside app settings and stored only on the local device.
 
 ## Requirements
 
@@ -52,16 +52,9 @@ cd CoinMonitor
 
 ## Documentation
 
-- Technical implementation: [TECHNICAL.md](./TECHNICAL.md)
 - Chinese README: [README.zh-CN.md](./README.zh-CN.md)
-- Contributing guide: [CONTRIBUTING.md](./CONTRIBUTING.md)
-
-## Roadmap
-
-- On-chain pair support
-- K-line style views
-- AI-assisted analysis
-- More watchlist and overlay polish
+- Technical implementation: [TECHNICAL.md](./docs/TECHNICAL.md)
+- Contributing guide: [CONTRIBUTING.md](./docs/CONTRIBUTING.md)
 
 ## Disclaimer
 

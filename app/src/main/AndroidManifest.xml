@@ -21,7 +21,9 @@
         <activity
             android:name="io.baiyanwu.coinmonitor.ui.MainActivity"
             android:exported="true"
-            android:launchMode="singleTop">
+            android:launchMode="singleTop"
+            android:screenOrientation="portrait"
+            android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -31,11 +33,33 @@
 
         <activity
             android:name="io.baiyanwu.coinmonitor.ui.search.SearchActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
+        <activity
+            android:name="io.baiyanwu.coinmonitor.ui.kline.AiChatHistoryActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
+        <activity
+            android:name="io.baiyanwu.coinmonitor.ui.kline.KlineIndicatorSettingsActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
 
         <activity
             android:name="io.baiyanwu.coinmonitor.ui.settings.OverlaySettingsActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
+        <activity
+            android:name="io.baiyanwu.coinmonitor.ui.settings.ThirdPartyApiSettingsActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
+        <activity
+            android:name="io.baiyanwu.coinmonitor.ui.settings.NetworkLogActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
 
         <service
             android:name="io.baiyanwu.coinmonitor.overlay.OverlayForegroundService"

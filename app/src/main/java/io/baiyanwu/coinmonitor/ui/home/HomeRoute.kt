@@ -1,12 +1,13 @@
 package io.baiyanwu.coinmonitor.ui.home
 
-import androidx.compose.animation.core.Animatable
+import android.widget.Toast
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,26 +17,33 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Layers
-import androidx.compose.material.icons.rounded.Refresh
-import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.VerticalAlignTop
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -49,21 +57,31 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.baiyanwu.coinmonitor.data.AppContainer
+import io.baiyanwu.coinmonitor.ui.components.MainTabTopBar
+import io.baiyanwu.coinmonitor.ui.components.SearchEntryButton
+import io.baiyanwu.coinmonitor.ui.components.TopBarCircleActionButton
+import io.baiyanwu.coinmonitor.domain.model.WatchItem
 import io.baiyanwu.coinmonitor.ui.components.WatchItemCard
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorComponentDefaults
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 import io.baiyanwu.coinmonitor.R
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 private data class HomeQuickMenuState(
@@ -71,149 +89,303 @@ private data class HomeQuickMenuState(
     val anchorInRoot: IntOffset
 )
 
+private data class HomeDragState(
+    val itemId: String,
+    val homePinned: Boolean,
+    val dragOffsetY: Float = 0f,
+    val didReorder: Boolean = false
+)
+
 @Composable
 fun HomeRoute(
     container: AppContainer,
+    contentTopInset: Dp = 0.dp,
     contentBottomInset: Dp = 0.dp,
-    onNavigateSearch: () -> Unit
+    onNavigateSearch: () -> Unit,
+    onNavigateOverlaySettings: () -> Unit
 ) {
     val viewModel: HomeViewModel = viewModel(factory = HomeViewModel.factory(container))
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val context = LocalContext.current
+
+    DisposableEffect(lifecycleOwner, viewModel) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> viewModel.setScreenActive(true)
+                Lifecycle.Event.ON_PAUSE -> viewModel.setScreenActive(false)
+                else -> Unit
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            viewModel.setScreenActive(false)
+        }
+    }
+
+    LaunchedEffect(state.noticeMessage) {
+        val message = state.noticeMessage ?: return@LaunchedEffect
+        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+        viewModel.consumeNotice()
+    }
+
     HomeScreen(
         state = state,
+        contentTopInset = contentTopInset,
         contentBottomInset = contentBottomInset,
         onNavigateSearch = onNavigateSearch,
+        onNavigateOverlaySettings = onNavigateOverlaySettings,
+        quoteRepository = container.quoteRepository,
         onRemoveWatchItem = viewModel::removeWatchItem,
         onToggleOverlay = viewModel::toggleOverlay,
+        onSetHomePinned = viewModel::setHomePinned,
+        onMoveHomeItem = viewModel::moveHomeItem,
+        onMovePinnedHomeItem = viewModel::movePinnedHomeItem,
         onRefresh = viewModel::refreshNow
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun HomeScreen(
     state: HomeUiState,
+    contentTopInset: Dp,
     contentBottomInset: Dp,
     onNavigateSearch: () -> Unit,
+    onNavigateOverlaySettings: () -> Unit,
+    quoteRepository: io.baiyanwu.coinmonitor.domain.repository.QuoteRepository,
     onRemoveWatchItem: (String) -> Unit,
     onToggleOverlay: (String) -> Unit,
+    onSetHomePinned: (String, Boolean) -> Unit,
+    onMoveHomeItem: (String, String?) -> Unit,
+    onMovePinnedHomeItem: (String, String?) -> Unit,
     onRefresh: () -> Unit
 ) {
     var quickMenuState by remember { mutableStateOf<HomeQuickMenuState?>(null) }
+    var showOverlayEnableDialog by remember { mutableStateOf(false) }
     var rootSize by remember { mutableStateOf(IntSize.Zero) }
+    var displayItems by remember { mutableStateOf(state.items) }
+    var dragState by remember { mutableStateOf<HomeDragState?>(null) }
     val colors = CoinMonitorThemeTokens.colors
     val dismissInteractionSource = remember { MutableInteractionSource() }
+    val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+    val overlayEnableDialogTitle = stringResource(R.string.home_overlay_enable_dialog_title)
+    val overlayEnableDialogMessage = stringResource(R.string.home_overlay_enable_dialog_message)
+    val overlayEnableDialogDismiss = stringResource(R.string.common_cancel)
+    val overlayEnableDialogConfirm = stringResource(R.string.home_overlay_enable_dialog_confirm)
+
+    LaunchedEffect(state.items) {
+        if (dragState == null) {
+            displayItems = state.items
+        }
+    }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(colors.pageBackground)
-            .padding(bottom = contentBottomInset)
+            .padding(top = contentTopInset, bottom = contentBottomInset)
             .onSizeChanged { rootSize = it }
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            MainTabTopBar {
                 Text(
                     text = stringResource(R.string.home_title),
                     style = MaterialTheme.typography.headlineSmall
                 )
+                Box(modifier = Modifier.weight(1f))
                 SearchEntryButton(onClick = onNavigateSearch)
             }
 
-            if (!state.isLoaded) {
-                HomeLoadingState()
-            } else if (state.items.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 24.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(14.dp)
+            PullToRefreshBox(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                isRefreshing = state.isRefreshing,
+                onRefresh = onRefresh
+            ) {
+                if (!state.isLoaded) {
+                    HomeLoadingState()
+                } else if (state.items.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 24.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = stringResource(R.string.home_empty_hint),
-                            textAlign = TextAlign.Center,
-                            color = colors.secondaryText,
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-                        Button(
-                            onClick = onNavigateSearch,
-                            colors = CoinMonitorComponentDefaults.primaryButtonColors()
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(14.dp)
                         ) {
-                            Text(text = stringResource(R.string.home_add_pair))
+                            Text(
+                                text = stringResource(R.string.home_empty_hint),
+                                textAlign = TextAlign.Center,
+                                color = colors.secondaryText,
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            Button(
+                                onClick = onNavigateSearch,
+                                colors = CoinMonitorComponentDefaults.primaryButtonColors()
+                            ) {
+                                Text(text = stringResource(R.string.home_add_pair))
+                            }
                         }
                     }
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(
-                        start = 0.dp,
-                        end = 0.dp,
-                        top = 0.dp,
-                        bottom = 88.dp
-                    ),
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    items(state.items, key = { it.id }) { item ->
-                        Box(modifier = Modifier.fillMaxWidth()) {
-                            WatchItemCard(
-                                item = item,
-                                overlaySelected = state.overlayIds.contains(item.id),
-                                onClick = {
-                                    if (quickMenuState?.itemId == item.id) {
-                                        quickMenuState = null
-                                    }
-                                },
-                                onLongPress = { anchorInRoot ->
-                                    if (quickMenuState?.itemId == item.id) {
-                                        quickMenuState = null
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        state = listState,
+                        contentPadding = PaddingValues(
+                            start = 0.dp,
+                            end = 0.dp,
+                            top = 0.dp,
+                            bottom = 24.dp
+                        ),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        items(displayItems, key = { it.id }) { item ->
+                            val isDragging = dragState?.itemId == item.id
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .zIndex(if (isDragging) 1f else 0f)
+                            ) {
+                                WatchItemCard(
+                                    item = item,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    quoteRepository = quoteRepository,
+                                    overlaySelected = state.overlayIds.contains(item.id),
+                                    dragOffsetY = if (isDragging) {
+                                        dragState?.dragOffsetY ?: 0f
                                     } else {
-                                        quickMenuState = HomeQuickMenuState(
+                                        0f
+                                    },
+                                    onClick = {
+                                        quickMenuState = null
+                                    },
+                                    onLongPress = { anchorInRoot ->
+                                        if (quickMenuState?.itemId == item.id) {
+                                            quickMenuState = null
+                                        } else {
+                                            quickMenuState = HomeQuickMenuState(
+                                                itemId = item.id,
+                                                anchorInRoot = anchorInRoot
+                                            )
+                                        }
+                                    },
+                                    onDragStart = {
+                                        quickMenuState = null
+                                        dragState = HomeDragState(
                                             itemId = item.id,
-                                            anchorInRoot = anchorInRoot
+                                            homePinned = item.homePinned
                                         )
+                                    },
+                                    onDragBy = { dragAmount ->
+                                        val currentDragState = dragState
+                                        if (currentDragState != null && currentDragState.itemId == item.id) {
+                                            val updatedDragState = currentDragState.copy(
+                                                dragOffsetY = currentDragState.dragOffsetY + dragAmount
+                                            )
+                                            dragState = updatedDragState
+                                            maybeMoveDraggedItem(
+                                                items = displayItems,
+                                                listState = listState,
+                                                dragState = updatedDragState
+                                            )?.let { result ->
+                                                displayItems = result.items
+                                                dragState = updatedDragState.copy(
+                                                    dragOffsetY = result.adjustedDragOffsetY,
+                                                    didReorder = true
+                                                )
+                                            }
+                                            scrollDraggedItemIntoView(
+                                                scope = scope,
+                                                listState = listState,
+                                                dragState = dragState
+                                            )
+                                        }
+                                    },
+                                    onDragEnd = {
+                                        finalizeDrag(
+                                            dragState = dragState,
+                                            items = displayItems,
+                                            onMoveHomeItem = onMoveHomeItem,
+                                            onMovePinnedHomeItem = onMovePinnedHomeItem
+                                        )
+                                        dragState = null
+                                    },
+                                    onDragCancel = {
+                                        finalizeDrag(
+                                            dragState = dragState,
+                                            items = displayItems,
+                                            onMoveHomeItem = onMoveHomeItem,
+                                            onMovePinnedHomeItem = onMovePinnedHomeItem
+                                        )
+                                        dragState = null
                                     }
-                                }
-                            )
+                                )
+                            }
                         }
                     }
                 }
             }
         }
 
-        if (state.items.isNotEmpty()) {
-            AnimatedRefreshFab(
-                onRefresh = onRefresh,
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(end = 18.dp, bottom = 20.dp)
-            )
-        }
-
         quickMenuState?.let { menuState ->
+            val menuItem = state.items.firstOrNull { it.id == menuState.itemId } ?: return@let
             HomeQuickActionsOverlay(
                 quickMenuState = menuState,
                 screenWidthPx = rootSize.width,
                 overlaySelected = state.overlayIds.contains(menuState.itemId),
+                homePinned = menuItem.homePinned,
                 onDismiss = { quickMenuState = null },
                 onToggleOverlay = {
-                    onToggleOverlay(menuState.itemId)
+                    val shouldAddToOverlay = !state.overlayIds.contains(menuState.itemId)
+                    if (shouldAddToOverlay && !state.overlayEnabled) {
+                        showOverlayEnableDialog = true
+                    } else {
+                        onToggleOverlay(menuState.itemId)
+                    }
                     quickMenuState = null
                 },
                 onDelete = {
                     onRemoveWatchItem(menuState.itemId)
                     quickMenuState = null
                 },
+                onTogglePin = {
+                    onSetHomePinned(menuState.itemId, !menuItem.homePinned)
+                    quickMenuState = null
+                },
                 dismissInteractionSource = dismissInteractionSource
+            )
+        }
+
+        if (showOverlayEnableDialog) {
+            AlertDialog(
+                onDismissRequest = { showOverlayEnableDialog = false },
+                title = {
+                    Text(text = overlayEnableDialogTitle)
+                },
+                text = {
+                    Text(text = overlayEnableDialogMessage)
+                },
+                dismissButton = {
+                    TextButton(onClick = { showOverlayEnableDialog = false }) {
+                        Text(text = overlayEnableDialogDismiss)
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showOverlayEnableDialog = false
+                            onNavigateOverlaySettings()
+                        }
+                    ) {
+                        Text(text = overlayEnableDialogConfirm)
+                    }
+                }
             )
         }
     }
@@ -235,8 +407,10 @@ private fun HomeLoadingState() {
 private fun HomeQuickActionsMenuContent(
     modifier: Modifier = Modifier,
     overlaySelected: Boolean,
+    homePinned: Boolean,
     onToggleOverlay: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onTogglePin: () -> Unit
 ) {
     val colors = CoinMonitorThemeTokens.colors
 
@@ -291,6 +465,31 @@ private fun HomeQuickActionsMenuContent(
                 onClick = onToggleOverlay,
                 testTag = "home-quick-action-overlay"
             )
+
+            Box(
+                modifier = Modifier
+                    .size(width = 1.dp, height = 18.dp)
+                    .background(colors.divider)
+            )
+
+            HomeQuickActionItem(
+                label = stringResource(
+                    if (homePinned) {
+                        R.string.home_quick_pin_remove
+                    } else {
+                        R.string.home_quick_pin_add
+                    }
+                ),
+                icon = {
+                    Icon(
+                        imageVector = Icons.Rounded.VerticalAlignTop,
+                        contentDescription = null,
+                        modifier = Modifier.size(13.dp)
+                    )
+                },
+                onClick = onTogglePin,
+                testTag = "home-quick-action-pin"
+            )
         }
     }
 }
@@ -335,13 +534,15 @@ private fun HomeQuickActionsOverlay(
     quickMenuState: HomeQuickMenuState,
     screenWidthPx: Int,
     overlaySelected: Boolean,
+    homePinned: Boolean,
     onDismiss: () -> Unit,
     onToggleOverlay: () -> Unit,
     onDelete: () -> Unit,
+    onTogglePin: () -> Unit,
     dismissInteractionSource: MutableInteractionSource
 ) {
     val density = androidx.compose.ui.platform.LocalDensity.current
-    var menuSize by remember(quickMenuState.itemId, overlaySelected) { mutableStateOf(IntSize.Zero) }
+    var menuSize by remember(quickMenuState.itemId, overlaySelected, homePinned) { mutableStateOf(IntSize.Zero) }
     var animateIn by remember(quickMenuState.itemId, quickMenuState.anchorInRoot) { mutableStateOf(false) }
     val menuReady = menuSize.width > 0 && menuSize.height > 0
     val menuWidthPx = menuSize.width
@@ -410,73 +611,91 @@ private fun HomeQuickActionsOverlay(
                     menuSize = coordinates.size
                 },
                 overlaySelected = overlaySelected,
+                homePinned = homePinned,
                 onToggleOverlay = onToggleOverlay,
-                onDelete = onDelete
+                onDelete = onDelete,
+                onTogglePin = onTogglePin
             )
         }
     }
 }
 
-@Composable
-private fun AnimatedRefreshFab(
-    onRefresh: () -> Unit,
-    modifier: Modifier = Modifier
+
+private data class HomeDragReorderResult(
+    val items: List<WatchItem>,
+    val adjustedDragOffsetY: Float
+)
+
+private fun maybeMoveDraggedItem(
+    items: List<WatchItem>,
+    listState: LazyListState,
+    dragState: HomeDragState
+): HomeDragReorderResult? {
+    val draggedInfo = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.key == dragState.itemId }
+        ?: return null
+    val draggedIndex = items.indexOfFirst { it.id == dragState.itemId }
+    if (draggedIndex < 0) return null
+    val draggedMidY = draggedInfo.offset + dragState.dragOffsetY + (draggedInfo.size / 2f)
+    val targetInfo = listState.layoutInfo.visibleItemsInfo.firstOrNull { itemInfo ->
+        if (itemInfo.key == dragState.itemId) {
+            return@firstOrNull false
+        }
+        val candidate = items.firstOrNull { it.id == itemInfo.key } ?: return@firstOrNull false
+        candidate.homePinned == dragState.homePinned &&
+            draggedMidY in itemInfo.offset.toFloat()..(itemInfo.offset + itemInfo.size).toFloat()
+    } ?: return null
+    val targetIndex = items.indexOfFirst { it.id == targetInfo.key }
+    if (targetIndex < 0 || targetIndex == draggedIndex) return null
+    val reorderedItems = items.toMutableList().apply {
+        add(targetIndex, removeAt(draggedIndex))
+    }
+    return HomeDragReorderResult(
+        items = reorderedItems,
+        adjustedDragOffsetY = dragState.dragOffsetY - (targetInfo.offset - draggedInfo.offset).toFloat()
+    )
+}
+
+private fun finalizeDrag(
+    dragState: HomeDragState?,
+    items: List<WatchItem>,
+    onMoveHomeItem: (String, String?) -> Unit,
+    onMovePinnedHomeItem: (String, String?) -> Unit
 ) {
-    val colors = CoinMonitorThemeTokens.colors
-    val scope = rememberCoroutineScope()
-    val rotation = remember { Animatable(0f) }
-
-    Box(
-        modifier = modifier.size(72.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        FloatingActionButton(
-            onClick = {
-                onRefresh()
-                scope.launch {
-                    rotation.stop()
-                    val currentRotation = rotation.value % 360f
-                    rotation.snapTo(currentRotation)
-                    rotation.animateTo(
-                        targetValue = currentRotation + 360f,
-                        animationSpec = tween(
-                            durationMillis = 700,
-                            easing = FastOutSlowInEasing
-                        )
-                    )
-                    rotation.snapTo(0f)
-                }
-            },
-            containerColor = colors.fabContainer,
-            contentColor = colors.fabContent
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.Refresh,
-                contentDescription = stringResource(R.string.refresh),
-                modifier = Modifier.graphicsLayer {
-                    rotationZ = rotation.value
-                }
-            )
-        }
+    val currentDragState = dragState ?: return
+    if (!currentDragState.didReorder) return
+    val currentIndex = items.indexOfFirst { it.id == currentDragState.itemId }
+    if (currentIndex < 0) return
+    val targetBeforeId = items
+        .drop(currentIndex + 1)
+        .firstOrNull { it.homePinned == currentDragState.homePinned }
+        ?.id
+    if (currentDragState.homePinned) {
+        onMovePinnedHomeItem(currentDragState.itemId, targetBeforeId)
+    } else {
+        onMoveHomeItem(currentDragState.itemId, targetBeforeId)
     }
 }
 
-@Composable
-private fun SearchEntryButton(onClick: () -> Unit) {
-    val colors = CoinMonitorThemeTokens.colors
-    Surface(
-        onClick = onClick,
-        shape = CircleShape,
-        color = colors.fabContainer,
-        tonalElevation = 0.dp,
-        modifier = Modifier.size(40.dp)
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            Icon(
-                imageVector = Icons.Rounded.Search,
-                contentDescription = stringResource(R.string.home_open_search),
-                tint = colors.fabContent
-            )
-        }
+private fun scrollDraggedItemIntoView(
+    scope: CoroutineScope,
+    listState: LazyListState,
+    dragState: HomeDragState?
+) {
+    val currentDragState = dragState ?: return
+    val draggedInfo = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.key == currentDragState.itemId }
+        ?: return
+    val viewportStart = listState.layoutInfo.viewportStartOffset.toFloat()
+    val viewportEnd = listState.layoutInfo.viewportEndOffset.toFloat()
+    val edgeThreshold = 88f
+    val top = draggedInfo.offset + currentDragState.dragOffsetY
+    val bottom = top + draggedInfo.size
+    val scrollBy = when {
+        bottom > viewportEnd - edgeThreshold -> (bottom - (viewportEnd - edgeThreshold)).coerceAtMost(52f)
+        top < viewportStart + edgeThreshold -> (top - (viewportStart + edgeThreshold)).coerceAtLeast(-52f)
+        else -> 0f
+    }
+    if (scrollBy == 0f) return
+    scope.launch {
+        listState.scrollBy(scrollBy)
     }
 }

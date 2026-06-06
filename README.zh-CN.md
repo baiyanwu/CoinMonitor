@@ -7,16 +7,12 @@
 <p align="center">
   <a href="./README.md">English</a>
   ·
-  <a href="./TECHNICAL.md">Technical Notes</a>
+  <a href="./docs/TECHNICAL.md">Technical Notes</a>
   ·
   <a href="./LICENSE">Apache-2.0</a>
 </p>
 
-`CoinMonitor` 是一个基于 Android 的轻量级盯盘应用，聚焦“观察列表 + 悬浮窗盯盘”这条核心路径。
-
-它支持从 `Binance Alpha`、`Binance`、`OKX` 搜索现货交易对，加入观察列表后可以在应用内查看，也可以选择加入系统悬浮窗，配合前台服务持续刷新价格。
-
-项目当前主要通过 `vibecoding` 的方式完成设计、实现和迭代，在保证可运行与可维护的前提下快速推进功能落地。
+`CoinMonitor` 是一个基于 Android 的轻量级盯盘应用，聚焦”观察列表 + 悬浮窗盯盘”这条核心路径，主要通过 vibecoding 的方式迭代推进。
 
 <div align="center">
   <img src="./artwork/screenshot.png" alt="CoinMonitor homepage preview" width="960" />
@@ -24,13 +20,18 @@
 
 ---
 
-## 功能
+## 核心功能
 
-- 支持 `Binance Alpha`、`Binance`、`OKX` 三个数据来源
-- 支持观察列表、手动刷新、长按快捷操作悬浮窗
-- 悬浮窗支持启用、锁定拖动、透明度、最大展示数量、图标/币对名切换
-- 全局刷新间隔支持自定义 `3-10 秒`、`30 秒`、`1 分钟`
-- 悬浮窗通过前台服务维持运行，并在符合条件时尝试自恢复
+- 支持 `Binance Alpha`、`Binance`、`OKX` 现货交易对，以及基于 `OKX DEX Market API` 的链上代币搜索与价格跟踪
+- 提供观察列表、快捷操作和稳定的实时行情刷新，并统一了列表与搜索结果中的图标和来源标签体验
+- 支持系统悬浮窗盯盘，包含锁定拖动、吸附靠边、自适应布局、通知栏隐藏恢复与前台服务保活
+- 悬浮窗设置页支持权限、透明度、字体大小、吸附靠边和展示币种配置，并采用固定顶部栏布局
+- 行情链路优先使用 `WSS`，并保留快照兜底，同时支持本地配置 OKX 链上凭证与刷新方式
+
+## 链上说明
+
+- 当前链上能力只做”搜索 + 最新价格”，不提供交易、下单或路由执行能力。
+- `OKX` 凭证由用户自行填写，只保存在本地设备，不会上传到项目服务端。
 
 ## Requirements
 
@@ -51,16 +52,9 @@ cd CoinMonitor
 
 ## 文档
 
-- 技术实现说明：[TECHNICAL.md](./TECHNICAL.md)
+- 技术实现说明：[TECHNICAL.md](./docs/TECHNICAL.md)
 - 英文 README：[README.md](./README.md)
-- 贡献说明：[CONTRIBUTING.md](./CONTRIBUTING.md)
-
-## Roadmap
-
-- 链上币对
-- K 线样式
-- AI 分析
-- 继续打磨观察列表与悬浮窗体验
+- 贡献说明：[CONTRIBUTING.md](./docs/CONTRIBUTING.md)
 
 ## Disclaimer
 

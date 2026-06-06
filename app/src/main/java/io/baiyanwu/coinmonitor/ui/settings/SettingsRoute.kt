@@ -15,19 +15,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.Language
-import androidx.compose.material.icons.rounded.Timer
+import androidx.compose.material.icons.rounded.ReceiptLong
 import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.material.icons.rounded.VpnKey
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -37,65 +34,100 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.baiyanwu.coinmonitor.data.AppContainer
 import io.baiyanwu.coinmonitor.domain.model.AppLanguage
-import io.baiyanwu.coinmonitor.domain.model.AppPreferences
 import io.baiyanwu.coinmonitor.domain.model.AppThemeMode
-import io.baiyanwu.coinmonitor.domain.model.RefreshIntervalMode
+import io.baiyanwu.coinmonitor.ui.components.MainTabTopBar
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorComponentDefaults
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 import io.baiyanwu.coinmonitor.R
-import kotlin.math.roundToInt
 
 @Composable
 fun SettingsRoute(
     container: AppContainer,
+    contentTopInset: Dp = 0.dp,
     contentBottomInset: Dp = 0.dp,
-    onNavigateOverlaySettings: () -> Unit
+    onNavigateOverlaySettings: () -> Unit,
+    onNavigateThirdPartyApiSettings: () -> Unit,
+    onNavigateNetworkLog: () -> Unit
 ) {
     val viewModel: SettingsViewModel = viewModel(factory = SettingsViewModel.factory(container))
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
     SettingsScreen(
         state = state,
+        contentTopInset = contentTopInset,
         contentBottomInset = contentBottomInset,
         onNavigateOverlaySettings = onNavigateOverlaySettings,
+        onNavigateThirdPartyApiSettings = onNavigateThirdPartyApiSettings,
+        onNavigateNetworkLog = onNavigateNetworkLog,
         onThemeModeChange = viewModel::setThemeMode,
-        onLanguageChange = viewModel::setLanguage,
-        onRefreshIntervalModeChange = viewModel::setRefreshIntervalMode,
-        onRefreshIntervalChange = viewModel::setRefreshIntervalSeconds
+        onLanguageChange = viewModel::setLanguage
     )
 }
 
 @Composable
 private fun SettingsScreen(
     state: SettingsUiState,
+    contentTopInset: Dp,
     contentBottomInset: Dp,
     onNavigateOverlaySettings: () -> Unit,
+    onNavigateThirdPartyApiSettings: () -> Unit,
+    onNavigateNetworkLog: () -> Unit,
     onThemeModeChange: (AppThemeMode) -> Unit,
-    onLanguageChange: (AppLanguage) -> Unit,
-    onRefreshIntervalModeChange: (RefreshIntervalMode) -> Unit,
-    onRefreshIntervalChange: (Int) -> Unit
+    onLanguageChange: (AppLanguage) -> Unit
 ) {
     val colors = CoinMonitorThemeTokens.colors
-    val refreshIntervalMode = state.preferences.refreshIntervalMode
-    val customModeSelected = refreshIntervalMode == RefreshIntervalMode.CUSTOM
-    val thirtySecondsModeSelected = refreshIntervalMode == RefreshIntervalMode.THIRTY_SECONDS
-    val oneMinuteModeSelected = refreshIntervalMode == RefreshIntervalMode.ONE_MINUTE
-    var refreshIntervalSliderValue by remember(state.preferences.customRefreshIntervalSeconds) {
-        mutableFloatStateOf(state.preferences.customRefreshIntervalSeconds.toFloat())
-    }
 
-    LazyColumn(
+    Column(
         modifier = Modifier
             .fillMaxSize()
             .background(colors.pageBackground)
-            .padding(start = 14.dp, top = 12.dp, end = 14.dp, bottom = 12.dp + contentBottomInset),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+            .padding(top = contentTopInset, bottom = contentBottomInset)
     ) {
-        item {
+        MainTabTopBar {
             Text(
                 text = stringResource(R.string.settings_title),
                 style = MaterialTheme.typography.headlineSmall
             )
+        }
+
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(
+                    start = 14.dp,
+                    end = 14.dp,
+                    top = 12.dp,
+                    bottom = 12.dp
+                ),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+
+        item {
+            ElevatedCard(
+                shape = RoundedCornerShape(20.dp),
+                modifier = Modifier.fillMaxWidth(),
+                colors = CoinMonitorComponentDefaults.elevatedCardColors()
+            ) {
+                SettingNavigationRow(
+                    icon = { Icon(Icons.Rounded.VpnKey, contentDescription = null) },
+                    title = stringResource(R.string.settings_third_party_api_title),
+                    onClick = onNavigateThirdPartyApiSettings
+                )
+            }
+        }
+
+        item {
+            ElevatedCard(
+                shape = RoundedCornerShape(20.dp),
+                modifier = Modifier.fillMaxWidth(),
+                colors = CoinMonitorComponentDefaults.elevatedCardColors()
+            ) {
+                SettingNavigationRow(
+                    icon = { Icon(Icons.Rounded.ReceiptLong, contentDescription = null) },
+                    title = stringResource(R.string.network_log_title),
+                    onClick = onNavigateNetworkLog
+                )
+            }
         }
 
         item {
@@ -109,88 +141,6 @@ private fun SettingsScreen(
                     title = stringResource(R.string.overlay_settings_title),
                     onClick = onNavigateOverlaySettings
                 )
-            }
-        }
-
-        item {
-            ElevatedCard(
-                shape = RoundedCornerShape(20.dp),
-                modifier = Modifier.fillMaxWidth(),
-                colors = CoinMonitorComponentDefaults.elevatedCardColors()
-            ) {
-                Column(
-                    modifier = Modifier.padding(14.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Rounded.Timer, contentDescription = null)
-                        Text(
-                            text = stringResource(R.string.settings_refresh_mode_title),
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FilterChip(
-                            selected = customModeSelected,
-                            onClick = { onRefreshIntervalModeChange(RefreshIntervalMode.CUSTOM) },
-                            label = { Text(stringResource(R.string.settings_refresh_mode_custom)) },
-                            colors = CoinMonitorComponentDefaults.filterChipColors()
-                        )
-                        FilterChip(
-                            selected = thirtySecondsModeSelected,
-                            onClick = { onRefreshIntervalModeChange(RefreshIntervalMode.THIRTY_SECONDS) },
-                            label = { Text(stringResource(R.string.settings_refresh_mode_thirty_seconds)) },
-                            colors = CoinMonitorComponentDefaults.filterChipColors()
-                        )
-                        FilterChip(
-                            selected = oneMinuteModeSelected,
-                            onClick = { onRefreshIntervalModeChange(RefreshIntervalMode.ONE_MINUTE) },
-                            label = { Text(stringResource(R.string.settings_refresh_mode_one_minute)) },
-                            colors = CoinMonitorComponentDefaults.filterChipColors()
-                        )
-                    }
-
-                    RefreshModeSection(active = customModeSelected) {
-                        Text(
-                            text = stringResource(
-                                R.string.settings_refresh_interval_value,
-                                refreshIntervalSliderValue.roundToInt()
-                            ),
-                            style = MaterialTheme.typography.titleSmall
-                        )
-                        Slider(
-                            value = refreshIntervalSliderValue,
-                            onValueChange = { value ->
-                                refreshIntervalSliderValue = value.roundToInt().toFloat()
-                            },
-                            onValueChangeFinished = {
-                                onRefreshIntervalModeChange(RefreshIntervalMode.CUSTOM)
-                                onRefreshIntervalChange(refreshIntervalSliderValue.roundToInt())
-                            },
-                            valueRange = AppPreferences.MIN_CUSTOM_REFRESH_INTERVAL_SECONDS.toFloat()..
-                                AppPreferences.MAX_CUSTOM_REFRESH_INTERVAL_SECONDS.toFloat(),
-                            steps = AppPreferences.MAX_CUSTOM_REFRESH_INTERVAL_SECONDS -
-                                AppPreferences.MIN_CUSTOM_REFRESH_INTERVAL_SECONDS - 1,
-                            enabled = customModeSelected,
-                            colors = CoinMonitorComponentDefaults.sliderColors()
-                        )
-                        SliderEndpoints(
-                            startLabel = stringResource(
-                                R.string.settings_refresh_interval_min_label,
-                                AppPreferences.MIN_CUSTOM_REFRESH_INTERVAL_SECONDS
-                            ),
-                            endLabel = stringResource(
-                                R.string.settings_refresh_interval_max_label,
-                                AppPreferences.MAX_CUSTOM_REFRESH_INTERVAL_SECONDS
-                            ),
-                            enabled = customModeSelected
-                        )
-                    }
-
-                }
             }
         }
 
@@ -282,6 +232,7 @@ private fun SettingsScreen(
             }
         }
 
+        }
     }
 }
 
@@ -289,6 +240,7 @@ private fun SettingsScreen(
 private fun SettingNavigationRow(
     icon: @Composable () -> Unit,
     title: String,
+    subtitle: String? = null,
     onClick: () -> Unit
 ) {
     Row(
@@ -307,6 +259,13 @@ private fun SettingNavigationRow(
             icon()
             Column {
                 Text(title, style = MaterialTheme.typography.titleMedium)
+                if (!subtitle.isNullOrBlank()) {
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = CoinMonitorThemeTokens.colors.secondaryText
+                    )
+                }
             }
         }
         Icon(Icons.AutoMirrored.Rounded.ArrowForward, contentDescription = null)

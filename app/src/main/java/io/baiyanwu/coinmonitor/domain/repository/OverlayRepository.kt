@@ -15,5 +15,7 @@ interface OverlayRepository {
     suspend fun setOpacity(opacity: Float)
     suspend fun setMaxCount(maxCount: Int)
     suspend fun setLeadingDisplayMode(mode: OverlayLeadingDisplayMode)
+    suspend fun setFontScale(fontScale: Float)
+    suspend fun setSnapToEdge(enabled: Boolean)
     suspend fun setWindowPosition(x: Int, y: Int)
 }

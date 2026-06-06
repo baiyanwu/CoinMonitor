@@ -1,7 +1,13 @@
 package io.baiyanwu.coinmonitor.data.local
 
+import io.baiyanwu.coinmonitor.domain.model.ChainFamily
 import io.baiyanwu.coinmonitor.domain.model.ExchangeSource
+import io.baiyanwu.coinmonitor.domain.model.AiChatMessage
+import io.baiyanwu.coinmonitor.domain.model.AiChatRole
+import io.baiyanwu.coinmonitor.domain.model.AiChatSession
+import io.baiyanwu.coinmonitor.domain.model.AiChatSessionSummary
 import io.baiyanwu.coinmonitor.domain.model.LivePriceTrend
+import io.baiyanwu.coinmonitor.domain.model.MarketType
 import io.baiyanwu.coinmonitor.domain.model.OverlayLeadingDisplayMode
 import io.baiyanwu.coinmonitor.domain.model.OverlaySettings
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
@@ -12,8 +18,16 @@ fun WatchItemEntity.toDomain(): WatchItem {
         symbol = symbol,
         name = name,
         exchangeSource = ExchangeSource.valueOf(source),
+        marketType = marketType.toEnumOrDefault(MarketType.CEX_SPOT),
+        chainFamily = chainFamily?.toEnumOrNull<ChainFamily>(),
+        chainIndex = chainIndex,
+        tokenAddress = tokenAddress,
+        iconUrl = iconUrl,
         overlaySelected = overlaySelected,
         addedAt = addedAt,
+        homePinned = homePinned,
+        homeOrder = homeOrder,
+        homePinnedOrder = homePinnedOrder,
         lastPrice = lastPrice,
         previousPrice = previousPrice,
         liveTrend = LivePriceTrend.valueOf(liveTrend),
@@ -28,8 +42,16 @@ fun WatchItem.toEntity(): WatchItemEntity {
         symbol = symbol,
         name = name,
         source = exchangeSource.name,
+        marketType = marketType.name,
+        chainFamily = chainFamily?.name,
+        chainIndex = chainIndex,
+        tokenAddress = tokenAddress,
+        iconUrl = iconUrl,
         overlaySelected = overlaySelected,
         addedAt = addedAt,
+        homePinned = homePinned,
+        homeOrder = homeOrder,
+        homePinnedOrder = homePinnedOrder,
         lastPrice = lastPrice,
         previousPrice = previousPrice,
         liveTrend = liveTrend.name,
@@ -45,9 +67,19 @@ fun OverlaySettingsEntity.toDomain(): OverlaySettings {
         opacity = opacity,
         maxItems = maxItems,
         leadingDisplayMode = OverlayLeadingDisplayMode.valueOf(leadingDisplayMode),
+        fontScale = fontScale,
+        snapToEdge = snapToEdge,
         windowX = windowX,
         windowY = windowY
     )
+}
+
+private inline fun <reified T : Enum<T>> String.toEnumOrDefault(default: T): T {
+    return runCatching { enumValueOf<T>(this) }.getOrDefault(default)
+}
+
+private inline fun <reified T : Enum<T>> String.toEnumOrNull(): T? {
+    return runCatching { enumValueOf<T>(this) }.getOrNull()
 }
 
 fun OverlaySettings.toEntity(): OverlaySettingsEntity {
@@ -57,7 +89,68 @@ fun OverlaySettings.toEntity(): OverlaySettingsEntity {
         opacity = opacity,
         maxItems = maxItems,
         leadingDisplayMode = leadingDisplayMode.name,
+        fontScale = fontScale,
+        snapToEdge = snapToEdge,
         windowX = windowX,
         windowY = windowY
+    )
+}
+
+fun AiChatSessionEntity.toDomain(): AiChatSession {
+    return AiChatSession(
+        id = id,
+        title = title,
+        itemId = itemId,
+        symbol = symbol,
+        sourceTitle = sourceTitle,
+        createdAt = createdAt,
+        updatedAt = updatedAt
+    )
+}
+
+fun AiChatSession.toEntity(): AiChatSessionEntity {
+    return AiChatSessionEntity(
+        id = id,
+        title = title,
+        itemId = itemId,
+        symbol = symbol,
+        sourceTitle = sourceTitle,
+        createdAt = createdAt,
+        updatedAt = updatedAt
+    )
+}
+
+fun AiChatMessageEntity.toDomain(): AiChatMessage {
+    return AiChatMessage(
+        id = id,
+        sessionId = sessionId,
+        role = AiChatRole.valueOf(role),
+        content = content,
+        timestampMillis = timestampMillis
+    )
+}
+
+fun AiChatMessage.toEntity(): AiChatMessageEntity {
+    return AiChatMessageEntity(
+        id = id,
+        sessionId = sessionId,
+        role = role.name,
+        content = content,
+        timestampMillis = timestampMillis
+    )
+}
+
+fun AiChatSessionSummaryRow.toDomain(): AiChatSessionSummary {
+    return AiChatSessionSummary(
+        session = AiChatSession(
+            id = id,
+            title = title,
+            itemId = itemId,
+            symbol = symbol,
+            sourceTitle = sourceTitle,
+            createdAt = createdAt,
+            updatedAt = updatedAt
+        ),
+        latestMessagePreview = latestMessagePreview
     )
 }
