@@ -102,8 +102,7 @@ fun HomeRoute(
     contentTopInset: Dp = 0.dp,
     contentBottomInset: Dp = 0.dp,
     onNavigateSearch: () -> Unit,
-    onNavigateOverlaySettings: () -> Unit,
-    onNavigateKline: (String) -> Unit
+    onNavigateOverlaySettings: () -> Unit
 ) {
     val viewModel: HomeViewModel = viewModel(factory = HomeViewModel.factory(container))
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -137,7 +136,6 @@ fun HomeRoute(
         contentBottomInset = contentBottomInset,
         onNavigateSearch = onNavigateSearch,
         onNavigateOverlaySettings = onNavigateOverlaySettings,
-        onNavigateKline = onNavigateKline,
         quoteRepository = container.quoteRepository,
         onRemoveWatchItem = viewModel::removeWatchItem,
         onToggleOverlay = viewModel::toggleOverlay,
@@ -156,7 +154,6 @@ internal fun HomeScreen(
     contentBottomInset: Dp,
     onNavigateSearch: () -> Unit,
     onNavigateOverlaySettings: () -> Unit,
-    onNavigateKline: (String) -> Unit,
     quoteRepository: io.baiyanwu.coinmonitor.domain.repository.QuoteRepository,
     onRemoveWatchItem: (String) -> Unit,
     onToggleOverlay: (String) -> Unit,
@@ -267,7 +264,6 @@ internal fun HomeScreen(
                                     },
                                     onClick = {
                                         quickMenuState = null
-                                        onNavigateKline(item.id)
                                     },
                                     onLongPress = { anchorInRoot ->
                                         if (quickMenuState?.itemId == item.id) {

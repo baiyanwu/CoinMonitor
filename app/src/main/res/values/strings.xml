@@ -74,7 +74,7 @@
     <string name="language_chinese">简体中文</string>
     <string name="language_english">English</string>
     <string name="settings_third_party_api_title">第三方 API 设置</string>
-    <string name="settings_third_party_api_subtitle">OKX 与 AI 接入凭证都由用户自行填写并保存在本机</string>
+    <string name="settings_third_party_api_subtitle">OKX 接入凭证由用户自行填写并保存在本机</string>
     <string name="network_log_title">网络日志</string>
     <string name="network_log_settings_subtitle">按时间顺序查看 HTTP 与 WSS 请求行日志</string>
     <string name="network_log_start">开始记录</string>

@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material.icons.rounded.ShowChart
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -63,7 +62,6 @@ fun CoinMonitorNavHost(
     val tabs = remember {
         listOf(
             MainTab(Destinations.HOME, R.string.tab_home, Icons.Rounded.Home),
-            MainTab(Destinations.KLINE, R.string.tab_kline, Icons.Rounded.ShowChart),
             MainTab(Destinations.SETTINGS, R.string.tab_settings, Icons.Rounded.Settings)
         )
     }
@@ -125,11 +123,7 @@ fun CoinMonitorNavHost(
                     contentTopInset = innerPadding.calculateTopPadding(),
                     contentBottomInset = innerPadding.calculateBottomPadding(),
                     onNavigateSearch = onOpenSearch,
-                    onNavigateOverlaySettings = onOpenOverlaySettings,
-                    onNavigateKline = { itemId ->
-                        container.klineSelectionStore.select(itemId)
-                        navigateToTopLevel(Destinations.KLINE)
-                    }
+                    onNavigateOverlaySettings = onOpenOverlaySettings
                 )
             }
             composable(Destinations.KLINE) {

@@ -3,28 +3,29 @@ package io.baiyanwu.coinmonitor.ui.settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material3.Button
+import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -45,7 +46,7 @@ import io.baiyanwu.coinmonitor.data.AppContainer
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorComponentDefaults
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 
-private const val SHOW_AI_SETTINGS_ENTRY = true
+private const val SHOW_AI_SETTINGS_ENTRY = false
 
 @Composable
 fun ThirdPartyApiSettingsRoute(
@@ -101,193 +102,198 @@ private fun ThirdPartyApiSettingsScreen(
     var showAiValidationError by rememberSaveable { mutableStateOf(false) }
     val okxOnchainPortalUrl = rememberOkxOnchainPortalUrl(context)
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(colors.pageBackground)
-            .statusBarsPadding()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 14.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        ThirdPartyApiTopBar(onBack = onBack)
-
-        ThirdPartySectionCard(title = stringResource(R.string.third_party_api_settings_section_okx)) {
-            Text(
-                text = stringResource(R.string.third_party_api_settings_disclaimer),
-                style = MaterialTheme.typography.bodySmall,
-                color = colors.secondaryText
-            )
-            Text(
-                text = stringResource(R.string.third_party_api_settings_okx_onchain_portal),
-                style = MaterialTheme.typography.bodySmall,
-                color = colors.accent,
-                modifier = Modifier.clickable { uriHandler.openUri(okxOnchainPortalUrl) }
-            )
-            Text(
-                text = okxOnchainPortalUrl,
-                style = MaterialTheme.typography.bodySmall,
-                color = colors.accent,
-                modifier = Modifier.clickable { uriHandler.openUri(okxOnchainPortalUrl) }
-            )
-            if (!state.okx.secureStorageAvailable) {
-                Text(
-                    text = stringResource(R.string.third_party_api_settings_secure_storage_unavailable),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error
-                )
-            }
-            SettingSwitchRow(
-                title = stringResource(R.string.third_party_api_settings_enable_okx),
-                checked = state.okx.enabled,
-                onCheckedChange = onOkxEnabledChange,
-                horizontalPadding = 0.dp,
-                verticalPadding = 0.dp
-            )
-            OutlinedTextField(
-                value = state.okx.apiKey,
-                onValueChange = {
-                    showOkxValidationError = false
-                    onOkxApiKeyChange(it)
-                },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text(stringResource(R.string.third_party_api_settings_api_key)) },
-                singleLine = true
-            )
-            OutlinedTextField(
-                value = state.okx.secretKey,
-                onValueChange = {
-                    showOkxValidationError = false
-                    onOkxSecretKeyChange(it)
-                },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text(stringResource(R.string.third_party_api_settings_secret_key)) },
-                visualTransformation = PasswordVisualTransformation(),
-                singleLine = true
-            )
-            OutlinedTextField(
-                value = state.okx.passphrase,
-                onValueChange = {
-                    showOkxValidationError = false
-                    onOkxPassphraseChange(it)
-                },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text(stringResource(R.string.third_party_api_settings_passphrase)) },
-                visualTransformation = PasswordVisualTransformation(),
-                singleLine = true
-            )
-            if (showOkxValidationError) {
-                ValidationText(R.string.third_party_api_settings_validation_required)
-            }
-            FeedbackText(
-                savedFlag = state.okx.savedFlag,
-                clearedFlag = state.okx.clearedFlag,
-                errorMessage = state.okx.errorMessage
-            )
-            SaveClearButtons(
-                onSave = {
-                    val needValidate = state.okx.enabled || state.okx.apiKey.isNotBlank() ||
-                        state.okx.secretKey.isNotBlank() || state.okx.passphrase.isNotBlank()
-                    if (needValidate && !state.okx.isReadyToEnable) {
-                        showOkxValidationError = true
-                        return@SaveClearButtons
-                    }
-                    showOkxValidationError = false
-                    onSaveOkx()
-                },
-                onClear = {
-                    showOkxValidationError = false
-                    onClearOkx()
-                }
-            )
+    Scaffold(
+        containerColor = colors.pageBackground,
+        topBar = {
+            ThirdPartyApiTopBar(onBack = onBack)
         }
-
-        if (SHOW_AI_SETTINGS_ENTRY) {
-            ThirdPartySectionCard(title = stringResource(R.string.third_party_api_settings_section_ai)) {
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(colors.pageBackground)
+                .padding(innerPadding)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            ThirdPartySectionCard(title = stringResource(R.string.third_party_api_settings_section_okx)) {
                 Text(
-                    text = stringResource(R.string.third_party_api_settings_ai_disclaimer),
+                    text = stringResource(R.string.third_party_api_settings_disclaimer),
                     style = MaterialTheme.typography.bodySmall,
                     color = colors.secondaryText
                 )
-                if (!state.ai.secureStorageAvailable) {
+                Text(
+                    text = stringResource(R.string.third_party_api_settings_okx_onchain_portal),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.accent,
+                    modifier = Modifier.clickable { uriHandler.openUri(okxOnchainPortalUrl) }
+                )
+                Text(
+                    text = okxOnchainPortalUrl,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.accent,
+                    modifier = Modifier.clickable { uriHandler.openUri(okxOnchainPortalUrl) }
+                )
+                if (!state.okx.secureStorageAvailable) {
                     Text(
-                        text = stringResource(R.string.third_party_api_settings_secure_storage_unavailable_ai),
+                        text = stringResource(R.string.third_party_api_settings_secure_storage_unavailable),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error
                     )
                 }
                 SettingSwitchRow(
-                    title = stringResource(R.string.third_party_api_settings_enable_ai),
-                    checked = state.ai.enabled,
-                    onCheckedChange = onAiEnabledChange,
+                    title = stringResource(R.string.third_party_api_settings_enable_okx),
+                    checked = state.okx.enabled,
+                    onCheckedChange = onOkxEnabledChange,
                     horizontalPadding = 0.dp,
                     verticalPadding = 0.dp
                 )
                 OutlinedTextField(
-                    value = state.ai.baseUrl,
+                    value = state.okx.apiKey,
                     onValueChange = {
-                        showAiValidationError = false
-                        onAiBaseUrlChange(it)
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(R.string.third_party_api_settings_base_url)) },
-                    singleLine = true
-                )
-                OutlinedTextField(
-                    value = state.ai.apiKey,
-                    onValueChange = {
-                        showAiValidationError = false
-                        onAiApiKeyChange(it)
+                        showOkxValidationError = false
+                        onOkxApiKeyChange(it)
                     },
                     modifier = Modifier.fillMaxWidth(),
                     label = { Text(stringResource(R.string.third_party_api_settings_api_key)) },
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = state.okx.secretKey,
+                    onValueChange = {
+                        showOkxValidationError = false
+                        onOkxSecretKeyChange(it)
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text(stringResource(R.string.third_party_api_settings_secret_key)) },
                     visualTransformation = PasswordVisualTransformation(),
                     singleLine = true
                 )
                 OutlinedTextField(
-                    value = state.ai.model,
+                    value = state.okx.passphrase,
                     onValueChange = {
-                        showAiValidationError = false
-                        onAiModelChange(it)
+                        showOkxValidationError = false
+                        onOkxPassphraseChange(it)
                     },
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(R.string.third_party_api_settings_model)) },
+                    label = { Text(stringResource(R.string.third_party_api_settings_passphrase)) },
+                    visualTransformation = PasswordVisualTransformation(),
                     singleLine = true
                 )
-                OutlinedTextField(
-                    value = state.ai.systemPrompt,
-                    onValueChange = {
-                        showAiValidationError = false
-                        onAiSystemPromptChange(it)
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    minLines = 4,
-                    label = { Text(stringResource(R.string.third_party_api_settings_system_prompt)) }
-                )
-                if (showAiValidationError) {
-                    ValidationText(R.string.third_party_api_settings_validation_required_ai)
+                if (showOkxValidationError) {
+                    ValidationText(R.string.third_party_api_settings_validation_required)
                 }
                 FeedbackText(
-                    savedFlag = state.ai.savedFlag,
-                    clearedFlag = state.ai.clearedFlag,
-                    errorMessage = state.ai.errorMessage
+                    savedFlag = state.okx.savedFlag,
+                    clearedFlag = state.okx.clearedFlag,
+                    errorMessage = state.okx.errorMessage
                 )
                 SaveClearButtons(
                     onSave = {
-                        val needValidate = state.ai.enabled || state.ai.baseUrl.isNotBlank() ||
-                            state.ai.apiKey.isNotBlank() || state.ai.model.isNotBlank()
-                        if (needValidate && !state.ai.isReadyToEnable) {
-                            showAiValidationError = true
+                        val needValidate = state.okx.enabled || state.okx.apiKey.isNotBlank() ||
+                            state.okx.secretKey.isNotBlank() || state.okx.passphrase.isNotBlank()
+                        if (needValidate && !state.okx.isReadyToEnable) {
+                            showOkxValidationError = true
                             return@SaveClearButtons
                         }
-                        showAiValidationError = false
-                        onSaveAi()
+                        showOkxValidationError = false
+                        onSaveOkx()
                     },
                     onClear = {
-                        showAiValidationError = false
-                        onClearAi()
+                        showOkxValidationError = false
+                        onClearOkx()
                     }
                 )
+            }
+
+            if (SHOW_AI_SETTINGS_ENTRY) {
+                ThirdPartySectionCard(title = stringResource(R.string.third_party_api_settings_section_ai)) {
+                    Text(
+                        text = stringResource(R.string.third_party_api_settings_ai_disclaimer),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colors.secondaryText
+                    )
+                    if (!state.ai.secureStorageAvailable) {
+                        Text(
+                            text = stringResource(R.string.third_party_api_settings_secure_storage_unavailable_ai),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                    SettingSwitchRow(
+                        title = stringResource(R.string.third_party_api_settings_enable_ai),
+                        checked = state.ai.enabled,
+                        onCheckedChange = onAiEnabledChange,
+                        horizontalPadding = 0.dp,
+                        verticalPadding = 0.dp
+                    )
+                    OutlinedTextField(
+                        value = state.ai.baseUrl,
+                        onValueChange = {
+                            showAiValidationError = false
+                            onAiBaseUrlChange(it)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text(stringResource(R.string.third_party_api_settings_base_url)) },
+                        singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = state.ai.apiKey,
+                        onValueChange = {
+                            showAiValidationError = false
+                            onAiApiKeyChange(it)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text(stringResource(R.string.third_party_api_settings_api_key)) },
+                        visualTransformation = PasswordVisualTransformation(),
+                        singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = state.ai.model,
+                        onValueChange = {
+                            showAiValidationError = false
+                            onAiModelChange(it)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text(stringResource(R.string.third_party_api_settings_model)) },
+                        singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = state.ai.systemPrompt,
+                        onValueChange = {
+                            showAiValidationError = false
+                            onAiSystemPromptChange(it)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 4,
+                        label = { Text(stringResource(R.string.third_party_api_settings_system_prompt)) }
+                    )
+                    if (showAiValidationError) {
+                        ValidationText(R.string.third_party_api_settings_validation_required_ai)
+                    }
+                    FeedbackText(
+                        savedFlag = state.ai.savedFlag,
+                        clearedFlag = state.ai.clearedFlag,
+                        errorMessage = state.ai.errorMessage
+                    )
+                    SaveClearButtons(
+                        onSave = {
+                            val needValidate = state.ai.enabled || state.ai.baseUrl.isNotBlank() ||
+                                state.ai.apiKey.isNotBlank() || state.ai.model.isNotBlank()
+                            if (needValidate && !state.ai.isReadyToEnable) {
+                                showAiValidationError = true
+                                return@SaveClearButtons
+                            }
+                            showAiValidationError = false
+                            onSaveAi()
+                        },
+                        onClear = {
+                            showAiValidationError = false
+                            onClearAi()
+                        }
+                    )
+                }
             }
         }
     }
@@ -384,37 +390,27 @@ private fun SaveClearButtons(
 }
 
 @Composable
+@OptIn(ExperimentalMaterial3Api::class)
 private fun ThirdPartyApiTopBar(
     onBack: () -> Unit
 ) {
     val colors = CoinMonitorThemeTokens.colors
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(46.dp),
-        contentAlignment = Alignment.CenterStart
-    ) {
-        Text(
-            text = stringResource(R.string.third_party_api_settings_title),
-            style = MaterialTheme.typography.titleLarge,
-            color = colors.primaryText,
-            modifier = Modifier.padding(start = 34.dp)
-        )
-        Box(
-            modifier = Modifier
-                .size(48.dp)
-                .padding(end = 8.dp)
-                .clickable(onClick = onBack),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                contentDescription = stringResource(R.string.common_back),
-                modifier = Modifier.size(26.dp),
-                tint = colors.primaryText
-            )
+    CenterAlignedTopAppBar(
+        colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+            containerColor = colors.pageBackground
+        ),
+        title = {
+            Text(text = stringResource(R.string.third_party_api_settings_title))
+        },
+        navigationIcon = {
+            IconButton(onClick = onBack) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                    contentDescription = stringResource(R.string.common_back)
+                )
+            }
         }
-    }
+    )
 }
 
 @Composable

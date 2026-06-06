@@ -74,7 +74,7 @@
     <string name="language_chinese">简体中文</string>
     <string name="language_english">English</string>
     <string name="settings_third_party_api_title">Third-party API Settings</string>
-    <string name="settings_third_party_api_subtitle">OKX and AI credentials are provided by the user and stored on-device only.</string>
+    <string name="settings_third_party_api_subtitle">OKX credentials are provided by the user and stored on-device only.</string>
     <string name="network_log_title">Network Log</string>
     <string name="network_log_settings_subtitle">Inspect HTTP and WSS request line logs in chronological order.</string>
     <string name="network_log_start">Start recording</string>

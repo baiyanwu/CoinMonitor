@@ -9,25 +9,26 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material3.Button
+import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
@@ -140,195 +141,199 @@ private fun OverlaySettingsScreen(
     val opacityPercent = (opacityProgress * 100).roundToInt()
     val fontSizeSp = fontScaleToFontSizeSp(state.settings.fontScale)
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(CoinMonitorThemeTokens.colors.pageBackground)
-            .statusBarsPadding()
-            .padding(horizontal = 14.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        item {
+    val colors = CoinMonitorThemeTokens.colors
+    Scaffold(
+        containerColor = colors.pageBackground,
+        topBar = {
             OverlaySettingsTopBar(onBack = onBack)
         }
-
-        item {
-            ElevatedCard(
-                shape = RoundedCornerShape(20.dp),
-                modifier = Modifier.fillMaxWidth(),
-                colors = CoinMonitorComponentDefaults.elevatedCardColors()
-            ) {
-                Column(
-                    modifier = Modifier.padding(14.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) { innerPadding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(colors.pageBackground)
+                .padding(innerPadding)
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            item {
+                ElevatedCard(
+                    shape = RoundedCornerShape(20.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CoinMonitorComponentDefaults.elevatedCardColors()
                 ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
-                        SettingSwitchRow(
-                            title = stringResource(R.string.overlay_enable),
-                            checked = state.settings.enabled,
-                            horizontalPadding = 0.dp,
-                            verticalPadding = 0.dp,
-                            onCheckedChange = onEnabledChange
-                        )
-                        SettingSwitchRow(
-                            title = stringResource(R.string.overlay_lock_drag),
-                            checked = state.settings.locked,
-                            horizontalPadding = 0.dp,
-                            verticalPadding = 0.dp,
-                            onCheckedChange = onLockedChange
-                        )
-                    }
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
+                            SettingSwitchRow(
+                                title = stringResource(R.string.overlay_enable),
+                                checked = state.settings.enabled,
+                                horizontalPadding = 0.dp,
+                                verticalPadding = 0.dp,
+                                onCheckedChange = onEnabledChange
+                            )
+                            SettingSwitchRow(
+                                title = stringResource(R.string.overlay_lock_drag),
+                                checked = state.settings.locked,
+                                horizontalPadding = 0.dp,
+                                verticalPadding = 0.dp,
+                                onCheckedChange = onLockedChange
+                            )
+                        }
 
-                    Text(stringResource(R.string.overlay_leading_display), style = MaterialTheme.typography.titleSmall)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FilterChip(
-                            selected = state.settings.leadingDisplayMode == OverlayLeadingDisplayMode.ICON,
-                            onClick = { onLeadingDisplayModeChange(OverlayLeadingDisplayMode.ICON) },
-                            label = { Text(stringResource(R.string.overlay_display_icon)) },
-                            colors = CoinMonitorComponentDefaults.filterChipColors()
-                        )
-                        FilterChip(
-                            selected = state.settings.leadingDisplayMode == OverlayLeadingDisplayMode.PAIR_NAME,
-                            onClick = { onLeadingDisplayModeChange(OverlayLeadingDisplayMode.PAIR_NAME) },
-                            label = { Text(stringResource(R.string.overlay_display_pair_name)) },
-                            colors = CoinMonitorComponentDefaults.filterChipColors()
-                        )
-                    }
+                        Text(stringResource(R.string.overlay_leading_display), style = MaterialTheme.typography.titleSmall)
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            FilterChip(
+                                selected = state.settings.leadingDisplayMode == OverlayLeadingDisplayMode.ICON,
+                                onClick = { onLeadingDisplayModeChange(OverlayLeadingDisplayMode.ICON) },
+                                label = { Text(stringResource(R.string.overlay_display_icon)) },
+                                colors = CoinMonitorComponentDefaults.filterChipColors()
+                            )
+                            FilterChip(
+                                selected = state.settings.leadingDisplayMode == OverlayLeadingDisplayMode.PAIR_NAME,
+                                onClick = { onLeadingDisplayModeChange(OverlayLeadingDisplayMode.PAIR_NAME) },
+                                label = { Text(stringResource(R.string.overlay_display_pair_name)) },
+                                colors = CoinMonitorComponentDefaults.filterChipColors()
+                            )
+                        }
 
-                    Text(
-                        text = stringResource(R.string.overlay_opacity_format, opacityPercent),
-                        style = MaterialTheme.typography.titleSmall
-                    )
-                    Slider(
-                        value = opacityProgress,
-                        onValueChange = { onOpacityChange(progressToOpacity(it)) },
-                        valueRange = 0f..1f,
-                        colors = CoinMonitorComponentDefaults.sliderColors()
-                    )
-
-                    Text(
-                        text = stringResource(
-                            R.string.overlay_font_size_format,
-                            formatFontSize(fontSizeSp)
-                        ),
-                        style = MaterialTheme.typography.titleSmall
-                    )
-                    Slider(
-                        value = fontSizeSp,
-                        onValueChange = { onFontScaleChange(fontSizeSpToScale(it)) },
-                        valueRange = MIN_OVERLAY_FONT_SIZE_SP..MAX_OVERLAY_FONT_SIZE_SP,
-                        steps = 9,
-                        colors = CoinMonitorComponentDefaults.sliderColors()
-                    )
-                    SliderEndpoints(
-                        startLabel = stringResource(
-                            R.string.overlay_font_size_endpoint,
-                            formatFontSize(MIN_OVERLAY_FONT_SIZE_SP)
-                        ),
-                        endLabel = stringResource(
-                            R.string.overlay_font_size_endpoint,
-                            formatFontSize(MAX_OVERLAY_FONT_SIZE_SP)
+                        Text(
+                            text = stringResource(R.string.overlay_opacity_format, opacityPercent),
+                            style = MaterialTheme.typography.titleSmall
                         )
-                    )
-
-                    Text(
-                        text = pluralStringResource(
-                            id = R.plurals.overlay_max_items,
-                            count = state.settings.maxItems,
-                            state.settings.maxItems
-                        ),
-                        style = MaterialTheme.typography.titleSmall
-                    )
-                    Slider(
-                        value = state.settings.maxItems.toFloat(),
-                        onValueChange = { onMaxCountChange(it.roundToInt()) },
-                        valueRange = 1f..10f,
-                        steps = 8,
-                        colors = CoinMonitorComponentDefaults.sliderColors()
-                    )
-                    SliderEndpoints(
-                        startLabel = stringResource(R.string.common_min_count),
-                        endLabel = stringResource(R.string.common_max_count)
-                    )
-
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        SettingSwitchRow(
-                            title = stringResource(R.string.overlay_snap_to_edge),
-                            subtitle = stringResource(R.string.overlay_snap_to_edge_hint),
-                            checked = state.settings.snapToEdge,
-                            horizontalPadding = 0.dp,
-                            verticalPadding = 0.dp,
-                            onCheckedChange = onSnapToEdgeChange
+                        Slider(
+                            value = opacityProgress,
+                            onValueChange = { onOpacityChange(progressToOpacity(it)) },
+                            valueRange = 0f..1f,
+                            colors = CoinMonitorComponentDefaults.sliderColors()
                         )
+
+                        Text(
+                            text = stringResource(
+                                R.string.overlay_font_size_format,
+                                formatFontSize(fontSizeSp)
+                            ),
+                            style = MaterialTheme.typography.titleSmall
+                        )
+                        Slider(
+                            value = fontSizeSp,
+                            onValueChange = { onFontScaleChange(fontSizeSpToScale(it)) },
+                            valueRange = MIN_OVERLAY_FONT_SIZE_SP..MAX_OVERLAY_FONT_SIZE_SP,
+                            steps = 9,
+                            colors = CoinMonitorComponentDefaults.sliderColors()
+                        )
+                        SliderEndpoints(
+                            startLabel = stringResource(
+                                R.string.overlay_font_size_endpoint,
+                                formatFontSize(MIN_OVERLAY_FONT_SIZE_SP)
+                            ),
+                            endLabel = stringResource(
+                                R.string.overlay_font_size_endpoint,
+                                formatFontSize(MAX_OVERLAY_FONT_SIZE_SP)
+                            )
+                        )
+
+                        Text(
+                            text = pluralStringResource(
+                                id = R.plurals.overlay_max_items,
+                                count = state.settings.maxItems,
+                                state.settings.maxItems
+                            ),
+                            style = MaterialTheme.typography.titleSmall
+                        )
+                        Slider(
+                            value = state.settings.maxItems.toFloat(),
+                            onValueChange = { onMaxCountChange(it.roundToInt()) },
+                            valueRange = 1f..10f,
+                            steps = 8,
+                            colors = CoinMonitorComponentDefaults.sliderColors()
+                        )
+                        SliderEndpoints(
+                            startLabel = stringResource(R.string.common_min_count),
+                            endLabel = stringResource(R.string.common_max_count)
+                        )
+
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            SettingSwitchRow(
+                                title = stringResource(R.string.overlay_snap_to_edge),
+                                subtitle = stringResource(R.string.overlay_snap_to_edge_hint),
+                                checked = state.settings.snapToEdge,
+                                horizontalPadding = 0.dp,
+                                verticalPadding = 0.dp,
+                                onCheckedChange = onSnapToEdgeChange
+                            )
+                        }
                     }
                 }
             }
-        }
 
-        if (!overlayPermissionGranted) {
-            item {
-                MessageCard(
-                    message = stringResource(R.string.overlay_permission_message),
-                    buttonLabel = stringResource(R.string.overlay_permission_action),
-                    onClick = onRequestOverlayPermission
-                )
-            }
-        }
-
-        if (!notificationPermissionGranted) {
-            item {
-                MessageCard(
-                    message = stringResource(R.string.notification_permission_message),
-                    buttonLabel = stringResource(R.string.notification_permission_action),
-                    onClick = onRequestNotificationPermission
-                )
-            }
-        }
-
-        item {
-            ElevatedCard(
-                shape = RoundedCornerShape(20.dp),
-                modifier = Modifier.fillMaxWidth(),
-                colors = CoinMonitorComponentDefaults.elevatedCardColors()
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(14.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Text(
-                        text = stringResource(R.string.overlay_select_items),
-                        style = MaterialTheme.typography.titleSmall
+            if (!overlayPermissionGranted) {
+                item {
+                    MessageCard(
+                        message = stringResource(R.string.overlay_permission_message),
+                        buttonLabel = stringResource(R.string.overlay_permission_action),
+                        onClick = onRequestOverlayPermission
                     )
+                }
+            }
 
-                    if (state.items.isEmpty()) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 104.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = stringResource(R.string.overlay_empty_state),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = CoinMonitorThemeTokens.colors.secondaryText
-                            )
-                        }
-                    } else {
-                        Column(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalArrangement = Arrangement.spacedBy(2.dp)
-                        ) {
-                            state.items.forEach { item ->
-                                SettingSwitchRow(
-                                    title = item.symbol,
-                                    subtitle = item.exchangeSource.title,
-                                    horizontalPadding = 0.dp,
-                                    verticalPadding = 0.dp,
-                                    checked = item.overlaySelected,
-                                    onCheckedChange = { onToggleItem(item.id) }
+            if (!notificationPermissionGranted) {
+                item {
+                    MessageCard(
+                        message = stringResource(R.string.notification_permission_message),
+                        buttonLabel = stringResource(R.string.notification_permission_action),
+                        onClick = onRequestNotificationPermission
+                    )
+                }
+            }
+
+            item {
+                ElevatedCard(
+                    shape = RoundedCornerShape(20.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CoinMonitorComponentDefaults.elevatedCardColors()
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.overlay_select_items),
+                            style = MaterialTheme.typography.titleSmall
+                        )
+
+                        if (state.items.isEmpty()) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 104.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.overlay_empty_state),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = colors.secondaryText
                                 )
+                            }
+                        } else {
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(2.dp)
+                            ) {
+                                state.items.forEach { item ->
+                                    SettingSwitchRow(
+                                        title = item.symbol,
+                                        subtitle = item.exchangeSource.title,
+                                        horizontalPadding = 0.dp,
+                                        verticalPadding = 0.dp,
+                                        checked = item.overlaySelected,
+                                        onCheckedChange = { onToggleItem(item.id) }
+                                    )
+                                }
                             }
                         }
                     }
@@ -342,54 +347,50 @@ private fun OverlaySettingsScreen(
 private fun OverlaySettingsLoadingScreen(
     onBack: () -> Unit
 ) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(CoinMonitorThemeTokens.colors.pageBackground)
-            .statusBarsPadding()
-            .padding(horizontal = 14.dp, vertical = 12.dp)
-    ) {
-        OverlaySettingsTopBar(onBack = onBack)
-
-        CircularProgressIndicator(
-            modifier = Modifier.align(Alignment.Center),
-            color = CoinMonitorThemeTokens.colors.accent
-        )
+    val colors = CoinMonitorThemeTokens.colors
+    Scaffold(
+        containerColor = colors.pageBackground,
+        topBar = {
+            OverlaySettingsTopBar(onBack = onBack)
+        }
+    ) { innerPadding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(colors.pageBackground)
+                .padding(innerPadding)
+                .padding(horizontal = 14.dp, vertical = 12.dp)
+        ) {
+            CircularProgressIndicator(
+                modifier = Modifier.align(Alignment.Center),
+                color = colors.accent
+            )
+        }
     }
 }
 
 @Composable
+@OptIn(ExperimentalMaterial3Api::class)
 private fun OverlaySettingsTopBar(
     onBack: () -> Unit
 ) {
     val colors = CoinMonitorThemeTokens.colors
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(46.dp),
-        contentAlignment = Alignment.CenterStart
-    ) {
-        Text(
-            text = stringResource(R.string.overlay_settings_title),
-            style = MaterialTheme.typography.titleLarge,
-            color = colors.primaryText,
-            modifier = Modifier.padding(start = 34.dp)
-        )
-        Box(
-            modifier = Modifier
-                .size(48.dp)
-                .offset(x = (-10).dp)
-                .clickable(onClick = onBack),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                contentDescription = stringResource(R.string.common_back),
-                modifier = Modifier.size(26.dp),
-                tint = colors.primaryText
-            )
+    CenterAlignedTopAppBar(
+        colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+            containerColor = colors.pageBackground
+        ),
+        title = {
+            Text(text = stringResource(R.string.overlay_settings_title))
+        },
+        navigationIcon = {
+            IconButton(onClick = onBack) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                    contentDescription = stringResource(R.string.common_back)
+                )
+            }
         }
-    }
+    )
 }
 
 @Composable

@@ -47,11 +47,12 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 - 搜索结果按来源和链稳定排序，便于快速筛选
 - 搜索页当前按入口模式分流：
   - 从首页进入时，结果页继续承担观察列表的 `添加 / 删除` 管理
-  - 从 K 线页进入时，结果页隐藏增删按钮，点击单条结果后会回填到 K 线页并立即关闭搜索页
+  - 从 K 线页进入时，结果页隐藏增删按钮，点击单条结果后会回填到 K 线页并立即关闭搜索页；当前 K 线公开入口已隐藏，这一路径作为保留实现暂不暴露
 
 ### K-line
 
-- 底部导航新增独立 `K线` tab，K 线页和首页/设置页并列
+- K 线页、图表、指标设置、搜索回填和 AI 聊天实现仍保留在工程中，但当前不再作为底部导航或首页卡片点击入口暴露
+- `NavHost` 中仍保留 `Destinations.KLINE` route，用于后续恢复入口时复用既有实现；底部导航列表只展示首页和设置
 - 图表内核当前基于仓库内 vendored 的 `TradingView Lightweight Charts Android wrapper` 源码模块
 - 第三方图表源码当前直接放在 `third_party/lightweightlibrary`，应用不再依赖外部 `aar`，方便直接调试 wrapper 和内嵌 JS core
 - K 线数据统一走 `MarketKlineRepository`，对 `Binance / Binance Alpha / OKX / OKX On-chain` 做统一 candle 映射
@@ -64,10 +65,10 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 - wrapper 本地补齐了官方已有但 Android 侧未暴露的 pane 和 logical range 能力，用于把副图指标 series 移入独立 pane 并保持时间轴一致
 - vendored wrapper 当前内嵌的 JS core 已切到 `lightweight-charts v5.1.0`
 - 当前对价格轴手势只做了一处集中修正：在 vendored JS core 内屏蔽价格轴区域的双指放大异常，保留主绘图区的正常 pinch 缩放
-- 当前 K 线页通过在 `NavHost` 级别复用 `KlineChartHostView`，避免底部 tab 切换时整块 chart 被销毁重建
+- 当前 K 线页通过在 `NavHost` 级别复用 `KlineChartHostView`，避免 route 切换时整块 chart 被销毁重建
 - 夜间模式下的 WebView 首帧白底和 pane 分隔白线，当前收口在 vendored wrapper 的加载页与 JS 初始化层做透明背景修正
 - 为了隔离 K 线问题，K 线页外层仍暂时移除了下拉刷新和纵向滚动，避免额外手势干扰；周期切换已经恢复为真实生效
-- AI 聊天当前已经切到“会话 + 消息”两层持久化模型，K 线页支持新建会话，并通过独立历史页回看和切换旧会话
+- AI 聊天当前已经切到“会话 + 消息”两层持久化模型，K 线页支持新建会话，并通过独立历史页回看和切换旧会话；第三方 API 设置页中的 AI 配置区当前通过入口开关隐藏，保留代码不删除
 - K 线页输入框当前使用自定义紧凑 `BasicTextField` 容器，而不是 `OutlinedTextField`，避免 Material 默认最小高度、内部垂直 padding 和尾部标准按钮把输入区撑高
 - AI 历史页当前只展示至少有一条消息的会话；空白新会话不会反复计入历史列表
 
@@ -189,6 +190,7 @@ Release 自动流程：
 - 首页拖动入口为整卡长按，交互时序为 `400ms` 进入拖动、`650ms` 弹出快捷菜单。
 - 搜索页和悬浮窗设置页使用独立 `Activity`，避免和主 `NavHost` 的底部导航、转场动画、窗口 inset 相互耦合。
 - 首页刷新使用 `PullToRefreshBox`，ViewModel 里维护手动刷新态，避免手势刷新和后台轮询互相打架。
+- 第三方 API 设置页与悬浮窗设置页使用和网络日志页一致的 `Scaffold(topBar = CenterAlignedTopAppBar)` 结构，滚动内容只放在 content 区域，避免下方内容滚动时顶部栏被带走。
 - 设置页里涉及 `Switch` 的横向行都支持整行点击，不只靠右侧小开关命中。
 - 悬浮窗使用 `WindowManager + View`，没有改成 Compose，以降低系统悬浮场景下的重排、生命周期和兼容性风险。
 - 悬浮窗”临时隐藏”建模为运行态，不落库；隐藏时立即 `removeViewImmediate`，保证原位置点击可以穿透到底层应用。
@@ -208,4 +210,3 @@ Release 自动流程：
 - 流式引擎内部对订阅集合做指纹比较，避免价格回流导致重复重建长连接。
 - vendored chart wrapper 关闭了 `WebView` 自身页面缩放，避免系统层缩放和图表手势混在一起。
 - vendored wrapper 生成产物直接提交 `src/main/assets/com/tradingview/lightweightcharts/scripts/app/main.js`，不执行 `npm run compile` 时也能直接构建运行。
-
