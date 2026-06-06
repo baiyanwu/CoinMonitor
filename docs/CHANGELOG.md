@@ -5,6 +5,7 @@
 - 隐藏主界面的 K 线入口：底部导航不再显示 K 线 tab，首页币种卡片点击不再进入 K 线页；K 线实现代码仍保留
 - 隐藏第三方 API 设置页中的 AI 配置区；AI 配置和聊天实现代码仍保留
 - 第三方 API 设置页与悬浮窗设置页顶部栏改为固定布局，滚动内容时 header 不再随内容滚动
+- 修复 Binance USD-M 合约行情订阅：将 futures WSS 接入改为官方推荐的 `wss://fstream.binance.com/market/ws`，解决 `SNDKUSDT` 等合约在首页不刷新的问题
 
 ## v1.0.4 (2026-04-03)
 

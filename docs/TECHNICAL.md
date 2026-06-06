@@ -104,7 +104,7 @@ app/src/main/java/io/baiyanwu/coinmonitor/
   - `30 秒`
   - `1 分钟`
 - 首页和悬浮窗只保留一套全局刷新协调器
-- 当前底层默认实现已经切到流式引擎，`Binance Spot / Binance Alpha / OKX Spot / OKX On-chain` 优先走 `WSS`
+- 当前底层默认实现已经切到流式引擎，`Binance Spot / Binance Alpha / Binance USDT-M Futures / OKX Spot / OKX On-chain` 优先走 `WSS`
 - 当前实时价格主链路已经改成 `WSS / REST -> InMemory QuoteRepository -> UI`，不再每次报价都直接写回 `watch_items`
 - `watch_items` 里的价格字段当前只承担启动恢复和低频快照持久化，默认在页面不再活跃时落一次，并在前台运行期间按低频兜底写回
 - `OKX On-chain` 当前按官方最新 `price channel` 文档接入，使用 `wss://wsdex.okx.com/ws/v6/dex`，并在登录成功后再发送价格订阅
@@ -120,6 +120,13 @@ app/src/main/java/io/baiyanwu/coinmonitor/
   - WSS URL：`wss://stream.binance.com:9443/ws`
   - 当前 REST 路径：`GET /api/v3/exchangeInfo`、`GET /api/v3/ticker/24hr`
   - 当前 WSS 订阅：`${symbol.lowercase()}@ticker`
+
+- `Binance USDT-M Futures`
+  - 官方文档：`https://developers.binance.com/docs/derivatives/usds-margined-futures/websocket-market-streams`
+  - REST base URL：`https://fapi.binance.com/`
+  - WSS URL：`wss://fstream.binance.com/market/ws`
+  - 当前 REST 路径：`GET /fapi/v1/exchangeInfo`、`GET /fapi/v1/ticker/24hr`
+  - 当前 WSS 订阅：`<symbol>@ticker`（例如 `btcusdt@ticker`）
 
 - `Binance Alpha`
   - 官方文档入口：当前项目主要参考 `Binance Alpha / Web3 Wallet` 公开页面行为与现网接口，缺少一套稳定的官方开放文档索引；后续如果 Binance 提供正式文档，建议优先补到这里

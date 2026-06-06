@@ -942,7 +942,7 @@ class StreamingQuoteRefreshEngine(
     companion object {
         private const val TAG = "CoinMonitorWSS"
         private const val BINANCE_PUBLIC_WS_URL = "wss://stream.binance.com:9443/ws"
-        private const val BINANCE_FUTURES_PUBLIC_WS_URL = "wss://fstream.binance.com/ws"
+        private const val BINANCE_FUTURES_PUBLIC_WS_URL = "wss://fstream.binance.com/market/ws"
         private const val ALPHA_PUBLIC_WS_URL = "wss://nbstream.binance.com/w3w/wsa/stream"
         private const val OKX_PUBLIC_WS_URL = "wss://ws.okx.com:8443/ws/v5/public"
         private const val OKX_ONCHAIN_PUBLIC_WS_URL = "wss://wsdex.okx.com/ws/v6/dex"
