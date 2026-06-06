@@ -31,7 +31,7 @@ class ContractMarketEntryPolicyTest {
             moduleRelativePath = "src/main/java/io/baiyanwu/coinmonitor/data/refresh/StreamingQuoteRefreshEngine.kt"
         )
 
-        assertTrue(source.contains("BINANCE_FUTURES_PUBLIC_WS_URL = \"wss://fstream.binance.com/ws\""))
+        assertTrue(source.contains("BINANCE_FUTURES_PUBLIC_WS_URL = \"wss://fstream.binance.com/market/ws\""))
         assertTrue(source.contains("runBinanceFuturesSocketLoop"))
         assertTrue(source.contains("binance-usdt-futures"))
         assertTrue(source.contains("isOkxPublicTickerItem"))
