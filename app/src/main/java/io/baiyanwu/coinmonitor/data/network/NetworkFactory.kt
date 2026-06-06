@@ -41,6 +41,9 @@ class NetworkFactory(
     val binanceApi: BinanceApi = retrofit("https://api.binance.com/")
         .create(BinanceApi::class.java)
 
+    val binanceFuturesApi: BinanceFuturesApi = retrofit("https://fapi.binance.com/")
+        .create(BinanceFuturesApi::class.java)
+
     val okxApi: OkxApi = retrofit("https://www.okx.com/")
         .create(OkxApi::class.java)
 

@@ -2,6 +2,8 @@ package io.baiyanwu.coinmonitor.data.repository
 
 import io.baiyanwu.coinmonitor.data.network.BinanceAlphaApi
 import io.baiyanwu.coinmonitor.data.network.BinanceApi
+import io.baiyanwu.coinmonitor.data.network.BinanceFuturesApi
+import io.baiyanwu.coinmonitor.data.network.BinanceTickerRow
 import io.baiyanwu.coinmonitor.data.network.OkxApi
 import io.baiyanwu.coinmonitor.data.network.OkxOnChainApi
 import io.baiyanwu.coinmonitor.data.network.OkxOnChainPriceRequest
@@ -22,6 +24,7 @@ import kotlinx.serialization.json.Json
 class DefaultMarketQuoteRepository(
     private val alphaApi: BinanceAlphaApi,
     private val binanceApi: BinanceApi,
+    private val binanceFuturesApi: BinanceFuturesApi,
     private val okxApi: OkxApi,
     private val okxOnChainApi: OkxOnChainApi,
     private val okxCredentialsProvider: suspend () -> OkxApiCredentials? = { null }
@@ -39,17 +42,34 @@ class DefaultMarketQuoteRepository(
         val binanceItems = items.filter {
             it.marketType == MarketType.CEX_SPOT && it.exchangeSource == ExchangeSource.BINANCE
         }
+        val binanceFuturesItems = items.filter {
+            it.marketType == MarketType.CEX_USDT_FUTURES && it.exchangeSource == ExchangeSource.BINANCE
+        }
         val okxItems = items.filter {
             it.marketType == MarketType.CEX_SPOT && it.exchangeSource == ExchangeSource.OKX
+        }
+        val okxFuturesItems = items.filter {
+            it.marketType == MarketType.CEX_USDT_FUTURES && it.exchangeSource == ExchangeSource.OKX
         }
         val onChainItems = items.filter { it.marketType == MarketType.ONCHAIN_TOKEN }
 
         val alphaQuotes = runCatching { fetchAlphaQuotes(alphaItems) }.getOrDefault(emptyList())
         val binanceQuotes = runCatching { fetchBinanceQuotes(binanceItems) }.getOrDefault(emptyList())
+        val binanceFuturesQuotes = runCatching {
+            fetchBinanceFuturesQuotes(binanceFuturesItems)
+        }.getOrDefault(emptyList())
         val okxQuotes = runCatching { fetchOkxQuotes(okxItems) }.getOrDefault(emptyList())
+        val okxFuturesQuotes = runCatching { fetchOkxQuotes(okxFuturesItems) }.getOrDefault(emptyList())
         val onChainQuotes = runCatching { fetchOkxOnChainQuotes(onChainItems) }.getOrDefault(emptyList())
 
-        val quotes = (alphaQuotes + binanceQuotes + okxQuotes + onChainQuotes).associateBy { it.id }
+        val quotes = (
+            alphaQuotes +
+                binanceQuotes +
+                binanceFuturesQuotes +
+                okxQuotes +
+                okxFuturesQuotes +
+                onChainQuotes
+            ).associateBy { it.id }
         return items.mapNotNull { quotes[it.id] }
     }
 
@@ -86,10 +106,22 @@ class DefaultMarketQuoteRepository(
         }
     }
 
+    private suspend fun fetchBinanceFuturesQuotes(items: List<WatchItem>): List<MarketQuote> = coroutineScope {
+        items.map { item ->
+            async {
+                val symbol = item.id.substringAfter("binance-futures:").uppercase()
+                binanceFuturesApi.getTicker(symbol).toMarketQuote(item)
+            }
+        }.awaitAll().filterNotNull()
+    }
+
     private suspend fun fetchOkxQuotes(items: List<WatchItem>): List<MarketQuote> = coroutineScope {
         items.map { item ->
             async {
-                val instId = item.id.substringAfter("okx:").uppercase()
+                val instId = when (item.marketType) {
+                    MarketType.CEX_USDT_FUTURES -> item.id.substringAfter("okx-futures:").uppercase()
+                    else -> item.id.substringAfter("okx:").uppercase()
+                }
                 val response = okxApi.getTicker(instId)
                 if (response.code != "0") return@async null
                 val row = response.data.firstOrNull() ?: return@async null
@@ -161,5 +193,17 @@ class DefaultMarketQuoteRepository(
                 change24hPercent = null
             )
         }
+    }
+
+    private fun BinanceTickerRow.toMarketQuote(item: WatchItem): MarketQuote? {
+        val lastPrice = lastPrice.toDoubleOrNull() ?: return null
+        val change = priceChangePercent.toDoubleOrNull() ?: return null
+        return MarketQuote(
+            id = item.id,
+            symbol = item.symbol,
+            name = item.name,
+            priceUsd = lastPrice,
+            change24hPercent = change
+        )
     }
 }

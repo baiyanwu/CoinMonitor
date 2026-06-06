@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
 import io.baiyanwu.coinmonitor.domain.model.ExchangeSource
+import io.baiyanwu.coinmonitor.domain.model.MarketType
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
 import io.baiyanwu.coinmonitor.domain.model.withQuote
 import io.baiyanwu.coinmonitor.domain.repository.QuoteRepository
@@ -247,6 +248,13 @@ fun WatchItemCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     ExchangeBadge(source = item.exchangeSource)
+                    if (item.marketType == MarketType.CEX_USDT_FUTURES) {
+                        MiniTag(
+                            text = stringResource(R.string.market_tag_usdt_futures),
+                            containerColor = colors.cardBackground,
+                            contentColor = colors.secondaryText
+                        )
+                    }
                     if (item.homePinned) {
                         MiniTag(
                             text = stringResource(R.string.home_pinned_tag),

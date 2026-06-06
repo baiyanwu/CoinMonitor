@@ -790,6 +790,8 @@ private fun SearchResultRow(
         ) {
             val titleText = if (onchainMode) {
                 resolveOnchainSymbol(item)
+            } else if (isUsdtFuturesItem(item)) {
+                item.symbol.uppercase()
             } else {
                 item.baseSymbol
             }
@@ -811,11 +813,15 @@ private fun SearchResultRow(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = item.symbol.substringAfter("/", ""),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = colors.secondaryText
-                    )
+                    if (isUsdtFuturesItem(item)) {
+                        MarketTypeBadge(text = stringResource(R.string.market_tag_usdt_futures))
+                    } else {
+                        Text(
+                            text = item.symbol.substringAfter("/", ""),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = colors.secondaryText
+                        )
+                    }
                     ExchangeSourceBadge(source = item.exchangeSource)
                 }
             }
@@ -835,6 +841,23 @@ private fun SearchResultRow(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun MarketTypeBadge(text: String) {
+    val colors = CoinMonitorThemeTokens.colors
+    Surface(
+        color = colors.cardBackground,
+        shape = RoundedCornerShape(100.dp)
+    ) {
+        Text(
+            text = text,
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+            color = colors.secondaryText,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.SemiBold
+        )
     }
 }
 
@@ -864,6 +887,10 @@ private fun ExchangeSourceBadge(source: ExchangeSource) {
             fontWeight = FontWeight.SemiBold
         )
     }
+}
+
+private fun isUsdtFuturesItem(item: WatchItem): Boolean {
+    return item.marketType == MarketType.CEX_USDT_FUTURES
 }
 
 private fun isOnchainItem(item: WatchItem): Boolean {

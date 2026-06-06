@@ -86,6 +86,7 @@ class AppContainer(context: Context) {
     val marketSearchRepository: MarketSearchRepository = DefaultMarketSearchRepository(
         alphaApi = networkFactory.alphaApi,
         binanceApi = networkFactory.binanceApi,
+        binanceFuturesApi = networkFactory.binanceFuturesApi,
         okxApi = networkFactory.okxApi,
         okxOnChainApi = networkFactory.okxOnChainApi,
         okxCredentialsProvider = { okxCredentialsRepository.getCredentials() }
@@ -94,6 +95,7 @@ class AppContainer(context: Context) {
     val marketQuoteRepository: MarketQuoteRepository = DefaultMarketQuoteRepository(
         alphaApi = networkFactory.alphaApi,
         binanceApi = networkFactory.binanceApi,
+        binanceFuturesApi = networkFactory.binanceFuturesApi,
         okxApi = networkFactory.okxApi,
         okxOnChainApi = networkFactory.okxOnChainApi,
         okxCredentialsProvider = { okxCredentialsRepository.getCredentials() }

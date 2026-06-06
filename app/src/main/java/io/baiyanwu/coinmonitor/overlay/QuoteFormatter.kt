@@ -1,5 +1,7 @@
 package io.baiyanwu.coinmonitor.overlay
 
+import io.baiyanwu.coinmonitor.domain.model.MarketType
+import io.baiyanwu.coinmonitor.domain.model.WatchItem
 import java.math.BigDecimal
 import java.text.DecimalFormat
 import kotlin.math.abs
@@ -22,6 +24,15 @@ object QuoteFormatter {
         }
 
         return formatTinyPrice(value)
+    }
+
+    fun formatOverlayPrice(item: WatchItem): String {
+        val priceText = formatPrice(item.lastPrice)
+        return if (item.marketType == MarketType.CEX_USDT_FUTURES) {
+            "U$priceText"
+        } else {
+            priceText
+        }
     }
 
     fun formatChange(value: Double?): String {

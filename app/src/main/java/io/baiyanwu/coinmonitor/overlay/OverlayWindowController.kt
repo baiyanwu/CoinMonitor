@@ -388,7 +388,7 @@ class OverlayWindowController(
         metrics: OverlayMetrics
     ): Int {
         val maxWidth = items.maxOfOrNull { item ->
-            val priceText = QuoteFormatter.formatPrice(item.lastPrice)
+            val priceText = QuoteFormatter.formatOverlayPrice(item)
             measureTextWidth(
                 text = priceText,
                 textSizeSp = PriceTextSizer.resolveTextSizeSp(priceText) * metrics.fontScale
@@ -507,7 +507,7 @@ class OverlayWindowController(
         item: WatchItem,
         metrics: OverlayMetrics
     ) {
-        val priceText = QuoteFormatter.formatPrice(item.lastPrice)
+        val priceText = QuoteFormatter.formatOverlayPrice(item)
         sidebarItemView.priceView.text = priceText
         sidebarItemView.priceView.setTextColor(
             item.resolveLivePriceColor(
@@ -662,7 +662,7 @@ class OverlayWindowController(
             holder.leadingSignature = leadingSignature
         }
 
-        val priceText = QuoteFormatter.formatPrice(item.lastPrice)
+        val priceText = QuoteFormatter.formatOverlayPrice(item)
         holder.priceView.text = priceText
         holder.priceView.setTextColor(
             item.resolveLivePriceColor(

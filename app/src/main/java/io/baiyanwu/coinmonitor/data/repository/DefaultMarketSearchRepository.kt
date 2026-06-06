@@ -2,6 +2,7 @@ package io.baiyanwu.coinmonitor.data.repository
 
 import io.baiyanwu.coinmonitor.data.network.BinanceAlphaApi
 import io.baiyanwu.coinmonitor.data.network.BinanceApi
+import io.baiyanwu.coinmonitor.data.network.BinanceFuturesApi
 import io.baiyanwu.coinmonitor.data.network.OkxApi
 import io.baiyanwu.coinmonitor.data.network.OkxOnChainApi
 import io.baiyanwu.coinmonitor.data.network.OkxOnChainChainRegistry
@@ -25,10 +26,12 @@ import java.net.URLEncoder
 class DefaultMarketSearchRepository(
     private val alphaApi: BinanceAlphaApi,
     private val binanceApi: BinanceApi,
+    private val binanceFuturesApi: BinanceFuturesApi,
     private val okxApi: OkxApi,
     private val okxOnChainApi: OkxOnChainApi,
     private val okxCredentialsProvider: suspend () -> OkxApiCredentials? = { null }
 ) : MarketSearchRepository {
+    private val supportedBinanceFuturesPerpetualContractTypes = setOf("PERPETUAL", "TRADIFI_PERPETUAL")
     private val cacheMutex = Mutex()
     private val cache = mutableMapOf<String, CacheEntry>()
     private val ttlMillis = 4 * 60 * 60 * 1000L
@@ -39,10 +42,19 @@ class DefaultMarketSearchRepository(
 
         val alphaDeferred = async { searchBinanceAlpha(normalizedQuery.uppercase()) }
         val binanceDeferred = async { searchBinance(normalizedQuery.uppercase()) }
+        val binanceFuturesDeferred = async { searchBinanceUsdtFutures(normalizedQuery.uppercase()) }
         val okxDeferred = async { searchOkx(normalizedQuery.uppercase()) }
+        val okxFuturesDeferred = async { searchOkxUsdtFutures(normalizedQuery.uppercase()) }
         val okxOnChainDeferred = async { searchOkxOnChain(normalizedQuery, chainFamilyFilter) }
 
-        val merged = awaitAll(alphaDeferred, binanceDeferred, okxDeferred, okxOnChainDeferred)
+        val merged = awaitAll(
+            alphaDeferred,
+            binanceDeferred,
+            binanceFuturesDeferred,
+            okxDeferred,
+            okxFuturesDeferred,
+            okxOnChainDeferred
+        )
             .flatten()
             .associateBy { it.id }
             .values
@@ -58,7 +70,9 @@ class DefaultMarketSearchRepository(
         awaitAll(
             async { searchBinanceAlpha(normalizedQuery) },
             async { searchBinance(normalizedQuery) },
-            async { searchOkx(normalizedQuery) }
+            async { searchBinanceUsdtFutures(normalizedQuery) },
+            async { searchOkx(normalizedQuery) },
+            async { searchOkxUsdtFutures(normalizedQuery) }
         )
             .flatten()
             .associateBy { it.id }
@@ -103,6 +117,29 @@ class DefaultMarketSearchRepository(
         return universe.filterByKeyword(keyword)
     }
 
+    private suspend fun searchBinanceUsdtFutures(keyword: String): List<WatchItem> {
+        val universe = loadCache("binance-usdt-futures") {
+            binanceFuturesApi.getExchangeInfo().symbols
+                .filter {
+                    it.status == "TRADING" &&
+                        it.quoteAsset == "USDT" &&
+                        it.marginAsset == "USDT" &&
+                        it.contractType in supportedBinanceFuturesPerpetualContractTypes
+                }
+                .map { row ->
+                    WatchItem(
+                        id = "binance-futures:${row.symbol}",
+                        symbol = row.symbol.uppercase(),
+                        name = row.baseAsset,
+                        exchangeSource = ExchangeSource.BINANCE,
+                        marketType = MarketType.CEX_USDT_FUTURES,
+                        addedAt = System.currentTimeMillis()
+                    )
+                }
+        }
+        return universe.filterByKeyword(keyword)
+    }
+
     private suspend fun searchOkx(keyword: String): List<WatchItem> {
         val universe = loadCache("okx-spot") {
             okxApi.getSpotInstruments().data
@@ -113,6 +150,29 @@ class DefaultMarketSearchRepository(
                         symbol = "${row.baseCcy}/${row.quoteCcy}",
                         name = row.baseCcy,
                         exchangeSource = ExchangeSource.OKX,
+                        addedAt = System.currentTimeMillis()
+                    )
+                }
+        }
+        return universe.filterByKeyword(keyword)
+    }
+
+    private suspend fun searchOkxUsdtFutures(keyword: String): List<WatchItem> {
+        val universe = loadCache("okx-usdt-futures") {
+            okxApi.getInstruments(instType = "SWAP").data
+                .filter {
+                    it.state == "live" &&
+                        it.settleCcy == "USDT" &&
+                        it.instId.endsWith("-USDT-SWAP")
+                }
+                .map { row ->
+                    val baseAsset = row.instId.substringBefore("-").uppercase()
+                    WatchItem(
+                        id = "okx-futures:${row.instId}",
+                        symbol = row.instId.removeSuffix("-SWAP").replace("-", "").uppercase(),
+                        name = baseAsset,
+                        exchangeSource = ExchangeSource.OKX,
+                        marketType = MarketType.CEX_USDT_FUTURES,
                         addedAt = System.currentTimeMillis()
                     )
                 }

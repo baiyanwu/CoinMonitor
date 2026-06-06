@@ -22,5 +22,21 @@ data class WatchItem(
     val lastUpdatedAt: Long? = null
 ) {
     val baseSymbol: String
-        get() = symbol.substringBefore("/").uppercase()
+        get() {
+            val normalizedSymbol = symbol.uppercase()
+            return when {
+                marketType == MarketType.CEX_USDT_FUTURES &&
+                    normalizedSymbol.endsWith(USDT_QUOTE_ASSET) &&
+                    normalizedSymbol.length > USDT_QUOTE_ASSET.length -> {
+                    normalizedSymbol.dropLast(USDT_QUOTE_ASSET.length)
+                }
+
+                normalizedSymbol.contains("/") -> normalizedSymbol.substringBefore("/")
+                else -> normalizedSymbol
+            }
+        }
+
+    companion object {
+        private const val USDT_QUOTE_ASSET = "USDT"
+    }
 }

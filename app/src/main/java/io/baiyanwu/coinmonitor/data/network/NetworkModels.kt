@@ -25,9 +25,20 @@ interface BinanceApi {
     ): JsonArray
 }
 
+interface BinanceFuturesApi {
+    @GET("fapi/v1/exchangeInfo")
+    suspend fun getExchangeInfo(): BinanceExchangeInfoResponse
+
+    @GET("fapi/v1/ticker/24hr")
+    suspend fun getTicker(@Query("symbol") symbol: String): BinanceTickerRow
+}
+
 interface OkxApi {
     @GET("api/v5/public/instruments")
     suspend fun getSpotInstruments(@Query("instType") instType: String = "SPOT"): OkxInstrumentsResponse
+
+    @GET("api/v5/public/instruments")
+    suspend fun getInstruments(@Query("instType") instType: String): OkxInstrumentsResponse
 
     @GET("api/v5/market/ticker")
     suspend fun getTicker(@Query("instId") instId: String): OkxTickerResponse
@@ -128,7 +139,9 @@ data class BinanceSymbolRow(
     val symbol: String,
     val status: String,
     val baseAsset: String,
-    val quoteAsset: String
+    val quoteAsset: String,
+    val contractType: String? = null,
+    val marginAsset: String? = null
 )
 
 @Serializable
@@ -147,9 +160,13 @@ data class OkxInstrumentsResponse(
 @Serializable
 data class OkxInstrumentRow(
     @SerialName("instId") val instId: String,
-    val baseCcy: String,
-    val quoteCcy: String,
-    val state: String
+    val baseCcy: String = "",
+    val quoteCcy: String = "",
+    val state: String = "",
+    @SerialName("instType") val instType: String? = null,
+    @SerialName("instFamily") val instFamily: String? = null,
+    val settleCcy: String? = null,
+    val ctType: String? = null
 )
 
 @Serializable
