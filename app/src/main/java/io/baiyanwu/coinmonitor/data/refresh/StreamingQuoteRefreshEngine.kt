@@ -42,7 +42,8 @@ import java.util.concurrent.TimeUnit
 /**
  * 行情刷新默认优先走交易所官方 WSS，把“每轮全量 HTTP 询价”改成“增量推送”。
  *
- * 当前已经覆盖 Binance Spot / Binance Alpha / OKX Spot / OKX On-chain 四条主行情链路。
+ * 当前已经覆盖 Binance Spot / Binance USD-M Futures / Binance Alpha / OKX Spot / OKX USD-M Futures /
+ * OKX On-chain 行情链路。
  * 长连接断开后仍会补一轮 REST 快照兜底，保证价格不会因为偶发断连长时间静默。
  */
 class StreamingQuoteRefreshEngine(
@@ -70,12 +71,14 @@ class StreamingQuoteRefreshEngine(
     )
     private var bootstrapJob: Job? = null
     private var binanceJob: Job? = null
+    private var binanceFuturesJob: Job? = null
     private var alphaJob: Job? = null
     private var okxJob: Job? = null
     private var okxOnChainJob: Job? = null
     private var fallbackJob: Job? = null
     private var flushJob: Job? = null
     private var binanceSocket: WebSocket? = null
+    private var binanceFuturesSocket: WebSocket? = null
     private var alphaSocket: WebSocket? = null
     private var okxSocket: WebSocket? = null
     private var okxOnChainSocket: WebSocket? = null
@@ -107,6 +110,8 @@ class StreamingQuoteRefreshEngine(
         bootstrapJob = null
         binanceJob?.cancel()
         binanceJob = null
+        binanceFuturesJob?.cancel()
+        binanceFuturesJob = null
         alphaJob?.cancel()
         alphaJob = null
         okxJob?.cancel()
@@ -125,6 +130,8 @@ class StreamingQuoteRefreshEngine(
         bootstrapJob = null
         binanceJob?.cancel()
         binanceJob = null
+        binanceFuturesJob?.cancel()
+        binanceFuturesJob = null
         alphaJob?.cancel()
         alphaJob = null
         okxJob?.cancel()
@@ -138,13 +145,15 @@ class StreamingQuoteRefreshEngine(
         if (!config.enabled || config.items.isEmpty()) return
 
         val binanceItems = config.items.filter(::isBinanceSpotItem)
+        val binanceFuturesItems = config.items.filter(::isBinanceUsdtFuturesItem)
         val alphaItems = config.items.filter(::isAlphaSpotItem)
-        val okxItems = config.items.filter(::isOkxSpotItem)
+        val okxItems = config.items.filter(::isOkxPublicTickerItem)
         val okxOnChainItems = config.items.filter(::isOkxOnChainItem)
         val fallbackItems = config.items.filterNot { item ->
             isBinanceSpotItem(item) ||
+                isBinanceUsdtFuturesItem(item) ||
                 isAlphaSpotItem(item) ||
-                isOkxSpotItem(item) ||
+                isOkxPublicTickerItem(item) ||
                 isOkxOnChainItem(item)
         }
 
@@ -156,6 +165,11 @@ class StreamingQuoteRefreshEngine(
         if (binanceItems.isNotEmpty()) {
             binanceJob = scope.launch {
                 runBinanceSocketLoop(binanceItems)
+            }
+        }
+        if (binanceFuturesItems.isNotEmpty()) {
+            binanceFuturesJob = scope.launch {
+                runBinanceFuturesSocketLoop(binanceFuturesItems)
             }
         }
         if (alphaItems.isNotEmpty()) {
@@ -259,6 +273,74 @@ class StreamingQuoteRefreshEngine(
         }
     }
 
+    private suspend fun runBinanceFuturesSocketLoop(items: List<WatchItem>) {
+        val symbolMap = items.associateBy { it.id.substringAfter("binance-futures:").uppercase() }
+
+        while (scope.isActive && currentConfig.enabled) {
+            val closed = CompletableDeferred<Unit>()
+            val request = Request.Builder()
+                .url(BINANCE_FUTURES_PUBLIC_WS_URL)
+                .build()
+
+            binanceFuturesSocket = okHttpClient.newWebSocket(
+                request,
+                object : WebSocketListener() {
+                    override fun onOpen(webSocket: WebSocket, response: Response) {
+                        logWs("WS OPEN binance-usdt-futures $BINANCE_FUTURES_PUBLIC_WS_URL")
+                        val subscribeRequest = buildJsonObject {
+                            put("method", "SUBSCRIBE")
+                            put("params", buildJsonArray {
+                                symbolMap.keys.sorted().forEach { symbol ->
+                                    add(JsonPrimitive("${symbol.lowercase()}@ticker"))
+                                }
+                            })
+                            put("id", 1)
+                        }
+                        logWs(
+                            line = "WS SEND binance-usdt-futures subscribe ${symbolMap.size}",
+                            detail = subscribeRequest.toString()
+                        )
+                        webSocket.send(subscribeRequest.toString())
+                    }
+
+                    override fun onMessage(webSocket: WebSocket, text: String) {
+                        logWs("WS RECV binance-usdt-futures $text")
+                        parseBinanceTickerMessage(text, symbolMap)?.let { quote ->
+                            scope.launch {
+                                enqueueQuote(quote)
+                            }
+                        }
+                    }
+
+                    override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
+                        webSocket.close(code, reason)
+                        closed.complete(Unit)
+                    }
+
+                    override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+                        closed.complete(Unit)
+                    }
+
+                    override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+                        logWs(
+                            line = "WS FAIL binance-usdt-futures ${t.javaClass.simpleName}: ${t.message.orEmpty()}",
+                            detail = t.stackTraceToString()
+                        )
+                        Log.w(TAG, "Binance USD-M futures WSS failed: ${t.message}")
+                        closed.complete(Unit)
+                    }
+                }
+            )
+
+            closed.await()
+            binanceFuturesSocket = null
+            if (!scope.isActive || !currentConfig.enabled) break
+
+            refreshQuotes(currentConfig.items.filter(::isBinanceUsdtFuturesItem))
+            delay(resolveReconnectDelayMillis())
+        }
+    }
+
     private suspend fun runAlphaSocketLoop(items: List<WatchItem>) {
         val symbolMap = items.associateBy { it.id.substringAfter("binance-alpha:").uppercase() }
 
@@ -328,7 +410,7 @@ class StreamingQuoteRefreshEngine(
     }
 
     private suspend fun runOkxSocketLoop(items: List<WatchItem>) {
-        val instrumentMap = items.associateBy { it.id.substringAfter("okx:").uppercase() }
+        val instrumentMap = items.associateBy(::resolveOkxInstrumentId)
 
         while (scope.isActive && currentConfig.enabled) {
             val closed = CompletableDeferred<Unit>()
@@ -342,7 +424,7 @@ class StreamingQuoteRefreshEngine(
                 request,
                 object : WebSocketListener() {
                     override fun onOpen(webSocket: WebSocket, response: Response) {
-                        logWs("WS OPEN okx-spot $OKX_PUBLIC_WS_URL")
+                        logWs("WS OPEN okx-public $OKX_PUBLIC_WS_URL")
                         val subscribeRequest = buildJsonObject {
                             put("op", "subscribe")
                             put("args", buildJsonArray {
@@ -355,7 +437,7 @@ class StreamingQuoteRefreshEngine(
                             })
                         }
                         logWs(
-                            line = "WS SEND okx-spot subscribe ${instrumentMap.size}",
+                            line = "WS SEND okx-public subscribe ${instrumentMap.size}",
                             detail = subscribeRequest.toString()
                         )
                         webSocket.send(subscribeRequest.toString())
@@ -374,7 +456,7 @@ class StreamingQuoteRefreshEngine(
                         lastMessageTimestamp = System.currentTimeMillis()
                         if (text == "pong") return
 
-                        logWs("WS RECV okx-spot $text")
+                        logWs("WS RECV okx-public $text")
                         parseOkxTickerMessages(text, instrumentMap).forEach { quote ->
                             scope.launch {
                                 enqueueQuote(quote)
@@ -396,10 +478,10 @@ class StreamingQuoteRefreshEngine(
                     override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                         heartbeatJob?.cancel()
                         logWs(
-                            line = "WS FAIL okx-spot ${t.javaClass.simpleName}: ${t.message.orEmpty()}",
+                            line = "WS FAIL okx-public ${t.javaClass.simpleName}: ${t.message.orEmpty()}",
                             detail = t.stackTraceToString()
                         )
-                        Log.w(TAG, "OKX spot WSS failed: ${t.message}")
+                        Log.w(TAG, "OKX public ticker WSS failed: ${t.message}")
                         closed.complete(Unit)
                     }
                 }
@@ -410,7 +492,7 @@ class StreamingQuoteRefreshEngine(
             okxSocket = null
             if (!scope.isActive || !currentConfig.enabled) break
 
-            refreshQuotes(currentConfig.items.filter(::isOkxSpotItem))
+            refreshQuotes(currentConfig.items.filter(::isOkxPublicTickerItem))
             delay(resolveReconnectDelayMillis())
         }
     }
@@ -564,6 +646,8 @@ class StreamingQuoteRefreshEngine(
     private fun closeSockets() {
         binanceSocket?.close(1000, "restart")
         binanceSocket = null
+        binanceFuturesSocket?.close(1000, "restart")
+        binanceFuturesSocket = null
         alphaSocket?.close(1000, "restart")
         alphaSocket = null
         okxSocket?.close(1000, "restart")
@@ -612,11 +696,15 @@ class StreamingQuoteRefreshEngine(
             json.parseToJsonElement(text).jsonObject
         }.getOrNull() ?: return null
 
-        if (payload["result"] != null) return null
-        val symbol = payload["s"]?.jsonPrimitive?.contentOrNull?.uppercase() ?: return null
+        val tickerPayload = payload["data"]?.jsonObject?.takeIf { it["s"] != null } ?: payload
+        if (tickerPayload["result"] != null) return null
+        val symbol = tickerPayload["s"]?.jsonPrimitive?.contentOrNull?.uppercase() ?: return null
         val item = symbolMap[symbol] ?: return null
-        val lastPrice = payload["c"]?.jsonPrimitive?.doubleOrNull ?: return null
-        val changePercent = payload["P"]?.jsonPrimitive?.doubleOrNull
+        val lastPrice = tickerPayload["c"]?.jsonPrimitive?.doubleOrNull ?: return null
+        val openPrice = tickerPayload["o"]?.jsonPrimitive?.doubleOrNull
+        val changePercent = tickerPayload["P"]?.jsonPrimitive?.doubleOrNull ?: run {
+            if (openPrice == null || openPrice <= 0.0) null else ((lastPrice - openPrice) / openPrice) * 100
+        }
         return MarketQuote(
             id = item.id,
             symbol = item.symbol,
@@ -800,6 +888,20 @@ class StreamingQuoteRefreshEngine(
             item.exchangeSource == ExchangeSource.OKX
     }
 
+    private fun isBinanceUsdtFuturesItem(item: WatchItem): Boolean {
+        return item.marketType == MarketType.CEX_USDT_FUTURES &&
+            item.exchangeSource == ExchangeSource.BINANCE
+    }
+
+    private fun isOkxUsdtFuturesItem(item: WatchItem): Boolean {
+        return item.marketType == MarketType.CEX_USDT_FUTURES &&
+            item.exchangeSource == ExchangeSource.OKX
+    }
+
+    private fun isOkxPublicTickerItem(item: WatchItem): Boolean {
+        return isOkxSpotItem(item) || isOkxUsdtFuturesItem(item)
+    }
+
     private fun isAlphaSpotItem(item: WatchItem): Boolean {
         return item.marketType == MarketType.CEX_SPOT &&
             item.exchangeSource == ExchangeSource.BINANCE_ALPHA
@@ -808,6 +910,13 @@ class StreamingQuoteRefreshEngine(
     private fun isOkxOnChainItem(item: WatchItem): Boolean {
         return item.marketType == MarketType.ONCHAIN_TOKEN &&
             item.exchangeSource == ExchangeSource.OKX
+    }
+
+    private fun resolveOkxInstrumentId(item: WatchItem): String {
+        return when (item.marketType) {
+            MarketType.CEX_USDT_FUTURES -> item.id.substringAfter("okx-futures:")
+            else -> item.id.substringAfter("okx:")
+        }.uppercase()
     }
 
     /**
@@ -833,6 +942,7 @@ class StreamingQuoteRefreshEngine(
     companion object {
         private const val TAG = "CoinMonitorWSS"
         private const val BINANCE_PUBLIC_WS_URL = "wss://stream.binance.com:9443/ws"
+        private const val BINANCE_FUTURES_PUBLIC_WS_URL = "wss://fstream.binance.com/ws"
         private const val ALPHA_PUBLIC_WS_URL = "wss://nbstream.binance.com/w3w/wsa/stream"
         private const val OKX_PUBLIC_WS_URL = "wss://ws.okx.com:8443/ws/v5/public"
         private const val OKX_ONCHAIN_PUBLIC_WS_URL = "wss://wsdex.okx.com/ws/v6/dex"
