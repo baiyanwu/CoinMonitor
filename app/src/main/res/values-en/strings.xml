@@ -101,6 +101,8 @@
     <string name="third_party_api_settings_api_key">API Key</string>
     <string name="third_party_api_settings_secret_key">Secret Key</string>
     <string name="third_party_api_settings_passphrase">Passphrase</string>
+    <string name="third_party_api_settings_dex_polling_interval">DEX polling interval: %1$d seconds</string>
+    <string name="third_party_api_settings_dex_polling_quota_warning">Only applies when DEX WebSocket falls back to REST. A short interval may exceed the Basic plan monthly quota; at least %1$d seconds is recommended.</string>
     <string name="third_party_api_settings_base_url">Base URL</string>
     <string name="third_party_api_settings_model">Model</string>
     <string name="third_party_api_settings_system_prompt">System Prompt</string>

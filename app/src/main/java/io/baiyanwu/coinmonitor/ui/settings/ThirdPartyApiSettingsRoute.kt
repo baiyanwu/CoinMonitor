@@ -23,6 +23,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
@@ -33,6 +35,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
@@ -43,10 +51,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.baiyanwu.coinmonitor.R
 import io.baiyanwu.coinmonitor.data.AppContainer
+import io.baiyanwu.coinmonitor.domain.model.OkxApiCredentials
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorComponentDefaults
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
+import kotlin.math.roundToInt
 
 private const val SHOW_AI_SETTINGS_ENTRY = false
+private val DexWarningRed = Color(0xFFE60012)
 
 @Composable
 fun ThirdPartyApiSettingsRoute(
@@ -65,6 +76,7 @@ fun ThirdPartyApiSettingsRoute(
         onOkxApiKeyChange = viewModel::updateOkxApiKey,
         onOkxSecretKeyChange = viewModel::updateOkxSecretKey,
         onOkxPassphraseChange = viewModel::updateOkxPassphrase,
+        onOkxDexPollingIntervalChange = viewModel::updateOkxDexPollingIntervalSeconds,
         onSaveOkx = viewModel::saveOkxCredentials,
         onClearOkx = viewModel::clearOkxCredentials,
         onAiEnabledChange = viewModel::setAiEnabled,
@@ -85,6 +97,7 @@ private fun ThirdPartyApiSettingsScreen(
     onOkxApiKeyChange: (String) -> Unit,
     onOkxSecretKeyChange: (String) -> Unit,
     onOkxPassphraseChange: (String) -> Unit,
+    onOkxDexPollingIntervalChange: (Int) -> Unit,
     onSaveOkx: () -> Unit,
     onClearOkx: () -> Unit,
     onAiEnabledChange: (Boolean) -> Unit,
@@ -148,6 +161,10 @@ private fun ThirdPartyApiSettingsScreen(
                     onCheckedChange = onOkxEnabledChange,
                     horizontalPadding = 0.dp,
                     verticalPadding = 0.dp
+                )
+                DexPollingIntervalSetting(
+                    intervalSeconds = state.okx.dexPollingIntervalSeconds,
+                    onIntervalChange = onOkxDexPollingIntervalChange
                 )
                 OutlinedTextField(
                     value = state.okx.apiKey,
@@ -296,6 +313,80 @@ private fun ThirdPartyApiSettingsScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+@OptIn(ExperimentalMaterial3Api::class)
+private fun DexPollingIntervalSetting(
+    intervalSeconds: Int,
+    onIntervalChange: (Int) -> Unit
+) {
+    val colors = CoinMonitorThemeTokens.colors
+    val normalizedInterval = OkxApiCredentials.normalizeDexPollingIntervalSeconds(intervalSeconds)
+    val isQuotaRisk = normalizedInterval <
+        OkxApiCredentials.RECOMMENDED_MIN_DEX_POLLING_INTERVAL_SECONDS
+    val stepCount = (
+        OkxApiCredentials.MAX_DEX_POLLING_INTERVAL_SECONDS -
+            OkxApiCredentials.MIN_DEX_POLLING_INTERVAL_SECONDS
+        ) / OkxApiCredentials.DEX_POLLING_INTERVAL_STEP_SECONDS - 1
+    val warningColor = DexWarningRed
+    val sliderColors = CoinMonitorComponentDefaults.sliderColors()
+
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(
+            text = stringResource(
+                R.string.third_party_api_settings_dex_polling_interval,
+                normalizedInterval
+            ),
+            style = MaterialTheme.typography.titleSmall
+        )
+        Slider(
+            value = normalizedInterval.toFloat(),
+            onValueChange = { value ->
+                onIntervalChange(
+                    OkxApiCredentials.normalizeDexPollingIntervalSeconds(value.roundToInt())
+                )
+            },
+            valueRange = OkxApiCredentials.MIN_DEX_POLLING_INTERVAL_SECONDS.toFloat()..
+                OkxApiCredentials.MAX_DEX_POLLING_INTERVAL_SECONDS.toFloat(),
+            steps = stepCount,
+            colors = sliderColors,
+            track = { sliderState ->
+                SliderDefaults.Track(
+                    sliderState = sliderState,
+                    colors = sliderColors,
+                    modifier = Modifier
+                        .graphicsLayer {
+                            compositingStrategy = CompositingStrategy.Offscreen
+                        }
+                        .drawWithCache {
+                            val gradient = Brush.horizontalGradient(
+                                colors = listOf(
+                                    warningColor,
+                                    colors.positive
+                                )
+                            )
+                            onDrawWithContent {
+                                drawContent()
+                                drawRect(
+                                    brush = gradient,
+                                    blendMode = BlendMode.SrcIn
+                                )
+                            }
+                        }
+                )
+            },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Text(
+            text = stringResource(
+                R.string.third_party_api_settings_dex_polling_quota_warning,
+                OkxApiCredentials.RECOMMENDED_MIN_DEX_POLLING_INTERVAL_SECONDS
+            ),
+            style = MaterialTheme.typography.bodySmall,
+            color = if (isQuotaRisk) warningColor else colors.positive
+        )
     }
 }
 

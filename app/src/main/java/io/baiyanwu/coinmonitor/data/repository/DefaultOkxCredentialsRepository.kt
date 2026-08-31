@@ -38,7 +38,8 @@ class DefaultOkxCredentialsRepository(
         enabled: Boolean,
         apiKey: String,
         secretKey: String,
-        passphrase: String
+        passphrase: String,
+        dexPollingIntervalSeconds: Int
     ) {
         withContext(Dispatchers.IO) {
             requirePreferences().edit()
@@ -46,6 +47,10 @@ class DefaultOkxCredentialsRepository(
                 .putString(KEY_API_KEY, apiKey.trim())
                 .putString(KEY_SECRET_KEY, secretKey.trim())
                 .putString(KEY_PASSPHRASE, passphrase.trim())
+                .putInt(
+                    KEY_DEX_POLLING_INTERVAL_SECONDS,
+                    OkxApiCredentials.normalizeDexPollingIntervalSeconds(dexPollingIntervalSeconds)
+                )
                 .apply()
         }
     }
@@ -67,7 +72,13 @@ class DefaultOkxCredentialsRepository(
             enabled = preferences.getBoolean(KEY_ENABLED, false),
             apiKey = preferences.getString(KEY_API_KEY, "").orEmpty(),
             secretKey = preferences.getString(KEY_SECRET_KEY, "").orEmpty(),
-            passphrase = preferences.getString(KEY_PASSPHRASE, "").orEmpty()
+            passphrase = preferences.getString(KEY_PASSPHRASE, "").orEmpty(),
+            dexPollingIntervalSeconds = OkxApiCredentials.normalizeDexPollingIntervalSeconds(
+                preferences.getInt(
+                    KEY_DEX_POLLING_INTERVAL_SECONDS,
+                    OkxApiCredentials.DEFAULT_DEX_POLLING_INTERVAL_SECONDS
+                )
+            )
         )
     }
 
@@ -150,5 +161,6 @@ class DefaultOkxCredentialsRepository(
         private const val KEY_API_KEY = "api_key"
         private const val KEY_SECRET_KEY = "secret_key"
         private const val KEY_PASSPHRASE = "passphrase"
+        private const val KEY_DEX_POLLING_INTERVAL_SECONDS = "dex_polling_interval_seconds"
     }
 }

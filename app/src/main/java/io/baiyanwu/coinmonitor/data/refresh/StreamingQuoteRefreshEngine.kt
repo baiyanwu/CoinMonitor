@@ -1,6 +1,7 @@
 package io.baiyanwu.coinmonitor.data.refresh
 
 import android.util.Log
+import io.baiyanwu.coinmonitor.data.network.NetworkLogRedactor
 import io.baiyanwu.coinmonitor.data.network.OkxOnChainRequestSigner
 import io.baiyanwu.coinmonitor.domain.model.ExchangeSource
 import io.baiyanwu.coinmonitor.domain.model.MarketQuote
@@ -38,13 +39,41 @@ import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
+
+internal enum class OkxOnChainControlAction {
+    LOGIN_SUCCEEDED,
+    FALLBACK_TO_POLLING,
+    IGNORE
+}
+
+internal fun resolveOkxOnChainControlAction(
+    event: String?,
+    code: String?
+): OkxOnChainControlAction {
+    return when {
+        event == "login" && code == "0" -> OkxOnChainControlAction.LOGIN_SUCCEEDED
+        event == "error" -> OkxOnChainControlAction.FALLBACK_TO_POLLING
+        event == "login" -> OkxOnChainControlAction.FALLBACK_TO_POLLING
+        else -> OkxOnChainControlAction.IGNORE
+    }
+}
+
+internal fun resolveOkxOnChainPollingIntervalMillis(
+    credentials: OkxApiCredentials?
+): Long {
+    val intervalSeconds = credentials?.effectiveDexPollingIntervalSeconds
+        ?: OkxApiCredentials.DEFAULT_DEX_POLLING_INTERVAL_SECONDS
+    return intervalSeconds * 1_000L
+}
 
 /**
  * 行情刷新默认优先走交易所官方 WSS，把“每轮全量 HTTP 询价”改成“增量推送”。
  *
  * 当前已经覆盖 Binance Spot / Binance USD-M Futures / Binance Alpha / OKX Spot / OKX USD-M Futures /
  * OKX On-chain 行情链路。
- * 长连接断开后仍会补一轮 REST 快照兜底，保证价格不会因为偶发断连长时间静默。
+ * 长连接断开后仍会补一轮 REST 快照兜底；OKX On-chain 鉴权或订阅被拒绝时，
+ * 本次运行会直接切换为持续 REST 轮询，避免链上价格静默。
  */
 class StreamingQuoteRefreshEngine(
     private val scope: CoroutineScope,
@@ -514,6 +543,7 @@ class StreamingQuoteRefreshEngine(
 
             val closed = CompletableDeferred<Unit>()
             val loginCompleted = CompletableDeferred<Boolean>()
+            val fallbackToPolling = AtomicBoolean(false)
             var lastMessageTimestamp = System.currentTimeMillis()
             var heartbeatJob: Job? = null
             val request = Request.Builder()
@@ -525,11 +555,9 @@ class StreamingQuoteRefreshEngine(
                 object : WebSocketListener() {
                     override fun onOpen(webSocket: WebSocket, response: Response) {
                         logWs("WS OPEN okx-onchain $OKX_ONCHAIN_PUBLIC_WS_URL")
-                        logWs(
-                            line = "WS SEND okx-onchain login",
-                            detail = buildOkxOnChainLoginRequest(credentials).toString()
-                        )
-                        webSocket.send(buildOkxOnChainLoginRequest(credentials).toString())
+                        val loginRequest = buildOkxOnChainLoginRequest(credentials).toString()
+                        logWs("WS SEND okx-onchain login (credentials redacted)")
+                        webSocket.send(loginRequest)
 
                         heartbeatJob = scope.launch {
                             while (isActive) {
@@ -547,11 +575,13 @@ class StreamingQuoteRefreshEngine(
 
                         logWs("WS RECV okx-onchain $text")
                         when {
-                            handleOkxOnChainLoginMessage(
+                            handleOkxOnChainControlMessage(
                                 text = text,
                                 webSocket = webSocket,
                                 items = subscribedItems,
-                                loginCompleted = loginCompleted
+                                loginCompleted = loginCompleted,
+                                fallbackToPolling = fallbackToPolling,
+                                closed = closed
                             ) -> Unit
 
                             else -> {
@@ -592,10 +622,14 @@ class StreamingQuoteRefreshEngine(
 
             // 登录阶段如果失败，仍然保留 REST 兜底，避免用户看到链上价格整块静默。
             if (!loginCompleted.await()) {
-                Log.w(TAG, "OKX on-chain WSS login failed, fallback to REST")
+                Log.w(TAG, "OKX on-chain WSS login failed")
                 heartbeatJob?.cancel()
                 okxOnChainSocket?.close(1000, "login_failed")
                 okxOnChainSocket = null
+                if (fallbackToPolling.get()) {
+                    runOkxOnChainPollingLoop(items)
+                    return
+                }
                 refreshQuotes(currentConfig.items.filter(::isOkxOnChainItem))
                 delay(resolveReconnectDelayMillis())
                 continue
@@ -606,8 +640,27 @@ class StreamingQuoteRefreshEngine(
             okxOnChainSocket = null
             if (!scope.isActive || !currentConfig.enabled) break
 
+            if (fallbackToPolling.get()) {
+                runOkxOnChainPollingLoop(items)
+                return
+            }
             refreshQuotes(currentConfig.items.filter(::isOkxOnChainItem))
             delay(resolveReconnectDelayMillis())
+        }
+    }
+
+    private suspend fun runOkxOnChainPollingLoop(items: List<WatchItem>) {
+        val itemIds = items.mapTo(mutableSetOf()) { it.id }
+        logWs("WS FALLBACK okx-onchain to REST polling")
+
+        while (scope.isActive && currentConfig.enabled) {
+            val currentItems = currentConfig.items.filter { item ->
+                item.id in itemIds && isOkxOnChainItem(item)
+            }
+            if (currentItems.isEmpty()) return
+
+            refreshQuotes(currentItems)
+            delay(resolveOkxOnChainPollingIntervalMillis(okxCredentialsProvider()))
         }
     }
 
@@ -779,31 +832,43 @@ class StreamingQuoteRefreshEngine(
     /**
      * 登录成功后再发价格频道订阅，避免把鉴权前置条件散落到连接生命周期各处。
      */
-    private fun handleOkxOnChainLoginMessage(
+    private fun handleOkxOnChainControlMessage(
         text: String,
         webSocket: WebSocket,
         items: List<WatchItem>,
-        loginCompleted: CompletableDeferred<Boolean>
+        loginCompleted: CompletableDeferred<Boolean>,
+        fallbackToPolling: AtomicBoolean,
+        closed: CompletableDeferred<Unit>
     ): Boolean {
         val payload = runCatching {
             json.parseToJsonElement(text).jsonObject
         }.getOrNull() ?: return false
         val event = payload["event"]?.jsonPrimitive?.contentOrNull ?: return false
-        if (event != "login" && event != "error") return false
+        val code = payload["code"]?.jsonPrimitive?.contentOrNull
 
-        val success = event == "login" && payload["code"]?.jsonPrimitive?.contentOrNull == "0"
-        if (success) {
-            val subscribeRequest = buildOkxOnChainSubscribeRequest(items).toString()
-            logWs(
-                line = "WS SEND okx-onchain subscribe ${items.size}",
-                detail = subscribeRequest
-            )
-            webSocket.send(subscribeRequest)
-        } else {
-            Log.w(TAG, "OKX on-chain WSS login response failed: $text")
+        return when (resolveOkxOnChainControlAction(event = event, code = code)) {
+            OkxOnChainControlAction.LOGIN_SUCCEEDED -> {
+                val subscribeRequest = buildOkxOnChainSubscribeRequest(items).toString()
+                logWs(
+                    line = "WS SEND okx-onchain subscribe ${items.size}",
+                    detail = subscribeRequest
+                )
+                webSocket.send(subscribeRequest)
+                loginCompleted.complete(true)
+                true
+            }
+
+            OkxOnChainControlAction.FALLBACK_TO_POLLING -> {
+                fallbackToPolling.set(true)
+                Log.w(TAG, "OKX on-chain WSS rejected event=$event code=${code.orEmpty()}")
+                loginCompleted.complete(false)
+                webSocket.close(1000, "server_rejected")
+                closed.complete(Unit)
+                true
+            }
+
+            OkxOnChainControlAction.IGNORE -> false
         }
-        loginCompleted.complete(success)
-        return true
     }
 
     private fun buildOkxOnChainSubscribeRequest(items: List<WatchItem>): JsonObject {
@@ -934,8 +999,8 @@ class StreamingQuoteRefreshEngine(
     private fun logWs(line: String, detail: String = line) {
         networkLogRepository.append(
             protocol = NetworkLogProtocol.WSS,
-            line = line,
-            detail = detail
+            line = NetworkLogRedactor.redactText(line),
+            detail = NetworkLogRedactor.redactText(detail)
         )
     }
 

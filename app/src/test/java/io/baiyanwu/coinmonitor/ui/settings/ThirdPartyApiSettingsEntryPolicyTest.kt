@@ -56,6 +56,34 @@ class ThirdPartyApiSettingsEntryPolicyTest {
         assertTrue(englishSubtitle.contains("OKX"))
     }
 
+    @Test
+    fun `okx onchain settings expose dex polling slider and quota warning`() {
+        val routeSource = readSource(
+            rootRelativePath = "app/src/main/java/io/baiyanwu/coinmonitor/ui/settings/ThirdPartyApiSettingsRoute.kt",
+            moduleRelativePath = "src/main/java/io/baiyanwu/coinmonitor/ui/settings/ThirdPartyApiSettingsRoute.kt"
+        )
+        val chineseStrings = readSource(
+            rootRelativePath = "app/src/main/res/values/strings.xml",
+            moduleRelativePath = "src/main/res/values/strings.xml"
+        )
+        val englishStrings = readSource(
+            rootRelativePath = "app/src/main/res/values-en/strings.xml",
+            moduleRelativePath = "src/main/res/values-en/strings.xml"
+        )
+
+        assertTrue(routeSource.contains("DexPollingIntervalSetting"))
+        assertTrue(routeSource.contains("Slider("))
+        assertTrue(routeSource.contains("Brush.horizontalGradient"))
+        assertTrue(routeSource.contains("CoinMonitorComponentDefaults.sliderColors()"))
+        assertTrue(routeSource.contains("SliderDefaults.Track"))
+        assertTrue(routeSource.contains("CompositingStrategy.Offscreen"))
+        assertTrue(routeSource.contains("BlendMode.SrcIn"))
+        assertTrue(routeSource.contains("Color(0xFFE60012)"))
+        assertTrue(routeSource.contains("colors.positive"))
+        assertTrue(chineseStrings.contains("third_party_api_settings_dex_polling_quota_warning"))
+        assertTrue(englishStrings.contains("third_party_api_settings_dex_polling_quota_warning"))
+    }
+
     private fun extractStringValue(source: String, name: String): String {
         val pattern = Regex("""<string name="$name">([^<]*)</string>""")
         return requireNotNull(pattern.find(source)?.groupValues?.get(1)) {

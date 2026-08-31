@@ -101,6 +101,8 @@
     <string name="third_party_api_settings_api_key">API Key</string>
     <string name="third_party_api_settings_secret_key">Secret Key</string>
     <string name="third_party_api_settings_passphrase">Passphrase</string>
+    <string name="third_party_api_settings_dex_polling_interval">DEX 轮询间隔：%1$d 秒</string>
+    <string name="third_party_api_settings_dex_polling_quota_warning">仅在 DEX WebSocket 不可用、回退 REST 时生效。轮询间隔过低可能超出 Basic 套餐月度调用额度，建议至少 %1$d 秒。</string>
     <string name="third_party_api_settings_base_url">Base URL</string>
     <string name="third_party_api_settings_model">Model</string>
     <string name="third_party_api_settings_system_prompt">System Prompt</string>

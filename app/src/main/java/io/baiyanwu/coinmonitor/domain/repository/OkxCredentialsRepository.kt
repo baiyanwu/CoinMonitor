@@ -14,7 +14,8 @@ interface OkxCredentialsRepository {
         enabled: Boolean,
         apiKey: String,
         secretKey: String,
-        passphrase: String
+        passphrase: String,
+        dexPollingIntervalSeconds: Int
     )
 
     suspend fun clearCredentials()

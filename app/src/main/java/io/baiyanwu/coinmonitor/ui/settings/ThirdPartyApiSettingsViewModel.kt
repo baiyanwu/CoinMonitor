@@ -22,6 +22,7 @@ data class OkxSettingsFormState(
     val apiKey: String = "",
     val secretKey: String = "",
     val passphrase: String = "",
+    val dexPollingIntervalSeconds: Int = OkxApiCredentials.DEFAULT_DEX_POLLING_INTERVAL_SECONDS,
     val secureStorageAvailable: Boolean = true,
     val savedFlag: Boolean = false,
     val clearedFlag: Boolean = false,
@@ -106,6 +107,17 @@ class ThirdPartyApiSettingsViewModel(
         }
     }
 
+    fun updateOkxDexPollingIntervalSeconds(value: Int) {
+        okxUiState.update {
+            it.copy(
+                dexPollingIntervalSeconds = OkxApiCredentials.normalizeDexPollingIntervalSeconds(value),
+                savedFlag = false,
+                clearedFlag = false,
+                errorMessage = null
+            )
+        }
+    }
+
     fun saveOkxCredentials() {
         val snapshot = okxUiState.value
         viewModelScope.launch {
@@ -114,7 +126,8 @@ class ThirdPartyApiSettingsViewModel(
                     enabled = snapshot.enabled,
                     apiKey = snapshot.apiKey,
                     secretKey = snapshot.secretKey,
-                    passphrase = snapshot.passphrase
+                    passphrase = snapshot.passphrase,
+                    dexPollingIntervalSeconds = snapshot.dexPollingIntervalSeconds
                 )
             }.onSuccess {
                 okxUiState.update { it.copy(savedFlag = true, clearedFlag = false, errorMessage = null) }
@@ -245,6 +258,7 @@ private fun OkxApiCredentials.toUiState(
         apiKey = apiKey,
         secretKey = secretKey,
         passphrase = passphrase,
+        dexPollingIntervalSeconds = effectiveDexPollingIntervalSeconds,
         secureStorageAvailable = secureStorageAvailable
     )
 }

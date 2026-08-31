@@ -107,8 +107,10 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 - 当前底层默认实现已经切到流式引擎，`Binance Spot / Binance Alpha / Binance USDT-M Futures / OKX Spot / OKX On-chain` 优先走 `WSS`
 - 当前实时价格主链路已经改成 `WSS / REST -> InMemory QuoteRepository -> UI`，不再每次报价都直接写回 `watch_items`
 - `watch_items` 里的价格字段当前只承担启动恢复和低频快照持久化，默认在页面不再活跃时落一次，并在前台运行期间按低频兜底写回
-- `OKX On-chain` 当前按官方最新 `price channel` 文档接入，使用 `wss://wsdex.okx.com/ws/v6/dex`，并在登录成功后再发送价格订阅
-- 轮询实现仍然保留在工程中，后续可作为 `仅 API` 模式或故障回退方案继续复用
+- `OKX On-chain` 使用 `wss://wsdex.okx.com/ws/v6/dex`，登录成功后发送价格订阅；鉴权或订阅被服务端拒绝时，本次运行立即切换为持续调用 REST 价格接口
+- DEX REST 回退使用第三方 API 设置中的独立轮询间隔，范围 `10-120 秒`、步进 `5 秒`、默认 `45 秒`；不会降低 Binance / Binance Alpha / OKX CEX 的 WSS 实时性
+- DEX 轮询滑块复用悬浮窗设置的 `SliderDefaults.Track` 和项目统一 Slider 配色，只通过离屏合成增加 `#E60012` 高饱和警告红到绿色的渐变，因此保留原生轨道圆角、刻度、端点和滑块间隙
+- HTTP / WSS 网络日志会脱敏 API Key、签名、Passphrase、鉴权头与 Cookie，且不会记录 OKX On-chain WSS 登录载荷
 
 ### Upstream Docs And Endpoints
 
