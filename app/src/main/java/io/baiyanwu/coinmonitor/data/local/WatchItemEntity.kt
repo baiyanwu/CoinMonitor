@@ -13,6 +13,8 @@ data class WatchItemEntity(
     val chainFamily: String?,
     val chainIndex: String?,
     val tokenAddress: String?,
+    val poolAddress: String?,
+    val poolTokenSide: String?,
     val iconUrl: String?,
     val overlaySelected: Boolean,
     val addedAt: Long,

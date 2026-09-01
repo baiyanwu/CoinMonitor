@@ -4,34 +4,32 @@ import io.baiyanwu.coinmonitor.data.network.BinanceAlphaApi
 import io.baiyanwu.coinmonitor.data.network.BinanceApi
 import io.baiyanwu.coinmonitor.data.network.BinanceFuturesApi
 import io.baiyanwu.coinmonitor.data.network.BinanceTickerRow
+import io.baiyanwu.coinmonitor.data.network.DexScreenerClient
+import io.baiyanwu.coinmonitor.data.network.DexScreenerPairSelector
 import io.baiyanwu.coinmonitor.data.network.OkxApi
-import io.baiyanwu.coinmonitor.data.network.OkxOnChainApi
-import io.baiyanwu.coinmonitor.data.network.OkxOnChainPriceRequest
-import io.baiyanwu.coinmonitor.data.network.OkxOnChainRequestSigner
+import io.baiyanwu.coinmonitor.data.network.PinnedPoolSelectionPolicy
 import io.baiyanwu.coinmonitor.data.network.parseAlphaTicker
 import io.baiyanwu.coinmonitor.domain.model.ExchangeSource
 import io.baiyanwu.coinmonitor.domain.model.MarketQuote
 import io.baiyanwu.coinmonitor.domain.model.MarketType
-import io.baiyanwu.coinmonitor.domain.model.OkxApiCredentials
+import io.baiyanwu.coinmonitor.domain.model.OnchainChainRegistry
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
+import io.baiyanwu.coinmonitor.domain.model.normalizeOnchainAddress
+import io.baiyanwu.coinmonitor.domain.model.onchainAddressesEqual
 import io.baiyanwu.coinmonitor.domain.repository.MarketQuoteRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 
 class DefaultMarketQuoteRepository(
     private val alphaApi: BinanceAlphaApi,
     private val binanceApi: BinanceApi,
     private val binanceFuturesApi: BinanceFuturesApi,
     private val okxApi: OkxApi,
-    private val okxOnChainApi: OkxOnChainApi,
-    private val okxCredentialsProvider: suspend () -> OkxApiCredentials? = { null }
+    private val dexScreenerClient: DexScreenerClient
 ) : MarketQuoteRepository {
-    private val requestJson = Json {
-        explicitNulls = false
-    }
+    private val pinnedPoolSelectionPolicy = PinnedPoolSelectionPolicy()
 
     override suspend fun fetchQuotes(items: List<WatchItem>): List<MarketQuote> {
         if (items.isEmpty()) return emptyList()
@@ -53,14 +51,14 @@ class DefaultMarketQuoteRepository(
         }
         val onChainItems = items.filter { it.marketType == MarketType.ONCHAIN_TOKEN }
 
-        val alphaQuotes = runCatching { fetchAlphaQuotes(alphaItems) }.getOrDefault(emptyList())
-        val binanceQuotes = runCatching { fetchBinanceQuotes(binanceItems) }.getOrDefault(emptyList())
-        val binanceFuturesQuotes = runCatching {
+        val alphaQuotes = fetchOrEmpty { fetchAlphaQuotes(alphaItems) }
+        val binanceQuotes = fetchOrEmpty { fetchBinanceQuotes(binanceItems) }
+        val binanceFuturesQuotes = fetchOrEmpty {
             fetchBinanceFuturesQuotes(binanceFuturesItems)
-        }.getOrDefault(emptyList())
-        val okxQuotes = runCatching { fetchOkxQuotes(okxItems) }.getOrDefault(emptyList())
-        val okxFuturesQuotes = runCatching { fetchOkxQuotes(okxFuturesItems) }.getOrDefault(emptyList())
-        val onChainQuotes = runCatching { fetchOkxOnChainQuotes(onChainItems) }.getOrDefault(emptyList())
+        }
+        val okxQuotes = fetchOrEmpty { fetchOkxQuotes(okxItems) }
+        val okxFuturesQuotes = fetchOrEmpty { fetchOkxQuotes(okxFuturesItems) }
+        val onChainQuotes = fetchDexScreenerQuotes(onChainItems)
 
         val quotes = (
             alphaQuotes +
@@ -140,59 +138,69 @@ class DefaultMarketQuoteRepository(
         }.awaitAll().filterNotNull()
     }
 
-    private suspend fun fetchOkxOnChainQuotes(items: List<WatchItem>): List<MarketQuote> = coroutineScope {
+    private suspend fun fetchDexScreenerQuotes(items: List<WatchItem>): List<MarketQuote> = coroutineScope {
         if (items.isEmpty()) return@coroutineScope emptyList()
-        val credentials = okxCredentialsProvider()
-        if (credentials == null || !credentials.enabled || !credentials.isReady) {
-            return@coroutineScope emptyList()
-        }
-
-        val requestBody = items.mapNotNull { item ->
-            val chainIndex = item.chainIndex?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
-            val tokenAddress = item.tokenAddress?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
-            OkxOnChainPriceRequest(
-                chainIndex = chainIndex,
-                tokenContractAddress = tokenAddress
-            )
-        }
-        if (requestBody.isEmpty()) return@coroutineScope emptyList()
-
-        val requestBodyJson = requestJson.encodeToString(requestBody)
-        val requestPath = "/api/v6/dex/market/price"
-        val timestamp = OkxOnChainRequestSigner.buildTimestamp()
-        val signature = OkxOnChainRequestSigner.buildSignature(
-            timestamp = timestamp,
-            method = "POST",
-            requestPath = requestPath,
-            secret = credentials.secretKey,
-            body = requestBodyJson
-        )
-
-        val response = okxOnChainApi.getTokenPrices(
-            accessKey = credentials.apiKey,
-            accessSign = signature,
-            accessTimestamp = timestamp,
-            accessPassphrase = credentials.passphrase,
-            requestBody = requestBody
-        )
-        if (response.code != "0") return@coroutineScope emptyList()
-
-        val quoteRows = response.data.associateBy { row ->
-            "${row.chainIndex.orEmpty()}:${row.tokenContractAddress.orEmpty().lowercase()}"
-        }
-        items.mapNotNull { item ->
-            val chainIndex = item.chainIndex?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
-            val tokenAddress = item.tokenAddress?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
-            val row = quoteRows["$chainIndex:${tokenAddress.lowercase()}"] ?: return@mapNotNull null
-            val price = row.price?.toDoubleOrNull() ?: return@mapNotNull null
-            MarketQuote(
-                id = item.id,
-                symbol = item.symbol,
-                name = item.name,
-                priceUsd = price,
-                change24hPercent = null
-            )
-        }
+        items.groupBy { item -> OnchainChainRegistry.find(item.chainIndex) }
+            .filterKeys { it != null }
+            .map { (chainOrNull, chainItems) ->
+                async {
+                    val chain = chainOrNull ?: return@async emptyList()
+                    chainItems.chunked(MAX_TOKEN_ADDRESSES_PER_REQUEST).flatMap { chunk ->
+                        try {
+                            val addresses = chunk.mapNotNull { item ->
+                                item.tokenAddress?.takeIf(String::isNotBlank)
+                                    ?.let { normalizeOnchainAddress(chain.family, it) }
+                            }.distinct()
+                            if (addresses.isEmpty()) return@flatMap emptyList()
+                            val pairs = dexScreenerClient.getTokenPairsBatch(
+                                chainId = chain.dexScreenerId,
+                                tokenAddresses = addresses
+                            ).filter { pair ->
+                                pair.chainId.equals(chain.dexScreenerId, ignoreCase = true)
+                            }
+                            chunk.mapNotNull { item ->
+                                val tokenAddress = item.tokenAddress ?: return@mapNotNull null
+                                val selected = pinnedPoolSelectionPolicy.select(
+                                    itemId = item.id,
+                                    pairs = pairs,
+                                    tokenAddress = tokenAddress,
+                                    family = chain.family,
+                                    preferredPoolAddress = item.poolAddress
+                                ) ?: return@mapNotNull null
+                                val selectedPoolAddress = normalizeOnchainAddress(
+                                    chain.family,
+                                    selected.pair.pairAddress
+                                )
+                                val bindingChanged = item.poolAddress == null ||
+                                    !onchainAddressesEqual(
+                                        chain.family,
+                                        item.poolAddress,
+                                        selectedPoolAddress
+                                    ) ||
+                                    item.poolTokenSide != selected.tokenSide
+                                MarketQuote(
+                                    id = item.id,
+                                    symbol = item.symbol,
+                                    name = item.name,
+                                    priceUsd = selected.priceUsd,
+                                    change24hPercent = selected.change24hPercent,
+                                    poolAddress = selectedPoolAddress,
+                                    poolTokenSide = selected.tokenSide,
+                                    requestedPoolAddress = item.poolAddress,
+                                    requestedPoolTokenSide = item.poolTokenSide,
+                                    resetTrend = bindingChanged
+                                )
+                            }
+                        } catch (error: CancellationException) {
+                            throw error
+                        } catch (_: Exception) {
+                            emptyList()
+                        }
+                    }
+                }
+            }
+            .awaitAll()
+            .flatten()
     }
 
     private fun BinanceTickerRow.toMarketQuote(item: WatchItem): MarketQuote? {
@@ -205,5 +213,19 @@ class DefaultMarketQuoteRepository(
             priceUsd = lastPrice,
             change24hPercent = change
         )
+    }
+
+    private suspend fun <T> fetchOrEmpty(block: suspend () -> List<T>): List<T> {
+        return try {
+            block()
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
+
+    private companion object {
+        const val MAX_TOKEN_ADDRESSES_PER_REQUEST = 30
     }
 }

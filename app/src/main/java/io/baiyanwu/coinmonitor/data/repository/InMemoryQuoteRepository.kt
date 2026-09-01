@@ -63,7 +63,7 @@ class InMemoryQuoteRepository : QuoteRepository {
                 quotes.forEach { quote ->
                     val existing = get(quote.id)
                     val trend = when {
-                        existing == null -> LivePriceTrend.NEUTRAL
+                        existing == null || quote.resetTrend -> LivePriceTrend.NEUTRAL
                         quote.priceUsd > existing.lastPrice -> LivePriceTrend.UP
                         quote.priceUsd < existing.lastPrice -> LivePriceTrend.DOWN
                         else -> existing.liveTrend
@@ -72,9 +72,10 @@ class InMemoryQuoteRepository : QuoteRepository {
                         quote.id,
                         QuoteState(
                             lastPrice = quote.priceUsd,
-                            previousPrice = existing?.lastPrice,
+                            previousPrice = existing?.lastPrice?.takeUnless { quote.resetTrend },
                             liveTrend = trend,
-                            change24hPercent = quote.change24hPercent,
+                            change24hPercent = quote.change24hPercent
+                                ?: existing?.change24hPercent?.takeUnless { quote.resetTrend },
                             lastUpdatedAt = now
                         )
                     )

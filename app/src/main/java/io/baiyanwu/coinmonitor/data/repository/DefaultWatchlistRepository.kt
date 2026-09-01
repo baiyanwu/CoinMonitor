@@ -7,8 +7,11 @@ import io.baiyanwu.coinmonitor.data.local.toDomain
 import io.baiyanwu.coinmonitor.data.local.toEntity
 import io.baiyanwu.coinmonitor.domain.model.LivePriceTrend
 import io.baiyanwu.coinmonitor.domain.model.MarketQuote
+import io.baiyanwu.coinmonitor.domain.model.MarketType
 import io.baiyanwu.coinmonitor.domain.model.QuoteState
+import io.baiyanwu.coinmonitor.domain.model.PoolTokenSide
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
+import io.baiyanwu.coinmonitor.domain.model.onchainAddressesEqual
 import io.baiyanwu.coinmonitor.domain.repository.WatchlistRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -32,10 +35,15 @@ class DefaultWatchlistRepository(
 
     override suspend fun add(item: WatchItem) {
         database.withTransaction {
-            val existing = watchItemDao.findById(item.id)
             val allItems = watchItemDao.getWatchItems()
+            val existing = watchItemDao.findById(item.id)
+                ?: allItems.firstOrNull { row -> row.toDomain().semanticKey == item.semanticKey }
             watchItemDao.upsert(
                 item.copy(
+                    id = existing?.id ?: item.id,
+                    poolAddress = item.poolAddress ?: existing?.poolAddress,
+                    poolTokenSide = item.poolTokenSide
+                        ?: existing?.poolTokenSide?.let(PoolTokenSide::valueOf),
                     overlaySelected = existing?.overlaySelected ?: item.overlaySelected,
                     homePinned = existing?.homePinned ?: false,
                     homeOrder = existing?.homeOrder ?: WatchlistHomeOrderManager.nextNormalOrder(allItems),
@@ -104,14 +112,54 @@ class DefaultWatchlistRepository(
 
     override suspend fun updateQuotes(quotes: List<MarketQuote>) {
         if (quotes.isEmpty()) return
-        val snapshot = quotes.associate { quote ->
-            quote.id to QuoteState(
-                lastPrice = quote.priceUsd,
-                change24hPercent = quote.change24hPercent,
-                lastUpdatedAt = System.currentTimeMillis()
-            )
+        database.withTransaction {
+            val now = System.currentTimeMillis()
+            val existingById = watchItemDao.getWatchItems().associateBy { it.id }
+            quotes.forEach { quote ->
+                val existing = existingById[quote.id] ?: return@forEach
+                val current = existing.toDomain()
+                val bindingChanged = if (current.marketType == MarketType.ONCHAIN_TOKEN) {
+                    if (!shouldApplyOnchainQuote(current, quote)) return@forEach
+                    val poolAddress = quote.poolAddress ?: return@forEach
+                    val side = quote.poolTokenSide ?: return@forEach
+                    val changed = !poolBindingsEqual(
+                        item = current,
+                        leftAddress = current.poolAddress,
+                        leftSide = current.poolTokenSide,
+                        rightAddress = poolAddress,
+                        rightSide = side
+                    )
+                    if (changed) {
+                        watchItemDao.updateOnchainPoolBinding(
+                            id = quote.id,
+                            poolAddress = poolAddress,
+                            poolTokenSide = side.name
+                        )
+                    }
+                    changed
+                } else {
+                    false
+                }
+                val resetTrend = quote.resetTrend || bindingChanged
+                val previousPrice = existing.lastPrice.takeUnless { resetTrend }
+                val existingTrend = LivePriceTrend.valueOf(existing.liveTrend)
+                val liveTrend = when {
+                    resetTrend -> LivePriceTrend.NEUTRAL
+                    previousPrice == null -> existingTrend
+                    quote.priceUsd > previousPrice -> LivePriceTrend.UP
+                    quote.priceUsd < previousPrice -> LivePriceTrend.DOWN
+                    else -> existingTrend
+                }
+                watchItemDao.updateQuote(
+                    id = quote.id,
+                    lastPrice = quote.priceUsd,
+                    previousPrice = previousPrice,
+                    liveTrend = liveTrend.name,
+                    change24hPercent = quote.change24hPercent,
+                    lastUpdatedAt = now
+                )
+            }
         }
-        persistQuoteSnapshot(snapshot)
     }
 
     override suspend fun persistQuoteSnapshot(quotes: Map<String, QuoteState>) {
@@ -137,4 +185,52 @@ class DefaultWatchlistRepository(
             )
         }
     }
+
+    override suspend fun updateOnchainPoolBinding(
+        id: String,
+        poolAddress: String,
+        side: PoolTokenSide
+    ): Boolean {
+        return watchItemDao.updateOnchainPoolBinding(
+            id = id,
+            poolAddress = poolAddress,
+            poolTokenSide = side.name
+        ) > 0
+    }
+}
+
+internal fun shouldApplyOnchainQuote(current: WatchItem, quote: MarketQuote): Boolean {
+    val quotePoolAddress = quote.poolAddress ?: return false
+    val quoteSide = quote.poolTokenSide ?: return false
+    if (poolBindingsEqual(
+            item = current,
+            leftAddress = current.poolAddress,
+            leftSide = current.poolTokenSide,
+            rightAddress = quotePoolAddress,
+            rightSide = quoteSide
+        )
+    ) {
+        return true
+    }
+    return poolBindingsEqual(
+        item = current,
+        leftAddress = current.poolAddress,
+        leftSide = current.poolTokenSide,
+        rightAddress = quote.requestedPoolAddress,
+        rightSide = quote.requestedPoolTokenSide
+    )
+}
+
+private fun poolBindingsEqual(
+    item: WatchItem,
+    leftAddress: String?,
+    leftSide: PoolTokenSide?,
+    rightAddress: String?,
+    rightSide: PoolTokenSide?
+): Boolean {
+    if (leftAddress == null || rightAddress == null) {
+        return leftAddress == null && rightAddress == null && leftSide == rightSide
+    }
+    val family = item.chainFamily ?: return false
+    return leftSide == rightSide && onchainAddressesEqual(family, leftAddress, rightAddress)
 }

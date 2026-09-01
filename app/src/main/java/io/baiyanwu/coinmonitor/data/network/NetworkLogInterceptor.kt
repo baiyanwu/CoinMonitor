@@ -7,6 +7,40 @@ import okhttp3.Response
 import okio.Buffer
 import java.io.IOException
 import java.nio.charset.Charset
+import java.util.Locale
+
+internal object NetworkLogRedactor {
+    private val sensitiveHeaderNames = setOf(
+        "authorization",
+        "proxy-authorization",
+        "cookie",
+        "set-cookie",
+        "x-api-key",
+        "ok-access-key",
+        "ok-access-sign",
+        "ok-access-passphrase"
+    )
+    private val sensitiveJsonFieldPattern = Regex(
+        pattern = """("(?:apiKey|secretKey|passphrase|sign|accessKey|accessSign|accessPassphrase|authorization)"\s*:\s*")[^"]*(")""",
+        option = RegexOption.IGNORE_CASE
+    )
+
+    fun redactHeaderValue(name: String, value: String): String {
+        return if (name.lowercase(Locale.ROOT) in sensitiveHeaderNames) {
+            REDACTED_VALUE
+        } else {
+            value
+        }
+    }
+
+    fun redactText(value: String): String {
+        return sensitiveJsonFieldPattern.replace(value) { match ->
+            "${match.groupValues[1]}$REDACTED_VALUE${match.groupValues[2]}"
+        }
+    }
+
+    private const val REDACTED_VALUE = "***"
+}
 
 /**
  * 统一收口 HTTP 请求/响应摘要。
@@ -26,7 +60,7 @@ class NetworkLogInterceptor(
             if (request.headers.size > 0) {
                 appendLine("Headers:")
                 request.headers.forEach { header ->
-                    appendLine("${header.first}: ${redactHeaderValue(header.first, header.second)}")
+                    appendLine("${header.first}: ${NetworkLogRedactor.redactHeaderValue(header.first, header.second)}")
                 }
             }
             buildRequestBodyPreview(request)?.let { bodyPreview ->
@@ -50,7 +84,7 @@ class NetworkLogInterceptor(
                 if (response.headers.size > 0) {
                     appendLine("Headers:")
                     response.headers.forEach { header ->
-                        appendLine("${header.first}: ${redactHeaderValue(header.first, header.second)}")
+                        appendLine("${header.first}: ${NetworkLogRedactor.redactHeaderValue(header.first, header.second)}")
                     }
                 }
             }.trim()
@@ -76,14 +110,6 @@ class NetworkLogInterceptor(
         }
     }
 
-    private fun redactHeaderValue(name: String, value: String): String {
-        return if (name.equals("Authorization", ignoreCase = true)) {
-            "Bearer ***"
-        } else {
-            value
-        }
-    }
-
     private fun buildRequestBodyPreview(request: okhttp3.Request): String? {
         val body = request.body ?: return null
         return runCatching {
@@ -91,7 +117,7 @@ class NetworkLogInterceptor(
             body.writeTo(buffer)
             val charset = body.contentType()?.charset(Charsets.UTF_8) ?: Charsets.UTF_8
             val rawText = buffer.readString(charset)
-            truncateBodyPreview(rawText)
+            truncateBodyPreview(NetworkLogRedactor.redactText(rawText))
         }.getOrNull()
     }
 

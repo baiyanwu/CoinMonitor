@@ -9,6 +9,7 @@
 - Kotlin
 - Jetpack Compose
 - Room
+- Preferences DataStore
 - Retrofit + OkHttp + Kotlinx Serialization
 - Foreground Service
 - WindowManager Overlay
@@ -18,7 +19,7 @@
 ```text
 app/src/main/java/io/baiyanwu/coinmonitor/
   boot/        开机恢复、升级恢复、自恢复广播
-  data/        数据库、网络、仓库实现
+  data/        Room 数据库、DataStore 偏好、网络与仓库实现
   domain/      核心模型和仓库接口
   overlay/     悬浮窗控制器、前台服务、轮询协调器
   ui/          Compose 页面、主题、Activity 宿主
@@ -41,10 +42,13 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 ### Search
 
 - 支持关键字搜索
-- 交易所模式覆盖 `Binance Alpha / Binance / OKX`
-- 链上模式当前通过 `OKX DEX Market API` 搜索代币，并按单链过滤结果
-- 链上搜索支持币名 / Symbol / 合约地址输入
-- 搜索结果按来源和链稳定排序，便于快速筛选
+- 页面顶部拆分为可点击、可左右滑动的“交易所 / 链上”两个模式；两个模式各自保存独立输入内容、加载状态和搜索结果
+- 交易所模式并行搜索 `Binance Alpha / Binance Spot / Binance USDT-M Futures / OKX Spot / OKX USDT Swap`；等待五路来源全部结束后统一合并、排序并一次性展示结果。单个来源失败会短延迟重试一次，仍失败时保留其他来源结果并明确提示部分来源不可用；同一关键词重复提交不会重建整组请求
+- 链上模式通过 `DexScreener` 搜索代币，不再提供手动选链控件
+- 链上搜索支持币名 / Symbol / 合约地址输入；合约地址会先识别为 `EVM` 或 `Solana` 地址，再从对应链族的返回结果中定位具体链
+- 链上结果按“`chainIndex + normalized token address`”做语义去重，同一条链上的同一代币不会因为存在多个池而重复展示
+- 链上结果主标题直接展示当前实际交易对，并同时展示链 Logo、DEX、美元流动性和合约地址缩写
+- 同一代币存在多个有效池时，可在当前结果内展开备选池；界面最多展示流动性排名靠前的 5 个备选，完整候选仅保留在当前搜索结果内存中，用于还原历史固定池
 - 搜索页当前按入口模式分流：
   - 从首页进入时，结果页继续承担观察列表的 `添加 / 删除` 管理
   - 从 K 线页进入时，结果页隐藏增删按钮，点击单条结果后会回填到 K 线页并立即关闭搜索页；当前 K 线公开入口已隐藏，这一路径作为保留实现暂不暴露
@@ -55,7 +59,7 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 - `NavHost` 中仍保留 `Destinations.KLINE` route，用于后续恢复入口时复用既有实现；底部导航列表只展示首页和设置
 - 图表内核当前基于仓库内 vendored 的 `TradingView Lightweight Charts Android wrapper` 源码模块
 - 第三方图表源码当前直接放在 `third_party/lightweightlibrary`，应用不再依赖外部 `aar`，方便直接调试 wrapper 和内嵌 JS core
-- K 线数据统一走 `MarketKlineRepository`，对 `Binance / Binance Alpha / OKX / OKX On-chain` 做统一 candle 映射
+- K 线数据统一走 `MarketKlineRepository`，交易所继续使用 `Binance / Binance Alpha / OKX`，链上池使用 `GeckoTerminal`
 - 主图支持 `MA / EMA / BOLL`，副图支持 `VOL / MACD / RSI / KDJ`
 - 指标设置使用独立 `Activity`，通过本地偏好持久化完整配置模型
 - 当前图表已经消费 `开关 / 参数 / 颜色 / 基础样式`，并按配置重绘，不会因为改指标参数而重新请求行情接口
@@ -74,11 +78,23 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 
 ### On-chain
 
-- 当前链上能力只做搜索和最新价格展示，不提供交易执行
-- `OKX` 凭证由用户在设置页本地填写
-- 凭证通过本地加密存储管理，并由链上仓库统一读取
-- 链上搜索当前面向 `EVM` 与 `Solana`，其中 EVM 再按具体链 `chainIndex` 精确请求
-- 链上代币缺少自身图标时，会回退到链图标，并在缓存阶段生成灰阶版本复用
+- 当前链上能力提供搜索、最新价格、24 小时涨跌、流动性、成交量与 K 线，不提供交易执行
+- 搜索与报价使用无需 API Key 的 `DexScreener`，K 线使用无需 API Key 的 `GeckoTerminal`
+- 链上搜索当前覆盖注册表中的 17 条链：Ethereum、Base、BSC、Arbitrum、Polygon、Optimism、Avalanche、Linea、Scroll、Blast、Mode、Mantle、Polygon zkEVM、zkSync、Fantom、ZetaChain 与 Solana
+- 统一链注册表通过具体 `chainIndex` 精确映射 DexScreener 和 GeckoTerminal 的网络标识；EVM 合约地址统一转为小写，Solana 地址保留原始大小写
+- 搜索选池先要求目标合约精确匹配，并排除无有效美元价格或无流动性的池；随后依次按目标代币位于 `base` 侧、美元流动性、24 小时成交量和池地址排序
+- DexScreener 网络 DTO 按官方契约容纳显式 `null`：`pairs`、`labels`、`priceChange` 在解码层保持可空，并在客户端或业务边界统一归一化为空集合，避免单个缺失字段导致整次搜索或报价解析失败
+- 添加观察项时固定池地址和目标代币的 `base / quote` 方向；用户从搜索结果切换池后，已添加标的立即更新绑定，未添加标的会在添加时保存当前选择
+- 同一标的连续切池时会取消上一任务，并等待上一代数据库写入完全结束后再写入最新选择；报价落库还会比较“请求发起时的池绑定”和当前绑定，拒绝迟到旧请求回写池地址或价格
+- 搜索到已有观察项时，会优先在完整候选中恢复数据库里的固定池，避免搜索结果显示的池与实际报价、K 线来源不一致
+- 后续价格刷新和 GeckoTerminal K 线共用同一个固定池；只有固定池明确失效或连续缺失后才自动重选
+- GeckoTerminal 只接收官方支持的聚合参数：`1m / 5m / 15m` 使用 minute，`1H / 4H` 使用 hour，`1D` 使用 `day + aggregate=1`
+- `3D / 1W / 30D` 不再向上游发送无效的 `day + aggregate=3/7/30`；应用改为请求日线后在本地合并 OHLCV，其中周线按 UTC 周一对齐，`30D` 是固定 30 天而非自然月，交易所仍显示自然月 `1M`
+- 长周期请求按目标根数扩展日线数量；超过 GeckoTerminal 单次 1000 根时使用 `before_timestamp` 向前分页，直到达到目标、上游无更多历史或请求被取消。页面默认仍以最多 240 根合成 K 线为目标，实际根数受池子创建时间和免费接口可用历史限制
+- 报价和 K 线捕获普通网络异常时不会捕获 `CancellationException`，快速切换标的、周期或重启刷新任务后，旧任务不会继续更新 UI
+- 搜索结果通过 `LazyColumn.itemsIndexed` 逐条组合和回收，不再在单个 lazy item 内用 `forEach` 一次性组合全部结果
+- 代币图标优先使用 DexScreener 返回的公开 `info.imageUrl`；链 Logo 由本地链注册表映射到 Trust Wallet Assets 的静态资源，不依赖 DexScreener 或 GeckoTerminal 提供链图标接口
+- 链上代币缺少自身图标时，会回退到对应链 Logo，并在缓存阶段生成灰阶版本复用
 
 ### Overlay
 
@@ -88,7 +104,10 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 - 支持字体大小调节，并同步缩放左侧图标 / 名称区比例
 - 左侧展示默认使用图标，也可以切换成币对名称
 - 悬浮窗中的币种图标统一按圆形裁剪，和应用内列表的视觉语义保持一致
-- 支持吸附靠边，吸附后切换成边栏跑马灯样式
+- “吸附靠边”总开关下提供两个互斥模式：“仅吸附靠边”继续展示边栏跑马灯，“彻底隐藏”只保留屏幕边缘唤出条
+- 彻底隐藏模式的唤出条使用主题色，透明度可在 `15%–100%` 范围连续调整，默认 `45%`
+- 点击唤出条时，边条先消失，价格区域按当前左右吸附方向滑入，并使用和“仅吸附靠边”完全相同的单 item ticker；自动收回时价格区域反向滑出，结束后才重新显示边条
+- 自动收回时间支持 `1–5 秒` 整秒选择，默认 `3 秒`；拖动悬浮窗期间会延后回收，避免定时器打断手势
 - 通知栏支持临时隐藏 / 恢复显示，以及拖动开关
 - 只有在悬浮窗权限满足时，应用才会把悬浮窗正式标记为启用
 - 悬浮窗设置页中的币对选择列表会带上交易所来源副标题，避免同名币对辨识成本过高
@@ -104,11 +123,15 @@ app/src/main/java/io/baiyanwu/coinmonitor/
   - `30 秒`
   - `1 分钟`
 - 首页和悬浮窗只保留一套全局刷新协调器
-- 当前底层默认实现已经切到流式引擎，`Binance Spot / Binance Alpha / Binance USDT-M Futures / OKX Spot / OKX On-chain` 优先走 `WSS`
+- 当前底层默认实现中，`Binance Spot / Binance Alpha / Binance USDT-M Futures / OKX Spot / OKX USDT-M Futures` 优先走 `WSS`
 - 当前实时价格主链路已经改成 `WSS / REST -> InMemory QuoteRepository -> UI`，不再每次报价都直接写回 `watch_items`
 - `watch_items` 里的价格字段当前只承担启动恢复和低频快照持久化，默认在页面不再活跃时落一次，并在前台运行期间按低频兜底写回
-- `OKX On-chain` 当前按官方最新 `price channel` 文档接入，使用 `wss://wsdex.okx.com/ws/v6/dex`，并在登录成功后再发送价格订阅
-- 轮询实现仍然保留在工程中，后续可作为 `仅 API` 模式或故障回退方案继续复用
+- 链上价格固定使用 `DexScreener REST`，按链分组且每批最多 30 个合约地址；独立轮询间隔范围 `10-120 秒`、步进 `5 秒`、默认 `45 秒`
+- 上述“每批 30 个”表示同一条链上的最多 30 个代币合并为一次 HTTP 请求，并非每个代币单独消耗一次请求；不同链分别形成批次
+- DexScreener 客户端统一限制在每分钟最多 240 次请求，为公开接口限额保留余量；429 会优先遵守 `Retry-After`，否则执行带随机抖动的指数退避
+- 链上 K 线固定使用 `GeckoTerminal`，按已保存的池地址和目标代币方向查询，并在客户端限制为每分钟最多 8 次
+- DEX 轮询滑块复用悬浮窗设置的 `SliderDefaults.Track` 和项目统一 Slider 配色，只通过离屏合成增加 `#E60012` 高饱和警告红到绿色的渐变，因此保留原生轨道圆角、刻度、端点和滑块间隙
+- HTTP / WSS 网络日志会脱敏 API Key、签名、Passphrase、鉴权头与 Cookie
 
 ### Upstream Docs And Endpoints
 
@@ -142,16 +165,20 @@ app/src/main/java/io/baiyanwu/coinmonitor/
   - 当前 REST 路径：`GET /api/v5/public/instruments?instType=SPOT`、`GET /api/v5/market/ticker`
   - 当前 WSS 订阅：`channel=tickers`
 
-- `OKX On-chain / DEX Market API`
-  - 英文文档：`https://web3.okx.com/build/dev-docs/dex-api/dex-api-access-and-usage`
-  - 英文 WSS 文档：`https://web3.okx.com/build/dev-docs/dex-api/dex-websocket-introduction`
-  - 中文开发者入口：`https://web3.okx.com/zh-hans/onchainos/dev-portal`
-  - 英文开发者入口：`https://web3.okx.com/onchainos/dev-portal`
-  - REST base URL：`https://web3.okx.com/`
-  - WSS URL：`wss://wsdex.okx.com/ws/v6/dex`
-  - 当前 REST 路径：`GET /api/v6/dex/market/supported/chain`、`GET /api/v6/dex/market/token/search`、`POST /api/v6/dex/market/price`
-  - 当前 WSS 登录 path：`/users/self/verify`
-  - 当前 WSS 订阅频道：`channel=price`
+- `DexScreener`
+  - API 文档：`https://docs.dexscreener.com/api/reference`
+  - REST base URL：`https://api.dexscreener.com/`
+  - 当前路径：`GET /latest/dex/search`、`GET /token-pairs/v1/{chainId}/{tokenAddress}`、`GET /tokens/v1/{chainId}/{tokenAddresses}`
+  - 搜索响应同时提供链、池地址、base / quote 代币、DEX、价格、流动性、成交量和公开图标等字段；应用不调用网页内部接口
+
+- `GeckoTerminal`
+  - API 文档：`https://apiguide.geckoterminal.com/`
+  - REST base URL：`https://api.geckoterminal.com/`
+  - 当前路径：`GET /api/v2/networks/{network}/pools/{poolAddress}/ohlcv/{timeframe}`；长周期分页使用官方 `before_timestamp` 参数
+
+- `Trust Wallet Assets`
+  - 资源仓库：`https://github.com/trustwallet/assets`
+  - 当前仅用于链 Logo 静态图片，不参与搜索、报价或 K 线请求
 
 - 代码对齐位置
   - REST base URL 定义：`app/src/main/java/io/baiyanwu/coinmonitor/data/network/NetworkFactory.kt`
@@ -161,7 +188,7 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 ## TODO
 
 - 增加”行情刷新方式”设置项，允许用户在 `智能 / 仅 WSS / 仅 API` 三种模式之间切换
-- `智能` 模式优先走交易所与链上的 `WSS`，连接异常或当前市场不支持时自动回退到 `API`
+- `智能` 模式只为交易所行情选择 `WSS / API`；链上价格始终固定使用 DexScreener，不设置隐藏备用源
 - `仅 API` 模式继续复用现有轮询引擎和刷新间隔配置，作为弱网、代理环境和问题排查时的稳定兜底
 - 给 `REST` 快照刷新和 `WSS` 推送补统一时序保护，避免手动下拉刷新时旧快照短暂覆盖更晚到达的实时价格
 - 精简通知栏文案，去掉”每 3 秒刷新一次”这类频率提示，避免在 `WSS` 模式下继续显示过时的轮询描述
@@ -204,16 +231,22 @@ Release 自动流程：
 - 标准悬浮窗行视图复用已有 `ImageView` / `TextView`，避免高频价格刷新时反复重建 leading 区域导致图标闪动。
 - 吸附侧边栏 ticker 做了图标 bitmap 复用和宽度按内容自适应，避免图标闪烁和右侧留白过宽。
 - 悬浮窗图标在 `WindowManager` 视图层单独做圆形裁剪，保留外层定宽布局，避免改成圆形后把价格列对齐打乱。
+- 悬浮窗全部配置（启停、锁定、透明度、字体、数量、吸附方式、边条透明度、回收时间与窗口坐标）统一由 Preferences DataStore 管理；在悬浮窗链路中，Room 只继续管理币对实体和 `overlaySelected` 选择状态。
+- 旧 `overlay_settings` 数据会先暂存并通过 `SharedPreferencesMigration` 一次性导入 DataStore；已经安装过旧 version 8 的开发包也会在 Room 打开前执行兼容导入。
 - 前台通知使用自定义 `RemoteViews` 内容布局，统一正文与操作按钮的对齐方式。
 - 数据库移除默认破坏性迁移，开启 Room schema 导出，为后续显式 migration 留出接口。
-- Room schema 为 `v7`，迁移路径：v4→v5（悬浮窗字体/吸附）→v6（链上字段）→v7（首页排序与置顶 + AI 聊天表）。
+- Room schema 为 `v8`，迁移路径：v4→v5（悬浮窗字体/吸附）→v6（旧链上字段）→v7（首页排序与置顶 + AI 聊天表）→v8（通用链上来源、固定池地址与代币方向 + 旧悬浮窗配置导出）。
+- v7→v8 是唯一合并迁移：它会保留旧链上观察项 ID 和引用关系，把来源迁移为通用 `ONCHAIN`，清理旧来源价格快照，同时把旧悬浮窗单行配置暂存给 DataStore 导入；没有并行的 v8→v9 迁移。
+- `androidTest` 使用 Room `MigrationTestHelper` 和仓库内导出的 v7/v8 schema，真实创建旧库并执行迁移；测试同时覆盖应用启动前预导出、Room migration 兜底导出，以及 SharedPreferencesMigration 首次导入 DataStore。测试数据库、偏好和 DataStore 目录全部隔离，不读写正式用户配置。
+- 为兼容已经运行过早期 version 8 的开发包，v8 schema 暂时保留空的 `overlay_settings` 表壳，但运行时已删除对应 DAO，迁移后也会清空旧行；这张表不再是悬浮窗配置的数据源。
 - 调试网络日志只在 Debug 构建输出，Release 默认关闭。
 - AI 聊天复用同一套带网络日志拦截器的 `OkHttpClient`，`K线 AI` 请求也会进入网络日志页。
 - HTTP 网络日志记录请求头与请求体预览；`Authorization` 会脱敏，响应体不主动展开，避免影响流式 AI 返回。
 - 悬浮窗启停规则已统一，避免 UI 开关状态和真实运行状态不一致。
-- 搜索页的交易所模式和链上模式已分流，链上模式不会再混发交易所搜索请求。
+- 搜索页的交易所模式和链上模式使用独立查询状态；链上模式不会混发交易所请求，交易所模式也不会触发 DexScreener。
+- 链上搜索采用“代币作为结果、池子作为可切换属性”的模型：观察项 ID 与语义去重仍基于链和合约，池地址只决定报价与 K 线来源。
 - 首页列表和搜索结果页共用同一套交易所 badge 视觉：`Binance / Binance Alpha / OKX` 都按统一的强调色标签渲染，避免跨页面样式漂移。
-- 行情刷新拆成”全局协调器 + 可替换刷新引擎”两层结构，为交易所与链上的 `WSS` 接入预留接口。
+- 行情刷新拆成”全局协调器 + 可替换刷新引擎”两层结构；交易所保留 `WSS`，链上保持独立 REST 轮询。
 - 流式引擎内部对订阅集合做指纹比较，避免价格回流导致重复重建长连接。
 - vendored chart wrapper 关闭了 `WebView` 自身页面缩放，避免系统层缩放和图表手势混在一起。
 - vendored wrapper 生成产物直接提交 `src/main/assets/com/tradingview/lightweightcharts/scripts/app/main.js`，不执行 `npm run compile` 时也能直接构建运行。

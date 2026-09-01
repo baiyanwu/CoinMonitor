@@ -1,12 +1,8 @@
 package io.baiyanwu.coinmonitor.data.ai.market
 
-import io.baiyanwu.coinmonitor.data.network.OkxOnChainApi
-import io.baiyanwu.coinmonitor.data.network.OkxOnChainPriceRequest
-import io.baiyanwu.coinmonitor.data.network.OkxOnChainRequestSigner
-import io.baiyanwu.coinmonitor.data.network.OkxOnChainTokenBasicInfoRow
-import io.baiyanwu.coinmonitor.data.network.OkxOnChainTokenPriceInfoRow
-import io.baiyanwu.coinmonitor.data.network.OkxOnChainTokenRow
-import io.baiyanwu.coinmonitor.domain.model.OkxApiCredentials
+import io.baiyanwu.coinmonitor.data.network.DexScreenerClient
+import io.baiyanwu.coinmonitor.data.network.DexScreenerPairSelector
+import io.baiyanwu.coinmonitor.domain.model.OnchainChainRegistry
 import io.baiyanwu.coinmonitor.lib.agents.AssetRef
 import io.baiyanwu.coinmonitor.lib.agents.MarketEvidence
 import io.baiyanwu.coinmonitor.lib.agents.MarketEventType
@@ -22,30 +18,22 @@ import io.baiyanwu.coinmonitor.lib.agents.MarketSourceRateLimitHint
 import io.baiyanwu.coinmonitor.lib.agents.MarketSourceSpec
 import io.baiyanwu.coinmonitor.lib.agents.MarketSourceType
 import io.baiyanwu.coinmonitor.lib.agents.SourceTimestampConfidence
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 
-/**
- * 使用本地资产信息和 OKX Onchain API 生成项目概览型情报。
- */
 class ProjectInfoAdapter(
-    private val okxOnChainApi: OkxOnChainApi,
-    private val okxCredentialsProvider: suspend () -> OkxApiCredentials?
+    private val dexScreenerClient: DexScreenerClient
 ) : MarketSourceAdapter {
     override val spec: MarketSourceSpec = MarketSourceSpec(
         id = SOURCE_ID,
-        displayName = "Project Info",
+        displayName = "DexScreener Project Info",
         type = MarketSourceType.CHAIN_ANNOUNCEMENT,
         capabilities = setOf(
             MarketSourceCapability.ASSET_KEYWORD_LOOKUP,
             MarketSourceCapability.CHAIN_ECOSYSTEM_TRACKING
         ),
         authProfile = MarketSourceAuthProfile(
-            mode = MarketSourceAuthMode.USER_API_KEY,
+            mode = MarketSourceAuthMode.NONE,
             required = false,
-            credentialHint = "Optional OKX Web3 API credentials unlock on-chain project enrichment."
+            credentialHint = null
         ),
         rateLimitHint = MarketSourceRateLimitHint(
             recommendedRequestsPerMinute = 10,
@@ -54,101 +42,83 @@ class ProjectInfoAdapter(
         )
     )
 
-    private val requestJson = Json { explicitNulls = false }
     private val onchainCache = mutableMapOf<String, TimedCache<List<MarketEvidence>>>()
 
-    /**
-     * 生成资产概览型 evidence；链上资产优先尝试 OKX Onchain 增强。
-     */
     override suspend fun fetch(query: MarketSourceQuery): List<MarketEvidence> {
         val asset = query.asset
-        return if (asset.tokenAddress.isNullOrBlank() || asset.chainId.isNullOrBlank()) {
+        val result = if (asset.tokenAddress.isNullOrBlank() || asset.chainId.isNullOrBlank()) {
             listOf(buildLocalOverview(asset))
         } else {
             fetchOnchainOverview(asset)
-        }.take(query.limit)
+        }
+        return result.take(query.limit)
     }
 
     private suspend fun fetchOnchainOverview(asset: AssetRef): List<MarketEvidence> {
-        val cacheKey = "${asset.chainId}:${asset.tokenAddress.orEmpty().lowercase()}"
+        val cacheKey = "${asset.chainId}:${asset.tokenAddress}"
         val cache = onchainCache.getOrPut(cacheKey) { TimedCache(ONCHAIN_CACHE_TTL_MILLIS) }
         return runCatching {
-            cache.getOrLoad {
-                buildOnchainOverview(asset)
-            }
+            cache.getOrLoad { buildDexScreenerOverview(asset) }
         }.getOrElse {
             listOf(buildLocalOverview(asset))
         }
     }
 
-    private suspend fun buildOnchainOverview(asset: AssetRef): List<MarketEvidence> {
-        val credentials = okxCredentialsProvider()
-        if (credentials == null || !credentials.enabled || !credentials.isReady) {
-            return listOf(buildLocalOverview(asset))
-        }
-
-        val chainIndex = asset.chainId.orEmpty()
+    private suspend fun buildDexScreenerOverview(asset: AssetRef): List<MarketEvidence> {
+        val chain = OnchainChainRegistry.find(asset.chainId)
+            ?: return listOf(buildLocalOverview(asset))
         val tokenAddress = asset.tokenAddress.orEmpty()
-        val requestBody = listOf(
-            OkxOnChainPriceRequest(
-                chainIndex = chainIndex,
-                tokenContractAddress = tokenAddress
-            )
-        )
-        val searchRow = searchToken(credentials, chainIndex, tokenAddress)
-        val basicInfo = lookupBasicInfo(credentials, requestBody)
-        val priceInfo = lookupPriceInfo(credentials, requestBody)
-
-        val titleName = basicInfo?.tokenName
-            ?: searchRow?.tokenName
-            ?: asset.displayName
-            ?: asset.baseSymbol
-            ?: asset.symbol
-        val snippetParts = buildList {
-            add("On-chain profile for $titleName.")
-            basicInfo?.tokenSymbol?.takeIf { it.isNotBlank() }?.let { add("Symbol $it.") }
-            searchRow?.explorerUrl?.takeIf { it.isNotBlank() }?.let { add("Explorer $it.") }
-            basicInfo?.officialWebsite?.takeIf { it.isNotBlank() }?.let { add("Website $it.") }
-            compactMetric("Price", priceInfo?.price ?: searchRow?.price)?.let { add("$it.") }
-            compactMetric("24h change", priceInfo?.change ?: searchRow?.change)?.let { add("$it%.") }
-            compactMetric("Market cap", priceInfo?.marketCap ?: searchRow?.marketCap)?.let { add("$it.") }
-            compactMetric("Liquidity", priceInfo?.liquidity ?: searchRow?.liquidity)?.let { add("$it.") }
-            compactMetric("Holders", priceInfo?.holders ?: searchRow?.holders)?.let { add("$it.") }
-            if (basicInfo?.tagList?.communityRecognized == true) {
-                add("Community recognized.")
-            }
-            add("Address ${tokenAddress.lowercase()}.")
+        val pairs = dexScreenerClient.getTokenPairs(chain.dexScreenerId, tokenAddress)
+        val selected = DexScreenerPairSelector.select(pairs, tokenAddress, chain.family)
+            ?: return listOf(buildLocalOverview(asset))
+        val pair = selected.pair
+        val name = selected.tokenName.ifBlank {
+            asset.displayName ?: asset.baseSymbol ?: asset.symbol
         }
-
-        val publishedAtMillis = parseIsoInstantMillis(priceInfo?.time)
-            ?: System.currentTimeMillis()
-        val confidence = if (parseIsoInstantMillis(priceInfo?.time) != null) {
-            SourceTimestampConfidence.EXACT
-        } else {
-            SourceTimestampConfidence.UNKNOWN
-        }
-
+        val snippet = buildList {
+            add("On-chain profile for $name.")
+            add("Symbol ${selected.tokenSymbol}.")
+            compactMetric("Price", selected.priceUsd.toString())?.let { add("$it.") }
+            selected.change24hPercent?.let { add("24h change $it%.") }
+            pair.liquidity?.usd?.let { add("Liquidity $it.") }
+            pair.volume["h24"]?.let { add("24h volume $it.") }
+            pair.marketCap?.let { add("Market cap $it.") }
+            pair.fdv?.let { add("FDV $it.") }
+            pair.dexId.takeIf(String::isNotBlank)?.let { add("DEX $it.") }
+            pair.info?.websites.orEmpty().firstOrNull()?.url
+                ?.takeIf(String::isNotBlank)
+                ?.let { add("Website $it.") }
+            pair.info?.socials.orEmpty()
+                .mapNotNull { social ->
+                    social.handle?.takeIf(String::isNotBlank)?.let { handle ->
+                        val label = social.type ?: social.platform ?: "social"
+                        "$label $handle"
+                    }
+                }
+                .take(3)
+                .forEach { add("Social $it.") }
+            add("Pool ${pair.pairAddress}.")
+            pair.url?.takeIf(String::isNotBlank)?.let { add("Pool link $it.") }
+            add("Address $tokenAddress.")
+        }.joinToString(" ")
+        val nowMillis = System.currentTimeMillis()
         return listOf(
             MarketEvidence(
-                id = "project-info:$chainIndex:${tokenAddress.lowercase()}",
+                id = "project-info:${chain.chainIndex}:$tokenAddress",
                 sourceId = spec.id,
                 sourceType = spec.type,
                 title = "Project profile for ${asset.symbol}",
-                url = searchRow?.explorerUrl ?: basicInfo?.officialWebsite ?: "",
-                publishedAtMillis = publishedAtMillis,
-                contentSnippet = snippetParts.joinToString(" "),
+                url = pair.url ?: pair.info?.websites.orEmpty().firstOrNull()?.url.orEmpty(),
+                publishedAtMillis = nowMillis,
+                contentSnippet = snippet,
                 eventType = MarketEventType.ECOSYSTEM_UPDATE,
                 impactDirection = MarketImpactDirection.NEUTRAL,
                 impactStrength = MarketImpactStrength.LOW,
-                freshness = if (confidence == SourceTimestampConfidence.EXACT) {
-                    resolveFreshness(publishedAtMillis)
-                } else {
-                    MarketEvidenceFreshness.UNKNOWN
-                },
-                sourceTimestampConfidence = confidence,
+                freshness = MarketEvidenceFreshness.UNKNOWN,
+                sourceTimestampConfidence = SourceTimestampConfidence.UNKNOWN,
                 relatedSymbols = listOfNotNull(asset.baseSymbol, asset.symbol),
                 relevanceScore = 0.98,
-                credibilityScore = 0.9
+                credibilityScore = 0.86
             )
         )
     }
@@ -158,21 +128,11 @@ class ProjectInfoAdapter(
         val snippet = buildString {
             append("Local project profile for ")
             append(asset.displayName ?: asset.baseSymbol ?: asset.symbol)
-            append(". Symbol ")
-            append(asset.symbol)
-            append('.')
-            asset.exchange?.takeIf { it.isNotBlank() }?.let {
-                append(" Exchange ").append(it).append('.')
-            }
-            asset.marketType?.takeIf { it.isNotBlank() }?.let {
-                append(" Market type ").append(it).append('.')
-            }
-            asset.chainFamily?.takeIf { it.isNotBlank() }?.let {
-                append(" Chain ").append(it).append('.')
-            }
-            asset.tokenAddress?.takeIf { it.isNotBlank() }?.let {
-                append(" Address ").append(it.lowercase()).append('.')
-            }
+            append(". Symbol ").append(asset.symbol).append('.')
+            asset.exchange?.takeIf(String::isNotBlank)?.let { append(" Exchange ").append(it).append('.') }
+            asset.marketType?.takeIf(String::isNotBlank)?.let { append(" Market type ").append(it).append('.') }
+            asset.chainFamily?.takeIf(String::isNotBlank)?.let { append(" Chain ").append(it).append('.') }
+            asset.tokenAddress?.takeIf(String::isNotBlank)?.let { append(" Address ").append(it).append('.') }
         }
         return MarketEvidence(
             id = "project-info:local:${asset.symbol.lowercase()}",
@@ -189,87 +149,12 @@ class ProjectInfoAdapter(
             sourceTimestampConfidence = SourceTimestampConfidence.UNKNOWN,
             relatedSymbols = listOfNotNull(asset.baseSymbol, asset.symbol),
             relevanceScore = 0.9,
-            credibilityScore = 0.85
+            credibilityScore = 0.75
         )
-    }
-
-    private suspend fun searchToken(
-        credentials: OkxApiCredentials,
-        chainIndex: String,
-        tokenAddress: String
-    ): OkxOnChainTokenRow? = withContext(Dispatchers.IO) {
-        val requestPath = "/api/v6/dex/market/token/search?chains=$chainIndex&search=$tokenAddress"
-        val timestamp = OkxOnChainRequestSigner.buildTimestamp()
-        val signature = OkxOnChainRequestSigner.buildSignature(
-            timestamp = timestamp,
-            method = "GET",
-            requestPath = requestPath,
-            secret = credentials.secretKey
-        )
-        val response = okxOnChainApi.searchTokens(
-            accessKey = credentials.apiKey,
-            accessSign = signature,
-            accessTimestamp = timestamp,
-            accessPassphrase = credentials.passphrase,
-            chains = chainIndex,
-            search = tokenAddress
-        )
-        if (response.code != "0") return@withContext null
-        response.data.firstOrNull {
-            it.tokenContractAddress.equals(tokenAddress, ignoreCase = true)
-        }
-    }
-
-    private suspend fun lookupBasicInfo(
-        credentials: OkxApiCredentials,
-        requestBody: List<OkxOnChainPriceRequest>
-    ): OkxOnChainTokenBasicInfoRow? = withContext(Dispatchers.IO) {
-        val body = requestJson.encodeToString(requestBody)
-        val timestamp = OkxOnChainRequestSigner.buildTimestamp()
-        val signature = OkxOnChainRequestSigner.buildSignature(
-            timestamp = timestamp,
-            method = "POST",
-            requestPath = "/api/v6/dex/market/token/basic-info",
-            secret = credentials.secretKey,
-            body = body
-        )
-        val response = okxOnChainApi.getTokenBasicInfo(
-            accessKey = credentials.apiKey,
-            accessSign = signature,
-            accessTimestamp = timestamp,
-            accessPassphrase = credentials.passphrase,
-            requestBody = requestBody
-        )
-        if (response.code != "0") return@withContext null
-        response.data.firstOrNull()
-    }
-
-    private suspend fun lookupPriceInfo(
-        credentials: OkxApiCredentials,
-        requestBody: List<OkxOnChainPriceRequest>
-    ): OkxOnChainTokenPriceInfoRow? = withContext(Dispatchers.IO) {
-        val body = requestJson.encodeToString(requestBody)
-        val timestamp = OkxOnChainRequestSigner.buildTimestamp()
-        val signature = OkxOnChainRequestSigner.buildSignature(
-            timestamp = timestamp,
-            method = "POST",
-            requestPath = "/api/v6/dex/market/price-info",
-            secret = credentials.secretKey,
-            body = body
-        )
-        val response = okxOnChainApi.getTokenPriceInfo(
-            accessKey = credentials.apiKey,
-            accessSign = signature,
-            accessTimestamp = timestamp,
-            accessPassphrase = credentials.passphrase,
-            requestBody = requestBody
-        )
-        if (response.code != "0") return@withContext null
-        response.data.firstOrNull()
     }
 
     private companion object {
-        private const val SOURCE_ID = "project-info"
-        private const val ONCHAIN_CACHE_TTL_MILLIS = 30 * 60 * 1000L
+        const val SOURCE_ID = "project-info"
+        const val ONCHAIN_CACHE_TTL_MILLIS = 30 * 60 * 1_000L
     }
 }

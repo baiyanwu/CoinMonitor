@@ -93,4 +93,24 @@ interface WatchItemDao {
         change24hPercent: Double?,
         lastUpdatedAt: Long
     )
+
+    @Query(
+        """
+        UPDATE watch_items
+        SET poolAddress = :poolAddress,
+            poolTokenSide = :poolTokenSide,
+            lastPrice = NULL,
+            previousPrice = NULL,
+            liveTrend = 'NEUTRAL',
+            change24hPercent = NULL,
+            lastUpdatedAt = NULL
+        WHERE id = :id
+          AND (poolAddress IS NOT :poolAddress OR poolTokenSide IS NOT :poolTokenSide)
+        """
+    )
+    suspend fun updateOnchainPoolBinding(
+        id: String,
+        poolAddress: String,
+        poolTokenSide: String
+    ): Int
 }

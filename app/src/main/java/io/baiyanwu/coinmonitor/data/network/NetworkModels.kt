@@ -4,10 +4,9 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
-import retrofit2.http.Body
 import retrofit2.http.GET
-import retrofit2.http.Header
-import retrofit2.http.POST
+import retrofit2.http.Headers
+import retrofit2.http.Path
 import retrofit2.http.Query
 
 interface BinanceApi {
@@ -31,6 +30,13 @@ interface BinanceFuturesApi {
 
     @GET("fapi/v1/ticker/24hr")
     suspend fun getTicker(@Query("symbol") symbol: String): BinanceTickerRow
+
+    @GET("fapi/v1/klines")
+    suspend fun getKlines(
+        @Query("symbol") symbol: String,
+        @Query("interval") interval: String,
+        @Query("limit") limit: Int
+    ): JsonArray
 }
 
 interface OkxApi {
@@ -69,64 +75,36 @@ interface BinanceAlphaApi {
     ): JsonObject
 }
 
-interface OkxOnChainApi {
-    @GET("api/v6/dex/market/supported/chain")
-    suspend fun getSupportedChains(
-        @Header("OK-ACCESS-KEY") accessKey: String,
-        @Header("OK-ACCESS-SIGN") accessSign: String,
-        @Header("OK-ACCESS-TIMESTAMP") accessTimestamp: String,
-        @Header("OK-ACCESS-PASSPHRASE") accessPassphrase: String,
-        @Query("chainIndex") chainIndex: String? = null
-    ): OkxOnChainSupportedChainsResponse
+interface DexScreenerApi {
+    @GET("latest/dex/search")
+    suspend fun searchPairs(@Query("q") query: String): DexScreenerSearchResponse
 
-    @GET("api/v6/dex/market/token/search")
-    suspend fun searchTokens(
-        @Header("OK-ACCESS-KEY") accessKey: String,
-        @Header("OK-ACCESS-SIGN") accessSign: String,
-        @Header("OK-ACCESS-TIMESTAMP") accessTimestamp: String,
-        @Header("OK-ACCESS-PASSPHRASE") accessPassphrase: String,
-        @Query("chains") chains: String,
-        @Query("search") search: String
-    ): OkxOnChainTokenSearchResponse
+    @GET("token-pairs/v1/{chainId}/{tokenAddress}")
+    suspend fun getTokenPairs(
+        @Path("chainId") chainId: String,
+        @Path("tokenAddress") tokenAddress: String
+    ): List<DexScreenerPair>
 
-    @POST("api/v6/dex/market/price")
-    suspend fun getTokenPrices(
-        @Header("OK-ACCESS-KEY") accessKey: String,
-        @Header("OK-ACCESS-SIGN") accessSign: String,
-        @Header("OK-ACCESS-TIMESTAMP") accessTimestamp: String,
-        @Header("OK-ACCESS-PASSPHRASE") accessPassphrase: String,
-        @Body requestBody: List<OkxOnChainPriceRequest>
-    ): OkxOnChainTokenPriceResponse
+    @GET("tokens/v1/{chainId}/{tokenAddresses}")
+    suspend fun getTokenPairsBatch(
+        @Path("chainId") chainId: String,
+        @Path(value = "tokenAddresses", encoded = true) tokenAddresses: String
+    ): List<DexScreenerPair>
+}
 
-    @POST("api/v6/dex/market/token/basic-info")
-    suspend fun getTokenBasicInfo(
-        @Header("OK-ACCESS-KEY") accessKey: String,
-        @Header("OK-ACCESS-SIGN") accessSign: String,
-        @Header("OK-ACCESS-TIMESTAMP") accessTimestamp: String,
-        @Header("OK-ACCESS-PASSPHRASE") accessPassphrase: String,
-        @Body requestBody: List<OkxOnChainPriceRequest>
-    ): OkxOnChainTokenBasicInfoResponse
-
-    @POST("api/v6/dex/market/price-info")
-    suspend fun getTokenPriceInfo(
-        @Header("OK-ACCESS-KEY") accessKey: String,
-        @Header("OK-ACCESS-SIGN") accessSign: String,
-        @Header("OK-ACCESS-TIMESTAMP") accessTimestamp: String,
-        @Header("OK-ACCESS-PASSPHRASE") accessPassphrase: String,
-        @Body requestBody: List<OkxOnChainPriceRequest>
-    ): OkxOnChainTokenPriceInfoResponse
-
-    @GET("api/v6/dex/market/candles")
-    suspend fun getCandles(
-        @Header("OK-ACCESS-KEY") accessKey: String,
-        @Header("OK-ACCESS-SIGN") accessSign: String,
-        @Header("OK-ACCESS-TIMESTAMP") accessTimestamp: String,
-        @Header("OK-ACCESS-PASSPHRASE") accessPassphrase: String,
-        @Query("chainIndex") chainIndex: String,
-        @Query("tokenContractAddress") tokenContractAddress: String,
-        @Query("bar") bar: String,
-        @Query("limit") limit: Int
-    ): OkxOnChainCandlesResponse
+interface GeckoTerminalApi {
+    @Headers("Accept: application/json;version=20230302")
+    @GET("api/v2/networks/{network}/pools/{poolAddress}/ohlcv/{timeframe}")
+    suspend fun getPoolOhlcv(
+        @Path("network") network: String,
+        @Path("poolAddress") poolAddress: String,
+        @Path("timeframe") timeframe: String,
+        @Query("aggregate") aggregate: Int,
+        @Query("limit") limit: Int,
+        @Query("currency") currency: String = "usd",
+        @Query("token") token: String,
+        @Query("before_timestamp") beforeTimestamp: Long? = null
+    ): GeckoTerminalOhlcvResponse
 }
 
 @Serializable
@@ -188,116 +166,74 @@ data class OkxCandlesResponse(
 )
 
 @Serializable
-data class OkxOnChainTokenSearchResponse(
-    val code: String,
-    val msg: String? = null,
-    val data: List<OkxOnChainTokenRow> = emptyList()
+data class DexScreenerSearchResponse(
+    val pairs: List<DexScreenerPair>? = null
 )
 
 @Serializable
-data class OkxOnChainSupportedChainsResponse(
-    val code: String,
-    val msg: String? = null,
-    val data: List<OkxOnChainChainRow> = emptyList()
+data class DexScreenerPair(
+    val chainId: String = "",
+    val dexId: String = "",
+    val labels: List<String>? = null,
+    val url: String? = null,
+    val pairAddress: String = "",
+    val baseToken: DexScreenerToken = DexScreenerToken(),
+    val quoteToken: DexScreenerToken = DexScreenerToken(),
+    val priceNative: String? = null,
+    val priceUsd: String? = null,
+    val volume: Map<String, Double> = emptyMap(),
+    val priceChange: Map<String, Double>? = null,
+    val liquidity: DexScreenerLiquidity? = null,
+    val fdv: Double? = null,
+    val marketCap: Double? = null,
+    val info: DexScreenerInfo? = null
 )
 
 @Serializable
-data class OkxOnChainTokenPriceResponse(
-    val code: String,
-    val msg: String? = null,
-    val data: List<OkxOnChainTokenPriceRow> = emptyList()
+data class DexScreenerToken(
+    val address: String = "",
+    val name: String = "",
+    val symbol: String = ""
 )
 
 @Serializable
-data class OkxOnChainTokenBasicInfoResponse(
-    val code: String,
-    val msg: String? = null,
-    val data: List<OkxOnChainTokenBasicInfoRow> = emptyList()
+data class DexScreenerLiquidity(
+    val usd: Double? = null
 )
 
 @Serializable
-data class OkxOnChainTokenPriceInfoResponse(
-    val code: String,
-    val msg: String? = null,
-    val data: List<OkxOnChainTokenPriceInfoRow> = emptyList()
+data class DexScreenerInfo(
+    val imageUrl: String? = null,
+    val websites: List<DexScreenerWebsite> = emptyList(),
+    val socials: List<DexScreenerSocial> = emptyList()
 )
 
 @Serializable
-data class OkxOnChainCandlesResponse(
-    val code: String,
-    val msg: String? = null,
-    val data: List<List<String>> = emptyList()
+data class DexScreenerWebsite(
+    val label: String? = null,
+    val url: String? = null
 )
 
 @Serializable
-data class OkxOnChainChainRow(
-    @SerialName("chainIndex") val chainIndex: String? = null,
-    @SerialName("chainName") val chainName: String? = null,
-    @SerialName("chainLogoUrl") val chainLogoUrl: String? = null,
-    @SerialName("chainSymbol") val chainSymbol: String? = null
+data class DexScreenerSocial(
+    val type: String? = null,
+    val platform: String? = null,
+    val handle: String? = null
 )
 
 @Serializable
-data class OkxOnChainPriceRequest(
-    @SerialName("chainIndex") val chainIndex: String,
-    @SerialName("tokenContractAddress") val tokenContractAddress: String
+data class GeckoTerminalOhlcvResponse(
+    val data: GeckoTerminalOhlcvData
 )
 
 @Serializable
-data class OkxOnChainTokenRow(
-    @SerialName("chainIndex") val chainIndex: String? = null,
-    @SerialName("chainName") val chainName: String? = null,
-    @SerialName("tokenContractAddress") val tokenContractAddress: String? = null,
-    @SerialName("tokenSymbol") val tokenSymbol: String? = null,
-    @SerialName("tokenName") val tokenName: String? = null,
-    @SerialName("tokenLogoUrl") val tokenLogoUrl: String? = null,
-    @SerialName("decimal") val decimal: String? = null,
-    @SerialName("explorerUrl") val explorerUrl: String? = null,
-    @SerialName("price") val price: String? = null,
-    @SerialName("change") val change: String? = null,
-    @SerialName("holders") val holders: String? = null,
-    @SerialName("liquidity") val liquidity: String? = null,
-    @SerialName("marketCap") val marketCap: String? = null
+data class GeckoTerminalOhlcvData(
+    val attributes: GeckoTerminalOhlcvAttributes
 )
 
 @Serializable
-data class OkxOnChainTokenPriceRow(
-    @SerialName("chainIndex") val chainIndex: String? = null,
-    @SerialName("tokenContractAddress") val tokenContractAddress: String? = null,
-    @SerialName("time") val time: String? = null,
-    @SerialName("price") val price: String? = null
-)
-
-@Serializable
-data class OkxOnChainTokenBasicInfoRow(
-    @SerialName("chainIndex") val chainIndex: String? = null,
-    @SerialName("tokenContractAddress") val tokenContractAddress: String? = null,
-    @SerialName("tokenName") val tokenName: String? = null,
-    @SerialName("tokenSymbol") val tokenSymbol: String? = null,
-    @SerialName("tokenLogoUrl") val tokenLogoUrl: String? = null,
-    @SerialName("decimal") val decimal: String? = null,
-    @SerialName("officialWebsite") val officialWebsite: String? = null,
-    @SerialName("explorerUrl") val explorerUrl: String? = null,
-    @SerialName("tagList") val tagList: OkxOnChainTokenTagList? = null
-)
-
-@Serializable
-data class OkxOnChainTokenPriceInfoRow(
-    @SerialName("chainIndex") val chainIndex: String? = null,
-    @SerialName("tokenContractAddress") val tokenContractAddress: String? = null,
-    @SerialName("price") val price: String? = null,
-    @SerialName("change") val change: String? = null,
-    @SerialName("marketCap") val marketCap: String? = null,
-    @SerialName("holders") val holders: String? = null,
-    @SerialName("liquidity") val liquidity: String? = null,
-    @SerialName("volume24h") val volume24h: String? = null,
-    @SerialName("fdv") val fdv: String? = null,
-    @SerialName("time") val time: String? = null
-)
-
-@Serializable
-data class OkxOnChainTokenTagList(
-    @SerialName("communityRecognized") val communityRecognized: Boolean? = null
+data class GeckoTerminalOhlcvAttributes(
+    @SerialName("ohlcv_list") val ohlcvList: List<List<Double>> = emptyList()
 )
 
 internal fun JsonObject.isAlphaSuccess(): Boolean {

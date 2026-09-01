@@ -50,10 +50,41 @@ class ThirdPartyApiSettingsEntryPolicyTest {
         val chineseSubtitle = extractStringValue(chineseStrings, "settings_third_party_api_subtitle")
         val englishSubtitle = extractStringValue(englishStrings, "settings_third_party_api_subtitle")
 
-        assertFalse(chineseSubtitle.contains("AI", ignoreCase = true))
-        assertFalse(englishSubtitle.contains("AI", ignoreCase = true))
-        assertTrue(chineseSubtitle.contains("OKX"))
-        assertTrue(englishSubtitle.contains("OKX"))
+        val aiLabel = Regex("""\bAI\b""", RegexOption.IGNORE_CASE)
+        assertFalse(aiLabel.containsMatchIn(chineseSubtitle))
+        assertFalse(aiLabel.containsMatchIn(englishSubtitle))
+        assertTrue(chineseSubtitle.contains("免费链上行情"))
+        assertTrue(englishSubtitle.contains("Free on-chain market data"))
+    }
+
+    @Test
+    fun `free onchain settings expose providers polling slider and quota warning`() {
+        val routeSource = readSource(
+            rootRelativePath = "app/src/main/java/io/baiyanwu/coinmonitor/ui/settings/ThirdPartyApiSettingsRoute.kt",
+            moduleRelativePath = "src/main/java/io/baiyanwu/coinmonitor/ui/settings/ThirdPartyApiSettingsRoute.kt"
+        )
+        val chineseStrings = readSource(
+            rootRelativePath = "app/src/main/res/values/strings.xml",
+            moduleRelativePath = "src/main/res/values/strings.xml"
+        )
+        val englishStrings = readSource(
+            rootRelativePath = "app/src/main/res/values-en/strings.xml",
+            moduleRelativePath = "src/main/res/values-en/strings.xml"
+        )
+
+        assertTrue(routeSource.contains("DexPollingIntervalSetting"))
+        assertTrue(routeSource.contains("Slider("))
+        assertTrue(routeSource.contains("Brush.horizontalGradient"))
+        assertTrue(routeSource.contains("CoinMonitorComponentDefaults.sliderColors()"))
+        assertTrue(routeSource.contains("SliderDefaults.Track"))
+        assertTrue(routeSource.contains("CompositingStrategy.Offscreen"))
+        assertTrue(routeSource.contains("BlendMode.SrcIn"))
+        assertTrue(routeSource.contains("Color(0xFFE60012)"))
+        assertTrue(routeSource.contains("colors.positive"))
+        assertTrue(chineseStrings.contains("DexScreener · GeckoTerminal"))
+        assertTrue(englishStrings.contains("DexScreener · GeckoTerminal"))
+        assertTrue(chineseStrings.contains("third_party_api_settings_dex_polling_quota_warning"))
+        assertTrue(englishStrings.contains("third_party_api_settings_dex_polling_quota_warning"))
     }
 
     private fun extractStringValue(source: String, name: String): String {

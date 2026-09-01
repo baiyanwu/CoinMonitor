@@ -82,6 +82,17 @@ class DefaultAppPreferencesRepository(context: Context) : AppPreferencesReposito
         }
     }
 
+    override suspend fun setOnchainRefreshIntervalSeconds(seconds: Int) {
+        withContext(Dispatchers.IO) {
+            sharedPreferences.edit()
+                .putInt(
+                    KEY_ONCHAIN_REFRESH_INTERVAL_SECONDS,
+                    AppPreferences.normalizeOnchainRefreshIntervalSeconds(seconds)
+                )
+                .apply()
+        }
+    }
+
     override suspend fun setKlineMainIndicator(indicator: KlineIndicator) {
         withContext(Dispatchers.IO) {
             val current = preferencesFlow.value.klineIndicatorSettings
@@ -132,6 +143,12 @@ class DefaultAppPreferencesRepository(context: Context) : AppPreferencesReposito
             ?.let { raw ->
                 runCatching { json.decodeFromString<KlineIndicatorSettings>(raw) }.getOrNull()
             } ?: KlineIndicatorSettings()
+        val onchainRefreshIntervalSeconds = AppPreferences.normalizeOnchainRefreshIntervalSeconds(
+            sharedPreferences.getInt(
+                KEY_ONCHAIN_REFRESH_INTERVAL_SECONDS,
+                AppPreferences.DEFAULT_ONCHAIN_REFRESH_INTERVAL_SECONDS
+            )
+        )
 
         return AppPreferences(
             themeMode = themeMode,
@@ -139,6 +156,7 @@ class DefaultAppPreferencesRepository(context: Context) : AppPreferencesReposito
             themeTemplate = themeTemplate,
             refreshIntervalMode = refreshIntervalMode,
             customRefreshIntervalSeconds = customRefreshIntervalSeconds,
+            onchainRefreshIntervalSeconds = onchainRefreshIntervalSeconds,
             klineIndicatorSettings = klineIndicatorSettings
         )
     }
@@ -158,5 +176,6 @@ class DefaultAppPreferencesRepository(context: Context) : AppPreferencesReposito
         const val KEY_REFRESH_INTERVAL_MODE = "refresh_interval_mode"
         const val KEY_REFRESH_INTERVAL_SECONDS = "refresh_interval_seconds"
         const val KEY_KLINE_INDICATOR_SETTINGS = "kline_indicator_settings"
+        const val KEY_ONCHAIN_REFRESH_INTERVAL_SECONDS = "onchain_refresh_interval_seconds"
     }
 }

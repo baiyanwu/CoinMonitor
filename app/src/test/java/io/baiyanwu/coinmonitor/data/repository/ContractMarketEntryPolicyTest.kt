@@ -38,6 +38,23 @@ class ContractMarketEntryPolicyTest {
         assertTrue(source.contains("MarketType.CEX_USDT_FUTURES -> item.id.substringAfter(\"okx-futures:\")"))
     }
 
+    @Test
+    fun `contract kline keeps binance futures endpoint and okx futures id mapping`() {
+        val networkSource = readSource(
+            rootRelativePath = "app/src/main/java/io/baiyanwu/coinmonitor/data/network/NetworkModels.kt",
+            moduleRelativePath = "src/main/java/io/baiyanwu/coinmonitor/data/network/NetworkModels.kt"
+        )
+        val klineSource = readSource(
+            rootRelativePath = "app/src/main/java/io/baiyanwu/coinmonitor/data/repository/DefaultMarketKlineRepository.kt",
+            moduleRelativePath = "src/main/java/io/baiyanwu/coinmonitor/data/repository/DefaultMarketKlineRepository.kt"
+        )
+
+        assertTrue(networkSource.contains("fapi/v1/klines"))
+        assertTrue(klineSource.contains("fetchBinanceFuturesCandles"))
+        assertTrue(klineSource.contains("substringAfter(\"binance-futures:\")"))
+        assertTrue(klineSource.contains("substringAfter(\"okx-futures:\")"))
+    }
+
     private fun readSource(rootRelativePath: String, moduleRelativePath: String): String {
         val cwd = Paths.get("").toAbsolutePath()
         val path = listOf(

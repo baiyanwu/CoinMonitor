@@ -83,6 +83,8 @@ import io.baiyanwu.coinmonitor.domain.model.AiAnalysisOption
 import io.baiyanwu.coinmonitor.domain.model.AiChatRole
 import io.baiyanwu.coinmonitor.domain.model.KlineIndicator
 import io.baiyanwu.coinmonitor.domain.model.KlineInterval
+import io.baiyanwu.coinmonitor.domain.model.MarketType
+import io.baiyanwu.coinmonitor.domain.model.toOnchainDisplayLabel
 import io.baiyanwu.coinmonitor.domain.model.KlineSource
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
 import io.baiyanwu.coinmonitor.overlay.QuoteFormatter
@@ -304,6 +306,7 @@ private fun KlineTopOverlay(
                     Box(modifier = Modifier.padding(horizontal = 12.dp)) {
                         CompactIntervalRow(
                             selected = state.selectedInterval,
+                            useOnchainLabels = state.selectedItem?.marketType == MarketType.ONCHAIN_TOKEN,
                             onSelect = onSelectInterval
                         )
                     }
@@ -599,6 +602,7 @@ private fun SourceMiniTag(sourceTitle: String) {
 @Composable
 private fun CompactIntervalRow(
     selected: KlineInterval,
+    useOnchainLabels: Boolean,
     onSelect: (KlineInterval) -> Unit
 ) {
     var moreMenuExpanded by remember { mutableStateOf(false) }
@@ -615,7 +619,7 @@ private fun CompactIntervalRow(
     ) {
         PRIMARY_INTERVALS.forEach { interval ->
             CompactTextToggle(
-                text = interval.label,
+                text = if (useOnchainLabels) interval.toOnchainDisplayLabel() else interval.label,
                 selected = interval == selected,
                 onClick = { onSelect(interval) }
             )
@@ -624,7 +628,9 @@ private fun CompactIntervalRow(
             modifier = Modifier.wrapContentHeight(align = Alignment.CenterVertically)
         ) {
             CompactTextToggle(
-                text = extendedInterval?.label ?: moreIntervalLabel,
+                text = extendedInterval?.let { interval ->
+                    if (useOnchainLabels) interval.toOnchainDisplayLabel() else interval.label
+                } ?: moreIntervalLabel,
                 selected = extendedInterval != null,
                 onClick = { moreMenuExpanded = true }
             )
@@ -634,7 +640,11 @@ private fun CompactIntervalRow(
             ) {
                 EXTENDED_INTERVALS.forEach { interval ->
                     DropdownMenuItem(
-                        text = { Text(interval.label) },
+                        text = {
+                            Text(
+                                if (useOnchainLabels) interval.toOnchainDisplayLabel() else interval.label
+                            )
+                        },
                         onClick = {
                             moreMenuExpanded = false
                             onSelect(interval)
@@ -819,7 +829,7 @@ private fun KlineChatComposerBar(
                 )
                 Spacer(modifier = Modifier.size(10.dp))
                 Text(
-                    text = stringResource(R.string.search_onchain_go_settings),
+                    text = stringResource(R.string.kline_ai_configure_dialog_go),
                     style = MaterialTheme.typography.bodySmall,
                     color = colors.accent,
                     fontWeight = FontWeight.SemiBold,

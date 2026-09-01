@@ -1,12 +1,11 @@
 package io.baiyanwu.coinmonitor.data.refresh
 
 import android.util.Log
-import io.baiyanwu.coinmonitor.data.network.OkxOnChainRequestSigner
+import io.baiyanwu.coinmonitor.data.network.NetworkLogRedactor
 import io.baiyanwu.coinmonitor.domain.model.ExchangeSource
 import io.baiyanwu.coinmonitor.domain.model.MarketQuote
 import io.baiyanwu.coinmonitor.domain.model.MarketType
 import io.baiyanwu.coinmonitor.domain.model.NetworkLogProtocol
-import io.baiyanwu.coinmonitor.domain.model.OkxApiCredentials
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
 import io.baiyanwu.coinmonitor.domain.repository.MarketQuoteRepository
 import io.baiyanwu.coinmonitor.domain.repository.NetworkLogRepository
@@ -22,7 +21,6 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
@@ -42,16 +40,14 @@ import java.util.concurrent.TimeUnit
 /**
  * 行情刷新默认优先走交易所官方 WSS，把“每轮全量 HTTP 询价”改成“增量推送”。
  *
- * 当前已经覆盖 Binance Spot / Binance USD-M Futures / Binance Alpha / OKX Spot / OKX USD-M Futures /
- * OKX On-chain 行情链路。
- * 长连接断开后仍会补一轮 REST 快照兜底，保证价格不会因为偶发断连长时间静默。
+ * 当前覆盖 Binance Spot / Binance USD-M Futures / Binance Alpha / OKX Spot / OKX USD-M Futures。
+ * 链上行情独立使用 DexScreener REST 轮询，不参与任何交易所 WSS 生命周期。
  */
 class StreamingQuoteRefreshEngine(
     private val scope: CoroutineScope,
     private val watchlistRepository: WatchlistRepository,
     private val quoteRepository: QuoteRepository,
     private val marketQuoteRepository: MarketQuoteRepository,
-    private val okxCredentialsProvider: suspend () -> OkxApiCredentials? = { null },
     private val networkLogRepository: NetworkLogRepository
 ) : QuoteRefreshEngine {
     private val json = Json {
@@ -74,14 +70,13 @@ class StreamingQuoteRefreshEngine(
     private var binanceFuturesJob: Job? = null
     private var alphaJob: Job? = null
     private var okxJob: Job? = null
-    private var okxOnChainJob: Job? = null
+    private var onchainPollingJob: Job? = null
     private var fallbackJob: Job? = null
     private var flushJob: Job? = null
     private var binanceSocket: WebSocket? = null
     private var binanceFuturesSocket: WebSocket? = null
     private var alphaSocket: WebSocket? = null
     private var okxSocket: WebSocket? = null
-    private var okxOnChainSocket: WebSocket? = null
     private val pendingQuotes = linkedMapOf<String, MarketQuote>()
     private var currentSubscriptionFingerprint: String = ""
 
@@ -89,7 +84,8 @@ class StreamingQuoteRefreshEngine(
         val nextFingerprint = buildSubscriptionFingerprint(config)
         val shouldRestart = nextFingerprint != currentSubscriptionFingerprint ||
             config.enabled != currentConfig.enabled ||
-            config.refreshIntervalMillis != currentConfig.refreshIntervalMillis
+            config.refreshIntervalMillis != currentConfig.refreshIntervalMillis ||
+            config.onchainRefreshIntervalMillis != currentConfig.onchainRefreshIntervalMillis
         currentConfig = config
         if (!shouldRestart) return
 
@@ -116,8 +112,8 @@ class StreamingQuoteRefreshEngine(
         alphaJob = null
         okxJob?.cancel()
         okxJob = null
-        okxOnChainJob?.cancel()
-        okxOnChainJob = null
+        onchainPollingJob?.cancel()
+        onchainPollingJob = null
         fallbackJob?.cancel()
         fallbackJob = null
         flushJob?.cancel()
@@ -136,8 +132,8 @@ class StreamingQuoteRefreshEngine(
         alphaJob = null
         okxJob?.cancel()
         okxJob = null
-        okxOnChainJob?.cancel()
-        okxOnChainJob = null
+        onchainPollingJob?.cancel()
+        onchainPollingJob = null
         fallbackJob?.cancel()
         fallbackJob = null
         closeSockets()
@@ -148,13 +144,13 @@ class StreamingQuoteRefreshEngine(
         val binanceFuturesItems = config.items.filter(::isBinanceUsdtFuturesItem)
         val alphaItems = config.items.filter(::isAlphaSpotItem)
         val okxItems = config.items.filter(::isOkxPublicTickerItem)
-        val okxOnChainItems = config.items.filter(::isOkxOnChainItem)
+        val onchainItems = config.items.filter(::isOnchainItem)
         val fallbackItems = config.items.filterNot { item ->
             isBinanceSpotItem(item) ||
                 isBinanceUsdtFuturesItem(item) ||
                 isAlphaSpotItem(item) ||
                 isOkxPublicTickerItem(item) ||
-                isOkxOnChainItem(item)
+                isOnchainItem(item)
         }
 
         // 首次启动或观察列表变化时先做一轮快照拉取，避免长连接尚未推第一帧时页面出现价格空档。
@@ -182,9 +178,9 @@ class StreamingQuoteRefreshEngine(
                 runOkxSocketLoop(okxItems)
             }
         }
-        if (okxOnChainItems.isNotEmpty()) {
-            okxOnChainJob = scope.launch {
-                runOkxOnChainSocketLoop(okxOnChainItems)
+        if (onchainItems.isNotEmpty()) {
+            onchainPollingJob = scope.launch {
+                runOnchainPollingLoop(onchainItems)
             }
         }
         if (fallbackItems.isNotEmpty()) {
@@ -497,117 +493,15 @@ class StreamingQuoteRefreshEngine(
         }
     }
 
-    private suspend fun runOkxOnChainSocketLoop(items: List<WatchItem>) {
+    private suspend fun runOnchainPollingLoop(items: List<WatchItem>) {
+        val itemIds = items.mapTo(mutableSetOf()) { it.id }
         while (scope.isActive && currentConfig.enabled) {
-            val credentials = okxCredentialsProvider()
-            if (credentials == null || !credentials.enabled || !credentials.isReady) {
-                Log.w(TAG, "OKX on-chain WSS skipped because credentials are unavailable")
-                refreshQuotes(currentConfig.items.filter(::isOkxOnChainItem))
-                delay(resolveReconnectDelayMillis())
-                continue
+            val currentItems = currentConfig.items.filter { item ->
+                item.id in itemIds && isOnchainItem(item)
             }
-
-            val subscribedItems = items.filter { item ->
-                !item.chainIndex.isNullOrBlank() && !item.tokenAddress.isNullOrBlank()
-            }
-            if (subscribedItems.isEmpty()) return
-
-            val closed = CompletableDeferred<Unit>()
-            val loginCompleted = CompletableDeferred<Boolean>()
-            var lastMessageTimestamp = System.currentTimeMillis()
-            var heartbeatJob: Job? = null
-            val request = Request.Builder()
-                .url(OKX_ONCHAIN_PUBLIC_WS_URL)
-                .build()
-
-            okxOnChainSocket = okHttpClient.newWebSocket(
-                request,
-                object : WebSocketListener() {
-                    override fun onOpen(webSocket: WebSocket, response: Response) {
-                        logWs("WS OPEN okx-onchain $OKX_ONCHAIN_PUBLIC_WS_URL")
-                        logWs(
-                            line = "WS SEND okx-onchain login",
-                            detail = buildOkxOnChainLoginRequest(credentials).toString()
-                        )
-                        webSocket.send(buildOkxOnChainLoginRequest(credentials).toString())
-
-                        heartbeatJob = scope.launch {
-                            while (isActive) {
-                                delay(25_000L)
-                                if (System.currentTimeMillis() - lastMessageTimestamp >= 25_000L) {
-                                    webSocket.send("ping")
-                                }
-                            }
-                        }
-                    }
-
-                    override fun onMessage(webSocket: WebSocket, text: String) {
-                        lastMessageTimestamp = System.currentTimeMillis()
-                        if (text == "pong") return
-
-                        logWs("WS RECV okx-onchain $text")
-                        when {
-                            handleOkxOnChainLoginMessage(
-                                text = text,
-                                webSocket = webSocket,
-                                items = subscribedItems,
-                                loginCompleted = loginCompleted
-                            ) -> Unit
-
-                            else -> {
-                                parseOkxOnChainPriceMessages(text, subscribedItems).forEach { quote ->
-                                    scope.launch {
-                                        enqueueQuote(quote)
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
-                        heartbeatJob?.cancel()
-                        webSocket.close(code, reason)
-                        loginCompleted.complete(false)
-                        closed.complete(Unit)
-                    }
-
-                    override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
-                        heartbeatJob?.cancel()
-                        loginCompleted.complete(false)
-                        closed.complete(Unit)
-                    }
-
-                    override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-                        heartbeatJob?.cancel()
-                        logWs(
-                            line = "WS FAIL okx-onchain ${t.javaClass.simpleName}: ${t.message.orEmpty()}",
-                            detail = t.stackTraceToString()
-                        )
-                        Log.w(TAG, "OKX on-chain WSS failed: ${t.message}")
-                        loginCompleted.complete(false)
-                        closed.complete(Unit)
-                    }
-                }
-            )
-
-            // 登录阶段如果失败，仍然保留 REST 兜底，避免用户看到链上价格整块静默。
-            if (!loginCompleted.await()) {
-                Log.w(TAG, "OKX on-chain WSS login failed, fallback to REST")
-                heartbeatJob?.cancel()
-                okxOnChainSocket?.close(1000, "login_failed")
-                okxOnChainSocket = null
-                refreshQuotes(currentConfig.items.filter(::isOkxOnChainItem))
-                delay(resolveReconnectDelayMillis())
-                continue
-            }
-
-            closed.await()
-            heartbeatJob?.cancel()
-            okxOnChainSocket = null
-            if (!scope.isActive || !currentConfig.enabled) break
-
-            refreshQuotes(currentConfig.items.filter(::isOkxOnChainItem))
-            delay(resolveReconnectDelayMillis())
+            if (currentItems.isEmpty()) return
+            delay(currentConfig.onchainRefreshIntervalMillis)
+            refreshQuotes(currentItems)
         }
     }
 
@@ -652,8 +546,6 @@ class StreamingQuoteRefreshEngine(
         alphaSocket = null
         okxSocket?.close(1000, "restart")
         okxSocket = null
-        okxOnChainSocket?.close(1000, "restart")
-        okxOnChainSocket = null
     }
 
     private fun resolveReconnectDelayMillis(): Long {
@@ -753,108 +645,6 @@ class StreamingQuoteRefreshEngine(
         )
     }
 
-    private fun buildOkxOnChainLoginRequest(credentials: OkxApiCredentials): JsonObject {
-        val timestamp = OkxOnChainRequestSigner.buildUnixTimestampSeconds()
-        val sign = OkxOnChainRequestSigner.buildSignature(
-            timestamp = timestamp,
-            method = "GET",
-            requestPath = OKX_ONCHAIN_LOGIN_PATH,
-            secret = credentials.secretKey
-        )
-        return buildJsonObject {
-            put("op", "login")
-            put("args", buildJsonArray {
-                add(
-                    buildJsonObject {
-                        put("apiKey", credentials.apiKey)
-                        put("passphrase", credentials.passphrase)
-                        put("timestamp", timestamp)
-                        put("sign", sign)
-                    }
-                )
-            })
-        }
-    }
-
-    /**
-     * 登录成功后再发价格频道订阅，避免把鉴权前置条件散落到连接生命周期各处。
-     */
-    private fun handleOkxOnChainLoginMessage(
-        text: String,
-        webSocket: WebSocket,
-        items: List<WatchItem>,
-        loginCompleted: CompletableDeferred<Boolean>
-    ): Boolean {
-        val payload = runCatching {
-            json.parseToJsonElement(text).jsonObject
-        }.getOrNull() ?: return false
-        val event = payload["event"]?.jsonPrimitive?.contentOrNull ?: return false
-        if (event != "login" && event != "error") return false
-
-        val success = event == "login" && payload["code"]?.jsonPrimitive?.contentOrNull == "0"
-        if (success) {
-            val subscribeRequest = buildOkxOnChainSubscribeRequest(items).toString()
-            logWs(
-                line = "WS SEND okx-onchain subscribe ${items.size}",
-                detail = subscribeRequest
-            )
-            webSocket.send(subscribeRequest)
-        } else {
-            Log.w(TAG, "OKX on-chain WSS login response failed: $text")
-        }
-        loginCompleted.complete(success)
-        return true
-    }
-
-    private fun buildOkxOnChainSubscribeRequest(items: List<WatchItem>): JsonObject {
-        return buildJsonObject {
-            put("op", "subscribe")
-            put("args", buildJsonArray {
-                items.forEach { item ->
-                    val chainIndex = item.chainIndex ?: return@forEach
-                    val tokenAddress = item.tokenAddress ?: return@forEach
-                    add(
-                        buildJsonObject {
-                            put("channel", "price")
-                            put("chainIndex", chainIndex)
-                            put("tokenContractAddress", normalizeOkxOnChainTokenAddress(item))
-                        }
-                    )
-                }
-            })
-        }
-    }
-
-    private fun parseOkxOnChainPriceMessages(
-        text: String,
-        items: List<WatchItem>
-    ): List<MarketQuote> {
-        val payload = runCatching {
-            json.parseToJsonElement(text).jsonObject
-        }.getOrNull() ?: return emptyList()
-        val arg = payload["arg"]?.jsonObject ?: return emptyList()
-        if (arg["channel"]?.jsonPrimitive?.contentOrNull != "price") return emptyList()
-
-        val chainIndex = arg["chainIndex"]?.jsonPrimitive?.contentOrNull ?: return emptyList()
-        val tokenAddress = arg["tokenContractAddress"]?.jsonPrimitive?.contentOrNull ?: return emptyList()
-        val item = items.firstOrNull { candidate ->
-            candidate.chainIndex == chainIndex &&
-                normalizeOkxOnChainTokenAddress(candidate).equals(tokenAddress, ignoreCase = true)
-        } ?: return emptyList()
-
-        val priceRow = payload["data"]?.jsonArray?.firstOrNull()?.jsonObject ?: return emptyList()
-        val price = priceRow["price"]?.jsonPrimitive?.doubleOrNull ?: return emptyList()
-        return listOf(
-            MarketQuote(
-                id = item.id,
-                symbol = item.symbol,
-                name = item.name,
-                priceUsd = price,
-                change24hPercent = null
-            )
-        )
-    }
-
     private fun parseAlphaTickerMessage(
         text: String,
         symbolMap: Map<String, WatchItem>
@@ -907,9 +697,8 @@ class StreamingQuoteRefreshEngine(
             item.exchangeSource == ExchangeSource.BINANCE_ALPHA
     }
 
-    private fun isOkxOnChainItem(item: WatchItem): Boolean {
-        return item.marketType == MarketType.ONCHAIN_TOKEN &&
-            item.exchangeSource == ExchangeSource.OKX
+    private fun isOnchainItem(item: WatchItem): Boolean {
+        return item.marketType == MarketType.ONCHAIN_TOKEN
     }
 
     private fun resolveOkxInstrumentId(item: WatchItem): String {
@@ -919,23 +708,11 @@ class StreamingQuoteRefreshEngine(
         }.uppercase()
     }
 
-    /**
-     * OKX 要求 EVM 地址走全小写，Solana 地址则必须保留原始大小写。
-     */
-    private fun normalizeOkxOnChainTokenAddress(item: WatchItem): String {
-        val tokenAddress = item.tokenAddress.orEmpty()
-        return if (tokenAddress.startsWith("0x", ignoreCase = true)) {
-            tokenAddress.lowercase()
-        } else {
-            tokenAddress
-        }
-    }
-
     private fun logWs(line: String, detail: String = line) {
         networkLogRepository.append(
             protocol = NetworkLogProtocol.WSS,
-            line = line,
-            detail = detail
+            line = NetworkLogRedactor.redactText(line),
+            detail = NetworkLogRedactor.redactText(detail)
         )
     }
 
@@ -945,8 +722,6 @@ class StreamingQuoteRefreshEngine(
         private const val BINANCE_FUTURES_PUBLIC_WS_URL = "wss://fstream.binance.com/market/ws"
         private const val ALPHA_PUBLIC_WS_URL = "wss://nbstream.binance.com/w3w/wsa/stream"
         private const val OKX_PUBLIC_WS_URL = "wss://ws.okx.com:8443/ws/v5/public"
-        private const val OKX_ONCHAIN_PUBLIC_WS_URL = "wss://wsdex.okx.com/ws/v6/dex"
-        private const val OKX_ONCHAIN_LOGIN_PATH = "/users/self/verify"
         private const val MIN_RECONNECT_DELAY_MILLIS = 15_000L
     }
 }

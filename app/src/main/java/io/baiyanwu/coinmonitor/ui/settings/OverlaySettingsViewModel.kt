@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import io.baiyanwu.coinmonitor.data.AppContainer
+import io.baiyanwu.coinmonitor.domain.model.OverlayEdgeDisplayMode
 import io.baiyanwu.coinmonitor.domain.model.OverlayLeadingDisplayMode
 import io.baiyanwu.coinmonitor.domain.model.OverlaySettings
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
@@ -91,6 +92,24 @@ class OverlaySettingsViewModel(
     fun setSnapToEdge(enabled: Boolean) {
         viewModelScope.launch {
             overlayRepository.setSnapToEdge(enabled)
+        }
+    }
+
+    fun setEdgeDisplayMode(mode: OverlayEdgeDisplayMode) {
+        viewModelScope.launch {
+            overlayRepository.setEdgeDisplayMode(mode)
+        }
+    }
+
+    fun setEdgeTabOpacity(opacity: Float) {
+        viewModelScope.launch {
+            overlayRepository.setEdgeTabOpacity(opacity)
+        }
+    }
+
+    fun setEdgeAutoCollapseSeconds(seconds: Int) {
+        viewModelScope.launch {
+            overlayRepository.setEdgeAutoCollapseSeconds(seconds)
         }
     }
 

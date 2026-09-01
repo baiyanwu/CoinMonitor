@@ -9,6 +9,8 @@ data class WatchItem(
     val chainFamily: ChainFamily? = null,
     val chainIndex: String? = null,
     val tokenAddress: String? = null,
+    val poolAddress: String? = null,
+    val poolTokenSide: PoolTokenSide? = null,
     val iconUrl: String? = null,
     val overlaySelected: Boolean = false,
     val addedAt: Long,
@@ -19,7 +21,9 @@ data class WatchItem(
     val previousPrice: Double? = null,
     val liveTrend: LivePriceTrend = LivePriceTrend.NEUTRAL,
     val change24hPercent: Double? = null,
-    val lastUpdatedAt: Long? = null
+    val lastUpdatedAt: Long? = null,
+    val selectedPool: OnchainPoolOption? = null,
+    val poolOptions: List<OnchainPoolOption> = emptyList()
 ) {
     val baseSymbol: String
         get() {
@@ -34,6 +38,15 @@ data class WatchItem(
                 normalizedSymbol.contains("/") -> normalizedSymbol.substringBefore("/")
                 else -> normalizedSymbol
             }
+        }
+
+    val semanticKey: String
+        get() = if (marketType == MarketType.ONCHAIN_TOKEN) {
+            val chain = chainIndex.orEmpty()
+            val address = normalizeOnchainAddress(chainFamily, tokenAddress.orEmpty())
+            if (chain.isNotBlank() && address.isNotBlank()) "onchain:$chain:$address" else id
+        } else {
+            id
         }
 
     companion object {

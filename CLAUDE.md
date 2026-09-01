@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-CoinMonitor — Android crypto price monitoring app (Kotlin + Jetpack Compose). Watchlist + floating overlay workflow. Tracks Binance, Binance Alpha, OKX spot pairs and on-chain tokens via OKX DEX Market API.
+CoinMonitor — Android crypto price monitoring app (Kotlin + Jetpack Compose). Watchlist + floating overlay workflow. Tracks Binance, Binance Alpha, OKX exchange pairs, plus DexScreener/GeckoTerminal on-chain market data.
 
 ## Build & Test Commands
 
@@ -37,7 +37,7 @@ Source root: `app/src/main/java/io/baiyanwu/coinmonitor/`
 
 ```
 boot/        Boot/upgrade broadcast receivers
-data/        Database (Room), network (Retrofit/OkHttp), repositories, refresh engines
+data/        Room, Preferences DataStore, network clients, repositories, refresh engines
 domain/      Core models (WatchItem, MarketQuote, etc.) and repository interfaces
 overlay/     Floating overlay: foreground service, WindowManager views, permission handling
 ui/          Compose screens, ViewModels, themes
@@ -53,7 +53,7 @@ Manual DI via `AppContainer` (created in `CoinMonitorApp`). Access globally via 
 
 ```
 GlobalQuoteRefreshCoordinator
-  → StreamingQuoteRefreshEngine (4 concurrent WSS connections: Binance Spot, Binance Alpha, OKX Spot, OKX On-chain)
+  → StreamingQuoteRefreshEngine (exchange WSS plus independent DexScreener on-chain polling)
   → InMemoryQuoteRepository (StateFlow-based in-memory state)
   → UI / Overlay subscribe to per-item quote flows
 ```
@@ -64,9 +64,10 @@ WSS-first with REST snapshot fallback on disconnect. Subscription fingerprinting
 
 - Prices flow through in-memory `QuoteRepository` via StateFlow, not Room on every WSS push (reduces scroll jank)
 - Overlay uses `WindowManager + View` (not Compose) for stability
-- Room schema version 7, explicit migrations only (no destructive migrations)
+- All overlay settings live in Preferences DataStore; overlay-related Room access is limited to WatchItem data and `overlaySelected`
+- Room schema version 8, explicit migrations only (no destructive migrations)
 - Secondary screens (Search, Overlay Settings, etc.) are separate Activities, not Compose destinations
-- OKX on-chain credentials stored locally via AndroidX Security Crypto, never uploaded
+- Public on-chain data uses DexScreener for search/quotes and GeckoTerminal for candlesticks; neither requires an API key
 
 ## Commit Style
 

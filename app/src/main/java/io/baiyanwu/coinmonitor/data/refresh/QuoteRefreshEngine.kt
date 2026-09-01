@@ -5,7 +5,7 @@ import io.baiyanwu.coinmonitor.domain.model.WatchItem
 /**
  * 全局行情刷新引擎的统一抽象。
  *
- * 当前先落轮询实现，后续切到交易所或链上的 WSS 时，只需要新增新的引擎实现并保持这一层契约不变，
+ * 交易所可以使用 WSS，链上价格固定走独立 REST 轮询；两类刷新都保持这一层契约不变，
  * 首页和悬浮窗都不需要再改调用方式。
  */
 interface QuoteRefreshEngine {
@@ -27,5 +27,6 @@ interface QuoteRefreshEngine {
 data class QuoteRefreshConfig(
     val enabled: Boolean,
     val items: List<WatchItem>,
-    val refreshIntervalMillis: Long
+    val refreshIntervalMillis: Long,
+    val onchainRefreshIntervalMillis: Long = 45_000L
 )
