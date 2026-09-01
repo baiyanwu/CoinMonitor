@@ -1,6 +1,6 @@
 # Changelog
 
-## v1.0.6 (Unreleased)
+## v1.0.6 (2026-09-01)
 
 - 链上搜索和价格完全切换到无需 API Key 的 DexScreener，K 线切换到 GeckoTerminal；移除原链上接口、WSS、签名和凭证设置
 - Room 升级到 v8，旧链上观察项保留原 ID 并迁移到通用 `ONCHAIN` 来源，首次刷新时自动持久化固定池地址与代币方向
