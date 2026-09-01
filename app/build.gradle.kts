@@ -2,8 +2,8 @@ import java.util.Properties
 
 // 统一维护应用版本信息，避免版本展示与打包产物命名脱节。
 val appArtifactName = "coinmonitor"
-val appVersionCode = 5
-val appVersionName = "1.0.5"
+val appVersionCode = 6
+val appVersionName = "1.0.6"
 
 plugins {
     alias(libs.plugins.android.application)
@@ -113,6 +113,10 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+
+    sourceSets {
+        getByName("androidTest").assets.srcDir("$projectDir/schemas")
+    }
 }
 
 dependencies {
@@ -131,6 +135,7 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
+    implementation(libs.androidx.datastore.preferences)
     ksp(libs.androidx.room.compiler)
     implementation(libs.retrofit)
     implementation(libs.retrofit.kotlinx.serialization)
@@ -146,6 +151,7 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+    androidTestImplementation(libs.androidx.room.testing)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)

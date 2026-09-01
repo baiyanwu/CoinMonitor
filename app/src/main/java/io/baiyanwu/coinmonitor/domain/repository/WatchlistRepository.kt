@@ -2,6 +2,7 @@ package io.baiyanwu.coinmonitor.domain.repository
 
 import io.baiyanwu.coinmonitor.domain.model.MarketQuote
 import io.baiyanwu.coinmonitor.domain.model.QuoteState
+import io.baiyanwu.coinmonitor.domain.model.PoolTokenSide
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
 import kotlinx.coroutines.flow.Flow
 
@@ -16,4 +17,5 @@ interface WatchlistRepository {
     suspend fun movePinnedHomeItem(id: String, targetBeforeId: String?)
     suspend fun updateQuotes(quotes: List<MarketQuote>)
     suspend fun persistQuoteSnapshot(quotes: Map<String, QuoteState>)
+    suspend fun updateOnchainPoolBinding(id: String, poolAddress: String, side: PoolTokenSide): Boolean
 }

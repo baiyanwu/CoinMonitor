@@ -8,16 +8,25 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import io.baiyanwu.coinmonitor.R
 import io.baiyanwu.coinmonitor.data.AppContainer
+import io.baiyanwu.coinmonitor.data.repository.PartialExchangeSearchException
+import io.baiyanwu.coinmonitor.domain.model.ChainFamily
+import io.baiyanwu.coinmonitor.domain.model.OnchainPoolOption
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
+import io.baiyanwu.coinmonitor.domain.model.normalizeOnchainAddress
+import io.baiyanwu.coinmonitor.domain.model.onchainAddressesEqual
 import io.baiyanwu.coinmonitor.domain.repository.AppPreferencesRepository
 import io.baiyanwu.coinmonitor.domain.repository.MarketQuoteRepository
 import io.baiyanwu.coinmonitor.domain.repository.MarketSearchRepository
-import io.baiyanwu.coinmonitor.domain.repository.OkxCredentialsRepository
 import io.baiyanwu.coinmonitor.domain.repository.WatchlistRepository
 import io.baiyanwu.coinmonitor.ui.AppConfigurationApplier
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -32,163 +41,303 @@ enum class SearchEntryMode {
 }
 
 data class SearchUiState(
-    val query: String = "",
     val searchMode: SearchMode = SearchMode.EXCHANGE,
+    val exchangePage: SearchPageState = SearchPageState(),
+    val onchainPage: SearchPageState = SearchPageState(),
+    val addedSemanticKeys: Set<String> = emptySet(),
+    val existingIdsBySemanticKey: Map<String, String> = emptyMap()
+) {
+    fun pageState(mode: SearchMode): SearchPageState = when (mode) {
+        SearchMode.EXCHANGE -> exchangePage
+        SearchMode.ONCHAIN -> onchainPage
+    }
+
+    val activePageState: SearchPageState
+        get() = pageState(searchMode)
+}
+
+data class SearchPageState(
+    val query: String = "",
     val loading: Boolean = false,
     val hasSearched: Boolean = false,
     val results: List<WatchItem> = emptyList(),
-    val addedIds: Set<String> = emptySet(),
-    val errorMessage: String? = null,
-    val hasOkxCredentials: Boolean = false
+    val errorMessage: String? = null
 )
 
-data class OnchainSearchSelection(
-    val chainIndex: String
+internal fun SearchUiState.updatePageState(
+    mode: SearchMode,
+    transform: (SearchPageState) -> SearchPageState
+): SearchUiState = when (mode) {
+    SearchMode.EXCHANGE -> copy(exchangePage = transform(exchangePage))
+    SearchMode.ONCHAIN -> copy(onchainPage = transform(onchainPage))
+}
+
+internal fun SearchPageState.withSearchResults(results: List<WatchItem>): SearchPageState = copy(
+    loading = false,
+    hasSearched = true,
+    results = results,
+    errorMessage = null
 )
+
+internal fun shouldSkipDuplicateSearch(
+    submittedQuery: String?,
+    currentQuery: String,
+    pageState: SearchPageState
+): Boolean {
+    return submittedQuery == currentQuery &&
+        (pageState.loading || (pageState.hasSearched && pageState.errorMessage == null))
+}
+
+internal fun SearchPageState.withSelectedOnchainPool(
+    semanticKey: String,
+    option: OnchainPoolOption
+): SearchPageState = copy(
+    results = results.map { item ->
+        if (item.semanticKey == semanticKey) item.withSelectedPool(option) else item
+    }
+)
+
+private fun WatchItem.withSelectedPool(option: OnchainPoolOption): WatchItem = copy(
+    poolAddress = normalizeOnchainAddress(chainFamily, option.poolAddress),
+    poolTokenSide = option.tokenSide,
+    lastPrice = option.priceUsd,
+    change24hPercent = option.change24hPercent,
+    lastUpdatedAt = System.currentTimeMillis(),
+    selectedPool = option
+)
+
+internal class LatestPoolSelectionTracker {
+    private val generations = mutableMapOf<String, Long>()
+
+    @Synchronized
+    fun next(semanticKey: String): Long {
+        val generation = (generations[semanticKey] ?: 0L) + 1L
+        generations[semanticKey] = generation
+        return generation
+    }
+
+    @Synchronized
+    fun isCurrent(semanticKey: String, generation: Long): Boolean {
+        return generations[semanticKey] == generation
+    }
+}
+
+internal fun CoroutineScope.createOrderedPoolSelectionJob(
+    previousJob: Job?,
+    block: suspend () -> Unit
+): Job = launch(start = CoroutineStart.LAZY) {
+    previousJob?.join()
+    block()
+}
 
 class SearchViewModel(
     private val appContext: Context,
     private val appPreferencesRepository: AppPreferencesRepository,
     private val watchlistRepository: WatchlistRepository,
     private val marketSearchRepository: MarketSearchRepository,
-    private val marketQuoteRepository: MarketQuoteRepository,
-    private val okxCredentialsRepository: OkxCredentialsRepository
+    private val marketQuoteRepository: MarketQuoteRepository
 ) : ViewModel() {
-    private val _uiState = MutableStateFlow(
-        SearchUiState(
-            hasOkxCredentials = resolveOkxCredentialConfigured()
-        )
-    )
+    private val _uiState = MutableStateFlow(SearchUiState())
     val uiState: StateFlow<SearchUiState> = _uiState.asStateFlow()
+    private val searchJobs = mutableMapOf<SearchMode, Job>()
+    private val submittedQueries = mutableMapOf<SearchMode, String>()
+    private val poolSelectionJobs = mutableMapOf<String, Job>()
+    private val poolSelectionTracker = LatestPoolSelectionTracker()
+    private var persistedItemsBySemanticKey: Map<String, WatchItem> = emptyMap()
 
     init {
         viewModelScope.launch {
             watchlistRepository.observeWatchlist().collect { items ->
-                _uiState.update { it.copy(addedIds = items.map { row -> row.id }.toSet()) }
-            }
-        }
-        viewModelScope.launch {
-            okxCredentialsRepository.observeCredentials().collect { credentials ->
-                _uiState.update {
-                    it.copy(hasOkxCredentials = credentials.enabled && credentials.isReady)
+                val existingIds = items.associate { row -> row.semanticKey to row.id }
+                persistedItemsBySemanticKey = items.associateBy(WatchItem::semanticKey)
+                _uiState.update { state ->
+                    state.copy(
+                        addedSemanticKeys = existingIds.keys,
+                        existingIdsBySemanticKey = existingIds,
+                        onchainPage = state.onchainPage.copy(
+                            results = state.onchainPage.results.map(::bindPersistedPoolSelection)
+                        )
+                    )
                 }
             }
         }
     }
 
-    fun updateQuery(query: String) {
-        _uiState.update { it.copy(query = query) }
-    }
-
-    fun setSearchMode(mode: SearchMode) {
-        val hasOkxCredentials = resolveOkxCredentialConfigured()
-        _uiState.update {
-            if (it.searchMode == mode) {
-                it.copy(hasOkxCredentials = hasOkxCredentials)
-            } else {
+    fun updateQuery(mode: SearchMode, query: String) {
+        searchJobs.remove(mode)?.cancel()
+        val normalizedQuery = normalizeSubmittedQuery(mode, query)
+        if (submittedQueries[mode] != normalizedQuery) {
+            submittedQueries.remove(mode)
+        }
+        _uiState.update { state ->
+            state.updatePageState(mode) {
                 it.copy(
-                    searchMode = mode,
+                    query = query,
                     loading = false,
                     hasSearched = false,
-                    errorMessage = null,
-                    hasOkxCredentials = hasOkxCredentials
+                    results = emptyList(),
+                    errorMessage = null
                 )
             }
         }
     }
 
-    fun clearQuery() {
-        _uiState.update {
-            it.copy(
-                query = "",
-                loading = false,
-                hasSearched = false,
-                results = emptyList(),
-                errorMessage = null
-            )
+    fun setSearchMode(mode: SearchMode) {
+        _uiState.update { state ->
+            if (state.searchMode == mode) state else state.copy(searchMode = mode)
         }
     }
 
-    /**
-     * 链上模式必须显式带上当前选中的链，否则请求会退回成“全链搜索”，结果会被严重放大。
-     */
-    fun search(onchainSelection: OnchainSearchSelection? = null) {
-        val hasOkxCredentials = resolveOkxCredentialConfigured()
-        _uiState.update { it.copy(hasOkxCredentials = hasOkxCredentials) }
-        val currentState = uiState.value.copy(hasOkxCredentials = hasOkxCredentials)
-        val keyword = currentState.query.trim()
-        if (keyword.isBlank()) return
+    fun clearQuery(mode: SearchMode) {
+        searchJobs.remove(mode)?.cancel()
+        submittedQueries.remove(mode)
+        _uiState.update { state ->
+            state.updatePageState(mode) { SearchPageState() }
+        }
+    }
 
-        if (currentState.searchMode == SearchMode.ONCHAIN && !currentState.hasOkxCredentials) {
-            viewModelScope.launch {
-                _uiState.update {
-                    it.copy(
-                        loading = false,
-                        hasSearched = true,
-                        results = emptyList(),
-                        errorMessage = AppConfigurationApplier.getString(
-                            context = appContext,
-                            preferences = appPreferencesRepository.getPreferences(),
-                            resId = R.string.search_onchain_credential_missing
-                        )
-                    )
-                }
-            }
+    fun search(mode: SearchMode) {
+        val currentState = uiState.value
+        val keyword = currentState.pageState(mode).query.trim()
+        if (keyword.isBlank()) return
+        val submittedQuery = normalizeSubmittedQuery(mode, keyword)
+        if (shouldSkipDuplicateSearch(
+                submittedQuery = submittedQueries[mode],
+                currentQuery = submittedQuery,
+                pageState = currentState.pageState(mode)
+            )
+        ) {
             return
         }
 
-        viewModelScope.launch {
-            _uiState.update { it.copy(loading = true, hasSearched = true, errorMessage = null) }
-            runCatching {
-                when (currentState.searchMode) {
-                    SearchMode.EXCHANGE -> marketSearchRepository.searchExchange(keyword)
-                    SearchMode.ONCHAIN -> marketSearchRepository.searchOnchain(
-                        keyword = keyword,
-                        chainIndex = onchainSelection?.chainIndex.orEmpty()
-                    )
-                }
-            }.onSuccess { results ->
-                _uiState.update {
+        searchJobs.remove(mode)?.cancel()
+        submittedQueries[mode] = submittedQuery
+        searchJobs[mode] = viewModelScope.launch {
+            _uiState.update { state ->
+                state.updatePageState(mode) {
                     it.copy(
-                        loading = false,
+                        loading = true,
                         hasSearched = true,
-                        results = results,
+                        results = emptyList(),
                         errorMessage = null
                     )
                 }
-            }.onFailure { error ->
-                _uiState.update {
-                    it.copy(
-                        loading = false,
-                        hasSearched = true,
-                        errorMessage = error.message ?: AppConfigurationApplier.getString(
-                            context = appContext,
-                            preferences = appPreferencesRepository.getPreferences(),
-                            resId = R.string.error_search_retry
+            }
+            try {
+                when (mode) {
+                    SearchMode.EXCHANGE -> {
+                        marketSearchRepository.searchExchange(keyword).collect { results ->
+                            _uiState.update { state ->
+                                state.updatePageState(mode) {
+                                    it.withSearchResults(results)
+                                }
+                            }
+                        }
+                    }
+                    SearchMode.ONCHAIN -> {
+                        val results = marketSearchRepository.searchOnchain(keyword)
+                            .map(::bindPersistedPoolSelection)
+                        _uiState.update { state ->
+                            state.updatePageState(mode) {
+                                it.withSearchResults(results)
+                            }
+                        }
+                    }
+                }
+                _uiState.update { state ->
+                    state.updatePageState(mode) {
+                        it.copy(
+                            loading = false,
+                            hasSearched = true,
+                            errorMessage = null
                         )
+                    }
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                if (submittedQueries[mode] == submittedQuery) {
+                    submittedQueries.remove(mode)
+                }
+                val preferences = appPreferencesRepository.getPreferences()
+                val errorMessage = if (error is PartialExchangeSearchException) {
+                    AppConfigurationApplier.getString(
+                        context = appContext,
+                        preferences = preferences,
+                        resId = R.string.error_search_partial_sources
                     )
+                } else {
+                    error.message ?: AppConfigurationApplier.getString(
+                        context = appContext,
+                        preferences = preferences,
+                        resId = R.string.error_search_retry
+                    )
+                }
+                _uiState.update { state ->
+                    state.updatePageState(mode) {
+                        it.copy(
+                            loading = false,
+                            hasSearched = true,
+                            errorMessage = errorMessage
+                        )
+                    }
                 }
             }
         }
+    }
+
+    private fun normalizeSubmittedQuery(mode: SearchMode, query: String): String {
+        val trimmed = query.trim()
+        return if (mode == SearchMode.EXCHANGE) trimmed.uppercase() else trimmed
     }
 
     fun toggleWatchItem(item: WatchItem) {
         viewModelScope.launch {
-            if (uiState.value.addedIds.contains(item.id)) {
-                watchlistRepository.remove(item.id)
+            val existingId = uiState.value.existingIdsBySemanticKey[item.semanticKey]
+            if (existingId != null) {
+                watchlistRepository.remove(existingId)
                 return@launch
             }
 
             val itemToSave = item.copy(addedAt = System.currentTimeMillis())
-            watchlistRepository.add(itemToSave)
-            runCatching {
-                marketQuoteRepository.fetchQuotes(listOf(itemToSave))
-            }.onSuccess { quotes ->
-                if (quotes.isNotEmpty()) {
-                    watchlistRepository.updateQuotes(quotes)
+            addAndRefresh(itemToSave)
+        }
+    }
+
+    fun selectOnchainPool(item: WatchItem, option: OnchainPoolOption) {
+        if (item.poolAddress != null &&
+            item.chainFamily != null &&
+            onchainAddressesEqual(item.chainFamily, item.poolAddress, option.poolAddress)
+        ) {
+            return
+        }
+
+        val updatedItem = item.withSelectedPool(option)
+        _uiState.update { state ->
+            state.updatePageState(SearchMode.ONCHAIN) { page ->
+                page.withSelectedOnchainPool(item.semanticKey, option)
+            }
+        }
+
+        val existingId = uiState.value.existingIdsBySemanticKey[item.semanticKey] ?: return
+        val semanticKey = item.semanticKey
+        val generation = poolSelectionTracker.next(semanticKey)
+        val previousJob = poolSelectionJobs.remove(semanticKey)
+        previousJob?.cancel()
+        val job = viewModelScope.createOrderedPoolSelectionJob(previousJob) {
+            try {
+                // 等上一代数据库写入彻底结束后再落新选择，保证最后一次点击最终胜出。
+                persistPoolSelectionAndRefresh(existingId, updatedItem) {
+                    poolSelectionTracker.isCurrent(semanticKey, generation)
+                }
+            } finally {
+                if (poolSelectionTracker.isCurrent(semanticKey, generation)) {
+                    poolSelectionJobs.remove(semanticKey)
                 }
             }
         }
+        poolSelectionJobs[semanticKey] = job
+        job.start()
     }
 
     /**
@@ -196,21 +345,73 @@ class SearchViewModel(
      */
     fun selectItemForKline(item: WatchItem, onCompleted: (String) -> Unit) {
         viewModelScope.launch {
-            val targetItem = if (uiState.value.addedIds.contains(item.id)) {
-                item
+            val existingId = uiState.value.existingIdsBySemanticKey[item.semanticKey]
+            val targetId = if (existingId != null) {
+                persistPoolSelectionAndRefresh(existingId, item)
+                existingId
             } else {
                 val itemToSave = item.copy(addedAt = System.currentTimeMillis())
-                watchlistRepository.add(itemToSave)
-                runCatching {
-                    marketQuoteRepository.fetchQuotes(listOf(itemToSave))
-                }.onSuccess { quotes ->
-                    if (quotes.isNotEmpty()) {
-                        watchlistRepository.updateQuotes(quotes)
-                    }
-                }
-                itemToSave
+                addAndRefresh(itemToSave).id
             }
-            onCompleted(targetItem.id)
+            onCompleted(targetId)
+        }
+    }
+
+    private suspend fun addAndRefresh(item: WatchItem): WatchItem {
+        watchlistRepository.add(item)
+        val persistedItem = watchlistRepository.getWatchlist()
+            .firstOrNull { it.semanticKey == item.semanticKey }
+            ?: item
+        val quotes = try {
+            marketQuoteRepository.fetchQuotes(listOf(persistedItem))
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            emptyList()
+        }
+        if (quotes.isNotEmpty()) {
+            watchlistRepository.updateQuotes(quotes)
+        }
+        return persistedItem
+    }
+
+    private fun bindPersistedPoolSelection(item: WatchItem): WatchItem {
+        val persisted = persistedItemsBySemanticKey[item.semanticKey] ?: return item
+        val persistedPool = persisted.poolAddress?.takeIf(String::isNotBlank) ?: return item
+        val family = item.chainFamily ?: return item
+        val matchingOption = item.poolOptions.firstOrNull { option ->
+            onchainAddressesEqual(family, option.poolAddress, persistedPool)
+        } ?: return item
+        return item.withSelectedPool(matchingOption)
+    }
+
+    private suspend fun persistPoolSelectionAndRefresh(
+        existingId: String,
+        item: WatchItem,
+        isCurrent: () -> Boolean = { true }
+    ) {
+        if (!isCurrent()) return
+        val poolAddress = item.poolAddress?.takeIf(String::isNotBlank) ?: return
+        val side = item.poolTokenSide ?: return
+        val persisted = persistedItemsBySemanticKey[item.semanticKey]
+        val family = item.chainFamily ?: persisted?.chainFamily ?: ChainFamily.EVM
+        val unchanged = persisted?.poolAddress?.let { currentPool ->
+            onchainAddressesEqual(family, currentPool, poolAddress) && persisted.poolTokenSide == side
+        } == true
+        if (unchanged) return
+
+        if (!watchlistRepository.updateOnchainPoolBinding(existingId, poolAddress, side)) return
+        if (!isCurrent()) return
+        val quotes = try {
+            marketQuoteRepository.fetchQuotes(listOf(item.copy(id = existingId)))
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            emptyList()
+        }
+        if (!isCurrent()) return
+        if (quotes.isNotEmpty()) {
+            watchlistRepository.updateQuotes(quotes)
         }
     }
 
@@ -222,18 +423,9 @@ class SearchViewModel(
                     appPreferencesRepository = container.appPreferencesRepository,
                     watchlistRepository = container.watchlistRepository,
                     marketSearchRepository = container.marketSearchRepository,
-                    marketQuoteRepository = container.marketQuoteRepository,
-                    okxCredentialsRepository = container.okxCredentialsRepository
+                    marketQuoteRepository = container.marketQuoteRepository
                 )
             }
         }
-    }
-
-    /**
-     * 搜索页和设置页必须共享同一套凭证来源，否则会出现“已经保存但页面仍提示未配置”的错觉。
-     */
-    private fun resolveOkxCredentialConfigured(): Boolean {
-        val credentials = okxCredentialsRepository.getCredentials()
-        return credentials.enabled && credentials.isReady
     }
 }

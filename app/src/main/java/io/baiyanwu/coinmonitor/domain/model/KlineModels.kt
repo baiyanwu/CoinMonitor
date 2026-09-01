@@ -9,7 +9,7 @@ enum class KlineSource(val title: String) {
     BINANCE("Binance"),
     BINANCE_ALPHA("Alpha"),
     OKX("OKX"),
-    ONCHAIN("Onchain");
+    ONCHAIN("GeckoTerminal");
 
     companion object {
         fun fromWatchItem(item: WatchItem): KlineSource {
@@ -20,6 +20,7 @@ enum class KlineSource(val title: String) {
                     ExchangeSource.BINANCE -> BINANCE
                     ExchangeSource.BINANCE_ALPHA -> BINANCE_ALPHA
                     ExchangeSource.OKX -> OKX
+                    ExchangeSource.ONCHAIN -> ONCHAIN
                 }
             }
         }

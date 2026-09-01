@@ -16,7 +16,6 @@ import io.baiyanwu.coinmonitor.domain.model.KlineIndicator
 import io.baiyanwu.coinmonitor.domain.model.KlineIndicatorSettings
 import io.baiyanwu.coinmonitor.domain.model.KlineInterval
 import io.baiyanwu.coinmonitor.domain.model.KlineSource
-import io.baiyanwu.coinmonitor.domain.model.MarketType
 import io.baiyanwu.coinmonitor.domain.model.OpenAiCompatibleConfig
 import io.baiyanwu.coinmonitor.domain.model.AppPreferences
 import io.baiyanwu.coinmonitor.domain.model.QuoteState
@@ -26,7 +25,6 @@ import io.baiyanwu.coinmonitor.domain.repository.AppPreferencesRepository
 import io.baiyanwu.coinmonitor.domain.repository.AiChatRepository
 import io.baiyanwu.coinmonitor.domain.repository.AiConfigRepository
 import io.baiyanwu.coinmonitor.domain.repository.MarketKlineRepository
-import io.baiyanwu.coinmonitor.domain.repository.OkxCredentialsRepository
 import io.baiyanwu.coinmonitor.domain.repository.QuoteRepository
 import io.baiyanwu.coinmonitor.domain.repository.WatchlistRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -62,7 +60,6 @@ data class KlineUiState(
     val isRefreshing: Boolean = false,
     val isAiSending: Boolean = false,
     val aiReady: Boolean = false,
-    val hasOkxCredentials: Boolean = false,
     val errorMessage: String? = null
 )
 
@@ -79,7 +76,6 @@ class KlineViewModel(
     private val appPreferencesRepository: AppPreferencesRepository,
     private val aiConfigRepository: AiConfigRepository,
     private val aiChatRepository: AiChatRepository,
-    private val okxCredentialsRepository: OkxCredentialsRepository,
     private val selectionStore: KlineSelectionStore,
     private val aiChatSessionSelectionStore: AiChatSessionSelectionStore
 ) : ViewModel() {
@@ -148,13 +144,9 @@ class KlineViewModel(
             ) { primary, aiConfig ->
                 Pair(primary, aiConfig)
             }.combine(
-                okxCredentialsRepository.observeCredentials()
-            ) { (primary, aiConfig), okxCredentials ->
-                Triple(primary, aiConfig, okxCredentials)
-            }.combine(
                 chatMessages
-            ) { (primary, aiConfig, okxCredentials), messages ->
-                SnapshotWithMessages(primary, aiConfig, okxCredentials.enabled && okxCredentials.isReady, messages)
+            ) { (primary, aiConfig), messages ->
+                SnapshotWithMessages(primary, aiConfig, messages)
             }.combine(
                 aiSending
             ) { withMessages, isAiSending ->
@@ -167,7 +159,6 @@ class KlineViewModel(
                     subIndicator = withMessages.primary.subIndicator,
                     indicatorSettings = withMessages.primary.indicatorSettings,
                     aiConfig = withMessages.aiConfig,
-                    hasOkxCredentials = withMessages.hasOkxCredentials,
                     messages = withMessages.messages,
                     isAiSending = isAiSending
                 )
@@ -277,9 +268,9 @@ class KlineViewModel(
         chatMessages.value = updatedMessages + placeholderMessage
         aiSending.value = true
         aiStreamJob = viewModelScope.launch {
-            aiChatRepository.appendMessage(sessionId, updatedMessages.last())
-            aiChatRepository.appendMessage(sessionId, placeholderMessage)
-            runCatching {
+            try {
+                aiChatRepository.appendMessage(sessionId, updatedMessages.last())
+                aiChatRepository.appendMessage(sessionId, placeholderMessage)
                 var hasStreamedContent = false
                 aiChatRepository.streamMessage(
                     item = item,
@@ -303,26 +294,24 @@ class KlineViewModel(
                         delta = delta
                     )
                 }
-            }.onFailure { throwable ->
-                when (throwable) {
-                    is CancellationException -> {
-                        updateAssistantPlaceholder(
-                            messageId = placeholderMessage.id,
-                            content = currentAssistantContent(placeholderMessage.id)
-                                .ifBlank { "已停止生成" }
-                        )
-                    }
-
-                    else -> {
-                        updateAssistantPlaceholder(
-                            messageId = placeholderMessage.id,
-                            content = throwable.message ?: "AI 请求失败"
-                        )
-                    }
+            } catch (error: CancellationException) {
+                updateAssistantPlaceholder(
+                    messageId = placeholderMessage.id,
+                    content = currentAssistantContent(placeholderMessage.id)
+                        .ifBlank { "已停止生成" }
+                )
+                throw error
+            } catch (error: Exception) {
+                updateAssistantPlaceholder(
+                    messageId = placeholderMessage.id,
+                    content = error.message ?: "AI 请求失败"
+                )
+            } finally {
+                if (aiStreamJob === coroutineContext[Job]) {
+                    aiSending.value = false
+                    aiStreamJob = null
                 }
             }
-            aiSending.value = false
-            aiStreamJob = null
         }
     }
 
@@ -451,7 +440,6 @@ class KlineViewModel(
                 chatMessages = snapshot.messages,
                 isAiSending = snapshot.isAiSending,
                 aiReady = aiReady,
-                hasOkxCredentials = snapshot.hasOkxCredentials,
                 isLoading = showFullscreenLoading && selectedItem != null && !canReuseLoadedCandles,
                 errorMessage = null
             )
@@ -475,18 +463,6 @@ class KlineViewModel(
             )
         }
 
-        if (selectedItem.marketType == MarketType.ONCHAIN_TOKEN && !snapshot.hasOkxCredentials) {
-            lastLoadedRequestKey = null
-            _uiState.update {
-                it.copy(
-                    candles = emptyList(),
-                    isLoading = false,
-                    errorMessage = "链上 K 线需要先配置 OKX Onchain 凭证"
-                )
-            }
-            return
-        }
-
         if (canReuseLoadedCandles) {
             _uiState.update {
                 it.copy(
@@ -496,12 +472,11 @@ class KlineViewModel(
             return
         }
 
-        runCatching {
-            marketKlineRepository.fetchCandles(
+        try {
+            val candles = marketKlineRepository.fetchCandles(
                 item = selectedItem,
                 interval = snapshot.interval
             )
-        }.onSuccess { candles ->
             lastLoadedRequestKey = requestKey
             _uiState.update {
                 it.copy(
@@ -510,13 +485,15 @@ class KlineViewModel(
                     errorMessage = null
                 )
             }
-        }.onFailure { throwable ->
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
             lastLoadedRequestKey = null
             _uiState.update {
                 it.copy(
                     candles = emptyList(),
                     isLoading = false,
-                    errorMessage = throwable.message ?: "K 线加载失败"
+                    errorMessage = error.message ?: "K 线加载失败"
                 )
             }
         }
@@ -535,7 +512,6 @@ class KlineViewModel(
             subIndicator = _uiState.value.selectedSubIndicator,
             indicatorSettings = _uiState.value.indicatorSettings,
             aiConfig = aiConfigRepository.getConfig(),
-            hasOkxCredentials = okxCredentialsRepository.getCredentials().run { enabled && isReady },
             messages = chatMessages.value,
             isAiSending = aiSending.value
         )
@@ -551,7 +527,6 @@ class KlineViewModel(
                     appPreferencesRepository = container.appPreferencesRepository,
                     aiConfigRepository = container.aiConfigRepository,
                     aiChatRepository = container.aiChatRepository,
-                    okxCredentialsRepository = container.okxCredentialsRepository,
                     selectionStore = container.klineSelectionStore,
                     aiChatSessionSelectionStore = container.aiChatSessionSelectionStore
                 )
@@ -568,7 +543,6 @@ class KlineViewModel(
         val subIndicator: KlineIndicator,
         val indicatorSettings: KlineIndicatorSettings,
         val aiConfig: OpenAiCompatibleConfig,
-        val hasOkxCredentials: Boolean,
         val messages: List<AiChatMessage>,
         val isAiSending: Boolean
     )
@@ -586,7 +560,6 @@ class KlineViewModel(
     private data class SnapshotWithMessages(
         val primary: PrimarySnapshot,
         val aiConfig: OpenAiCompatibleConfig,
-        val hasOkxCredentials: Boolean,
         val messages: List<AiChatMessage>
     )
 

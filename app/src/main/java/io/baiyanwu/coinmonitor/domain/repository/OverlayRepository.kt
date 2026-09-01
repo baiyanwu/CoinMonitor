@@ -1,5 +1,6 @@
 package io.baiyanwu.coinmonitor.domain.repository
 
+import io.baiyanwu.coinmonitor.domain.model.OverlayEdgeDisplayMode
 import io.baiyanwu.coinmonitor.domain.model.OverlayLeadingDisplayMode
 import io.baiyanwu.coinmonitor.domain.model.OverlaySettings
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
@@ -17,5 +18,8 @@ interface OverlayRepository {
     suspend fun setLeadingDisplayMode(mode: OverlayLeadingDisplayMode)
     suspend fun setFontScale(fontScale: Float)
     suspend fun setSnapToEdge(enabled: Boolean)
+    suspend fun setEdgeDisplayMode(mode: OverlayEdgeDisplayMode)
+    suspend fun setEdgeTabOpacity(opacity: Float)
+    suspend fun setEdgeAutoCollapseSeconds(seconds: Int)
     suspend fun setWindowPosition(x: Int, y: Int)
 }

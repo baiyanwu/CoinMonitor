@@ -344,6 +344,7 @@ private fun ExchangeBadge(source: ExchangeSource) {
         ExchangeSource.BINANCE -> stringResource(R.string.exchange_badge_binance)
         ExchangeSource.BINANCE_ALPHA -> stringResource(R.string.exchange_badge_binance_alpha)
         ExchangeSource.OKX -> stringResource(R.string.exchange_badge_okx)
+        ExchangeSource.ONCHAIN -> stringResource(R.string.exchange_badge_onchain)
     }
 
     MiniTag(

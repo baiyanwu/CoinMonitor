@@ -26,7 +26,6 @@ class GlobalQuoteRefreshCoordinator(
     private val quoteRepository: QuoteRepository,
     private val appPreferencesRepository: AppPreferencesRepository,
     marketQuoteRepository: MarketQuoteRepository,
-    okxCredentialsProvider: suspend () -> io.baiyanwu.coinmonitor.domain.model.OkxApiCredentials? = { null },
     networkLogRepository: NetworkLogRepository
 ) {
     private val homeActive = MutableStateFlow(false)
@@ -36,7 +35,6 @@ class GlobalQuoteRefreshCoordinator(
         watchlistRepository = watchlistRepository,
         quoteRepository = quoteRepository,
         marketQuoteRepository = marketQuoteRepository,
-        okxCredentialsProvider = okxCredentialsProvider,
         networkLogRepository = networkLogRepository
     )
 
@@ -89,6 +87,7 @@ class GlobalQuoteRefreshCoordinator(
                 RefreshSnapshot(
                     items = items,
                     refreshIntervalMillis = preferences.refreshIntervalSeconds * 1_000L,
+                    onchainRefreshIntervalMillis = preferences.onchainRefreshIntervalSeconds * 1_000L,
                     shouldRun = isHomeActive || isOverlayActive
                 )
             }.collect { snapshot ->
@@ -103,7 +102,8 @@ class GlobalQuoteRefreshCoordinator(
                     QuoteRefreshConfig(
                         enabled = snapshot.shouldRun,
                         items = snapshot.items,
-                        refreshIntervalMillis = snapshot.refreshIntervalMillis
+                        refreshIntervalMillis = snapshot.refreshIntervalMillis,
+                        onchainRefreshIntervalMillis = snapshot.onchainRefreshIntervalMillis
                     )
                 )
             }
@@ -129,6 +129,7 @@ class GlobalQuoteRefreshCoordinator(
     private data class RefreshSnapshot(
         val items: List<WatchItem>,
         val refreshIntervalMillis: Long,
+        val onchainRefreshIntervalMillis: Long,
         val shouldRun: Boolean
     )
 

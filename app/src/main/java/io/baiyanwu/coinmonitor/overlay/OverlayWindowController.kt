@@ -1,5 +1,6 @@
 package io.baiyanwu.coinmonitor.overlay
 
+import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Outline
@@ -13,8 +14,10 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewOutlineProvider
+import android.view.ViewConfiguration
 import android.view.WindowManager
 import android.view.animation.AccelerateDecelerateInterpolator
+import android.view.animation.PathInterpolator
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -22,6 +25,7 @@ import android.widget.TextView
 import androidx.compose.ui.graphics.toArgb
 import io.baiyanwu.coinmonitor.R
 import io.baiyanwu.coinmonitor.domain.model.OnchainChainIconRegistry
+import io.baiyanwu.coinmonitor.domain.model.OverlayEdgeDisplayMode
 import io.baiyanwu.coinmonitor.domain.model.OverlayLeadingDisplayMode
 import io.baiyanwu.coinmonitor.domain.model.OverlaySettings
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
@@ -32,6 +36,7 @@ import io.baiyanwu.coinmonitor.ui.resolveLivePriceColor
 import io.baiyanwu.coinmonitor.ui.theme.resolveCoinMonitorColors
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.roundToInt
 
@@ -57,6 +62,41 @@ class OverlayWindowController(
     private var footerView: TextView? = null
     private var emptyView: TextView? = null
     private var sidebarTickerHolder: SidebarTickerHolder? = null
+    private var edgeTabView: FrameLayout? = null
+    private var edgeTabIndicatorView: View? = null
+    private var isHiddenEdgeTabExpanded: Boolean = false
+    private var hiddenEdgeTransitionState: HiddenEdgeTransitionState =
+        HiddenEdgeTransitionState.IDLE
+    private var hiddenEdgeAnimationGeneration: Int = 0
+    private var scheduledHiddenEdgeAutoCollapseSeconds: Int? = null
+    private var latestItems: List<WatchItem> = emptyList()
+    private var latestSettings: OverlaySettings? = null
+    private val hiddenEdgeEnterInterpolator = PathInterpolator(0.16f, 1f, 0.3f, 1f)
+    private val hiddenEdgeExitInterpolator = PathInterpolator(0.7f, 0f, 0.84f, 0f)
+    private val hiddenEdgeAutoCollapseRunnable = object : Runnable {
+        override fun run() {
+            if (
+                !isHiddenEdgeTabExpanded ||
+                hiddenEdgeTransitionState != HiddenEdgeTransitionState.IDLE
+            ) {
+                return
+            }
+            if (isDragging) {
+                rootView?.postDelayed(this, HIDDEN_EDGE_AUTO_COLLAPSE_RETRY_MS)
+                return
+            }
+            val settings = latestSettings ?: return
+            val items = latestItems
+            val stillUsesHiddenEdgeMode = settings.snapToEdge &&
+                settings.edgeDisplayMode == OverlayEdgeDisplayMode.HIDDEN_TAB &&
+                items.take(settings.maxItems).isNotEmpty()
+            if (stillUsesHiddenEdgeMode) {
+                animateHiddenEdgeCollapse()
+            } else {
+                isHiddenEdgeTabExpanded = false
+            }
+        }
+    }
     private val iconBitmapCache = LinkedHashMap<String, Bitmap>()
 
     private val overlayColors
@@ -71,6 +111,8 @@ class OverlayWindowController(
             return
         }
 
+        latestItems = items
+        latestSettings = settings
         ensureWindow(settings)
         val root = rootView ?: return
         val params = layoutParams ?: return
@@ -81,14 +123,41 @@ class OverlayWindowController(
             return
         }
 
-        val resolvedFlags = resolveWindowFlags(settings)
+        val limitedItems = items.take(settings.maxItems)
+        val usesHiddenEdgeMode = settings.snapToEdge &&
+            settings.edgeDisplayMode == OverlayEdgeDisplayMode.HIDDEN_TAB &&
+            limitedItems.isNotEmpty()
+        if (!usesHiddenEdgeMode) {
+            isHiddenEdgeTabExpanded = false
+            cancelHiddenEdgeAutoCollapse()
+            cancelHiddenEdgeTransition()
+        } else if (!isHiddenEdgeTabExpanded) {
+            cancelHiddenEdgeAutoCollapse()
+        } else if (
+            hiddenEdgeTransitionState == HiddenEdgeTransitionState.IDLE &&
+            scheduledHiddenEdgeAutoCollapseSeconds != null &&
+            scheduledHiddenEdgeAutoCollapseSeconds !=
+            OverlayEdgeAutoCollapsePolicy.normalizeSeconds(
+                settings.edgeAutoCollapseSeconds
+            )
+        ) {
+            scheduleHiddenEdgeAutoCollapse()
+        }
+        val presentation = OverlayEdgePresentationPolicy.resolve(
+            settings = settings,
+            hasItems = limitedItems.isNotEmpty(),
+            hiddenTabExpanded = isHiddenEdgeTabExpanded
+        )
+
+        val resolvedFlags = resolveWindowFlags(
+            settings = settings,
+            allowEdgeToggle = usesHiddenEdgeMode
+        )
         if (params.flags != resolvedFlags) {
             params.flags = resolvedFlags
         }
 
-        val limitedItems = items.take(settings.maxItems)
-        val sidebarMode = settings.snapToEdge && limitedItems.isNotEmpty()
-        val metrics = OverlayMetrics.from(context, settings, sidebarMode)
+        val metrics = OverlayMetrics.from(context, settings, presentation)
 
         applyRootStyle(
             root = root,
@@ -100,14 +169,28 @@ class OverlayWindowController(
             items = limitedItems,
             settings = settings,
             metrics = metrics,
-            sidebarMode = sidebarMode
+            presentation = presentation
         )
-        applyTouchHandler(root, settings)
+        root.contentDescription = when {
+            !usesHiddenEdgeMode -> null
+            isHiddenEdgeTabExpanded -> localizedContext.getString(
+                R.string.overlay_edge_ticker_auto_collapse,
+                OverlayEdgeAutoCollapsePolicy.normalizeSeconds(
+                    settings.edgeAutoCollapseSeconds
+                )
+            )
+            else -> localizedContext.getString(R.string.overlay_edge_tab_expand)
+        }
+        applyTouchHandler(
+            root = root,
+            items = limitedItems,
+            settings = settings,
+            hiddenEdgeMode = usesHiddenEdgeMode
+        )
         applyResolvedPosition(
             view = root,
             params = params,
-            settings = settings,
-            sidebarMode = sidebarMode
+            sidebarMode = presentation != OverlayEdgePresentation.STANDARD
         )
 
         if (root.parent == null) {
@@ -118,6 +201,8 @@ class OverlayWindowController(
     }
 
     fun hide() {
+        cancelHiddenEdgeAutoCollapse()
+        cancelHiddenEdgeTransition()
         rootView?.let { view ->
             if (view.parent != null) {
                 // 临时隐藏后要立即释放窗口占位，避免原位置还残留一帧触摸拦截区域。
@@ -136,6 +221,12 @@ class OverlayWindowController(
         emptyView = null
         sidebarTickerHolder?.stop()
         sidebarTickerHolder = null
+        edgeTabView = null
+        edgeTabIndicatorView = null
+        isHiddenEdgeTabExpanded = false
+        hiddenEdgeTransitionState = HiddenEdgeTransitionState.IDLE
+        latestItems = emptyList()
+        latestSettings = null
         iconBitmapCache.clear()
         rootView = null
         layoutParams = null
@@ -153,7 +244,7 @@ class OverlayWindowController(
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            resolveWindowFlags(settings),
+            resolveWindowFlags(settings, allowEdgeToggle = false),
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.START
@@ -163,13 +254,15 @@ class OverlayWindowController(
     }
 
     /**
-     * 锁定状态下直接关闭触摸，保证悬浮窗不会拦截底层页面操作。
-     * 未锁定时仅保留拖动所需的最小触摸能力。
+     * 锁定状态下关闭普通悬浮窗触摸；隐藏吸附模式仍保留点击能力，避免唤出条无法展开。
      */
-    private fun resolveWindowFlags(settings: OverlaySettings): Int {
+    private fun resolveWindowFlags(
+        settings: OverlaySettings,
+        allowEdgeToggle: Boolean
+    ): Int {
         val baseFlags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
             WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
-        return if (settings.locked) {
+        return if (settings.locked && !allowEdgeToggle) {
             baseFlags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
         } else {
             baseFlags
@@ -187,6 +280,10 @@ class OverlayWindowController(
             metrics.horizontalPaddingPx,
             metrics.verticalPaddingPx
         )
+        if (metrics.edgeTabMode) {
+            root.background = null
+            return
+        }
         root.background = GradientDrawable().apply {
             cornerRadius = metrics.cornerRadiusPx.toFloat()
             setColor(
@@ -206,18 +303,29 @@ class OverlayWindowController(
         items: List<WatchItem>,
         settings: OverlaySettings,
         metrics: OverlayMetrics,
-        sidebarMode: Boolean
+        presentation: OverlayEdgePresentation
     ) {
         if (items.isEmpty()) {
+            sidebarTickerHolder?.stop()
             renderEmptyState(root, metrics)
             return
         }
 
-        if (sidebarMode) {
+        if (presentation == OverlayEdgePresentation.HIDDEN_TAB) {
+            renderEdgeTabState(
+                root = root,
+                metrics = metrics,
+                edgeTabOpacity = settings.edgeTabOpacity
+            )
+            return
+        }
+
+        if (presentation == OverlayEdgePresentation.TICKER) {
             renderSidebarState(root, items, metrics)
             return
         }
 
+        sidebarTickerHolder?.stop()
         currentRenderMode = OverlayRenderMode.STANDARD
         val batch = OverlayBatchPlanner.plan(
             items = items,
@@ -431,6 +539,14 @@ class OverlayWindowController(
         items: List<WatchItem>,
         metrics: OverlayMetrics
     ) {
+        val ticker = bindSidebarTicker(items, metrics)
+        attachAsOnlyChild(root, ticker)
+    }
+
+    private fun bindSidebarTicker(
+        items: List<WatchItem>,
+        metrics: OverlayMetrics
+    ): FrameLayout {
         currentRenderMode = OverlayRenderMode.SIDEBAR
         currentBatchIds = items.map { it.id }
         currentLeadingDisplayMode = null
@@ -439,11 +555,74 @@ class OverlayWindowController(
             sidebarTickerHolder = it
         }
         holder.bind(items, metrics, contentWidth)
-        val view = holder.container
-        if (view.parent !== root || root.childCount != 1) {
-            root.removeAllViews()
-            root.addView(view)
+        return holder.container
+    }
+
+    private fun renderEdgeTabState(
+        root: LinearLayout,
+        metrics: OverlayMetrics,
+        edgeTabOpacity: Float
+    ) {
+        currentRenderMode = OverlayRenderMode.EDGE_TAB
+        currentBatchIds = emptyList()
+        currentLeadingDisplayMode = null
+        sidebarTickerHolder?.stop()
+        val container = prepareEdgeTab(metrics, edgeTabOpacity)
+        attachAsOnlyChild(root, container)
+    }
+
+    private fun prepareEdgeTab(
+        metrics: OverlayMetrics,
+        edgeTabOpacity: Float
+    ): FrameLayout {
+        val container = edgeTabView ?: FrameLayout(context).also { edgeTabView = it }
+        container.layoutParams = LinearLayout.LayoutParams(
+            metrics.edgeTabTouchWidthPx,
+            metrics.edgeTabTouchHeightPx
+        )
+        val indicator = edgeTabIndicatorView ?: View(context).also { edgeTabIndicatorView = it }
+        indicator.layoutParams = FrameLayout.LayoutParams(
+            metrics.edgeTabIndicatorWidthPx,
+            metrics.edgeTabIndicatorHeightPx
+        ).apply {
+            gravity = Gravity.CENTER_VERTICAL or (
+                if (isNearestLeftEdge()) Gravity.START else Gravity.END
+            )
         }
+        indicator.background = GradientDrawable().apply {
+            cornerRadius = metrics.edgeTabIndicatorWidthPx.toFloat()
+            setColor(
+                overlayColors.accent.copy(
+                    alpha = edgeTabOpacity.coerceIn(
+                        minimumValue = OverlaySettings.MIN_EDGE_TAB_OPACITY,
+                        maximumValue = OverlaySettings.MAX_EDGE_TAB_OPACITY
+                    )
+                ).toArgb()
+            )
+        }
+        if (indicator.parent !== container || container.childCount != 1) {
+            container.removeAllViews()
+            container.addView(indicator)
+        }
+        return container
+    }
+
+    private fun attachAsOnlyChild(root: LinearLayout, view: View) {
+        if (view.parent === root && root.childCount == 1) return
+        detachFromParent(view)
+        root.removeAllViews()
+        root.addView(view)
+    }
+
+    private fun detachFromParent(view: View) {
+        (view.parent as? ViewGroup)?.removeView(view)
+    }
+
+    private fun isNearestLeftEdge(): Boolean {
+        val params = layoutParams ?: return true
+        val currentWidth = rootView?.measuredWidth?.takeIf { it > 0 } ?: 0
+        val screenWidth = context.resources.displayMetrics.widthPixels
+        return params.x + currentWidth / 2 <= screenWidth / 2
     }
 
     private fun buildSidebarTickerContainer(contentWidth: Int): FrameLayout {
@@ -700,50 +879,100 @@ class OverlayWindowController(
         ).joinToString(separator = "|")
     }
 
-    private fun applyTouchHandler(root: View, settings: OverlaySettings) {
-        if (settings.locked) {
+    private fun applyTouchHandler(
+        root: View,
+        items: List<WatchItem>,
+        settings: OverlaySettings,
+        hiddenEdgeMode: Boolean
+    ) {
+        if (hiddenEdgeTransitionState != HiddenEdgeTransitionState.IDLE) {
             root.setOnTouchListener(null)
+            root.setOnClickListener(null)
             return
         }
 
+        if (settings.locked && !hiddenEdgeMode) {
+            root.setOnTouchListener(null)
+            root.setOnClickListener(null)
+            return
+        }
+
+        if (hiddenEdgeMode && !isHiddenEdgeTabExpanded) {
+            root.setOnClickListener {
+                if (isHiddenEdgeTabExpanded) return@setOnClickListener
+                isHiddenEdgeTabExpanded = true
+                renderLatestTouchState(items, settings)
+                animateHiddenEdgeExpansion()
+            }
+        } else {
+            root.setOnClickListener(null)
+        }
+
+        val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
         root.setOnTouchListener(object : View.OnTouchListener {
             private var touchOffsetX: Float = 0f
             private var touchOffsetY: Float = 0f
+            private var downRawX: Float = 0f
+            private var downRawY: Float = 0f
+            private var hasDragged: Boolean = false
 
             override fun onTouch(view: View, event: MotionEvent): Boolean {
                 val params = layoutParams ?: return false
                 when (event.actionMasked) {
                     MotionEvent.ACTION_DOWN -> {
                         isDragging = true
+                        hasDragged = false
+                        downRawX = event.rawX
+                        downRawY = event.rawY
                         touchOffsetX = event.rawX - params.x
                         touchOffsetY = event.rawY - params.y
                         return true
                     }
 
                     MotionEvent.ACTION_MOVE -> {
-                        measureOverlay(view)
-                        val bounds = resolveScreenBounds(view)
-                        params.x = (event.rawX - touchOffsetX).roundToInt()
-                            .coerceIn(0, bounds.maxX)
-                        params.y = (event.rawY - touchOffsetY).roundToInt()
-                            .coerceIn(0, bounds.maxY)
-                        windowManager.updateViewLayout(view, params)
+                        if (
+                            abs(event.rawX - downRawX) > touchSlop ||
+                            abs(event.rawY - downRawY) > touchSlop
+                        ) {
+                            hasDragged = true
+                        }
+                        if (!settings.locked && hasDragged) {
+                            measureOverlay(view)
+                            val bounds = resolveScreenBounds(view)
+                            params.x = (event.rawX - touchOffsetX).roundToInt()
+                                .coerceIn(0, bounds.maxX)
+                            params.y = (event.rawY - touchOffsetY).roundToInt()
+                                .coerceIn(0, bounds.maxY)
+                            windowManager.updateViewLayout(view, params)
+                        }
                         return true
                     }
 
-                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    MotionEvent.ACTION_UP -> {
                         isDragging = false
-                        applyResolvedPosition(
-                            view = view,
-                            params = params,
-                            settings = settings,
-                            sidebarMode = settings.snapToEdge
-                        )
-                        if (view.parent != null) {
-                            windowManager.updateViewLayout(view, params)
+                        if (hiddenEdgeMode && !isHiddenEdgeTabExpanded && !hasDragged) {
+                            view.performClick()
+                            return true
                         }
-                        scope.launch {
-                            overlayRepository.setWindowPosition(params.x, params.y)
+                        if (!settings.locked) {
+                            finishDrag(view, params, settings)
+                        }
+                        if (hiddenEdgeMode) {
+                            renderLatestTouchState(items, settings)
+                            return true
+                        }
+                        consumePendingUpdate()
+                        return true
+                    }
+
+                    MotionEvent.ACTION_CANCEL -> {
+                        isDragging = false
+                        if (!settings.locked && hasDragged) {
+                            finishDrag(view, params, settings)
+                        }
+                        if (hiddenEdgeMode && hasDragged) {
+                            renderLatestTouchState(items, settings)
+                            return true
                         }
                         consumePendingUpdate()
                         return true
@@ -754,10 +983,159 @@ class OverlayWindowController(
         })
     }
 
+    private fun animateHiddenEdgeExpansion() {
+        val root = rootView ?: return
+        if (!ValueAnimator.areAnimatorsEnabled()) {
+            scheduleHiddenEdgeAutoCollapse()
+            return
+        }
+
+        measureOverlay(root)
+        val offset = resolveHiddenEdgeTranslation(root.measuredWidth)
+        if (offset == 0f) {
+            scheduleHiddenEdgeAutoCollapse()
+            return
+        }
+
+        cancelHiddenEdgeTransition()
+        hiddenEdgeTransitionState = HiddenEdgeTransitionState.EXPANDING
+        val generation = ++hiddenEdgeAnimationGeneration
+        root.setOnTouchListener(null)
+        root.setOnClickListener(null)
+        root.translationX = offset
+        root.animate()
+            .translationX(0f)
+            .setDuration(HIDDEN_EDGE_EXPANSION_DURATION_MS)
+            .setInterpolator(hiddenEdgeEnterInterpolator)
+            .withEndAction {
+                if (
+                    generation != hiddenEdgeAnimationGeneration ||
+                    rootView !== root
+                ) {
+                    return@withEndAction
+                }
+                hiddenEdgeTransitionState = HiddenEdgeTransitionState.IDLE
+                root.translationX = 0f
+                latestSettings?.let { settings ->
+                    showOrUpdate(latestItems, settings)
+                }
+                scheduleHiddenEdgeAutoCollapse()
+            }
+            .start()
+    }
+
+    private fun animateHiddenEdgeCollapse() {
+        val root = rootView ?: return
+        if (!ValueAnimator.areAnimatorsEnabled()) {
+            completeHiddenEdgeCollapse()
+            return
+        }
+
+        measureOverlay(root)
+        val offset = resolveHiddenEdgeTranslation(root.measuredWidth)
+        if (offset == 0f) {
+            completeHiddenEdgeCollapse()
+            return
+        }
+
+        cancelHiddenEdgeTransition()
+        hiddenEdgeTransitionState = HiddenEdgeTransitionState.COLLAPSING
+        val generation = ++hiddenEdgeAnimationGeneration
+        root.setOnTouchListener(null)
+        root.setOnClickListener(null)
+        root.translationX = 0f
+        root.animate()
+            .translationX(offset)
+            .setDuration(HIDDEN_EDGE_COLLAPSE_DURATION_MS)
+            .setInterpolator(hiddenEdgeExitInterpolator)
+            .withEndAction {
+                if (
+                    generation != hiddenEdgeAnimationGeneration ||
+                    rootView !== root
+                ) {
+                    return@withEndAction
+                }
+                hiddenEdgeTransitionState = HiddenEdgeTransitionState.IDLE
+                root.translationX = 0f
+                completeHiddenEdgeCollapse()
+            }
+            .start()
+    }
+
+    private fun completeHiddenEdgeCollapse() {
+        isHiddenEdgeTabExpanded = false
+        latestSettings?.let { settings ->
+            showOrUpdate(latestItems, settings)
+        }
+    }
+
+    private fun resolveHiddenEdgeTranslation(overlayWidth: Int): Float {
+        return OverlayEdgeMotionPolicy.resolveTranslation(
+            overlayWidth = overlayWidth,
+            nearestLeftEdge = isNearestLeftEdge()
+        )
+    }
+
+    private fun cancelHiddenEdgeTransition() {
+        hiddenEdgeAnimationGeneration += 1
+        hiddenEdgeTransitionState = HiddenEdgeTransitionState.IDLE
+        rootView?.let { root ->
+            root.animate().cancel()
+            root.translationX = 0f
+        }
+    }
+
+    private fun scheduleHiddenEdgeAutoCollapse() {
+        val root = rootView ?: return
+        val seconds = OverlayEdgeAutoCollapsePolicy.normalizeSeconds(
+            latestSettings?.edgeAutoCollapseSeconds
+                ?: OverlaySettings.DEFAULT_EDGE_AUTO_COLLAPSE_SECONDS
+        )
+        scheduledHiddenEdgeAutoCollapseSeconds = seconds
+        root.removeCallbacks(hiddenEdgeAutoCollapseRunnable)
+        root.postDelayed(
+            hiddenEdgeAutoCollapseRunnable,
+            OverlayEdgeAutoCollapsePolicy.resolveDelayMillis(seconds)
+        )
+    }
+
+    private fun cancelHiddenEdgeAutoCollapse() {
+        rootView?.removeCallbacks(hiddenEdgeAutoCollapseRunnable)
+        scheduledHiddenEdgeAutoCollapseSeconds = null
+    }
+
+    private fun finishDrag(
+        view: View,
+        params: WindowManager.LayoutParams,
+        settings: OverlaySettings
+    ) {
+        applyResolvedPosition(
+            view = view,
+            params = params,
+            sidebarMode = settings.snapToEdge
+        )
+        if (view.parent != null) {
+            windowManager.updateViewLayout(view, params)
+        }
+        scope.launch {
+            overlayRepository.setWindowPosition(params.x, params.y)
+        }
+    }
+
+    private fun renderLatestTouchState(
+        items: List<WatchItem>,
+        settings: OverlaySettings
+    ) {
+        val latestItems = pendingItems ?: items
+        val latestSettings = pendingSettings ?: settings
+        pendingItems = null
+        pendingSettings = null
+        showOrUpdate(latestItems, latestSettings)
+    }
+
     private fun applyResolvedPosition(
         view: View,
         params: WindowManager.LayoutParams,
-        settings: OverlaySettings,
         sidebarMode: Boolean
     ) {
         measureOverlay(view)
@@ -822,6 +1200,12 @@ class OverlayWindowController(
         val maxX: Int,
         val maxY: Int
     )
+
+    private enum class HiddenEdgeTransitionState {
+        IDLE,
+        EXPANDING,
+        COLLAPSING
+    }
 
     private data class RowHolder(
         val row: LinearLayout,
@@ -953,12 +1337,14 @@ class OverlayWindowController(
 
     private enum class OverlayRenderMode {
         EMPTY,
+        EDGE_TAB,
         SIDEBAR,
         STANDARD
     }
 
     private data class OverlayMetrics(
         val fontScale: Float,
+        val edgeTabMode: Boolean,
         val horizontalPaddingPx: Int,
         val verticalPaddingPx: Int,
         val rowVerticalPaddingPx: Int,
@@ -970,6 +1356,10 @@ class OverlayWindowController(
         val cornerRadiusPx: Int,
         val iconSizePx: Int,
         val sidebarWidthPx: Int,
+        val edgeTabTouchWidthPx: Int,
+        val edgeTabTouchHeightPx: Int,
+        val edgeTabIndicatorWidthPx: Int,
+        val edgeTabIndicatorHeightPx: Int,
         val leadingTextSizeSp: Float,
         val sidebarTextSizeSp: Float,
         val emptyTextSizeSp: Float,
@@ -979,12 +1369,14 @@ class OverlayWindowController(
             fun from(
                 context: Context,
                 settings: OverlaySettings,
-                sidebarMode: Boolean
+                presentation: OverlayEdgePresentation
             ): OverlayMetrics {
                 val fontScale = settings.fontScale.coerceIn(
                     minimumValue = OverlaySettings.MIN_FONT_SCALE,
                     maximumValue = OverlaySettings.MAX_FONT_SCALE
                 )
+                val sidebarMode = presentation == OverlayEdgePresentation.TICKER
+                val edgeTabMode = presentation == OverlayEdgePresentation.HIDDEN_TAB
 
                 fun scaledDp(baseDp: Int): Int {
                     return (baseDp * context.resources.displayMetrics.density * fontScale).roundToInt()
@@ -992,17 +1384,34 @@ class OverlayWindowController(
 
                 return OverlayMetrics(
                     fontScale = fontScale,
-                    horizontalPaddingPx = scaledDp(if (sidebarMode) 6 else 4),
-                    verticalPaddingPx = scaledDp(if (sidebarMode) 4 else 4),
+                    edgeTabMode = edgeTabMode,
+                    horizontalPaddingPx = scaledDp(
+                        when {
+                            edgeTabMode -> 0
+                            sidebarMode -> 6
+                            else -> 4
+                        }
+                    ),
+                    verticalPaddingPx = scaledDp(if (edgeTabMode) 0 else 4),
                     rowVerticalPaddingPx = scaledDp(1),
                     leadingSpacingPx = scaledDp(4),
                     leadingWidthExtraPx = scaledDp(1),
                     priceWidthExtraPx = scaledDp(2),
                     footerTopPaddingPx = scaledDp(1),
                     fallbackStrokePx = max(1, scaledDp(1)),
-                    cornerRadiusPx = scaledDp(if (sidebarMode) 12 else 10),
+                    cornerRadiusPx = scaledDp(
+                        when {
+                            edgeTabMode -> 8
+                            sidebarMode -> 12
+                            else -> 10
+                        }
+                    ),
                     iconSizePx = scaledDp(11),
                     sidebarWidthPx = max(scaledDp(92), (92 * context.resources.displayMetrics.density).roundToInt()),
+                    edgeTabTouchWidthPx = scaledDp(24),
+                    edgeTabTouchHeightPx = scaledDp(48),
+                    edgeTabIndicatorWidthPx = scaledDp(5),
+                    edgeTabIndicatorHeightPx = scaledDp(36),
                     leadingTextSizeSp = 9.5f * fontScale,
                     sidebarTextSizeSp = 10f * fontScale,
                     emptyTextSizeSp = 11f * fontScale,
@@ -1013,6 +1422,9 @@ class OverlayWindowController(
     }
 
     private companion object {
+        const val HIDDEN_EDGE_AUTO_COLLAPSE_RETRY_MS = 100L
+        const val HIDDEN_EDGE_EXPANSION_DURATION_MS = 260L
+        const val HIDDEN_EDGE_COLLAPSE_DURATION_MS = 195L
         const val SIDEBAR_SWITCH_INTERVAL_MS = 2200L
         const val SIDEBAR_SWITCH_DURATION_MS = 420L
     }

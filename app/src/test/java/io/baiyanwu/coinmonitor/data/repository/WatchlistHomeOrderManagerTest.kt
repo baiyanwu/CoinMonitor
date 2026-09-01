@@ -104,6 +104,8 @@ class WatchlistHomeOrderManagerTest {
             chainFamily = null,
             chainIndex = null,
             tokenAddress = null,
+            poolAddress = null,
+            poolTokenSide = null,
             iconUrl = null,
             overlaySelected = false,
             addedAt = addedAt,

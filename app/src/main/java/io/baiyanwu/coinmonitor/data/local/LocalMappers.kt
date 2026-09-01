@@ -8,8 +8,7 @@ import io.baiyanwu.coinmonitor.domain.model.AiChatSession
 import io.baiyanwu.coinmonitor.domain.model.AiChatSessionSummary
 import io.baiyanwu.coinmonitor.domain.model.LivePriceTrend
 import io.baiyanwu.coinmonitor.domain.model.MarketType
-import io.baiyanwu.coinmonitor.domain.model.OverlayLeadingDisplayMode
-import io.baiyanwu.coinmonitor.domain.model.OverlaySettings
+import io.baiyanwu.coinmonitor.domain.model.PoolTokenSide
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
 
 fun WatchItemEntity.toDomain(): WatchItem {
@@ -22,6 +21,8 @@ fun WatchItemEntity.toDomain(): WatchItem {
         chainFamily = chainFamily?.toEnumOrNull<ChainFamily>(),
         chainIndex = chainIndex,
         tokenAddress = tokenAddress,
+        poolAddress = poolAddress,
+        poolTokenSide = poolTokenSide?.toEnumOrNull<PoolTokenSide>(),
         iconUrl = iconUrl,
         overlaySelected = overlaySelected,
         addedAt = addedAt,
@@ -46,6 +47,8 @@ fun WatchItem.toEntity(): WatchItemEntity {
         chainFamily = chainFamily?.name,
         chainIndex = chainIndex,
         tokenAddress = tokenAddress,
+        poolAddress = poolAddress,
+        poolTokenSide = poolTokenSide?.name,
         iconUrl = iconUrl,
         overlaySelected = overlaySelected,
         addedAt = addedAt,
@@ -60,40 +63,12 @@ fun WatchItem.toEntity(): WatchItemEntity {
     )
 }
 
-fun OverlaySettingsEntity.toDomain(): OverlaySettings {
-    return OverlaySettings(
-        enabled = enabled,
-        locked = locked,
-        opacity = opacity,
-        maxItems = maxItems,
-        leadingDisplayMode = OverlayLeadingDisplayMode.valueOf(leadingDisplayMode),
-        fontScale = fontScale,
-        snapToEdge = snapToEdge,
-        windowX = windowX,
-        windowY = windowY
-    )
-}
-
 private inline fun <reified T : Enum<T>> String.toEnumOrDefault(default: T): T {
     return runCatching { enumValueOf<T>(this) }.getOrDefault(default)
 }
 
 private inline fun <reified T : Enum<T>> String.toEnumOrNull(): T? {
     return runCatching { enumValueOf<T>(this) }.getOrNull()
-}
-
-fun OverlaySettings.toEntity(): OverlaySettingsEntity {
-    return OverlaySettingsEntity(
-        enabled = enabled,
-        locked = locked,
-        opacity = opacity,
-        maxItems = maxItems,
-        leadingDisplayMode = leadingDisplayMode.name,
-        fontScale = fontScale,
-        snapToEdge = snapToEdge,
-        windowX = windowX,
-        windowY = windowY
-    )
 }
 
 fun AiChatSessionEntity.toDomain(): AiChatSession {

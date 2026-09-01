@@ -1,11 +1,11 @@
 package io.baiyanwu.coinmonitor.data.local
 
+import android.content.Context
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import io.baiyanwu.coinmonitor.data.local.dao.AiChatDao
-import io.baiyanwu.coinmonitor.data.local.dao.OverlaySettingsDao
 import io.baiyanwu.coinmonitor.data.local.dao.WatchItemDao
 
 @Database(
@@ -15,12 +15,11 @@ import io.baiyanwu.coinmonitor.data.local.dao.WatchItemDao
         AiChatSessionEntity::class,
         AiChatMessageEntity::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = true
 )
 abstract class CoinMonitorDatabase : RoomDatabase() {
     abstract fun watchItemDao(): WatchItemDao
-    abstract fun overlaySettingsDao(): OverlaySettingsDao
     abstract fun aiChatDao(): AiChatDao
 
     companion object {
@@ -102,5 +101,32 @@ abstract class CoinMonitorDatabase : RoomDatabase() {
                 )
             }
         }
+
+        fun migration7To8(
+            context: Context,
+            migrateOverlaySettings: (Context, SupportSQLiteDatabase) -> Unit
+        ): Migration = object : Migration(7, 8) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // 与 watch_items 的 v8 结构升级合并执行，不再创建并行的 8→9 迁移。
+                migrateOverlaySettings(context, database)
+                database.execSQL("ALTER TABLE watch_items ADD COLUMN poolAddress TEXT")
+                database.execSQL("ALTER TABLE watch_items ADD COLUMN poolTokenSide TEXT")
+                database.execSQL(
+                    "UPDATE watch_items SET source = 'ONCHAIN' WHERE marketType = 'ONCHAIN_TOKEN'"
+                )
+                database.execSQL(
+                    """
+                    UPDATE watch_items
+                    SET lastPrice = NULL,
+                        previousPrice = NULL,
+                        liveTrend = 'NEUTRAL',
+                        change24hPercent = NULL,
+                        lastUpdatedAt = NULL
+                    WHERE marketType = 'ONCHAIN_TOKEN'
+                    """.trimIndent()
+                )
+            }
+        }
+
     }
 }

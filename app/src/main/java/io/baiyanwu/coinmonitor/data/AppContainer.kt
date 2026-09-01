@@ -17,10 +17,13 @@ import io.baiyanwu.coinmonitor.data.repository.DefaultMarketKlineRepository
 import io.baiyanwu.coinmonitor.data.repository.DefaultMarketQuoteRepository
 import io.baiyanwu.coinmonitor.data.repository.DefaultMarketSearchRepository
 import io.baiyanwu.coinmonitor.data.repository.DefaultNetworkLogRepository
-import io.baiyanwu.coinmonitor.data.repository.DefaultOkxCredentialsRepository
 import io.baiyanwu.coinmonitor.data.repository.DefaultOverlayRepository
 import io.baiyanwu.coinmonitor.data.repository.DefaultWatchlistRepository
 import io.baiyanwu.coinmonitor.data.repository.InMemoryQuoteRepository
+import io.baiyanwu.coinmonitor.data.repository.migrateLegacyOnchainSettings
+import io.baiyanwu.coinmonitor.data.repository.createOverlayPreferencesDataStore
+import io.baiyanwu.coinmonitor.data.repository.migrateLegacyOverlaySettings
+import io.baiyanwu.coinmonitor.data.repository.migrateLegacyOverlaySettingsBeforeRoomOpen
 import io.baiyanwu.coinmonitor.domain.repository.AppPreferencesRepository
 import io.baiyanwu.coinmonitor.domain.repository.AiChatRepository
 import io.baiyanwu.coinmonitor.domain.repository.AiConfigRepository
@@ -28,7 +31,6 @@ import io.baiyanwu.coinmonitor.domain.repository.MarketKlineRepository
 import io.baiyanwu.coinmonitor.domain.repository.MarketQuoteRepository
 import io.baiyanwu.coinmonitor.domain.repository.MarketSearchRepository
 import io.baiyanwu.coinmonitor.domain.repository.NetworkLogRepository
-import io.baiyanwu.coinmonitor.domain.repository.OkxCredentialsRepository
 import io.baiyanwu.coinmonitor.domain.repository.OverlayRepository
 import io.baiyanwu.coinmonitor.domain.repository.QuoteRepository
 import io.baiyanwu.coinmonitor.domain.repository.WatchlistRepository
@@ -40,6 +42,11 @@ import java.util.concurrent.TimeUnit
 
 class AppContainer(context: Context) {
     val appContext: Context = context.applicationContext
+    init {
+        migrateLegacyOnchainSettings(appContext)
+        migrateLegacyOverlaySettingsBeforeRoomOpen(appContext)
+    }
+
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     val klineSelectionStore = KlineSelectionStore()
     val aiChatSessionSelectionStore = AiChatSessionSelectionStore()
@@ -51,13 +58,23 @@ class AppContainer(context: Context) {
     ).addMigrations(
         CoinMonitorDatabase.MIGRATION_4_5,
         CoinMonitorDatabase.MIGRATION_5_6,
-        CoinMonitorDatabase.MIGRATION_6_7
+        CoinMonitorDatabase.MIGRATION_6_7,
+        CoinMonitorDatabase.migration7To8(
+            context = appContext,
+            migrateOverlaySettings = ::migrateLegacyOverlaySettings
+        )
     ).build()
 
     val networkLogRepository: NetworkLogRepository = DefaultNetworkLogRepository()
 
     private val networkFactory = NetworkFactory(
         networkLogRepository = networkLogRepository
+    )
+    private val dexScreenerClient = io.baiyanwu.coinmonitor.data.network.DexScreenerClient(
+        networkFactory.dexScreenerApi
+    )
+    private val geckoTerminalClient = io.baiyanwu.coinmonitor.data.network.GeckoTerminalClient(
+        networkFactory.geckoTerminalApi
     )
     val appPreferencesRepository: AppPreferencesRepository = DefaultAppPreferencesRepository(
         context = appContext
@@ -69,14 +86,15 @@ class AppContainer(context: Context) {
         database = database
     )
 
-    val overlayRepository: OverlayRepository = DefaultOverlayRepository(
+    private val overlayPreferences = createOverlayPreferencesDataStore(
         context = appContext,
-        overlaySettingsDao = database.overlaySettingsDao(),
-        watchItemDao = database.watchItemDao()
+        scope = appScope
     )
 
-    val okxCredentialsRepository: OkxCredentialsRepository = DefaultOkxCredentialsRepository(
-        context = appContext
+    val overlayRepository: OverlayRepository = DefaultOverlayRepository(
+        context = appContext,
+        overlayPreferences = overlayPreferences,
+        watchItemDao = database.watchItemDao()
     )
 
     val aiConfigRepository: AiConfigRepository = DefaultAiConfigRepository(
@@ -88,8 +106,7 @@ class AppContainer(context: Context) {
         binanceApi = networkFactory.binanceApi,
         binanceFuturesApi = networkFactory.binanceFuturesApi,
         okxApi = networkFactory.okxApi,
-        okxOnChainApi = networkFactory.okxOnChainApi,
-        okxCredentialsProvider = { okxCredentialsRepository.getCredentials() }
+        dexScreenerClient = dexScreenerClient
     )
 
     val marketQuoteRepository: MarketQuoteRepository = DefaultMarketQuoteRepository(
@@ -97,16 +114,17 @@ class AppContainer(context: Context) {
         binanceApi = networkFactory.binanceApi,
         binanceFuturesApi = networkFactory.binanceFuturesApi,
         okxApi = networkFactory.okxApi,
-        okxOnChainApi = networkFactory.okxOnChainApi,
-        okxCredentialsProvider = { okxCredentialsRepository.getCredentials() }
+        dexScreenerClient = dexScreenerClient
     )
 
     val marketKlineRepository: MarketKlineRepository = DefaultMarketKlineRepository(
         alphaApi = networkFactory.alphaApi,
         binanceApi = networkFactory.binanceApi,
+        binanceFuturesApi = networkFactory.binanceFuturesApi,
         okxApi = networkFactory.okxApi,
-        okxOnChainApi = networkFactory.okxOnChainApi,
-        okxCredentialsProvider = { okxCredentialsRepository.getCredentials() }
+        dexScreenerClient = dexScreenerClient,
+        geckoTerminalClient = geckoTerminalClient,
+        watchlistRepository = watchlistRepository
     )
 
     private val analysisHost = AppAnalysisHost(
@@ -115,8 +133,7 @@ class AppContainer(context: Context) {
                 BinanceAnnouncementAdapter(networkFactory.okHttpClient),
                 OkxAnnouncementAdapter(networkFactory.okHttpClient),
                 ProjectInfoAdapter(
-                    okxOnChainApi = networkFactory.okxOnChainApi,
-                    okxCredentialsProvider = { okxCredentialsRepository.getCredentials() }
+                    dexScreenerClient = dexScreenerClient
                 )
             )
         )
@@ -142,7 +159,6 @@ class AppContainer(context: Context) {
         quoteRepository = quoteRepository,
         appPreferencesRepository = appPreferencesRepository,
         marketQuoteRepository = marketQuoteRepository,
-        okxCredentialsProvider = { okxCredentialsRepository.getCredentials() },
         networkLogRepository = networkLogRepository
     )
 }

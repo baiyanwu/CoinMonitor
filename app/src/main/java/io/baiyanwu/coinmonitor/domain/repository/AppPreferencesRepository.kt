@@ -24,6 +24,8 @@ interface AppPreferencesRepository {
 
     suspend fun setRefreshIntervalMode(mode: RefreshIntervalMode)
 
+    suspend fun setOnchainRefreshIntervalSeconds(seconds: Int)
+
     suspend fun setKlineMainIndicator(indicator: KlineIndicator)
 
     suspend fun setKlineSubIndicator(indicator: KlineIndicator)

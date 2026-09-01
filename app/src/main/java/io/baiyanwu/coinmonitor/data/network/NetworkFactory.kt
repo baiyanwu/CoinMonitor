@@ -47,8 +47,11 @@ class NetworkFactory(
     val okxApi: OkxApi = retrofit("https://www.okx.com/")
         .create(OkxApi::class.java)
 
-    val okxOnChainApi: OkxOnChainApi = retrofit("https://web3.okx.com/")
-        .create(OkxOnChainApi::class.java)
+    val dexScreenerApi: DexScreenerApi = retrofit("https://api.dexscreener.com/")
+        .create(DexScreenerApi::class.java)
+
+    val geckoTerminalApi: GeckoTerminalApi = retrofit("https://api.geckoterminal.com/")
+        .create(GeckoTerminalApi::class.java)
 
     val alphaApi: BinanceAlphaApi = retrofit("https://www.binance.com/")
         .create(BinanceAlphaApi::class.java)

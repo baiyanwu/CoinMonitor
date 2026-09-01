@@ -41,8 +41,6 @@ import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.Dp
@@ -51,7 +49,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.baiyanwu.coinmonitor.R
 import io.baiyanwu.coinmonitor.data.AppContainer
-import io.baiyanwu.coinmonitor.domain.model.OkxApiCredentials
+import io.baiyanwu.coinmonitor.domain.model.AppPreferences
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorComponentDefaults
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 import kotlin.math.roundToInt
@@ -72,13 +70,8 @@ fun ThirdPartyApiSettingsRoute(
     ThirdPartyApiSettingsScreen(
         state = state,
         onBack = onBack,
-        onOkxEnabledChange = viewModel::setOkxEnabled,
-        onOkxApiKeyChange = viewModel::updateOkxApiKey,
-        onOkxSecretKeyChange = viewModel::updateOkxSecretKey,
-        onOkxPassphraseChange = viewModel::updateOkxPassphrase,
-        onOkxDexPollingIntervalChange = viewModel::updateOkxDexPollingIntervalSeconds,
-        onSaveOkx = viewModel::saveOkxCredentials,
-        onClearOkx = viewModel::clearOkxCredentials,
+        onOnchainRefreshIntervalChange = viewModel::updateOnchainRefreshIntervalSeconds,
+        onSaveOnchain = viewModel::saveOnchainSettings,
         onAiEnabledChange = viewModel::setAiEnabled,
         onAiBaseUrlChange = viewModel::updateAiBaseUrl,
         onAiApiKeyChange = viewModel::updateAiApiKey,
@@ -93,13 +86,8 @@ fun ThirdPartyApiSettingsRoute(
 private fun ThirdPartyApiSettingsScreen(
     state: ThirdPartyApiSettingsUiState,
     onBack: () -> Unit,
-    onOkxEnabledChange: (Boolean) -> Unit,
-    onOkxApiKeyChange: (String) -> Unit,
-    onOkxSecretKeyChange: (String) -> Unit,
-    onOkxPassphraseChange: (String) -> Unit,
-    onOkxDexPollingIntervalChange: (Int) -> Unit,
-    onSaveOkx: () -> Unit,
-    onClearOkx: () -> Unit,
+    onOnchainRefreshIntervalChange: (Int) -> Unit,
+    onSaveOnchain: () -> Unit,
     onAiEnabledChange: (Boolean) -> Unit,
     onAiBaseUrlChange: (String) -> Unit,
     onAiApiKeyChange: (String) -> Unit,
@@ -109,11 +97,7 @@ private fun ThirdPartyApiSettingsScreen(
     onClearAi: () -> Unit
 ) {
     val colors = CoinMonitorThemeTokens.colors
-    val context = LocalContext.current
-    val uriHandler = LocalUriHandler.current
-    var showOkxValidationError by rememberSaveable { mutableStateOf(false) }
     var showAiValidationError by rememberSaveable { mutableStateOf(false) }
-    val okxOnchainPortalUrl = rememberOkxOnchainPortalUrl(context)
 
     Scaffold(
         containerColor = colors.pageBackground,
@@ -130,98 +114,33 @@ private fun ThirdPartyApiSettingsScreen(
                 .padding(horizontal = 14.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            ThirdPartySectionCard(title = stringResource(R.string.third_party_api_settings_section_okx)) {
+            ThirdPartySectionCard(title = stringResource(R.string.third_party_api_settings_section_onchain)) {
                 Text(
-                    text = stringResource(R.string.third_party_api_settings_disclaimer),
+                    text = stringResource(R.string.third_party_api_settings_onchain_description),
                     style = MaterialTheme.typography.bodySmall,
                     color = colors.secondaryText
                 )
                 Text(
-                    text = stringResource(R.string.third_party_api_settings_okx_onchain_portal),
+                    text = stringResource(R.string.third_party_api_settings_onchain_providers),
                     style = MaterialTheme.typography.bodySmall,
-                    color = colors.accent,
-                    modifier = Modifier.clickable { uriHandler.openUri(okxOnchainPortalUrl) }
-                )
-                Text(
-                    text = okxOnchainPortalUrl,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = colors.accent,
-                    modifier = Modifier.clickable { uriHandler.openUri(okxOnchainPortalUrl) }
-                )
-                if (!state.okx.secureStorageAvailable) {
-                    Text(
-                        text = stringResource(R.string.third_party_api_settings_secure_storage_unavailable),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                }
-                SettingSwitchRow(
-                    title = stringResource(R.string.third_party_api_settings_enable_okx),
-                    checked = state.okx.enabled,
-                    onCheckedChange = onOkxEnabledChange,
-                    horizontalPadding = 0.dp,
-                    verticalPadding = 0.dp
+                    color = colors.accent
                 )
                 DexPollingIntervalSetting(
-                    intervalSeconds = state.okx.dexPollingIntervalSeconds,
-                    onIntervalChange = onOkxDexPollingIntervalChange
+                    intervalSeconds = state.onchain.refreshIntervalSeconds,
+                    onIntervalChange = onOnchainRefreshIntervalChange
                 )
-                OutlinedTextField(
-                    value = state.okx.apiKey,
-                    onValueChange = {
-                        showOkxValidationError = false
-                        onOkxApiKeyChange(it)
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(R.string.third_party_api_settings_api_key)) },
-                    singleLine = true
-                )
-                OutlinedTextField(
-                    value = state.okx.secretKey,
-                    onValueChange = {
-                        showOkxValidationError = false
-                        onOkxSecretKeyChange(it)
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(R.string.third_party_api_settings_secret_key)) },
-                    visualTransformation = PasswordVisualTransformation(),
-                    singleLine = true
-                )
-                OutlinedTextField(
-                    value = state.okx.passphrase,
-                    onValueChange = {
-                        showOkxValidationError = false
-                        onOkxPassphraseChange(it)
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(R.string.third_party_api_settings_passphrase)) },
-                    visualTransformation = PasswordVisualTransformation(),
-                    singleLine = true
-                )
-                if (showOkxValidationError) {
-                    ValidationText(R.string.third_party_api_settings_validation_required)
-                }
                 FeedbackText(
-                    savedFlag = state.okx.savedFlag,
-                    clearedFlag = state.okx.clearedFlag,
-                    errorMessage = state.okx.errorMessage
+                    savedFlag = state.onchain.savedFlag,
+                    clearedFlag = false,
+                    errorMessage = state.onchain.errorMessage
                 )
-                SaveClearButtons(
-                    onSave = {
-                        val needValidate = state.okx.enabled || state.okx.apiKey.isNotBlank() ||
-                            state.okx.secretKey.isNotBlank() || state.okx.passphrase.isNotBlank()
-                        if (needValidate && !state.okx.isReadyToEnable) {
-                            showOkxValidationError = true
-                            return@SaveClearButtons
-                        }
-                        showOkxValidationError = false
-                        onSaveOkx()
-                    },
-                    onClear = {
-                        showOkxValidationError = false
-                        onClearOkx()
-                    }
-                )
+                Button(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = onSaveOnchain,
+                    colors = CoinMonitorComponentDefaults.primaryButtonColors()
+                ) {
+                    Text(text = stringResource(R.string.third_party_api_settings_save))
+                }
             }
 
             if (SHOW_AI_SETTINGS_ENTRY) {
@@ -323,13 +242,13 @@ private fun DexPollingIntervalSetting(
     onIntervalChange: (Int) -> Unit
 ) {
     val colors = CoinMonitorThemeTokens.colors
-    val normalizedInterval = OkxApiCredentials.normalizeDexPollingIntervalSeconds(intervalSeconds)
+    val normalizedInterval = AppPreferences.normalizeOnchainRefreshIntervalSeconds(intervalSeconds)
     val isQuotaRisk = normalizedInterval <
-        OkxApiCredentials.RECOMMENDED_MIN_DEX_POLLING_INTERVAL_SECONDS
+        AppPreferences.RECOMMENDED_MIN_ONCHAIN_REFRESH_INTERVAL_SECONDS
     val stepCount = (
-        OkxApiCredentials.MAX_DEX_POLLING_INTERVAL_SECONDS -
-            OkxApiCredentials.MIN_DEX_POLLING_INTERVAL_SECONDS
-        ) / OkxApiCredentials.DEX_POLLING_INTERVAL_STEP_SECONDS - 1
+        AppPreferences.MAX_ONCHAIN_REFRESH_INTERVAL_SECONDS -
+            AppPreferences.MIN_ONCHAIN_REFRESH_INTERVAL_SECONDS
+        ) / AppPreferences.ONCHAIN_REFRESH_INTERVAL_STEP_SECONDS - 1
     val warningColor = DexWarningRed
     val sliderColors = CoinMonitorComponentDefaults.sliderColors()
 
@@ -345,11 +264,11 @@ private fun DexPollingIntervalSetting(
             value = normalizedInterval.toFloat(),
             onValueChange = { value ->
                 onIntervalChange(
-                    OkxApiCredentials.normalizeDexPollingIntervalSeconds(value.roundToInt())
+                    AppPreferences.normalizeOnchainRefreshIntervalSeconds(value.roundToInt())
                 )
             },
-            valueRange = OkxApiCredentials.MIN_DEX_POLLING_INTERVAL_SECONDS.toFloat()..
-                OkxApiCredentials.MAX_DEX_POLLING_INTERVAL_SECONDS.toFloat(),
+            valueRange = AppPreferences.MIN_ONCHAIN_REFRESH_INTERVAL_SECONDS.toFloat()..
+                AppPreferences.MAX_ONCHAIN_REFRESH_INTERVAL_SECONDS.toFloat(),
             steps = stepCount,
             colors = sliderColors,
             track = { sliderState ->
@@ -382,7 +301,7 @@ private fun DexPollingIntervalSetting(
         Text(
             text = stringResource(
                 R.string.third_party_api_settings_dex_polling_quota_warning,
-                OkxApiCredentials.RECOMMENDED_MIN_DEX_POLLING_INTERVAL_SECONDS
+                AppPreferences.RECOMMENDED_MIN_ONCHAIN_REFRESH_INTERVAL_SECONDS
             ),
             style = MaterialTheme.typography.bodySmall,
             color = if (isQuotaRisk) warningColor else colors.positive
@@ -530,22 +449,5 @@ private fun SettingSwitchRow(
             onCheckedChange = onCheckedChange,
             colors = CoinMonitorComponentDefaults.switchColors()
         )
-    }
-}
-
-@Composable
-private fun rememberOkxOnchainPortalUrl(
-    context: android.content.Context
-): String {
-    val languageTag = context.resources.configuration.locales
-        .takeIf { !it.isEmpty }
-        ?.get(0)
-        ?.toLanguageTag()
-        .orEmpty()
-
-    return if (languageTag.startsWith("zh", ignoreCase = true)) {
-        "https://web3.okx.com/zh-hans/onchainos/dev-portal"
-    } else {
-        "https://web3.okx.com/onchainos/dev-portal"
     }
 }

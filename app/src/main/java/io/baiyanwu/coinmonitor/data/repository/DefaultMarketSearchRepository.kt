@@ -3,33 +3,44 @@ package io.baiyanwu.coinmonitor.data.repository
 import io.baiyanwu.coinmonitor.data.network.BinanceAlphaApi
 import io.baiyanwu.coinmonitor.data.network.BinanceApi
 import io.baiyanwu.coinmonitor.data.network.BinanceFuturesApi
+import io.baiyanwu.coinmonitor.data.network.DexScreenerClient
+import io.baiyanwu.coinmonitor.data.network.DexScreenerPair
+import io.baiyanwu.coinmonitor.data.network.DexScreenerPairSelector
 import io.baiyanwu.coinmonitor.data.network.OkxApi
-import io.baiyanwu.coinmonitor.data.network.OkxOnChainApi
-import io.baiyanwu.coinmonitor.data.network.OkxOnChainChainRegistry
-import io.baiyanwu.coinmonitor.data.network.OkxOnChainRequestSigner
-import io.baiyanwu.coinmonitor.data.network.OkxOnChainTokenRow
 import io.baiyanwu.coinmonitor.data.network.parseAlphaExchangeInfo
 import io.baiyanwu.coinmonitor.data.network.parseAlphaTokenList
 import io.baiyanwu.coinmonitor.domain.model.ChainFamily
 import io.baiyanwu.coinmonitor.domain.model.ExchangeSource
 import io.baiyanwu.coinmonitor.domain.model.MarketType
-import io.baiyanwu.coinmonitor.domain.model.OkxApiCredentials
+import io.baiyanwu.coinmonitor.domain.model.OnchainChain
+import io.baiyanwu.coinmonitor.domain.model.OnchainChainRegistry
+import io.baiyanwu.coinmonitor.domain.model.OnchainPoolOption
+import io.baiyanwu.coinmonitor.domain.model.PoolTokenSide
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
+import io.baiyanwu.coinmonitor.domain.model.looksLikeOnchainAddress
+import io.baiyanwu.coinmonitor.domain.model.normalizeOnchainAddress
 import io.baiyanwu.coinmonitor.domain.repository.MarketSearchRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import java.net.URLEncoder
+
+internal class PartialExchangeSearchException(
+    val failedSourceCount: Int
+) : IllegalStateException()
 
 class DefaultMarketSearchRepository(
     private val alphaApi: BinanceAlphaApi,
     private val binanceApi: BinanceApi,
     private val binanceFuturesApi: BinanceFuturesApi,
     private val okxApi: OkxApi,
-    private val okxOnChainApi: OkxOnChainApi,
-    private val okxCredentialsProvider: suspend () -> OkxApiCredentials? = { null }
+    private val dexScreenerClient: DexScreenerClient
 ) : MarketSearchRepository {
     private val supportedBinanceFuturesPerpetualContractTypes = setOf("PERPETUAL", "TRADIFI_PERPETUAL")
     private val cacheMutex = Mutex()
@@ -45,7 +56,7 @@ class DefaultMarketSearchRepository(
         val binanceFuturesDeferred = async { searchBinanceUsdtFutures(normalizedQuery.uppercase()) }
         val okxDeferred = async { searchOkx(normalizedQuery.uppercase()) }
         val okxFuturesDeferred = async { searchOkxUsdtFutures(normalizedQuery.uppercase()) }
-        val okxOnChainDeferred = async { searchOkxOnChain(normalizedQuery, chainFamilyFilter) }
+        val onchainDeferred = async { searchPublicOnchain(normalizedQuery, chainFamilyFilter) }
 
         val merged = awaitAll(
             alphaDeferred,
@@ -53,7 +64,7 @@ class DefaultMarketSearchRepository(
             binanceFuturesDeferred,
             okxDeferred,
             okxFuturesDeferred,
-            okxOnChainDeferred
+            onchainDeferred
         )
             .flatten()
             .associateBy { it.id }
@@ -63,31 +74,61 @@ class DefaultMarketSearchRepository(
         merged
     }
 
-    override suspend fun searchExchange(keyword: String): List<WatchItem> = coroutineScope {
+    override fun searchExchange(keyword: String): Flow<List<WatchItem>> = flow {
         val normalizedQuery = keyword.trim().uppercase()
-        if (normalizedQuery.isBlank()) return@coroutineScope emptyList()
+        if (normalizedQuery.isBlank()) {
+            emit(emptyList())
+            return@flow
+        }
 
-        awaitAll(
-            async { searchBinanceAlpha(normalizedQuery) },
-            async { searchBinance(normalizedQuery) },
-            async { searchBinanceUsdtFutures(normalizedQuery) },
-            async { searchOkx(normalizedQuery) },
-            async { searchOkxUsdtFutures(normalizedQuery) }
-        )
+        val attempts = supervisorScope {
+            listOf<suspend () -> List<WatchItem>>(
+                { searchBinanceAlpha(normalizedQuery) },
+                { searchBinance(normalizedQuery) },
+                { searchBinanceUsdtFutures(normalizedQuery) },
+                { searchOkx(normalizedQuery) },
+                { searchOkxUsdtFutures(normalizedQuery) }
+            )
+                .map { search -> async { captureSearchAttempt(search) } }
+                .awaitAll()
+        }
+
+        val successfulBatches = attempts.mapNotNull { it.getOrNull() }
+        val failures = attempts.mapNotNull { it.exceptionOrNull() }
+        if (successfulBatches.isEmpty()) {
+            throw failures.firstOrNull() ?: IllegalStateException("Exchange search failed")
+        }
+
+        val mergedResults = successfulBatches
             .flatten()
-            .associateBy { it.id }
+            .associateBy(WatchItem::id)
             .values
-            .sortedWith(compareBy({ ExchangeSource.sortRank(it.exchangeSource) }, { it.symbol }, { it.name }))
+            .sortedWith(
+                compareBy(
+                    { ExchangeSource.sortRank(it.exchangeSource) },
+                    { it.symbol },
+                    { it.name }
+                )
+            )
+        emit(mergedResults)
+
+        if (failures.isNotEmpty()) {
+            throw PartialExchangeSearchException(failures.size)
+        }
     }
 
-    override suspend fun searchOnchain(keyword: String, chainIndex: String): List<WatchItem> {
+    override suspend fun searchOnchain(keyword: String): List<WatchItem> {
         val normalizedQuery = keyword.trim()
         if (normalizedQuery.isBlank()) return emptyList()
-        if (chainIndex.isBlank()) return emptyList()
-        return searchOkxOnChain(
+
+        val addressFamily = when {
+            looksLikeOnchainAddress(ChainFamily.EVM, normalizedQuery) -> ChainFamily.EVM
+            looksLikeOnchainAddress(ChainFamily.SOL, normalizedQuery) -> ChainFamily.SOL
+            else -> null
+        }
+        return searchPublicOnchain(
             keyword = normalizedQuery,
-            chainFamilyFilter = null,
-            selectedChainIndex = chainIndex
+            chainFamilyFilter = addressFamily
         )
     }
 
@@ -180,59 +221,55 @@ class DefaultMarketSearchRepository(
         return universe.filterByKeyword(keyword)
     }
 
-    private suspend fun searchOkxOnChain(
+    private suspend fun captureSearchAttempt(
+        block: suspend () -> List<WatchItem>
+    ): Result<List<WatchItem>> {
+        var lastError: Exception? = null
+        repeat(EXCHANGE_SEARCH_MAX_ATTEMPTS) { attempt ->
+            try {
+                return Result.success(block())
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                lastError = error
+                if (attempt < EXCHANGE_SEARCH_MAX_ATTEMPTS - 1) {
+                    delay(EXCHANGE_SEARCH_RETRY_DELAY_MILLIS)
+                }
+            }
+        }
+        return Result.failure(lastError ?: IllegalStateException("Exchange search failed"))
+    }
+
+    private suspend fun searchPublicOnchain(
         keyword: String,
-        chainFamilyFilter: ChainFamily?,
-        selectedChainIndex: String? = null
+        chainFamilyFilter: ChainFamily? = null
     ): List<WatchItem> {
-        val credentials = okxCredentialsProvider()
-        if (credentials == null || !credentials.enabled || !credentials.isReady) {
-            // 链上接口依赖用户自己填写的凭证，未配置时直接返回空结果，避免影响交易所搜索。
-            return emptyList()
+        val pairs = dexScreenerClient.searchPairs(keyword)
+        val chains = OnchainChainRegistry.entries.filter { chain ->
+            chainFamilyFilter == null || chain.family == chainFamilyFilter
         }
-
-        val queryChains = selectedChainIndex
-            ?.takeIf { it.isNotBlank() }
-            ?.let { listOf(it) }
-            ?: OkxOnChainChainRegistry.queryChains(
-                requestedFamily = chainFamilyFilter,
-                keyword = keyword
-            )
-        if (queryChains.isEmpty()) return emptyList()
-
-        val chains = queryChains.joinToString(separator = ",")
-        val encodedChains = URLEncoder.encode(chains, Charsets.UTF_8.name())
-        val encodedKeyword = URLEncoder.encode(keyword, Charsets.UTF_8.name())
-        val requestPath = "/api/v6/dex/market/token/search?chains=$encodedChains&search=$encodedKeyword"
-        val timestamp = OkxOnChainRequestSigner.buildTimestamp()
-        val signature = OkxOnChainRequestSigner.buildSignature(
-            timestamp = timestamp,
-            method = "GET",
-            requestPath = requestPath,
-            secret = credentials.secretKey
-        )
-
-        val response = runCatching {
-            okxOnChainApi.searchTokens(
-                accessKey = credentials.apiKey,
-                accessSign = signature,
-                accessTimestamp = timestamp,
-                accessPassphrase = credentials.passphrase,
-                chains = chains,
-                search = keyword
-            )
-        }.getOrElse { error ->
-            throw IllegalStateException("OKX 链上搜索请求失败，请检查网络或凭证配置。", error)
+        return chains.flatMap { chain ->
+            val chainPairs = pairs.filter { it.chainId.equals(chain.dexScreenerId, ignoreCase = true) }
+            val addresses = chainPairs.flatMap { pair ->
+                DexScreenerPairSelector.matchingTokenAddresses(pair, keyword, chain.family)
+            }
+            addresses
+                .distinctBy { normalizeOnchainAddress(chain.family, it) }
+                .mapNotNull { address ->
+                    val candidates = DexScreenerPairSelector.candidates(
+                        pairs = chainPairs,
+                        tokenAddress = address,
+                        family = chain.family
+                    )
+                    candidates.firstOrNull()?.toOnchainWatchItem(
+                        chain = chain,
+                        candidates = candidates
+                    )
+                }
         }
-
-        if (response.code != "0") {
-            throw IllegalStateException(response.msg ?: "OKX 链上搜索失败，请检查凭证是否有效。")
-        }
-        return response.data
-            .mapNotNull { it.toOnChainWatchItem() }
-            .filter { item -> selectedChainIndex == null || item.chainIndex == selectedChainIndex }
-            .filter { item -> chainFamilyFilter == null || item.chainFamily == chainFamilyFilter }
-            .filterByKeyword(keyword)
+            .distinctBy(WatchItem::semanticKey)
+            .sortedWith(compareBy({ it.symbol }, { it.name }))
+            .take(80)
     }
 
     private suspend fun loadCache(key: String, block: suspend () -> List<WatchItem>): List<WatchItem> {
@@ -254,6 +291,11 @@ class DefaultMarketSearchRepository(
         val savedAt: Long,
         val items: List<WatchItem>
     )
+
+    private companion object {
+        const val EXCHANGE_SEARCH_MAX_ATTEMPTS = 2
+        const val EXCHANGE_SEARCH_RETRY_DELAY_MILLIS = 150L
+    }
 }
 
 private fun List<WatchItem>.filterByKeyword(keyword: String): List<WatchItem> {
@@ -280,25 +322,50 @@ private fun parseSearchScope(keyword: String): Pair<ChainFamily?, String> {
     }
 }
 
-private fun OkxOnChainTokenRow.toOnChainWatchItem(): WatchItem? {
-    val address = tokenContractAddress?.takeIf { it.isNotBlank() } ?: return null
-    val chain = chainIndex?.takeIf { it.isNotBlank() } ?: return null
-    val symbolText = tokenSymbol?.takeIf { it.isNotBlank() } ?: address.take(6)
-    val nameText = tokenName?.takeIf { it.isNotBlank() } ?: symbolText
-    val family = OkxOnChainChainRegistry.resolveChainFamily(
-        chainIndex = chain,
-        tokenAddress = address
-    ) ?: return null
+private fun io.baiyanwu.coinmonitor.data.network.SelectedDexPair.toOnchainWatchItem(
+    chain: OnchainChain,
+    candidates: List<io.baiyanwu.coinmonitor.data.network.SelectedDexPair>
+): WatchItem {
+    val normalizedAddress = normalizeOnchainAddress(chain.family, tokenAddress)
+    val poolOptions = candidates.map { candidate -> candidate.toPoolOption(chain) }
+    val selectedPool = poolOptions.firstOrNull()
     return WatchItem(
-        id = "okx-onchain:${chain}:${address.lowercase()}",
-        symbol = symbolText.uppercase(),
-        name = nameText,
-        exchangeSource = ExchangeSource.OKX,
+        id = "onchain:${chain.chainIndex}:$normalizedAddress",
+        symbol = tokenSymbol.uppercase(),
+        name = tokenName,
+        exchangeSource = ExchangeSource.ONCHAIN,
         marketType = MarketType.ONCHAIN_TOKEN,
-        chainFamily = family,
-        chainIndex = chain,
-        tokenAddress = address,
-        iconUrl = tokenLogoUrl,
-        addedAt = System.currentTimeMillis()
+        chainFamily = chain.family,
+        chainIndex = chain.chainIndex,
+        tokenAddress = normalizedAddress,
+        poolAddress = normalizeOnchainAddress(chain.family, pair.pairAddress),
+        poolTokenSide = tokenSide,
+        iconUrl = pair.info?.imageUrl.takeIf { tokenSide == io.baiyanwu.coinmonitor.domain.model.PoolTokenSide.BASE },
+        lastPrice = priceUsd,
+        change24hPercent = change24hPercent,
+        lastUpdatedAt = System.currentTimeMillis(),
+        addedAt = System.currentTimeMillis(),
+        selectedPool = selectedPool,
+        poolOptions = poolOptions
+    )
+}
+
+private fun io.baiyanwu.coinmonitor.data.network.SelectedDexPair.toPoolOption(
+    chain: OnchainChain
+): OnchainPoolOption {
+    val counterToken = if (tokenSide == PoolTokenSide.BASE) pair.quoteToken else pair.baseToken
+    val targetLabel = tokenSymbol.ifBlank { tokenAddress.take(8) }.uppercase()
+    val counterLabel = counterToken.symbol.ifBlank { counterToken.address.take(8) }.uppercase()
+    return OnchainPoolOption(
+        poolAddress = normalizeOnchainAddress(chain.family, pair.pairAddress),
+        tokenSide = tokenSide,
+        pairLabel = "$targetLabel / $counterLabel",
+        dexId = pair.dexId,
+        labels = pair.labels.orEmpty(),
+        liquidityUsd = pair.liquidity?.usd ?: 0.0,
+        volume24hUsd = pair.volume["h24"],
+        priceUsd = priceUsd,
+        change24hPercent = change24hPercent,
+        poolUrl = pair.url
     )
 }
