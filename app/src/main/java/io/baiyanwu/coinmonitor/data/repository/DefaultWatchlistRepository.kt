@@ -38,13 +38,22 @@ class DefaultWatchlistRepository(
             val allItems = watchItemDao.getWatchItems()
             val existing = watchItemDao.findById(item.id)
                 ?: allItems.firstOrNull { row -> row.toDomain().semanticKey == item.semanticKey }
+            val overlaySelected = existing?.overlaySelected ?: item.overlaySelected
+            val overlayOrder = if (overlaySelected) {
+                existing?.overlayOrder ?: OverlayOrderManager.nextOrder(
+                    allItems.filter { it.overlaySelected && it.id != existing?.id }
+                )
+            } else {
+                null
+            }
             watchItemDao.upsert(
                 item.copy(
                     id = existing?.id ?: item.id,
                     poolAddress = item.poolAddress ?: existing?.poolAddress,
                     poolTokenSide = item.poolTokenSide
                         ?: existing?.poolTokenSide?.let(PoolTokenSide::valueOf),
-                    overlaySelected = existing?.overlaySelected ?: item.overlaySelected,
+                    overlaySelected = overlaySelected,
+                    overlayOrder = overlayOrder,
                     homePinned = existing?.homePinned ?: false,
                     homeOrder = existing?.homeOrder ?: WatchlistHomeOrderManager.nextNormalOrder(allItems),
                     homePinnedOrder = existing?.homePinnedOrder,

@@ -15,7 +15,7 @@ import io.baiyanwu.coinmonitor.data.local.dao.WatchItemDao
         AiChatSessionEntity::class,
         AiChatMessageEntity::class
     ],
-    version = 8,
+    version = 9,
     exportSchema = true
 )
 abstract class CoinMonitorDatabase : RoomDatabase() {
@@ -107,7 +107,7 @@ abstract class CoinMonitorDatabase : RoomDatabase() {
             migrateOverlaySettings: (Context, SupportSQLiteDatabase) -> Unit
         ): Migration = object : Migration(7, 8) {
             override fun migrate(database: SupportSQLiteDatabase) {
-                // 与 watch_items 的 v8 结构升级合并执行，不再创建并行的 8→9 迁移。
+                // v8 同时完成旧悬浮设置迁出与链上关注项结构升级。
                 migrateOverlaySettings(context, database)
                 database.execSQL("ALTER TABLE watch_items ADD COLUMN poolAddress TEXT")
                 database.execSQL("ALTER TABLE watch_items ADD COLUMN poolTokenSide TEXT")
@@ -125,6 +125,38 @@ abstract class CoinMonitorDatabase : RoomDatabase() {
                     WHERE marketType = 'ONCHAIN_TOKEN'
                     """.trimIndent()
                 )
+            }
+        }
+
+        val MIGRATION_8_9: Migration = object : Migration(8, 9) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE watch_items ADD COLUMN overlayOrder INTEGER")
+                val selectedIds = database.query(
+                    """
+                    SELECT id
+                    FROM watch_items
+                    WHERE overlaySelected = 1
+                    ORDER BY
+                        homePinned DESC,
+                        CASE WHEN homePinned = 1 THEN homePinnedOrder END ASC,
+                        CASE WHEN homePinned = 0 THEN homeOrder END ASC,
+                        addedAt ASC,
+                        id ASC
+                    """.trimIndent()
+                ).use { cursor ->
+                    val ids = mutableListOf<String>()
+                    val idColumn = cursor.getColumnIndexOrThrow("id")
+                    while (cursor.moveToNext()) {
+                        ids += cursor.getString(idColumn)
+                    }
+                    ids
+                }
+                selectedIds.forEachIndexed { index, id ->
+                    database.execSQL(
+                        "UPDATE watch_items SET overlayOrder = ? WHERE id = ?",
+                        arrayOf<Any?>((index + 1L) * 1024L, id)
+                    )
+                }
             }
         }
 

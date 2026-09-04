@@ -11,6 +11,43 @@ data class MarqueeTrackPlan(
     val durationMillis: Long
 )
 
+internal data class MarqueeQuotePresentation(
+    val priceText: String,
+    val priceColor: Int
+)
+
+internal data class MarqueeWindowLayoutSnapshot(
+    val width: Int,
+    val height: Int,
+    val x: Int,
+    val y: Int,
+    val flags: Int
+)
+
+internal object MarqueeRenderPolicy {
+    fun shouldRebuildTrack(
+        currentSignature: String?,
+        nextSignature: String,
+        visualStyleChanged: Boolean
+    ): Boolean {
+        return currentSignature != nextSignature || visualStyleChanged
+    }
+
+    fun shouldBindQuote(
+        previous: MarqueeQuotePresentation?,
+        next: MarqueeQuotePresentation
+    ): Boolean {
+        return previous != next
+    }
+
+    fun shouldUpdateWindowLayout(
+        applied: MarqueeWindowLayoutSnapshot?,
+        desired: MarqueeWindowLayoutSnapshot
+    ): Boolean {
+        return applied != desired
+    }
+}
+
 object MarqueeTrackPlanner {
     fun plan(
         itemWidthsPx: List<Int>,

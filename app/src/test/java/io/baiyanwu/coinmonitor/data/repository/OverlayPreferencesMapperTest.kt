@@ -114,4 +114,27 @@ class OverlayPreferencesMapperTest {
         assertEquals(420, settings.arranged.windowY)
         assertEquals(420, settings.marquee.windowY)
     }
+
+    @Test
+    fun `legacy minimum opacity becomes true zero for both overlay types`() {
+        val settings = mutablePreferencesOf(
+            OverlayPreferenceKeys.opacity to 0.16f,
+            OverlayPreferenceKeys.marqueeOpacity to 0.16f
+        ).toOverlaySettings()
+
+        assertEquals(0f, settings.arranged.opacity)
+        assertEquals(0f, settings.marquee.opacity)
+    }
+
+    @Test
+    fun `current opacity range preserves values between zero and previous minimum`() {
+        val settings = mutablePreferencesOf(
+            OverlayPreferenceKeys.opacityRangeVersion to 1,
+            OverlayPreferenceKeys.opacity to 0.16f,
+            OverlayPreferenceKeys.marqueeOpacity to 0.08f
+        ).toOverlaySettings()
+
+        assertEquals(0.16f, settings.arranged.opacity)
+        assertEquals(0.08f, settings.marquee.opacity)
+    }
 }

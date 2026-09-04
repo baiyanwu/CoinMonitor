@@ -30,8 +30,8 @@
     <string name="home_pinned_tag">置顶</string>
     <string name="home_quick_overlay_add">加入悬浮</string>
     <string name="home_quick_overlay_remove">移出悬浮</string>
-    <string name="home_quick_pin_add">置顶</string>
-    <string name="home_quick_pin_remove">取消置顶</string>
+    <string name="home_quick_pin_add">首页置顶</string>
+    <string name="home_quick_pin_remove">取消首页置顶</string>
     <string name="home_overlay_enable_dialog_title">启用悬浮窗</string>
     <string name="home_overlay_enable_dialog_message">当前还没有开启悬浮窗功能，是否前往悬浮窗设置页开启？</string>
     <string name="home_overlay_enable_dialog_confirm">开启</string>
@@ -240,6 +240,8 @@
     <string name="indicator_color_bear_red">空头红</string>
 
     <string name="overlay_settings_title">悬浮窗设置</string>
+    <string name="overlay_items_settings_title">悬浮币对</string>
+    <string name="overlay_items_settings_description">选择币对并调整悬浮窗中的全局显示顺序</string>
     <string name="overlay_settings_subtitle">管理悬浮窗权限、样式和展示币对。</string>
     <string name="overlay_settings_page_subtitle">这一页只负责悬浮窗权限、样式和展示币对，不影响首页观察列表。</string>
     <string name="overlay_enable">启用悬浮窗</string>
@@ -284,10 +286,19 @@
     <string name="notification_permission_message">建议开启通知权限，避免前台服务通知不可见。</string>
     <string name="notification_permission_action">请求通知权限</string>
     <string name="overlay_select_items">选择悬浮币对</string>
+    <string name="overlay_selected_summary">已选择 %1$d/%2$d，当前显示前 %3$d 个</string>
+    <string name="overlay_order_scope_hint">首页排序与置顶不会影响悬浮窗顺序。排列式从上到下、跑马灯从左到右显示。</string>
+    <string name="overlay_selected_items">已加入悬浮窗</string>
+    <string name="overlay_selected_empty">还没有选择悬浮币对，可从下方添加。</string>
+    <string name="overlay_available_items">可添加币对</string>
+    <string name="overlay_not_currently_visible">超过当前显示数量，暂不显示</string>
+    <string name="overlay_drag_handle_description">拖动调整 %1$s 的悬浮顺序</string>
+    <string name="overlay_market_spot">现货</string>
+    <string name="overlay_reorder_failed">悬浮币对排序失败</string>
     <string name="overlay_add">添加到悬浮窗</string>
     <string name="overlay_remove">从悬浮窗移除</string>
     <string name="overlay_added">已加入悬浮窗</string>
-    <string name="overlay_empty_state">请先在首页添加悬浮币对</string>
+    <string name="overlay_empty_state">请先在首页添加关注币对</string>
     <string name="overlay_page_format">轮播 %1$s</string>
 
     <string name="overlay_notification_title">CoinMonitor 悬浮窗运行中</string>

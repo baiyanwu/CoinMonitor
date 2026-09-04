@@ -144,6 +144,7 @@ class WatchlistHomeOrderManagerTest {
             poolTokenSide = null,
             iconUrl = null,
             overlaySelected = false,
+            overlayOrder = null,
             addedAt = addedAt,
             homePinned = homePinned,
             homeOrder = homeOrder,

@@ -8,6 +8,8 @@ import io.baiyanwu.coinmonitor.domain.model.withQuote
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.conflate
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
 /**
@@ -32,11 +34,18 @@ class OverlayPriceRefreshCoordinator(
                 overlayRepository.observeOverlayItems(),
                 quoteRepository.quotes
             ) { settings, items, quotes ->
-                val resolvedItems = items.map { item -> item.withQuote(quotes[item.id]) }
-                currentSettings = settings
-                currentItems = resolvedItems
-                onRender(resolvedItems, settings)
-            }.collect {}
+                OverlayRenderSnapshot(
+                    items = items.map { item -> item.withQuote(quotes[item.id]) },
+                    settings = settings
+                )
+            }
+                .distinctUntilChanged()
+                .conflate()
+                .collect { snapshot ->
+                    currentSettings = snapshot.settings
+                    currentItems = snapshot.items
+                    onRender(snapshot.items, snapshot.settings)
+                }
         }
     }
 
@@ -47,3 +56,8 @@ class OverlayPriceRefreshCoordinator(
         stateJob = null
     }
 }
+
+private data class OverlayRenderSnapshot(
+    val items: List<WatchItem>,
+    val settings: OverlaySettings
+)

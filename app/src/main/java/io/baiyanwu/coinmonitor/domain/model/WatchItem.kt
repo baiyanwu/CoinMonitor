@@ -13,6 +13,7 @@ data class WatchItem(
     val poolTokenSide: PoolTokenSide? = null,
     val iconUrl: String? = null,
     val overlaySelected: Boolean = false,
+    val overlayOrder: Long? = null,
     val addedAt: Long,
     val homePinned: Boolean = false,
     val homeOrder: Long = addedAt,

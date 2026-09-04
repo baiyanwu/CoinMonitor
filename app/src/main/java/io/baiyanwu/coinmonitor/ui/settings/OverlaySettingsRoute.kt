@@ -1,16 +1,18 @@
 package io.baiyanwu.coinmonitor.ui.settings
 
-import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.ArrowForward
+import androidx.compose.material.icons.rounded.Reorder
 import androidx.compose.material3.Button
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
@@ -26,12 +28,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -57,6 +57,7 @@ fun OverlaySettingsRoute(
     overlayPermissionGranted: Boolean,
     notificationPermissionGranted: Boolean,
     onBack: () -> Unit,
+    onNavigateOverlayItems: () -> Unit,
     onRequestOverlayPermission: () -> Unit,
     onRequestNotificationPermission: () -> Unit,
     onStartOverlay: () -> Unit,
@@ -67,19 +68,13 @@ fun OverlaySettingsRoute(
     )
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
-    val context = LocalContext.current
-
-    LaunchedEffect(state.noticeMessage) {
-        val message = state.noticeMessage ?: return@LaunchedEffect
-        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-        viewModel.consumeNotice()
-    }
 
     OverlaySettingsScreen(
         state = state,
         overlayPermissionGranted = overlayPermissionGranted,
         notificationPermissionGranted = notificationPermissionGranted,
         onBack = onBack,
+        onNavigateOverlayItems = onNavigateOverlayItems,
         onRequestOverlayPermission = onRequestOverlayPermission,
         onRequestNotificationPermission = onRequestNotificationPermission,
         onEnabledChange = { enabled ->
@@ -117,8 +112,7 @@ fun OverlaySettingsRoute(
         onMarqueeOpacityChange = viewModel::setMarqueeOpacity,
         onMarqueeMaxCountChange = viewModel::setMarqueeMaxCount,
         onMarqueeFontScaleChange = viewModel::setMarqueeFontScale,
-        onMarqueeSpeedChange = viewModel::setMarqueeSpeed,
-        onToggleItem = viewModel::toggleItem
+        onMarqueeSpeedChange = viewModel::setMarqueeSpeed
     )
 }
 
@@ -128,6 +122,7 @@ private fun OverlaySettingsScreen(
     overlayPermissionGranted: Boolean,
     notificationPermissionGranted: Boolean,
     onBack: () -> Unit,
+    onNavigateOverlayItems: () -> Unit,
     onRequestOverlayPermission: () -> Unit,
     onRequestNotificationPermission: () -> Unit,
     onEnabledChange: (Boolean) -> Unit,
@@ -144,8 +139,7 @@ private fun OverlaySettingsScreen(
     onMarqueeOpacityChange: (Float) -> Unit,
     onMarqueeMaxCountChange: (Int) -> Unit,
     onMarqueeFontScaleChange: (Float) -> Unit,
-    onMarqueeSpeedChange: (MarqueeSpeed) -> Unit,
-    onToggleItem: (String) -> Unit
+    onMarqueeSpeedChange: (MarqueeSpeed) -> Unit
 ) {
     if (!state.isLoaded) {
         OverlaySettingsLoadingScreen(onBack)
@@ -165,6 +159,10 @@ private fun OverlaySettingsScreen(
                 .padding(horizontal = 14.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            item {
+                OverlayItemsNavigationCard(onClick = onNavigateOverlayItems)
+            }
+
             item {
                 OverlaySettingsCard {
                     Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
@@ -219,45 +217,6 @@ private fun OverlaySettingsScreen(
                 }
             }
 
-            item {
-                OverlaySettingsCard {
-                    Text(
-                        text = stringResource(R.string.overlay_select_items),
-                        style = MaterialTheme.typography.titleSmall
-                    )
-                    if (state.items.isEmpty()) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 104.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = stringResource(R.string.overlay_empty_state),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = colors.secondaryText
-                            )
-                        }
-                    } else {
-                        Column(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalArrangement = Arrangement.spacedBy(2.dp)
-                        ) {
-                            state.items.forEach { item ->
-                                OverlaySettingSwitchRow(
-                                    title = item.symbol,
-                                    subtitle = item.exchangeSource.title,
-                                    horizontalPadding = 0.dp,
-                                    verticalPadding = 0.dp,
-                                    checked = item.overlaySelected,
-                                    onCheckedChange = { onToggleItem(item.id) }
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
             if (!overlayPermissionGranted) {
                 item {
                     MessageCard(
@@ -277,6 +236,47 @@ private fun OverlaySettingsScreen(
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun OverlayItemsNavigationCard(onClick: () -> Unit) {
+    val colors = CoinMonitorThemeTokens.colors
+    OverlaySettingsCard {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(vertical = 2.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Reorder,
+                contentDescription = null,
+                tint = colors.accent
+            )
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.overlay_items_settings_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = colors.primaryText
+                )
+                Text(
+                    text = stringResource(R.string.overlay_items_settings_description),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.secondaryText
+                )
+            }
+            Icon(
+                imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
+                contentDescription = null,
+                tint = colors.secondaryText
+            )
         }
     }
 }

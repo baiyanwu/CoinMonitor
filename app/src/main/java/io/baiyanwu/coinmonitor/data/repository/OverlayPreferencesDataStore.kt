@@ -21,6 +21,7 @@ internal object OverlayPreferencesContract {
     const val ENABLED = "enabled"
     const val LOCKED = "locked"
     const val DISPLAY_TYPE = "display_type"
+    const val OPACITY_RANGE_VERSION = "opacity_range_version"
     // These legacy names remain the arranged-window keys for upgrade compatibility.
     const val OPACITY = "opacity"
     const val MAX_ITEMS = "max_items"
@@ -43,6 +44,7 @@ internal object OverlayPreferenceKeys {
     val enabled = booleanPreferencesKey(OverlayPreferencesContract.ENABLED)
     val locked = booleanPreferencesKey(OverlayPreferencesContract.LOCKED)
     val displayType = stringPreferencesKey(OverlayPreferencesContract.DISPLAY_TYPE)
+    val opacityRangeVersion = intPreferencesKey(OverlayPreferencesContract.OPACITY_RANGE_VERSION)
     val opacity = floatPreferencesKey(OverlayPreferencesContract.OPACITY)
     val maxItems = intPreferencesKey(OverlayPreferencesContract.MAX_ITEMS)
     val leadingDisplayMode = stringPreferencesKey(OverlayPreferencesContract.LEADING_DISPLAY_MODE)

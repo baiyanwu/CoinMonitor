@@ -101,6 +101,127 @@ class CoinMonitorDatabaseMigrationTest {
     }
 
     @Test
+    fun migration8To9_preservesPreviousOverlayOrderAndLeavesUnselectedOrderEmpty() {
+        migrationHelper.createDatabase(OVERLAY_ORDER_DATABASE, 8).apply {
+            insertVersion8WatchItem(
+                id = "pinned-a",
+                source = "BINANCE",
+                marketType = "CEX_SPOT",
+                overlaySelected = true,
+                addedAt = 400L,
+                homePinned = true,
+                homeOrder = 900L,
+                homePinnedOrder = 10L
+            )
+            insertVersion8WatchItem(
+                id = "pinned-b",
+                source = "ONCHAIN",
+                marketType = "ONCHAIN_TOKEN",
+                overlaySelected = true,
+                addedAt = 100L,
+                homePinned = true,
+                homeOrder = 100L,
+                homePinnedOrder = 20L
+            )
+            insertVersion8WatchItem(
+                id = "normal-onchain",
+                source = "ONCHAIN",
+                marketType = "ONCHAIN_TOKEN",
+                overlaySelected = true,
+                addedAt = 300L,
+                homePinned = false,
+                homeOrder = 1L,
+                homePinnedOrder = null
+            )
+            insertVersion8WatchItem(
+                id = "normal-exchange",
+                source = "OKX",
+                marketType = "CEX_SPOT",
+                overlaySelected = true,
+                addedAt = 200L,
+                homePinned = false,
+                homeOrder = 9L,
+                homePinnedOrder = null
+            )
+            insertVersion8WatchItem(
+                id = "not-selected",
+                source = "BINANCE",
+                marketType = "CEX_SPOT",
+                overlaySelected = false,
+                addedAt = 50L,
+                homePinned = true,
+                homeOrder = 1L,
+                homePinnedOrder = 1L
+            )
+            close()
+        }
+
+        val database = migrationHelper.runMigrationsAndValidate(
+            OVERLAY_ORDER_DATABASE,
+            9,
+            true,
+            CoinMonitorDatabase.MIGRATION_8_9
+        )
+
+        database.query(
+            """
+            SELECT id, overlayOrder
+            FROM watch_items
+            WHERE overlaySelected = 1
+            ORDER BY overlayOrder ASC
+            """.trimIndent()
+        ).use { cursor ->
+            val actual = mutableListOf<Pair<String, Long>>()
+            while (cursor.moveToNext()) {
+                actual += cursor.getString(0) to cursor.getLong(1)
+            }
+            assertEquals(
+                listOf(
+                    "pinned-a" to 1024L,
+                    "pinned-b" to 2048L,
+                    "normal-onchain" to 3072L,
+                    "normal-exchange" to 4096L
+                ),
+                actual
+            )
+        }
+        database.query(
+            "SELECT overlayOrder FROM watch_items WHERE id = 'not-selected'"
+        ).use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertTrue(cursor.isNull(0))
+        }
+        database.close()
+    }
+
+    @Test
+    fun migration7To9_runsTheCompleteUpgradePath() {
+        val testContext = isolatedMigrationContext(FULL_UPGRADE_DATABASE)
+        migrationHelper.createDatabase(FULL_UPGRADE_DATABASE, 7).apply {
+            insertLegacyOnchainWatchItem()
+            close()
+        }
+
+        val database = migrationHelper.runMigrationsAndValidate(
+            FULL_UPGRADE_DATABASE,
+            9,
+            true,
+            migration7To8(testContext),
+            CoinMonitorDatabase.MIGRATION_8_9
+        )
+
+        database.query(
+            "SELECT source, overlayOrder FROM watch_items WHERE id = ?",
+            arrayOf(LEGACY_ONCHAIN_ID)
+        ).use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals("ONCHAIN", cursor.getString(0))
+            assertEquals(1024L, cursor.getLong(1))
+        }
+        database.close()
+    }
+
+    @Test
     fun startupMigration_exportsRoomSettingsAndImportsThemIntoDataStore() = runBlocking {
         val testContext = isolatedMigrationContext(PREOPEN_DATABASE)
         migrationHelper.createDatabase(PREOPEN_DATABASE, 7).apply {
@@ -206,6 +327,51 @@ class CoinMonitorDatabaseMigrationTest {
         )
     }
 
+    private fun SupportSQLiteDatabase.insertVersion8WatchItem(
+        id: String,
+        source: String,
+        marketType: String,
+        overlaySelected: Boolean,
+        addedAt: Long,
+        homePinned: Boolean,
+        homeOrder: Long,
+        homePinnedOrder: Long?
+    ) {
+        execSQL(
+            """
+            INSERT INTO watch_items (
+                id, symbol, name, source, marketType, chainFamily, chainIndex,
+                tokenAddress, poolAddress, poolTokenSide, iconUrl, overlaySelected,
+                addedAt, homePinned, homeOrder, homePinnedOrder, lastPrice,
+                previousPrice, liveTrend, change24hPercent, lastUpdatedAt
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """.trimIndent(),
+            arrayOf<Any?>(
+                id,
+                id.uppercase(),
+                id,
+                source,
+                marketType,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                if (overlaySelected) 1 else 0,
+                addedAt,
+                if (homePinned) 1 else 0,
+                homeOrder,
+                homePinnedOrder,
+                null,
+                null,
+                "NEUTRAL",
+                null,
+                null
+            )
+        )
+    }
+
     private fun SupportSQLiteDatabase.insertLegacyOverlaySettings() {
         execSQL(
             """
@@ -260,7 +426,13 @@ class CoinMonitorDatabaseMigrationTest {
     }
 
     private fun clearMigrationState() {
-        listOf(WATCH_ITEM_DATABASE, PREOPEN_DATABASE, ROOM_FALLBACK_DATABASE)
+        listOf(
+            WATCH_ITEM_DATABASE,
+            OVERLAY_ORDER_DATABASE,
+            FULL_UPGRADE_DATABASE,
+            PREOPEN_DATABASE,
+            ROOM_FALLBACK_DATABASE
+        )
             .forEach(context::deleteDatabase)
         listOf(
             OverlayPreferencesContract.LEGACY_SHARED_PREFERENCES_NAME,
@@ -317,6 +489,8 @@ class CoinMonitorDatabaseMigrationTest {
 
     private companion object {
         const val WATCH_ITEM_DATABASE = "coin-monitor-migration-watch-item"
+        const val OVERLAY_ORDER_DATABASE = "coin-monitor-migration-overlay-order"
+        const val FULL_UPGRADE_DATABASE = "coin-monitor-migration-full-upgrade"
         const val PREOPEN_DATABASE = "coin-monitor-migration-preopen"
         const val ROOM_FALLBACK_DATABASE = "coin-monitor-migration-room-fallback"
         const val PRODUCTION_DATABASE_NAME = "coin_monitor.db"

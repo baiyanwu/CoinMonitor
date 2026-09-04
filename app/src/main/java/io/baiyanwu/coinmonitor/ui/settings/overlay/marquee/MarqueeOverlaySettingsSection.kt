@@ -10,6 +10,10 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -39,11 +43,15 @@ internal fun MarqueeOverlaySettingsSection(
     onFontScaleChange: (Float) -> Unit,
     onSpeedChange: (MarqueeSpeed) -> Unit
 ) {
-    val opacityProgress = overlayOpacityToProgress(
-        opacity = settings.opacity,
-        minimumOpacity = MarqueeOverlaySettings.MIN_OPACITY,
-        maximumOpacity = MarqueeOverlaySettings.MAX_OPACITY
-    )
+    var opacityProgress by remember(settings.opacity) {
+        mutableFloatStateOf(
+            overlayOpacityToProgress(
+                opacity = settings.opacity,
+                minimumOpacity = MarqueeOverlaySettings.MIN_OPACITY,
+                maximumOpacity = MarqueeOverlaySettings.MAX_OPACITY
+            )
+        )
+    }
     val opacityPercent = (opacityProgress * 100).roundToInt()
     val fontSizeSp = overlayFontScaleToSizeSp(
         fontScale = settings.fontScale,
@@ -69,10 +77,11 @@ internal fun MarqueeOverlaySettingsSection(
         )
         Slider(
             value = opacityProgress,
-            onValueChange = {
+            onValueChange = { opacityProgress = it },
+            onValueChangeFinished = {
                 onOpacityChange(
                     overlayProgressToOpacity(
-                        progress = it,
+                        progress = opacityProgress,
                         minimumOpacity = MarqueeOverlaySettings.MIN_OPACITY,
                         maximumOpacity = MarqueeOverlaySettings.MAX_OPACITY
                     )

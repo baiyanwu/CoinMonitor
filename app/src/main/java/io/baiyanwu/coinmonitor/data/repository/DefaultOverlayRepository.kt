@@ -6,8 +6,9 @@ import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
+import androidx.room.withTransaction
 import io.baiyanwu.coinmonitor.R
-import io.baiyanwu.coinmonitor.data.local.dao.WatchItemDao
+import io.baiyanwu.coinmonitor.data.local.CoinMonitorDatabase
 import io.baiyanwu.coinmonitor.data.local.toDomain
 import io.baiyanwu.coinmonitor.domain.model.ArrangedEdgeDisplayMode
 import io.baiyanwu.coinmonitor.domain.model.ArrangedOverlaySettings
@@ -28,8 +29,10 @@ import kotlinx.coroutines.flow.map
 class DefaultOverlayRepository(
     private val context: Context,
     private val overlayPreferences: DataStore<Preferences>,
-    private val watchItemDao: WatchItemDao
+    private val database: CoinMonitorDatabase
 ) : OverlayRepository {
+    private val watchItemDao = database.watchItemDao()
+
     override fun observeSettings(): Flow<OverlaySettings> {
         return overlayPreferences.data
             .catch { error ->
@@ -54,19 +57,46 @@ class DefaultOverlayRepository(
     }
 
     override suspend fun toggleItem(id: String) {
-        val item = watchItemDao.findById(id) ?: return
-        if (!item.overlaySelected) {
-            val selectedCount = watchItemDao.getWatchItems().count { it.overlaySelected }
-            if (selectedCount >= OverlaySettings.MAX_SELECTABLE_ITEMS) {
-                throw IllegalStateException(
-                    context.getString(
-                        R.string.overlay_select_limit_reached,
-                        OverlaySettings.MAX_SELECTABLE_ITEMS
+        database.withTransaction {
+            val item = watchItemDao.findById(id) ?: return@withTransaction
+            if (item.overlaySelected) {
+                watchItemDao.updateOverlaySelection(
+                    id = id,
+                    selected = false,
+                    overlayOrder = null
+                )
+            } else {
+                val selectedItems = watchItemDao.getOverlayItems()
+                if (selectedItems.size >= OverlaySettings.MAX_SELECTABLE_ITEMS) {
+                    throw IllegalStateException(
+                        context.getString(
+                            R.string.overlay_select_limit_reached,
+                            OverlaySettings.MAX_SELECTABLE_ITEMS
+                        )
                     )
+                }
+                watchItemDao.updateOverlaySelection(
+                    id = id,
+                    selected = true,
+                    overlayOrder = OverlayOrderManager.nextOrder(selectedItems)
                 )
             }
         }
-        watchItemDao.updateOverlaySelected(id, !item.overlaySelected)
+    }
+
+    override suspend fun moveOverlayItem(id: String, targetBeforeId: String?) {
+        database.withTransaction {
+            OverlayOrderManager.reorder(
+                items = watchItemDao.getOverlayItems(),
+                itemId = id,
+                targetBeforeId = targetBeforeId
+            ).forEach { update ->
+                watchItemDao.updateOverlayOrder(
+                    id = update.id,
+                    overlayOrder = update.order
+                )
+            }
+        }
     }
 
     override suspend fun setLocked(locked: Boolean) {
@@ -208,6 +238,8 @@ class DefaultOverlayRepository(
 
 internal fun Preferences.toOverlaySettings(): OverlaySettings {
     val arrangedWindowY = this[OverlayPreferenceKeys.windowY]
+    val migrateLegacyMinimumOpacity =
+        (this[OverlayPreferenceKeys.opacityRangeVersion] ?: 0) < CURRENT_OPACITY_RANGE_VERSION
     return OverlaySettings(
         enabled = this[OverlayPreferenceKeys.enabled] ?: false,
         locked = this[OverlayPreferenceKeys.locked] ?: false,
@@ -216,11 +248,11 @@ internal fun Preferences.toOverlaySettings(): OverlaySettings {
             default = OverlayDisplayType.ARRANGED
         ),
         arranged = ArrangedOverlaySettings(
-            opacity = (
-                this[OverlayPreferenceKeys.opacity] ?: ArrangedOverlaySettings.DEFAULT_OPACITY
-                ).coerceIn(
-                minimumValue = ArrangedOverlaySettings.MIN_OPACITY,
-                maximumValue = ArrangedOverlaySettings.MAX_OPACITY
+            opacity = normalizedOverlayOpacity(
+                storedOpacity = this[OverlayPreferenceKeys.opacity],
+                defaultOpacity = ArrangedOverlaySettings.DEFAULT_OPACITY,
+                maximumOpacity = ArrangedOverlaySettings.MAX_OPACITY,
+                migrateLegacyMinimum = migrateLegacyMinimumOpacity
             ),
             maxItems = (
                 this[OverlayPreferenceKeys.maxItems] ?: ArrangedOverlaySettings.DEFAULT_MAX_ITEMS
@@ -258,12 +290,11 @@ internal fun Preferences.toOverlaySettings(): OverlaySettings {
             windowY = arrangedWindowY
         ),
         marquee = MarqueeOverlaySettings(
-            opacity = (
-                this[OverlayPreferenceKeys.marqueeOpacity]
-                    ?: MarqueeOverlaySettings.DEFAULT_OPACITY
-                ).coerceIn(
-                minimumValue = MarqueeOverlaySettings.MIN_OPACITY,
-                maximumValue = MarqueeOverlaySettings.MAX_OPACITY
+            opacity = normalizedOverlayOpacity(
+                storedOpacity = this[OverlayPreferenceKeys.marqueeOpacity],
+                defaultOpacity = MarqueeOverlaySettings.DEFAULT_OPACITY,
+                maximumOpacity = MarqueeOverlaySettings.MAX_OPACITY,
+                migrateLegacyMinimum = migrateLegacyMinimumOpacity
             ),
             maxItems = (
                 this[OverlayPreferenceKeys.marqueeMaxItems]
@@ -289,6 +320,7 @@ private fun MutablePreferences.writeSettings(settings: OverlaySettings) {
     this[OverlayPreferenceKeys.enabled] = settings.enabled
     this[OverlayPreferenceKeys.locked] = settings.locked
     this[OverlayPreferenceKeys.displayType] = settings.displayType.name
+    this[OverlayPreferenceKeys.opacityRangeVersion] = CURRENT_OPACITY_RANGE_VERSION
     this[OverlayPreferenceKeys.opacity] = settings.arranged.opacity
     this[OverlayPreferenceKeys.maxItems] = settings.arranged.maxItems
     this[OverlayPreferenceKeys.leadingDisplayMode] = settings.arranged.leadingDisplayMode.name
@@ -323,4 +355,23 @@ private inline fun <reified T : Enum<T>> enumValueOrDefault(value: String?, defa
     return value?.let { runCatching { enumValueOf<T>(it) }.getOrNull() } ?: default
 }
 
+private fun normalizedOverlayOpacity(
+    storedOpacity: Float?,
+    defaultOpacity: Float,
+    maximumOpacity: Float,
+    migrateLegacyMinimum: Boolean
+): Float {
+    val opacity = storedOpacity ?: defaultOpacity
+    val migratedOpacity = if (
+        migrateLegacyMinimum && opacity == LEGACY_MIN_OVERLAY_OPACITY
+    ) {
+        0f
+    } else {
+        opacity
+    }
+    return migratedOpacity.coerceIn(0f, maximumOpacity)
+}
+
 private const val LEGACY_EDGE_TICKER_VALUE = "TICKER"
+private const val LEGACY_MIN_OVERLAY_OPACITY = 0.16f
+private const val CURRENT_OPACITY_RANGE_VERSION = 1

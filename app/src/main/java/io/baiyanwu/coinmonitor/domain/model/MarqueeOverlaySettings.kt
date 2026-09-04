@@ -15,7 +15,7 @@ data class MarqueeOverlaySettings(
 ) {
     companion object {
         const val DEFAULT_OPACITY: Float = 0.42f
-        const val MIN_OPACITY: Float = 0.16f
+        const val MIN_OPACITY: Float = 0f
         const val MAX_OPACITY: Float = 0.72f
         const val DEFAULT_MAX_ITEMS: Int = OverlaySettings.MAX_SELECTABLE_ITEMS
         const val DEFAULT_FONT_SCALE: Float = 1f

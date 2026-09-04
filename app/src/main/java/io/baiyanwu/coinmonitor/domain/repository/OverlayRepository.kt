@@ -14,6 +14,7 @@ interface OverlayRepository {
     suspend fun getSettings(): OverlaySettings
     suspend fun setEnabled(enabled: Boolean)
     suspend fun toggleItem(id: String)
+    suspend fun moveOverlayItem(id: String, targetBeforeId: String?)
     suspend fun setLocked(locked: Boolean)
     suspend fun setDisplayType(displayType: OverlayDisplayType)
     suspend fun setArrangedOpacity(opacity: Float)

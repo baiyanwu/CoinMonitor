@@ -1,6 +1,5 @@
 package io.baiyanwu.coinmonitor.ui.settings
 
-import io.baiyanwu.coinmonitor.R
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -12,45 +11,30 @@ import io.baiyanwu.coinmonitor.domain.model.MarqueeSpeed
 import io.baiyanwu.coinmonitor.domain.model.OverlayDisplayType
 import io.baiyanwu.coinmonitor.domain.model.OverlayLeadingDisplayMode
 import io.baiyanwu.coinmonitor.domain.model.OverlaySettings
-import io.baiyanwu.coinmonitor.domain.model.WatchItem
 import io.baiyanwu.coinmonitor.domain.repository.OverlayRepository
-import io.baiyanwu.coinmonitor.domain.repository.WatchlistRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
 data class OverlaySettingsUiState(
     val settings: OverlaySettings = OverlaySettings(),
-    val items: List<WatchItem> = emptyList(),
-    val isLoaded: Boolean = false,
-    val noticeMessage: String? = null
+    val isLoaded: Boolean = false
 )
 
 class OverlaySettingsViewModel(
-    private val appContainer: AppContainer,
-    private val overlayRepository: OverlayRepository,
-    private val watchlistRepository: WatchlistRepository
+    private val overlayRepository: OverlayRepository
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(OverlaySettingsUiState())
     val uiState: StateFlow<OverlaySettingsUiState> = _uiState.asStateFlow()
-    private var currentNoticeMessage: String? = null
 
     init {
         viewModelScope.launch {
-            combine(
-                overlayRepository.observeSettings(),
-                watchlistRepository.observeHomeWatchlist()
-            ) { settings, items ->
-                OverlaySettingsUiState(
+            overlayRepository.observeSettings().collect { settings ->
+                _uiState.value = OverlaySettingsUiState(
                     settings = settings,
-                    items = items,
-                    isLoaded = true,
-                    noticeMessage = currentNoticeMessage
+                    isLoaded = true
                 )
-            }.collect {
-                _uiState.value = it
             }
         }
     }
@@ -145,31 +129,11 @@ class OverlaySettingsViewModel(
         }
     }
 
-    fun toggleItem(id: String) {
-        viewModelScope.launch {
-            runCatching {
-                overlayRepository.toggleItem(id)
-            }.onFailure { throwable ->
-                currentNoticeMessage = throwable.message
-                    ?: appContainer.appContext.getString(R.string.overlay_add_failed)
-                _uiState.value = _uiState.value.copy(noticeMessage = currentNoticeMessage)
-            }
-        }
-    }
-
-    fun consumeNotice() {
-        if (currentNoticeMessage == null) return
-        currentNoticeMessage = null
-        _uiState.value = _uiState.value.copy(noticeMessage = null)
-    }
-
     companion object {
         fun factory(container: AppContainer): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 OverlaySettingsViewModel(
-                    appContainer = container,
-                    overlayRepository = container.overlayRepository,
-                    watchlistRepository = container.watchlistRepository
+                    overlayRepository = container.overlayRepository
                 )
             }
         }

@@ -63,7 +63,8 @@ class AppContainer(context: Context) {
         CoinMonitorDatabase.migration7To8(
             context = appContext,
             migrateOverlaySettings = ::migrateLegacyOverlaySettings
-        )
+        ),
+        CoinMonitorDatabase.MIGRATION_8_9
     ).build()
 
     val networkLogRepository: NetworkLogRepository = DefaultNetworkLogRepository()
@@ -100,7 +101,7 @@ class AppContainer(context: Context) {
     val overlayRepository: OverlayRepository = DefaultOverlayRepository(
         context = appContext,
         overlayPreferences = overlayPreferences,
-        watchItemDao = database.watchItemDao()
+        database = database
     )
 
     val aiConfigRepository: AiConfigRepository = DefaultAiConfigRepository(

@@ -1,5 +1,6 @@
 package io.baiyanwu.coinmonitor.overlay.marquee
 
+import android.animation.ObjectAnimator
 import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.Bitmap
@@ -21,6 +22,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.compose.ui.graphics.toArgb
 import io.baiyanwu.coinmonitor.R
+import io.baiyanwu.coinmonitor.domain.model.AppPreferences
 import io.baiyanwu.coinmonitor.domain.model.MarqueeOverlaySettings
 import io.baiyanwu.coinmonitor.domain.model.OnchainChainIconRegistry
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
@@ -32,6 +34,7 @@ import io.baiyanwu.coinmonitor.overlay.OverlayPermissionHelper
 import io.baiyanwu.coinmonitor.overlay.QuoteFormatter
 import io.baiyanwu.coinmonitor.ui.AppConfigurationApplier
 import io.baiyanwu.coinmonitor.ui.resolveLivePriceColor
+import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorColors
 import io.baiyanwu.coinmonitor.ui.theme.resolveCoinMonitorColors
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -51,18 +54,42 @@ internal class MarqueeOverlayWindowController(
     private var rootView: FrameLayout? = null
     private var trackView: LinearLayout? = null
     private var layoutParams: WindowManager.LayoutParams? = null
-    private var animator: ValueAnimator? = null
+    private var animator: ObjectAnimator? = null
     private var structureSignature: String? = null
     private var lastSettingsWindowY: Int? = null
     private var isDragging: Boolean = false
+    private var appliedWindowLayout: MarqueeWindowLayoutSnapshot? = null
+    private var appliedTouchConfig: MarqueeTouchConfig? = null
+    private var lastRootBackgroundColor: Int? = null
+    private var lastTrackColors: CoinMonitorColors? = null
+    private var cachedColorPreferences: AppPreferences? = null
+    private var cachedColorUiMode: Int? = null
+    private var cachedOverlayColors: CoinMonitorColors? = null
     private val holdersById = LinkedHashMap<String, MutableList<MarqueeItemHolder>>()
     private val priceWidthsById = LinkedHashMap<String, Int>()
+    private val quotePresentationsById = LinkedHashMap<String, MarqueeQuotePresentation>()
     private val iconBitmapCache = LinkedHashMap<String, Bitmap>()
     private val pendingIconLoads = mutableSetOf<String>()
     private val completedIconLoads = mutableSetOf<String>()
 
-    private val overlayColors
-        get() = resolveCoinMonitorColors(context, appPreferencesRepository.getPreferences())
+    private val overlayColors: CoinMonitorColors
+        get() {
+            val preferences = appPreferencesRepository.getPreferences()
+            val uiMode = context.resources.configuration.uiMode
+            val cachedColors = cachedOverlayColors
+            if (
+                cachedColors != null &&
+                cachedColorPreferences == preferences &&
+                cachedColorUiMode == uiMode
+            ) {
+                return cachedColors
+            }
+            return resolveCoinMonitorColors(context, preferences).also { colors ->
+                cachedColorPreferences = preferences
+                cachedColorUiMode = uiMode
+                cachedOverlayColors = colors
+            }
+        }
 
     private val localizedContext: Context
         get() = AppConfigurationApplier.wrapContext(
@@ -75,11 +102,12 @@ internal class MarqueeOverlayWindowController(
         locked: Boolean,
         settings: MarqueeOverlaySettings
     ) {
-        if (!OverlayPermissionHelper.canDrawOverlays(context)) {
+        if (rootView == null && !OverlayPermissionHelper.canDrawOverlays(context)) {
             hide()
             return
         }
 
+        val colors = overlayColors
         val metrics = MarqueeMetrics.from(context, settings)
         ensureWindow(settings, locked, metrics)
         val root = rootView ?: return
@@ -88,43 +116,63 @@ internal class MarqueeOverlayWindowController(
         val screenWidth = displayMetrics.widthPixels
         val screenHeight = displayMetrics.heightPixels
 
-        params.width = WindowManager.LayoutParams.MATCH_PARENT
-        params.height = metrics.heightPx
-        params.x = MarqueeWindowPositionPolicy.resolveX()
+        var desiredY = params.y
         if (!isDragging && settings.windowY != lastSettingsWindowY) {
-            params.y = settings.windowY ?: DEFAULT_WINDOW_Y_DP.dp
+            desiredY = settings.windowY ?: DEFAULT_WINDOW_Y_DP.dp
             lastSettingsWindowY = settings.windowY
         }
-        params.y = MarqueeWindowPositionPolicy.resolveY(
-            requestedY = params.y,
+        desiredY = MarqueeWindowPositionPolicy.resolveY(
+            requestedY = desiredY,
             overlayHeightPx = metrics.heightPx,
             screenHeightPx = screenHeight
         )
-        val flags = resolveWindowFlags(locked)
-        if (params.flags != flags) params.flags = flags
+        val desiredLayout = MarqueeWindowLayoutSnapshot(
+            width = WindowManager.LayoutParams.MATCH_PARENT,
+            height = metrics.heightPx,
+            x = MarqueeWindowPositionPolicy.resolveX(),
+            y = desiredY,
+            flags = resolveWindowFlags(locked)
+        )
+        applyLayoutParams(params, desiredLayout)
 
-        applyRootStyle(root, settings.opacity)
+        applyRootStyle(root, settings.opacity, colors)
+        val visualStyleChanged = lastTrackColors != colors
         val visibleItems = items.take(settings.maxItems)
         if (visibleItems.isEmpty()) {
-            renderEmptyState(root, metrics)
+            renderEmptyState(
+                root = root,
+                metrics = metrics,
+                colors = colors,
+                forceRebuild = visualStyleChanged
+            )
         } else {
             renderMarquee(
                 root = root,
                 items = visibleItems,
                 settings = settings,
                 metrics = metrics,
-                screenWidth = screenWidth
+                screenWidth = screenWidth,
+                colors = colors,
+                forceRebuild = visualStyleChanged
             )
         }
-        // Keep the active gesture listener stable while quote updates arrive.
+        lastTrackColors = colors
+
         if (!isDragging) {
-            applyTouchHandler(root, locked, metrics, screenHeight)
+            ensureTouchHandler(root, locked, metrics, screenHeight)
         }
 
         if (root.parent == null) {
             windowManager.addView(root, params)
-        } else {
+            appliedWindowLayout = desiredLayout
+        } else if (
+            MarqueeRenderPolicy.shouldUpdateWindowLayout(
+                applied = appliedWindowLayout,
+                desired = desiredLayout
+            )
+        ) {
             windowManager.updateViewLayout(root, params)
+            appliedWindowLayout = desiredLayout
         }
     }
 
@@ -135,6 +183,7 @@ internal class MarqueeOverlayWindowController(
         }
         holdersById.clear()
         priceWidthsById.clear()
+        quotePresentationsById.clear()
         iconBitmapCache.clear()
         pendingIconLoads.clear()
         completedIconLoads.clear()
@@ -143,6 +192,10 @@ internal class MarqueeOverlayWindowController(
         layoutParams = null
         structureSignature = null
         lastSettingsWindowY = null
+        appliedWindowLayout = null
+        appliedTouchConfig = null
+        lastRootBackgroundColor = null
+        lastTrackColors = null
         isDragging = false
     }
 
@@ -180,25 +233,49 @@ internal class MarqueeOverlayWindowController(
         }
     }
 
-    private fun applyRootStyle(root: FrameLayout, opacity: Float) {
-        root.background = GradientDrawable().apply {
-            setColor(
-                overlayColors.overlayBackground.copy(
-                    alpha = opacity.coerceIn(
-                        MarqueeOverlaySettings.MIN_OPACITY,
-                        MarqueeOverlaySettings.MAX_OPACITY
-                    )
-                ).toArgb()
-            )
-        }
+    private fun applyLayoutParams(
+        params: WindowManager.LayoutParams,
+        desired: MarqueeWindowLayoutSnapshot
+    ) {
+        params.width = desired.width
+        params.height = desired.height
+        params.x = desired.x
+        params.y = desired.y
+        params.flags = desired.flags
     }
 
-    private fun renderEmptyState(root: FrameLayout, metrics: MarqueeMetrics) {
+    private fun applyRootStyle(
+        root: FrameLayout,
+        opacity: Float,
+        colors: CoinMonitorColors
+    ) {
+        val backgroundColor = colors.overlayBackground.copy(
+            alpha = opacity.coerceIn(
+                MarqueeOverlaySettings.MIN_OPACITY,
+                MarqueeOverlaySettings.MAX_OPACITY
+            )
+        ).toArgb()
+        if (lastRootBackgroundColor == backgroundColor) return
+
+        val background = (root.background as? GradientDrawable) ?: GradientDrawable().also {
+            root.background = it
+        }
+        background.setColor(backgroundColor)
+        lastRootBackgroundColor = backgroundColor
+    }
+
+    private fun renderEmptyState(
+        root: FrameLayout,
+        metrics: MarqueeMetrics,
+        colors: CoinMonitorColors,
+        forceRebuild: Boolean
+    ) {
         val emptySignature = "empty|${metrics.fontScale}|${metrics.heightPx}"
-        if (structureSignature != emptySignature) {
+        if (structureSignature != emptySignature || forceRebuild) {
             cancelAnimator()
             holdersById.clear()
             priceWidthsById.clear()
+            quotePresentationsById.clear()
             trackView = null
             root.removeAllViews()
             root.addView(
@@ -211,7 +288,7 @@ internal class MarqueeOverlayWindowController(
                     includeFontPadding = false
                     maxLines = 1
                     text = localizedContext.getString(R.string.overlay_empty_state)
-                    setTextColor(overlayColors.overlayText.copy(alpha = 0.92f).toArgb())
+                    setTextColor(colors.overlayText.copy(alpha = 0.92f).toArgb())
                     setTextSize(TypedValue.COMPLEX_UNIT_SP, metrics.textSizeSp)
                 }
             )
@@ -224,7 +301,9 @@ internal class MarqueeOverlayWindowController(
         items: List<WatchItem>,
         settings: MarqueeOverlaySettings,
         metrics: MarqueeMetrics,
-        screenWidth: Int
+        screenWidth: Int,
+        colors: CoinMonitorColors,
+        forceRebuild: Boolean
     ) {
         val signature = MarqueeTrackStructure.signature(
             itemIds = items.map(WatchItem::id),
@@ -234,13 +313,18 @@ internal class MarqueeOverlayWindowController(
             viewportWidthPx = screenWidth,
             speed = settings.speed
         )
-        val resolvedPriceWidths = resolvePriceWidths(items, metrics)
-        if (structureSignature != signature || priceWidthsById != resolvedPriceWidths) {
+        if (
+            MarqueeRenderPolicy.shouldRebuildTrack(
+                currentSignature = structureSignature,
+                nextSignature = signature,
+                visualStyleChanged = forceRebuild
+            )
+        ) {
             priceWidthsById.clear()
-            priceWidthsById.putAll(resolvedPriceWidths)
-            rebuildTrack(root, items, settings, metrics, screenWidth, signature)
+            priceWidthsById.putAll(resolveInitialPriceWidths(items, metrics))
+            rebuildTrack(root, items, settings, metrics, screenWidth, signature, colors)
         } else {
-            bindVisibleItems(items, metrics)
+            bindVisibleItems(items, metrics, colors)
         }
     }
 
@@ -250,10 +334,12 @@ internal class MarqueeOverlayWindowController(
         settings: MarqueeOverlaySettings,
         metrics: MarqueeMetrics,
         screenWidth: Int,
-        signature: String
+        signature: String,
+        colors: CoinMonitorColors
     ) {
         cancelAnimator()
         holdersById.clear()
+        quotePresentationsById.clear()
         root.removeAllViews()
         val plan = MarqueeTrackPlanner.plan(
             itemWidthsPx = items.map { item ->
@@ -276,21 +362,22 @@ internal class MarqueeOverlayWindowController(
             items.forEach { item ->
                 val holder = createItemHolder(
                     metrics = metrics,
-                    priceWidthPx = priceWidthsById.getValue(item.id)
+                    priceWidthPx = priceWidthsById.getValue(item.id),
+                    colors = colors
                 )
                 holdersById.getOrPut(item.id) { mutableListOf() }.add(holder)
                 track.addView(holder.root)
             }
-            track.addView(createCycleSeparator(metrics))
+            track.addView(createCycleSeparator(metrics, colors))
         }
-        bindVisibleItems(items, metrics)
+        bindVisibleItems(items, metrics, colors)
         root.addView(track)
         trackView = track
         structureSignature = signature
         startAnimator(track, plan, signature)
     }
 
-    private fun resolvePriceWidths(
+    private fun resolveInitialPriceWidths(
         items: List<WatchItem>,
         metrics: MarqueeMetrics
     ): LinkedHashMap<String, Int> {
@@ -299,16 +386,20 @@ internal class MarqueeOverlayWindowController(
             fontFeatureSettings = "tnum"
         }
         return items.associateTo(LinkedHashMap()) { item ->
-            val measuredWidthPx = ceil(
-                measurementView.paint.measureText(QuoteFormatter.formatOverlayPrice(item)).toDouble()
-            ).toInt()
+            val priceText = QuoteFormatter.formatOverlayPrice(item)
+            val measuredWidthPx = if (priceText == "--") {
+                metrics.priceWidthPx
+            } else {
+                ceil(measurementView.paint.measureText(priceText).toDouble()).toInt()
+            }
             item.id to measuredWidthPx.coerceIn(1, metrics.priceWidthPx)
         }
     }
 
     private fun createItemHolder(
         metrics: MarqueeMetrics,
-        priceWidthPx: Int
+        priceWidthPx: Int,
+        colors: CoinMonitorColors
     ): MarqueeItemHolder {
         val root = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -335,7 +426,7 @@ internal class MarqueeOverlayWindowController(
                     outline.setOval(0, 0, view.width, view.height)
                 }
             }
-            setImageDrawable(buildDefaultIconDrawable(metrics))
+            setImageDrawable(buildDefaultIconDrawable(metrics, colors))
         }
         val price = marqueeTextView(metrics, Gravity.START).apply {
             layoutParams = LinearLayout.LayoutParams(
@@ -351,7 +442,10 @@ internal class MarqueeOverlayWindowController(
         return MarqueeItemHolder(root, icon, price)
     }
 
-    private fun createCycleSeparator(metrics: MarqueeMetrics): FrameLayout {
+    private fun createCycleSeparator(
+        metrics: MarqueeMetrics,
+        colors: CoinMonitorColors
+    ): FrameLayout {
         return FrameLayout(context).apply {
             layoutParams = LinearLayout.LayoutParams(
                 metrics.cycleSeparatorWidthPx,
@@ -360,14 +454,15 @@ internal class MarqueeOverlayWindowController(
             addView(
                 View(context).apply {
                     layoutParams = FrameLayout.LayoutParams(
-                        metrics.cycleSeparatorLineWidthPx,
-                        metrics.cycleSeparatorLineHeightPx
+                        metrics.cycleSeparatorDotSizePx,
+                        metrics.cycleSeparatorDotSizePx
                     ).apply {
                         gravity = Gravity.CENTER
                     }
-                    setBackgroundColor(
-                        overlayColors.overlayMutedText.copy(alpha = 0.55f).toArgb()
-                    )
+                    background = GradientDrawable().apply {
+                        shape = GradientDrawable.OVAL
+                        setColor(colors.overlayMutedText.copy(alpha = 0.55f).toArgb())
+                    }
                 }
             )
         }
@@ -382,29 +477,44 @@ internal class MarqueeOverlayWindowController(
         }
     }
 
-    private fun bindVisibleItems(items: List<WatchItem>, metrics: MarqueeMetrics) {
-        items.forEach { item -> bindItem(item, metrics) }
+    private fun bindVisibleItems(
+        items: List<WatchItem>,
+        metrics: MarqueeMetrics,
+        colors: CoinMonitorColors
+    ) {
+        items.forEach { item -> bindItem(item, metrics, colors) }
     }
 
     private fun bindItem(
         item: WatchItem,
-        metrics: MarqueeMetrics
+        metrics: MarqueeMetrics,
+        colors: CoinMonitorColors
     ) {
         val holders = holdersById[item.id].orEmpty()
-        holders.forEach { holder ->
-            holder.price.text = QuoteFormatter.formatOverlayPrice(item)
-            holder.price.setTextColor(
-                item.resolveLivePriceColor(overlayColors, overlayColors.overlayText).toArgb()
+        val presentation = MarqueeQuotePresentation(
+            priceText = QuoteFormatter.formatOverlayPrice(item),
+            priceColor = item.resolveLivePriceColor(colors, colors.overlayText).toArgb()
+        )
+        if (
+            MarqueeRenderPolicy.shouldBindQuote(
+                previous = quotePresentationsById[item.id],
+                next = presentation
             )
-            holder.price.setTextSize(TypedValue.COMPLEX_UNIT_SP, metrics.textSizeSp)
+        ) {
+            holders.forEach { holder ->
+                holder.price.text = presentation.priceText
+                holder.price.setTextColor(presentation.priceColor)
+            }
+            quotePresentationsById[item.id] = presentation
         }
-        bindItemIcons(holders, item, metrics)
+        bindItemIcons(holders, item, metrics, colors)
     }
 
     private fun bindItemIcons(
         holders: List<MarqueeItemHolder>,
         item: WatchItem,
-        metrics: MarqueeMetrics
+        metrics: MarqueeMetrics,
+        colors: CoinMonitorColors
     ) {
         if (holders.isEmpty()) return
         val iconSignature = listOf(
@@ -413,16 +523,19 @@ internal class MarqueeOverlayWindowController(
             item.chainIndex,
             item.baseSymbol,
             metrics.iconSizePx,
-            overlayColors.overlayFallbackBorder.toArgb()
+            colors.overlayFallbackBackground.toArgb(),
+            colors.overlayFallbackBorder.toArgb()
         ).joinToString("|")
-        holders.forEach { holder ->
-            if (holder.iconSignature != iconSignature) {
-                holder.iconSignature = iconSignature
-                holder.icon.setImageDrawable(buildDefaultIconDrawable(metrics))
-            }
+        val holdersNeedingUpdate = holders.filter { holder ->
+            holder.iconSignature != iconSignature
+        }
+        if (holdersNeedingUpdate.isEmpty()) return
+        holdersNeedingUpdate.forEach { holder ->
+            holder.iconSignature = iconSignature
+            holder.icon.setImageDrawable(buildDefaultIconDrawable(metrics, colors))
         }
         iconBitmapCache[iconSignature]?.let { bitmap ->
-            holders.forEach { holder -> holder.icon.setImageBitmap(bitmap) }
+            holdersNeedingUpdate.forEach { holder -> holder.icon.setImageBitmap(bitmap) }
             return
         }
         if (iconSignature in completedIconLoads || !pendingIconLoads.add(iconSignature)) return
@@ -442,18 +555,21 @@ internal class MarqueeOverlayWindowController(
                     if (bitmap != null) {
                         holder.icon.setImageBitmap(bitmap)
                     } else {
-                        holder.icon.setImageDrawable(buildDefaultIconDrawable(metrics))
+                        holder.icon.setImageDrawable(buildDefaultIconDrawable(metrics, colors))
                     }
                 }
             }
         }
     }
 
-    private fun buildDefaultIconDrawable(metrics: MarqueeMetrics): GradientDrawable {
+    private fun buildDefaultIconDrawable(
+        metrics: MarqueeMetrics,
+        colors: CoinMonitorColors
+    ): GradientDrawable {
         return GradientDrawable().apply {
             shape = GradientDrawable.OVAL
-            setColor(overlayColors.overlayFallbackBackground.toArgb())
-            setStroke(metrics.fallbackStrokePx, overlayColors.overlayFallbackBorder.toArgb())
+            setColor(colors.overlayFallbackBackground.toArgb())
+            setStroke(metrics.fallbackStrokePx, colors.overlayFallbackBorder.toArgb())
         }
     }
 
@@ -468,27 +584,43 @@ internal class MarqueeOverlayWindowController(
         }
         track.post {
             if (trackView !== track || structureSignature != expectedSignature) return@post
-            animator = ValueAnimator.ofFloat(0f, -plan.cycleWidthPx.toFloat()).apply {
+            animator = ObjectAnimator.ofFloat(
+                track,
+                View.TRANSLATION_X,
+                0f,
+                -plan.cycleWidthPx.toFloat()
+            ).apply {
                 duration = plan.durationMillis
                 interpolator = LinearInterpolator()
                 repeatCount = ValueAnimator.INFINITE
                 repeatMode = ValueAnimator.RESTART
-                addUpdateListener { animation ->
-                    track.translationX = animation.animatedValue as Float
-                }
                 start()
                 if (isDragging) pause()
             }
         }
     }
 
-    private fun applyTouchHandler(
+    private fun ensureTouchHandler(
         root: View,
         locked: Boolean,
         metrics: MarqueeMetrics,
         screenHeight: Int
     ) {
-        if (locked) {
+        val config = MarqueeTouchConfig(
+            locked = locked,
+            overlayHeightPx = metrics.heightPx,
+            screenHeightPx = screenHeight
+        )
+        if (appliedTouchConfig == config) return
+        applyTouchHandler(root, config)
+        appliedTouchConfig = config
+    }
+
+    private fun applyTouchHandler(
+        root: View,
+        config: MarqueeTouchConfig
+    ) {
+        if (config.locked) {
             root.setOnTouchListener(null)
             return
         }
@@ -517,10 +649,19 @@ internal class MarqueeOverlayWindowController(
                             params.x = MarqueeWindowPositionPolicy.resolveX()
                             params.y = MarqueeWindowPositionPolicy.resolveY(
                                 requestedY = startWindowY + deltaY.roundToInt(),
-                                overlayHeightPx = metrics.heightPx,
-                                screenHeightPx = screenHeight
+                                overlayHeightPx = config.overlayHeightPx,
+                                screenHeightPx = config.screenHeightPx
                             )
-                            if (view.parent != null) windowManager.updateViewLayout(view, params)
+                            if (view.parent != null) {
+                                windowManager.updateViewLayout(view, params)
+                                appliedWindowLayout = MarqueeWindowLayoutSnapshot(
+                                    width = params.width,
+                                    height = params.height,
+                                    x = params.x,
+                                    y = params.y,
+                                    flags = params.flags
+                                )
+                            }
                         }
                         return true
                     }
@@ -557,6 +698,12 @@ internal class MarqueeOverlayWindowController(
         var iconSignature: String? = null
     )
 
+    private data class MarqueeTouchConfig(
+        val locked: Boolean,
+        val overlayHeightPx: Int,
+        val screenHeightPx: Int
+    )
+
     private data class MarqueeMetrics(
         val fontScale: Float,
         val heightPx: Int,
@@ -565,8 +712,7 @@ internal class MarqueeOverlayWindowController(
         val priceWidthPx: Int,
         val itemSpacingPx: Int,
         val cycleSeparatorWidthPx: Int,
-        val cycleSeparatorLineWidthPx: Int,
-        val cycleSeparatorLineHeightPx: Int,
+        val cycleSeparatorDotSizePx: Int,
         val fallbackStrokePx: Int,
         val textSizeSp: Float
     ) {
@@ -599,8 +745,7 @@ internal class MarqueeOverlayWindowController(
                     cycleSeparatorWidthPx = MarqueeSpacingPolicy.cycleSeparatorWidthPx(
                         itemSpacingPx
                     ),
-                    cycleSeparatorLineWidthPx = scaledDp(1),
-                    cycleSeparatorLineHeightPx = scaledDp(10),
+                    cycleSeparatorDotSizePx = scaledDp(3),
                     fallbackStrokePx = scaledDp(1),
                     textSizeSp = 10f * fontScale
                 )

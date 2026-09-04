@@ -139,6 +139,40 @@ class MarqueeTrackPlannerTest {
     }
 
     @Test
+    fun `render policy skips unchanged quote and layout work`() {
+        val quote = MarqueeQuotePresentation(priceText = "123.45", priceColor = 0x112233)
+        val layout = MarqueeWindowLayoutSnapshot(
+            width = -1,
+            height = 96,
+            x = 0,
+            y = 180,
+            flags = 40
+        )
+
+        assertTrue(!MarqueeRenderPolicy.shouldBindQuote(quote, quote.copy()))
+        assertTrue(
+            MarqueeRenderPolicy.shouldBindQuote(
+                previous = quote,
+                next = quote.copy(priceText = "123.46")
+            )
+        )
+        assertTrue(!MarqueeRenderPolicy.shouldUpdateWindowLayout(layout, layout.copy()))
+        assertTrue(
+            MarqueeRenderPolicy.shouldUpdateWindowLayout(
+                applied = layout,
+                desired = layout.copy(y = 181)
+            )
+        )
+    }
+
+    @Test
+    fun `render policy rebuilds only for structural or visual-style changes`() {
+        assertTrue(!MarqueeRenderPolicy.shouldRebuildTrack("same", "same", false))
+        assertTrue(MarqueeRenderPolicy.shouldRebuildTrack("old", "new", false))
+        assertTrue(MarqueeRenderPolicy.shouldRebuildTrack("same", "same", true))
+    }
+
+    @Test
     fun `cycle divider has one normal visible gap on each side`() {
         val itemSpacing = 3
         val iconSize = 48

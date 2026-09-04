@@ -33,14 +33,26 @@ interface WatchItemDao {
         SELECT * FROM watch_items
         WHERE overlaySelected = 1
         ORDER BY
-            homePinned DESC,
-            CASE WHEN homePinned = 1 THEN homePinnedOrder END ASC,
-            CASE WHEN homePinned = 0 THEN homeOrder END ASC,
+            CASE WHEN overlayOrder IS NULL THEN 1 ELSE 0 END ASC,
+            overlayOrder ASC,
             addedAt ASC,
             id ASC
         """
     )
     fun observeOverlayItems(): Flow<List<WatchItemEntity>>
+
+    @Query(
+        """
+        SELECT * FROM watch_items
+        WHERE overlaySelected = 1
+        ORDER BY
+            CASE WHEN overlayOrder IS NULL THEN 1 ELSE 0 END ASC,
+            overlayOrder ASC,
+            addedAt ASC,
+            id ASC
+        """
+    )
+    suspend fun getOverlayItems(): List<WatchItemEntity>
 
     @Query("SELECT * FROM watch_items WHERE id = :id LIMIT 1")
     suspend fun findById(id: String): WatchItemEntity?
@@ -51,8 +63,18 @@ interface WatchItemDao {
     @Query("DELETE FROM watch_items WHERE id = :id")
     suspend fun deleteById(id: String)
 
-    @Query("UPDATE watch_items SET overlaySelected = :selected WHERE id = :id")
-    suspend fun updateOverlaySelected(id: String, selected: Boolean)
+    @Query(
+        """
+        UPDATE watch_items
+        SET overlaySelected = :selected,
+            overlayOrder = :overlayOrder
+        WHERE id = :id
+        """
+    )
+    suspend fun updateOverlaySelection(id: String, selected: Boolean, overlayOrder: Long?)
+
+    @Query("UPDATE watch_items SET overlayOrder = :overlayOrder WHERE id = :id")
+    suspend fun updateOverlayOrder(id: String, overlayOrder: Long)
 
     @Query(
         """

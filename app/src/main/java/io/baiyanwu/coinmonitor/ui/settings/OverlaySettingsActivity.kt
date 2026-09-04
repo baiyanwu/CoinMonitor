@@ -29,7 +29,8 @@ class OverlaySettingsActivity : CoinMonitorComposeActivity() {
         setCoinMonitorContent { container ->
             OverlaySettingsActivityContent(
                 container = container,
-                onBack = { finish() }
+                onBack = { finish() },
+                onNavigateOverlayItems = { OverlayItemsSettingsActivity.start(this) }
             )
         }
     }
@@ -52,7 +53,8 @@ class OverlaySettingsActivity : CoinMonitorComposeActivity() {
 @Composable
 private fun OverlaySettingsActivityContent(
     container: io.baiyanwu.coinmonitor.data.AppContainer,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onNavigateOverlayItems: () -> Unit
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -101,6 +103,7 @@ private fun OverlaySettingsActivityContent(
         overlayPermissionGranted = overlayPermissionGranted,
         notificationPermissionGranted = notificationPermissionGranted,
         onBack = onBack,
+        onNavigateOverlayItems = onNavigateOverlayItems,
         onRequestOverlayPermission = {
             overlayPermissionLauncher.launch(
                 OverlayPermissionHelper.createPermissionIntent(context.packageName)

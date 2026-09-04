@@ -30,8 +30,8 @@
     <string name="home_pinned_tag">Pinned</string>
     <string name="home_quick_overlay_add">Overlay</string>
     <string name="home_quick_overlay_remove">Unoverlay</string>
-    <string name="home_quick_pin_add">Pin to top</string>
-    <string name="home_quick_pin_remove">Unpin</string>
+    <string name="home_quick_pin_add">Pin on Home</string>
+    <string name="home_quick_pin_remove">Unpin from Home</string>
     <string name="home_overlay_enable_dialog_title">Enable Overlay</string>
     <string name="home_overlay_enable_dialog_message">The floating overlay is not enabled yet. Open overlay settings now?</string>
     <string name="home_overlay_enable_dialog_confirm">Enable</string>
@@ -240,6 +240,8 @@
     <string name="indicator_color_bear_red">Bear Red</string>
 
     <string name="overlay_settings_title">Overlay Settings</string>
+    <string name="overlay_items_settings_title">Floating Pairs</string>
+    <string name="overlay_items_settings_description">Choose pairs and adjust their global floating-window order</string>
     <string name="overlay_settings_subtitle">Permissions, appearance, and items for the floating window.</string>
     <string name="overlay_settings_page_subtitle">This page only controls the floating window and does not change the main watchlist.</string>
     <string name="overlay_enable">Enable floating window</string>
@@ -284,10 +286,19 @@
     <string name="notification_permission_message">Notification permission is recommended so the foreground service notification stays visible.</string>
     <string name="notification_permission_action">Request notification permission</string>
     <string name="overlay_select_items">Select floating pairs</string>
+    <string name="overlay_selected_summary">Selected %1$d/%2$d; showing the first %3$d</string>
+    <string name="overlay_order_scope_hint">Home ordering and pins do not affect this order. Arranged mode reads top to bottom; marquee mode reads left to right.</string>
+    <string name="overlay_selected_items">In floating window</string>
+    <string name="overlay_selected_empty">No floating pairs selected yet. Add one below.</string>
+    <string name="overlay_available_items">Available pairs</string>
+    <string name="overlay_not_currently_visible">Beyond the current display count</string>
+    <string name="overlay_drag_handle_description">Drag to reorder %1$s in the floating window</string>
+    <string name="overlay_market_spot">Spot</string>
+    <string name="overlay_reorder_failed">Could not reorder floating pairs.</string>
     <string name="overlay_add">Add to floating window</string>
     <string name="overlay_remove">Remove from floating window</string>
     <string name="overlay_added">Added to floating window</string>
-    <string name="overlay_empty_state">Add floating pairs from the home page first.</string>
+    <string name="overlay_empty_state">Add a pair to the watchlist from Home first.</string>
     <string name="overlay_page_format">Page %1$s</string>
 
     <string name="overlay_notification_title">CoinMonitor floating window is running</string>
