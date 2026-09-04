@@ -9,6 +9,8 @@ import io.baiyanwu.coinmonitor.domain.repository.WatchlistRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.delay
@@ -30,12 +32,18 @@ class GlobalQuoteRefreshCoordinator(
 ) {
     private val homeActive = MutableStateFlow(false)
     private val overlayActive = MutableStateFlow(false)
+    private val _onchainRefreshRuntimeState = MutableStateFlow(OnchainRefreshRuntimeState())
+    val onchainRefreshRuntimeState: StateFlow<OnchainRefreshRuntimeState> =
+        _onchainRefreshRuntimeState.asStateFlow()
     private val refreshEngine: QuoteRefreshEngine = StreamingQuoteRefreshEngine(
         scope = scope,
         watchlistRepository = watchlistRepository,
         quoteRepository = quoteRepository,
         marketQuoteRepository = marketQuoteRepository,
-        networkLogRepository = networkLogRepository
+        networkLogRepository = networkLogRepository,
+        onOnchainRuntimeStateChanged = { state ->
+            _onchainRefreshRuntimeState.value = state
+        }
     )
 
     private var observeJob: Job? = null
@@ -84,10 +92,16 @@ class GlobalQuoteRefreshCoordinator(
                 homeActive,
                 overlayActive
             ) { items, preferences, isHomeActive, isOverlayActive ->
+                val onchainPlan = OnchainRefreshPolicy.resolve(
+                    items = items,
+                    mode = preferences.onchainRefreshMode,
+                    fixedIntervalSeconds = preferences.onchainRefreshIntervalSeconds
+                )
                 RefreshSnapshot(
                     items = items,
                     refreshIntervalMillis = preferences.refreshIntervalSeconds * 1_000L,
-                    onchainRefreshIntervalMillis = preferences.onchainRefreshIntervalSeconds * 1_000L,
+                    onchainRefreshIntervalMillis = onchainPlan.cycleIntervalSeconds * 1_000L,
+                    onchainRequestBatchCount = onchainPlan.requestBatchCount,
                     shouldRun = isHomeActive || isOverlayActive
                 )
             }.collect { snapshot ->
@@ -103,7 +117,8 @@ class GlobalQuoteRefreshCoordinator(
                         enabled = snapshot.shouldRun,
                         items = snapshot.items,
                         refreshIntervalMillis = snapshot.refreshIntervalMillis,
-                        onchainRefreshIntervalMillis = snapshot.onchainRefreshIntervalMillis
+                        onchainRefreshIntervalMillis = snapshot.onchainRefreshIntervalMillis,
+                        onchainRequestBatchCount = snapshot.onchainRequestBatchCount
                     )
                 )
             }
@@ -130,6 +145,7 @@ class GlobalQuoteRefreshCoordinator(
         val items: List<WatchItem>,
         val refreshIntervalMillis: Long,
         val onchainRefreshIntervalMillis: Long,
+        val onchainRequestBatchCount: Int,
         val shouldRun: Boolean
     )
 

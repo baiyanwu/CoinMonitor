@@ -51,6 +51,31 @@ class OnchainModelsTest {
     }
 
     @Test
+    fun `unknown upstream chain resolves dynamically without changing known mappings`() {
+        val robinhood = requireNotNull(
+            OnchainChainRegistry.resolveDexScreenerChain("Robinhood", ChainFamily.EVM)
+        )
+
+        assertEquals("robinhood", robinhood.chainIndex)
+        assertEquals("Robinhood", robinhood.displayName)
+        assertEquals("robinhood", robinhood.dexScreenerId)
+        assertEquals("robinhood", robinhood.geckoTerminalId)
+        assertEquals(ChainFamily.EVM, robinhood.family)
+        assertEquals("1", OnchainChainRegistry.resolve("ethereum")?.chainIndex)
+    }
+
+    @Test
+    fun `chain icon candidates prefer local mapping then online lookup`() {
+        val ethereum = OnchainChainIconRegistry.resolveIconUrls("1")
+        val robinhood = OnchainChainIconRegistry.resolveIconUrls("robinhood")
+
+        assertTrue(ethereum.first().contains("trustwallet/assets"))
+        assertTrue(robinhood.first().contains("icons.llamao.fi"))
+        assertTrue(robinhood.any { it.contains("blockchains/robinhood/info/logo.png") })
+        assertTrue(OnchainChainIconRegistry.resolveIconUrls(null).isEmpty())
+    }
+
+    @Test
     fun `legacy and new ids share the same semantic identity`() {
         val address = "0xABCDEFabcdefABCDEFabcdefABCDEFabcdefABCD"
         val legacy = WatchItem(
@@ -103,9 +128,9 @@ class OnchainModelsTest {
     }
 
     @Test
-    fun `onchain refresh setting is clamped and snapped`() {
-        assertEquals(10, AppPreferences.normalizeOnchainRefreshIntervalSeconds(1))
-        assertEquals(45, AppPreferences.normalizeOnchainRefreshIntervalSeconds(43))
+    fun `onchain refresh setting is clamped to supported bounds`() {
+        assertEquals(30, AppPreferences.normalizeOnchainRefreshIntervalSeconds(1))
+        assertEquals(43, AppPreferences.normalizeOnchainRefreshIntervalSeconds(43))
         assertEquals(120, AppPreferences.normalizeOnchainRefreshIntervalSeconds(999))
     }
 }

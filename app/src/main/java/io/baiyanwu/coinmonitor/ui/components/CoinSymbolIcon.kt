@@ -31,29 +31,36 @@ fun CoinSymbolIcon(
     symbol: String,
     iconUrl: String? = null,
     fallbackIconUrl: String? = null,
+    fallbackIconUrls: List<String> = emptyList(),
+    allowSymbolLookup: Boolean = true,
     modifier: Modifier = Modifier,
     size: Dp = 20.dp
 ) {
     val context = LocalContext.current
     val iconService = remember(context) { CoinIconService.get(context) }
-    var bitmap by remember(symbol, iconUrl, fallbackIconUrl) {
+    val hasFallbackIcons = fallbackIconUrl != null || fallbackIconUrls.isNotEmpty()
+    var bitmap by remember(symbol, iconUrl, fallbackIconUrl, fallbackIconUrls) {
         mutableStateOf(
             iconService.peekBitmap(
                 symbol = symbol,
                 preferredIconUrl = iconUrl,
                 fallbackIconUrl = fallbackIconUrl,
-                grayscaleFallback = fallbackIconUrl != null
+                fallbackIconUrls = fallbackIconUrls,
+                grayscaleFallback = hasFallbackIcons,
+                allowSymbolLookup = allowSymbolLookup
             )
         )
     }
     val iconModifier = modifier.size(size)
 
-    LaunchedEffect(symbol, iconUrl, fallbackIconUrl) {
+    LaunchedEffect(symbol, iconUrl, fallbackIconUrl, fallbackIconUrls, allowSymbolLookup) {
         val loadedBitmap = iconService.loadBitmap(
             symbol = symbol,
             preferredIconUrl = iconUrl,
             fallbackIconUrl = fallbackIconUrl,
-            grayscaleFallback = fallbackIconUrl != null
+            fallbackIconUrls = fallbackIconUrls,
+            grayscaleFallback = hasFallbackIcons,
+            allowSymbolLookup = allowSymbolLookup
         )
         if (loadedBitmap != null) {
             bitmap = loadedBitmap
@@ -80,7 +87,7 @@ fun CoinSymbolIcon(
     CoinSymbolIcon(
         symbol = item.baseSymbol,
         iconUrl = item.iconUrl,
-        fallbackIconUrl = OnchainChainIconRegistry.resolveIconUrl(item.chainIndex),
+        fallbackIconUrls = OnchainChainIconRegistry.resolveIconUrls(item.chainIndex),
         modifier = modifier,
         size = size
     )

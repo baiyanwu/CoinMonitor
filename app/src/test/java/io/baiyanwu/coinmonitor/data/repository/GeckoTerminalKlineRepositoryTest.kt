@@ -74,6 +74,21 @@ class GeckoTerminalKlineRepositoryTest {
     }
 
     @Test
+    fun `dynamic chain uses upstream id as gecko network`() = runBlocking {
+        val geckoApi = RecordingGeckoApi(
+            rows = listOf(listOf(1_700_000_000.0, 1.0, 2.0, 0.5, 1.5, 100.0))
+        )
+        val robinhoodItem = ITEM.copy(
+            id = "onchain:robinhood:0x1111111111111111111111111111111111111111",
+            chainIndex = "robinhood"
+        )
+
+        repository(geckoApi).fetchCandles(robinhoodItem, KlineInterval.FIVE_MINUTES)
+
+        assertEquals("robinhood", geckoApi.network)
+    }
+
+    @Test
     fun `three day candles request daily data and aggregate ohlcv locally`() = runBlocking {
         val daySeconds = 86_400.0
         val geckoApi = RecordingGeckoApi(

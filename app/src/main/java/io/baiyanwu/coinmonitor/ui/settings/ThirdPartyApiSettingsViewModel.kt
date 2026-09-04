@@ -6,7 +6,9 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import io.baiyanwu.coinmonitor.data.AppContainer
+import io.baiyanwu.coinmonitor.data.refresh.GlobalQuoteRefreshCoordinator
 import io.baiyanwu.coinmonitor.domain.model.AppPreferences
+import io.baiyanwu.coinmonitor.domain.model.OnchainRefreshMode
 import io.baiyanwu.coinmonitor.domain.model.OpenAiCompatibleConfig
 import io.baiyanwu.coinmonitor.domain.repository.AiConfigRepository
 import io.baiyanwu.coinmonitor.domain.repository.AppPreferencesRepository
@@ -18,7 +20,13 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class OnchainSettingsFormState(
+    val refreshMode: OnchainRefreshMode = OnchainRefreshMode.SMART,
     val refreshIntervalSeconds: Int = AppPreferences.DEFAULT_ONCHAIN_REFRESH_INTERVAL_SECONDS,
+    val requestBatchCount: Int = 0,
+    val cycleIntervalSeconds: Int = 30,
+    val requestSpacingMillis: Long = 0L,
+    val failingBatchCount: Int = 0,
+    val runtimeActive: Boolean = false,
     val savedFlag: Boolean = false,
     val errorMessage: String? = null
 )
@@ -45,7 +53,8 @@ data class ThirdPartyApiSettingsUiState(
 
 class ThirdPartyApiSettingsViewModel(
     private val appPreferencesRepository: AppPreferencesRepository,
-    private val aiConfigRepository: AiConfigRepository
+    private val aiConfigRepository: AiConfigRepository,
+    private val quoteRefreshCoordinator: GlobalQuoteRefreshCoordinator
 ) : ViewModel() {
     private val onchainUiState = MutableStateFlow(OnchainSettingsFormState())
     private val aiUiState = MutableStateFlow(AiSettingsFormState())
@@ -61,7 +70,23 @@ class ThirdPartyApiSettingsViewModel(
         viewModelScope.launch {
             appPreferencesRepository.observePreferences().collect { preferences ->
                 onchainUiState.update { state ->
-                    state.copy(refreshIntervalSeconds = preferences.onchainRefreshIntervalSeconds)
+                    state.copy(
+                        refreshMode = preferences.onchainRefreshMode,
+                        refreshIntervalSeconds = preferences.onchainRefreshIntervalSeconds
+                    )
+                }
+            }
+        }
+        viewModelScope.launch {
+            quoteRefreshCoordinator.onchainRefreshRuntimeState.collect { runtime ->
+                onchainUiState.update { state ->
+                    state.copy(
+                        requestBatchCount = runtime.requestBatchCount,
+                        cycleIntervalSeconds = runtime.cycleIntervalSeconds,
+                        requestSpacingMillis = runtime.requestSpacingMillis,
+                        failingBatchCount = runtime.failingBatchCount,
+                        runtimeActive = runtime.active,
+                    )
                 }
             }
         }
@@ -82,10 +107,25 @@ class ThirdPartyApiSettingsViewModel(
         }
     }
 
+    fun updateOnchainRefreshMode(mode: OnchainRefreshMode) {
+        onchainUiState.update {
+            it.copy(
+                refreshMode = mode,
+                savedFlag = false,
+                errorMessage = null
+            )
+        }
+    }
+
     fun saveOnchainSettings() {
-        val interval = onchainUiState.value.refreshIntervalSeconds
+        val snapshot = onchainUiState.value
         viewModelScope.launch {
-            runCatching { appPreferencesRepository.setOnchainRefreshIntervalSeconds(interval) }
+            runCatching {
+                appPreferencesRepository.setOnchainRefreshSettings(
+                    mode = snapshot.refreshMode,
+                    seconds = snapshot.refreshIntervalSeconds
+                )
+            }
                 .onSuccess {
                     onchainUiState.update { it.copy(savedFlag = true, errorMessage = null) }
                 }
@@ -177,7 +217,8 @@ class ThirdPartyApiSettingsViewModel(
             initializer {
                 ThirdPartyApiSettingsViewModel(
                     appPreferencesRepository = container.appPreferencesRepository,
-                    aiConfigRepository = container.aiConfigRepository
+                    aiConfigRepository = container.aiConfigRepository,
+                    quoteRefreshCoordinator = container.globalQuoteRefreshCoordinator
                 )
             }
         }

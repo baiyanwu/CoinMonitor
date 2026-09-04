@@ -58,7 +58,7 @@ class ThirdPartyApiSettingsEntryPolicyTest {
     }
 
     @Test
-    fun `free onchain settings expose providers polling slider and quota warning`() {
+    fun `free onchain settings expose smart and fixed refresh modes`() {
         val routeSource = readSource(
             rootRelativePath = "app/src/main/java/io/baiyanwu/coinmonitor/ui/settings/ThirdPartyApiSettingsRoute.kt",
             moduleRelativePath = "src/main/java/io/baiyanwu/coinmonitor/ui/settings/ThirdPartyApiSettingsRoute.kt"
@@ -73,18 +73,18 @@ class ThirdPartyApiSettingsEntryPolicyTest {
         )
 
         assertTrue(routeSource.contains("DexPollingIntervalSetting"))
-        assertTrue(routeSource.contains("Slider("))
-        assertTrue(routeSource.contains("Brush.horizontalGradient"))
-        assertTrue(routeSource.contains("CoinMonitorComponentDefaults.sliderColors()"))
-        assertTrue(routeSource.contains("SliderDefaults.Track"))
-        assertTrue(routeSource.contains("CompositingStrategy.Offscreen"))
-        assertTrue(routeSource.contains("BlendMode.SrcIn"))
-        assertTrue(routeSource.contains("Color(0xFFE60012)"))
+        assertTrue(routeSource.contains("SingleChoiceSegmentedButtonRow"))
+        assertTrue(routeSource.contains("OnchainRefreshMode.SMART"))
+        assertTrue(routeSource.contains("OnchainRefreshMode.FIXED"))
+        assertTrue(routeSource.contains("ONCHAIN_FIXED_INTERVAL_OPTIONS_SECONDS"))
+        assertTrue(routeSource.contains("FilterChip("))
         assertTrue(routeSource.contains("colors.positive"))
         assertTrue(chineseStrings.contains("DexScreener · GeckoTerminal"))
         assertTrue(englishStrings.contains("DexScreener · GeckoTerminal"))
-        assertTrue(chineseStrings.contains("third_party_api_settings_dex_polling_quota_warning"))
-        assertTrue(englishStrings.contains("third_party_api_settings_dex_polling_quota_warning"))
+        assertTrue(chineseStrings.contains("third_party_api_settings_refresh_status_active"))
+        assertTrue(englishStrings.contains("third_party_api_settings_refresh_status_active"))
+        assertTrue(chineseStrings.contains("third_party_api_settings_refresh_smart_hint"))
+        assertTrue(englishStrings.contains("third_party_api_settings_refresh_smart_hint"))
     }
 
     private fun extractStringValue(source: String, name: String): String {

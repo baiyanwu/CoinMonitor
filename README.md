@@ -23,17 +23,18 @@
 ## Core Features
 
 - Search `Binance Alpha`, Binance spot and USDT-M futures, plus OKX spot and USDT swaps in parallel, then merge, sort, and display one result set after all sources finish
-- Search on-chain tokens by name, symbol, or contract address without selecting a chain; `DexScreener` locates supported networks automatically
+- Search on-chain tokens by name, symbol, or contract address without selecting a chain; every network returned by `DexScreener` is accepted without a local allowlist
 - Manage a watchlist with quick actions, live quote refresh, and stable icon/badge presentation across the app
 - Pin selected items into a floating overlay with drag lock, adaptive layouts, and foreground-service persistence; edge docking can keep the ticker visible or collapse it into a slim edge tab
 - Tune overlay behavior with a fixed-header settings flow for permissions, body opacity, font size, selected symbols, edge-tab opacity, and a configurable `1–5 second` auto-collapse delay
-- Keep exchange quotes flowing through `WSS` first, while DexScreener prices use an independent configurable polling interval
+- Keep exchange quotes flowing through `WSS` first, while DexScreener prices use an independent smart or fixed refresh cycle with sequential request pacing
 
 ## On-chain Notes
 
 - On-chain search, latest price, 24h change, liquidity and volume come from `DexScreener`; candlesticks come from `GeckoTerminal`.
 - Results are deduplicated by network and token contract. Each token row shows the selected pair, chain logo, DEX, liquidity, and shortened contract address.
 - When multiple valid pools exist, users can expand the row and switch among the most liquid alternatives. The selected pool is then reused for both quote refreshes and candlesticks.
+- Icons fall back from known local mappings to online chain-icon candidates and finally to the app's built-in placeholder.
 - Both on-chain sources are public and require no API key. The app does not provide swap, order, or execution capabilities.
 
 ## Requirements

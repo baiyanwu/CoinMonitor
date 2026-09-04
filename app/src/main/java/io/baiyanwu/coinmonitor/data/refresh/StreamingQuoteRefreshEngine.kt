@@ -1,5 +1,6 @@
 package io.baiyanwu.coinmonitor.data.refresh
 
+import android.os.SystemClock
 import android.util.Log
 import io.baiyanwu.coinmonitor.data.network.NetworkLogRedactor
 import io.baiyanwu.coinmonitor.domain.model.ExchangeSource
@@ -12,13 +13,16 @@ import io.baiyanwu.coinmonitor.domain.repository.NetworkLogRepository
 import io.baiyanwu.coinmonitor.domain.repository.QuoteRepository
 import io.baiyanwu.coinmonitor.domain.repository.WatchlistRepository
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
@@ -48,7 +52,8 @@ class StreamingQuoteRefreshEngine(
     private val watchlistRepository: WatchlistRepository,
     private val quoteRepository: QuoteRepository,
     private val marketQuoteRepository: MarketQuoteRepository,
-    private val networkLogRepository: NetworkLogRepository
+    private val networkLogRepository: NetworkLogRepository,
+    private val onOnchainRuntimeStateChanged: (OnchainRefreshRuntimeState) -> Unit = {}
 ) : QuoteRefreshEngine {
     private val json = Json {
         ignoreUnknownKeys = true
@@ -59,6 +64,7 @@ class StreamingQuoteRefreshEngine(
         .build()
     private val refreshMutex = Mutex()
     private val pendingQuoteMutex = Mutex()
+    private val manualOnchainRefreshRequests = Channel<Unit>(Channel.CONFLATED)
 
     private var currentConfig: QuoteRefreshConfig = QuoteRefreshConfig(
         enabled = false,
@@ -85,7 +91,8 @@ class StreamingQuoteRefreshEngine(
         val shouldRestart = nextFingerprint != currentSubscriptionFingerprint ||
             config.enabled != currentConfig.enabled ||
             config.refreshIntervalMillis != currentConfig.refreshIntervalMillis ||
-            config.onchainRefreshIntervalMillis != currentConfig.onchainRefreshIntervalMillis
+            config.onchainRefreshIntervalMillis != currentConfig.onchainRefreshIntervalMillis ||
+            config.onchainRequestBatchCount != currentConfig.onchainRequestBatchCount
         currentConfig = config
         if (!shouldRestart) return
 
@@ -94,7 +101,11 @@ class StreamingQuoteRefreshEngine(
     }
 
     override suspend fun refreshNow() {
-        refreshQuotes(currentConfig.items)
+        val onchainItems = currentConfig.items.filter(::isOnchainItem)
+        if (onchainItems.isNotEmpty()) {
+            manualOnchainRefreshRequests.trySend(Unit)
+        }
+        refreshQuotes(currentConfig.items.filterNot(::isOnchainItem))
     }
 
     override fun reconnect() {
@@ -119,6 +130,7 @@ class StreamingQuoteRefreshEngine(
         flushJob?.cancel()
         flushJob = null
         closeSockets()
+        reportOnchainRuntimeState(active = false)
     }
 
     private fun restart(config: QuoteRefreshConfig) {
@@ -138,7 +150,10 @@ class StreamingQuoteRefreshEngine(
         fallbackJob = null
         closeSockets()
 
-        if (!config.enabled || config.items.isEmpty()) return
+        if (!config.enabled || config.items.isEmpty()) {
+            reportOnchainRuntimeState(active = false)
+            return
+        }
 
         val binanceItems = config.items.filter(::isBinanceSpotItem)
         val binanceFuturesItems = config.items.filter(::isBinanceUsdtFuturesItem)
@@ -153,9 +168,12 @@ class StreamingQuoteRefreshEngine(
                 isOnchainItem(item)
         }
 
-        // 首次启动或观察列表变化时先做一轮快照拉取，避免长连接尚未推第一帧时页面出现价格空档。
-        bootstrapJob = scope.launch {
-            refreshQuotes(config.items)
+        // 首次启动只拉取非链上快照；链上项目必须进入同一个顺序队列，避免跨链批次同时发出。
+        val bootstrapItems = config.items.filterNot(::isOnchainItem)
+        if (bootstrapItems.isNotEmpty()) {
+            bootstrapJob = scope.launch {
+                refreshQuotes(bootstrapItems)
+            }
         }
 
         if (binanceItems.isNotEmpty()) {
@@ -179,9 +197,12 @@ class StreamingQuoteRefreshEngine(
             }
         }
         if (onchainItems.isNotEmpty()) {
+            reportOnchainRuntimeState(active = true)
             onchainPollingJob = scope.launch {
                 runOnchainPollingLoop(onchainItems)
             }
+        } else {
+            reportOnchainRuntimeState(active = false)
         }
         if (fallbackItems.isNotEmpty()) {
             fallbackJob = scope.launch {
@@ -494,25 +515,156 @@ class StreamingQuoteRefreshEngine(
     }
 
     private suspend fun runOnchainPollingLoop(items: List<WatchItem>) {
-        val itemIds = items.mapTo(mutableSetOf()) { it.id }
+        val requestBatches = OnchainRefreshPolicy.buildRequestBatches(items)
+        if (requestBatches.isEmpty()) {
+            reportOnchainRuntimeState(active = false)
+            return
+        }
+
+        val cycleIntervalMillis = currentConfig.onchainRefreshIntervalMillis
+            .coerceAtLeast(OnchainRefreshPolicy.SOURCE_CACHE_WINDOW_SECONDS * 1_000L)
+        val requestSpacingMillis = OnchainRefreshPolicy.requestSpacingMillis(
+            cycleIntervalSeconds = (cycleIntervalMillis / 1_000L).toInt(),
+            requestBatchCount = requestBatches.size
+        )
+        val startedAtMillis = SystemClock.elapsedRealtime()
+        val scheduledBatches = requestBatches.mapIndexed { index, batch ->
+            ScheduledOnchainBatch(
+                key = batch.key,
+                order = index,
+                itemIds = batch.items.mapTo(linkedSetOf(), WatchItem::id),
+                nextDueAtMillis = startedAtMillis + index * requestSpacingMillis
+            )
+        }
+        var lastRequestCompletedAtMillis: Long? = null
+
+        reportOnchainRuntimeState(active = true, failingBatchCount = 0)
         while (scope.isActive && currentConfig.enabled) {
-            val currentItems = currentConfig.items.filter { item ->
-                item.id in itemIds && isOnchainItem(item)
+            if (manualOnchainRefreshRequests.tryReceive().isSuccess) {
+                prioritizeStaleOnchainBatches(scheduledBatches)
+                continue
             }
-            if (currentItems.isEmpty()) return
-            delay(currentConfig.onchainRefreshIntervalMillis)
-            refreshQuotes(currentItems)
+
+            val nextBatch = scheduledBatches.minWithOrNull(
+                compareBy<ScheduledOnchainBatch> { it.nextDueAtMillis }
+                    .thenBy { it.order }
+            ) ?: return
+            val nowMillis = SystemClock.elapsedRealtime()
+            val waitMillis = nextBatch.nextDueAtMillis - nowMillis
+            if (waitMillis > 0L) {
+                val manualRefreshReceived = withTimeoutOrNull(waitMillis) {
+                    manualOnchainRefreshRequests.receive()
+                    true
+                } ?: false
+                if (manualRefreshReceived) {
+                    prioritizeStaleOnchainBatches(scheduledBatches)
+                }
+                continue
+            }
+
+            val pacedStartAtMillis = lastRequestCompletedAtMillis
+                ?.plus(OnchainRefreshPolicy.MIN_REQUEST_GAP_MILLIS)
+                ?: nowMillis
+            val pacingDelayMillis = pacedStartAtMillis - nowMillis
+            if (pacingDelayMillis > 0L) {
+                delay(pacingDelayMillis)
+            }
+
+            val currentItems = currentConfig.items.filter { item ->
+                item.id in nextBatch.itemIds && isOnchainItem(item)
+            }
+            if (currentItems.isEmpty()) {
+                nextBatch.nextDueAtMillis = SystemClock.elapsedRealtime() + cycleIntervalMillis
+                continue
+            }
+
+            val succeeded = try {
+                refreshQuotes(currentItems)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                false
+            }
+            val completedAtMillis = SystemClock.elapsedRealtime()
+            lastRequestCompletedAtMillis = completedAtMillis
+            if (succeeded) {
+                nextBatch.consecutiveFailures = 0
+                nextBatch.lastSuccessfulAtMillis = completedAtMillis
+                var nextDueAtMillis = nextBatch.nextDueAtMillis + cycleIntervalMillis
+                while (nextDueAtMillis <= completedAtMillis) {
+                    nextDueAtMillis += cycleIntervalMillis
+                }
+                nextBatch.nextDueAtMillis = nextDueAtMillis
+            } else {
+                nextBatch.consecutiveFailures =
+                    (nextBatch.consecutiveFailures + 1).coerceAtMost(4)
+                nextBatch.nextDueAtMillis = completedAtMillis + resolveOnchainFailureBackoffMillis(
+                    nextBatch.consecutiveFailures
+                )
+            }
+            reportOnchainRuntimeState(
+                active = true,
+                failingBatchCount = scheduledBatches.count { it.consecutiveFailures > 0 }
+            )
         }
     }
 
-    private suspend fun refreshQuotes(items: List<WatchItem>) {
-        if (items.isEmpty()) return
-        refreshMutex.withLock {
+    private fun prioritizeStaleOnchainBatches(batches: List<ScheduledOnchainBatch>) {
+        val nowMillis = SystemClock.elapsedRealtime()
+        val staleAfterMillis = OnchainRefreshPolicy.SOURCE_CACHE_WINDOW_SECONDS * 1_000L
+        batches
+            .filter { batch ->
+                batch.lastSuccessfulAtMillis?.let { lastSuccess ->
+                    nowMillis - lastSuccess >= staleAfterMillis
+                } ?: true
+            }
+            .sortedBy(ScheduledOnchainBatch::order)
+            .forEachIndexed { index, batch ->
+                val priorityDueAtMillis =
+                    nowMillis + index * OnchainRefreshPolicy.MIN_REQUEST_GAP_MILLIS
+                batch.nextDueAtMillis = minOf(batch.nextDueAtMillis, priorityDueAtMillis)
+            }
+    }
+
+    private suspend fun refreshQuotes(items: List<WatchItem>): Boolean {
+        if (items.isEmpty()) return false
+        return refreshMutex.withLock {
             val quotes = marketQuoteRepository.fetchQuotes(items)
             if (quotes.isNotEmpty()) {
                 quoteRepository.applyQuotes(quotes)
             }
+            quotes.isNotEmpty()
         }
+    }
+
+    private fun resolveOnchainFailureBackoffMillis(consecutiveFailures: Int): Long {
+        val seconds = when (consecutiveFailures) {
+            1 -> 5
+            2 -> 10
+            3 -> 20
+            else -> 30
+        }
+        return seconds * 1_000L
+    }
+
+    private fun reportOnchainRuntimeState(
+        active: Boolean,
+        failingBatchCount: Int = 0
+    ) {
+        val cycleIntervalSeconds =
+            (currentConfig.onchainRefreshIntervalMillis / 1_000L).toInt().coerceAtLeast(1)
+        onOnchainRuntimeStateChanged(
+            OnchainRefreshRuntimeState(
+                requestBatchCount = currentConfig.onchainRequestBatchCount,
+                cycleIntervalSeconds = cycleIntervalSeconds,
+                requestSpacingMillis = OnchainRefreshPolicy.requestSpacingMillis(
+                    cycleIntervalSeconds = cycleIntervalSeconds,
+                    requestBatchCount = currentConfig.onchainRequestBatchCount
+                ),
+                failingBatchCount = failingBatchCount,
+                active = active
+            )
+        )
     }
 
     private suspend fun enqueueQuote(quote: MarketQuote) {
@@ -724,4 +876,13 @@ class StreamingQuoteRefreshEngine(
         private const val OKX_PUBLIC_WS_URL = "wss://ws.okx.com:8443/ws/v5/public"
         private const val MIN_RECONNECT_DELAY_MILLIS = 15_000L
     }
+
+    private data class ScheduledOnchainBatch(
+        val key: String,
+        val order: Int,
+        val itemIds: Set<String>,
+        var nextDueAtMillis: Long,
+        var consecutiveFailures: Int = 0,
+        var lastSuccessfulAtMillis: Long? = null
+    )
 }

@@ -17,6 +17,7 @@ import io.baiyanwu.coinmonitor.data.network.OkxInstrumentsResponse
 import io.baiyanwu.coinmonitor.data.network.OkxTickerResponse
 import io.baiyanwu.coinmonitor.data.network.RequestRateLimiter
 import io.baiyanwu.coinmonitor.domain.model.ExchangeSource
+import io.baiyanwu.coinmonitor.domain.model.ChainFamily
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -91,6 +92,66 @@ class DexScreenerMarketSearchRepositoryTest {
         assertEquals("501", result.chainIndex)
         assertEquals(solanaAddress, result.tokenAddress)
         assertEquals("onchain:501:$solanaAddress", result.id)
+    }
+
+    @Test
+    fun `unknown robinhood chain from upstream is displayed without local registration`() = runBlocking {
+        val robinhoodAddress = "0x66c9ba158b2b80c2a51ca75f3e4155a682676c7a"
+        val fakeDex = FakeDexScreenerApi().apply {
+            searchResponse = listOf(pair("robinhood", "rh-pool", robinhoodAddress, 12_000.0))
+        }
+        val repository = repository(fakeDex)
+
+        val result = repository.searchOnchain(robinhoodAddress).single()
+
+        assertEquals("robinhood", result.chainIndex)
+        assertEquals(ChainFamily.EVM, result.chainFamily)
+        assertEquals(robinhoodAddress, result.tokenAddress)
+        assertEquals("onchain:robinhood:$robinhoodAddress", result.id)
+        assertEquals("rh-pool", result.poolAddress)
+    }
+
+    @Test
+    fun `unknown non evm chain from upstream is displayed and preserves address case`() = runBlocking {
+        val suiAddress = "0x${"Ab".repeat(32)}"
+        val suiQuoteAddress = "0x${"Cd".repeat(32)}"
+        val fakeDex = FakeDexScreenerApi().apply {
+            searchResponse = listOf(
+                DexScreenerPair(
+                    chainId = "sui",
+                    dexId = "cetus",
+                    pairAddress = "0x${"Ef".repeat(32)}",
+                    baseToken = DexScreenerToken(suiAddress, "Target", "TGT"),
+                    quoteToken = DexScreenerToken(suiQuoteAddress, "USD Coin", "USDC"),
+                    priceNative = "2",
+                    priceUsd = "2",
+                    volume = mapOf("h24" to 100.0),
+                    priceChange = mapOf("h24" to 1.5),
+                    liquidity = DexScreenerLiquidity(2_000.0)
+                )
+            )
+        }
+        val repository = repository(fakeDex)
+
+        val result = repository.searchOnchain("TGT").single()
+
+        assertEquals("sui", result.chainIndex)
+        assertEquals(ChainFamily.OTHER, result.chainFamily)
+        assertEquals(suiAddress, result.tokenAddress)
+    }
+
+    @Test
+    fun `onchain results are not capped by a local result limit`() = runBlocking {
+        val fakeDex = FakeDexScreenerApi().apply {
+            searchResponse = (1..81).map { index ->
+                val address = "0x${index.toString(16).padStart(40, '0')}"
+                pair("ethereum", "pool-$index", address, index.toDouble())
+            }
+        }
+
+        val results = repository(fakeDex).searchOnchain("TGT")
+
+        assertEquals(81, results.size)
     }
 
     private fun repository(fakeDex: FakeDexScreenerApi): DefaultMarketSearchRepository {

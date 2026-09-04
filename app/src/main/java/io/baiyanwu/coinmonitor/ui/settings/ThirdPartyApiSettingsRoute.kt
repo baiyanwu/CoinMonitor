@@ -5,6 +5,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -18,13 +20,15 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
@@ -35,12 +39,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawWithCache
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.BlendMode
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.CompositingStrategy
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.Dp
@@ -50,12 +48,11 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import io.baiyanwu.coinmonitor.R
 import io.baiyanwu.coinmonitor.data.AppContainer
 import io.baiyanwu.coinmonitor.domain.model.AppPreferences
+import io.baiyanwu.coinmonitor.domain.model.OnchainRefreshMode
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorComponentDefaults
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
-import kotlin.math.roundToInt
 
 private const val SHOW_AI_SETTINGS_ENTRY = false
-private val DexWarningRed = Color(0xFFE60012)
 
 @Composable
 fun ThirdPartyApiSettingsRoute(
@@ -70,6 +67,7 @@ fun ThirdPartyApiSettingsRoute(
     ThirdPartyApiSettingsScreen(
         state = state,
         onBack = onBack,
+        onOnchainRefreshModeChange = viewModel::updateOnchainRefreshMode,
         onOnchainRefreshIntervalChange = viewModel::updateOnchainRefreshIntervalSeconds,
         onSaveOnchain = viewModel::saveOnchainSettings,
         onAiEnabledChange = viewModel::setAiEnabled,
@@ -86,6 +84,7 @@ fun ThirdPartyApiSettingsRoute(
 private fun ThirdPartyApiSettingsScreen(
     state: ThirdPartyApiSettingsUiState,
     onBack: () -> Unit,
+    onOnchainRefreshModeChange: (OnchainRefreshMode) -> Unit,
     onOnchainRefreshIntervalChange: (Int) -> Unit,
     onSaveOnchain: () -> Unit,
     onAiEnabledChange: (Boolean) -> Unit,
@@ -126,7 +125,8 @@ private fun ThirdPartyApiSettingsScreen(
                     color = colors.accent
                 )
                 DexPollingIntervalSetting(
-                    intervalSeconds = state.onchain.refreshIntervalSeconds,
+                    state = state.onchain,
+                    onModeChange = onOnchainRefreshModeChange,
                     onIntervalChange = onOnchainRefreshIntervalChange
                 )
                 FeedbackText(
@@ -236,76 +236,113 @@ private fun ThirdPartyApiSettingsScreen(
 }
 
 @Composable
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 private fun DexPollingIntervalSetting(
-    intervalSeconds: Int,
+    state: OnchainSettingsFormState,
+    onModeChange: (OnchainRefreshMode) -> Unit,
     onIntervalChange: (Int) -> Unit
 ) {
     val colors = CoinMonitorThemeTokens.colors
-    val normalizedInterval = AppPreferences.normalizeOnchainRefreshIntervalSeconds(intervalSeconds)
-    val isQuotaRisk = normalizedInterval <
-        AppPreferences.RECOMMENDED_MIN_ONCHAIN_REFRESH_INTERVAL_SECONDS
-    val stepCount = (
-        AppPreferences.MAX_ONCHAIN_REFRESH_INTERVAL_SECONDS -
-            AppPreferences.MIN_ONCHAIN_REFRESH_INTERVAL_SECONDS
-        ) / AppPreferences.ONCHAIN_REFRESH_INTERVAL_STEP_SECONDS - 1
-    val warningColor = DexWarningRed
-    val sliderColors = CoinMonitorComponentDefaults.sliderColors()
+    val modes = listOf(
+        OnchainRefreshMode.SMART to stringResource(R.string.third_party_api_settings_refresh_mode_smart),
+        OnchainRefreshMode.FIXED to stringResource(R.string.third_party_api_settings_refresh_mode_fixed)
+    )
+    val requestSpacingSeconds = state.requestSpacingMillis / 1_000.0
+    val runtimeText = when {
+        state.requestBatchCount == 0 -> {
+            stringResource(R.string.third_party_api_settings_refresh_status_empty)
+        }
 
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        state.runtimeActive -> {
+            stringResource(
+                R.string.third_party_api_settings_refresh_status_active,
+                state.requestBatchCount,
+                requestSpacingSeconds,
+                state.cycleIntervalSeconds
+            )
+        }
+
+        else -> {
+            stringResource(
+                R.string.third_party_api_settings_refresh_status_idle,
+                state.requestBatchCount,
+                requestSpacingSeconds,
+                state.cycleIntervalSeconds
+            )
+        }
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
-            text = stringResource(
-                R.string.third_party_api_settings_dex_polling_interval,
-                normalizedInterval
-            ),
+            text = stringResource(R.string.third_party_api_settings_refresh_mode_title),
             style = MaterialTheme.typography.titleSmall
         )
-        Slider(
-            value = normalizedInterval.toFloat(),
-            onValueChange = { value ->
-                onIntervalChange(
-                    AppPreferences.normalizeOnchainRefreshIntervalSeconds(value.roundToInt())
+        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+            modes.forEachIndexed { index, (mode, label) ->
+                SegmentedButton(
+                    selected = state.refreshMode == mode,
+                    onClick = { onModeChange(mode) },
+                    shape = SegmentedButtonDefaults.itemShape(
+                        index = index,
+                        count = modes.size
+                    ),
+                    modifier = Modifier.weight(1f),
+                    label = { Text(label) }
                 )
-            },
-            valueRange = AppPreferences.MIN_ONCHAIN_REFRESH_INTERVAL_SECONDS.toFloat()..
-                AppPreferences.MAX_ONCHAIN_REFRESH_INTERVAL_SECONDS.toFloat(),
-            steps = stepCount,
-            colors = sliderColors,
-            track = { sliderState ->
-                SliderDefaults.Track(
-                    sliderState = sliderState,
-                    colors = sliderColors,
-                    modifier = Modifier
-                        .graphicsLayer {
-                            compositingStrategy = CompositingStrategy.Offscreen
-                        }
-                        .drawWithCache {
-                            val gradient = Brush.horizontalGradient(
-                                colors = listOf(
-                                    warningColor,
-                                    colors.positive
+            }
+        }
+        Text(
+            text = runtimeText,
+            style = MaterialTheme.typography.bodySmall,
+            color = colors.positive
+        )
+        if (state.failingBatchCount > 0) {
+            Text(
+                text = stringResource(
+                    R.string.third_party_api_settings_refresh_status_failures,
+                    state.failingBatchCount
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error
+            )
+        }
+        if (state.refreshMode == OnchainRefreshMode.SMART) {
+            Text(
+                text = stringResource(R.string.third_party_api_settings_refresh_smart_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.secondaryText
+            )
+        } else {
+            Text(
+                text = stringResource(R.string.third_party_api_settings_fixed_interval_title),
+                style = MaterialTheme.typography.titleSmall
+            )
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                AppPreferences.ONCHAIN_FIXED_INTERVAL_OPTIONS_SECONDS.forEach { seconds ->
+                    FilterChip(
+                        selected = state.refreshIntervalSeconds == seconds,
+                        onClick = { onIntervalChange(seconds) },
+                        label = {
+                            Text(
+                                stringResource(
+                                    R.string.third_party_api_settings_interval_seconds,
+                                    seconds
                                 )
                             )
-                            onDrawWithContent {
-                                drawContent()
-                                drawRect(
-                                    brush = gradient,
-                                    blendMode = BlendMode.SrcIn
-                                )
-                            }
-                        }
-                )
-            },
-            modifier = Modifier.fillMaxWidth()
-        )
-        Text(
-            text = stringResource(
-                R.string.third_party_api_settings_dex_polling_quota_warning,
-                AppPreferences.RECOMMENDED_MIN_ONCHAIN_REFRESH_INTERVAL_SECONDS
-            ),
-            style = MaterialTheme.typography.bodySmall,
-            color = if (isQuotaRisk) warningColor else colors.positive
-        )
+                        },
+                        colors = CoinMonitorComponentDefaults.filterChipColors()
+                    )
+                }
+            }
+            Text(
+                text = stringResource(R.string.third_party_api_settings_refresh_fixed_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.secondaryText
+            )
+        }
     }
 }
 

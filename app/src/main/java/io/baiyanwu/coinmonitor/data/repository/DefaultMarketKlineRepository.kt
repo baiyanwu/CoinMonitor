@@ -15,6 +15,7 @@ import io.baiyanwu.coinmonitor.domain.model.MarketType
 import io.baiyanwu.coinmonitor.domain.model.OnchainChainRegistry
 import io.baiyanwu.coinmonitor.domain.model.PoolTokenSide
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
+import io.baiyanwu.coinmonitor.domain.model.inferOnchainChainFamily
 import io.baiyanwu.coinmonitor.domain.model.normalizeOnchainAddress
 import io.baiyanwu.coinmonitor.domain.model.toGeckoTerminalInterval
 import io.baiyanwu.coinmonitor.domain.repository.MarketKlineRepository
@@ -108,8 +109,13 @@ class DefaultMarketKlineRepository(
         interval: KlineInterval,
         limit: Int
     ): List<CandleEntry> {
-        val chain = OnchainChainRegistry.find(item.chainIndex)
-            ?: throw IllegalArgumentException("当前链暂不支持 GeckoTerminal K 线")
+        val chain = OnchainChainRegistry.resolve(
+            chainIndexOrDexScreenerId = item.chainIndex,
+            family = item.chainFamily ?: inferOnchainChainFamily(
+                dexScreenerId = item.chainIndex,
+                addresses = listOfNotNull(item.tokenAddress)
+            )
+        ) ?: throw IllegalArgumentException("链上标的缺少网络标识")
         val tokenAddress = item.tokenAddress?.takeIf { it.isNotBlank() }
             ?: throw IllegalArgumentException("链上标的缺少合约地址")
         val binding = if (!item.poolAddress.isNullOrBlank() && item.poolTokenSide != null) {

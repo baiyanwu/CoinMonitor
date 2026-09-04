@@ -17,7 +17,7 @@ import io.baiyanwu.coinmonitor.domain.model.OnchainChainRegistry
 import io.baiyanwu.coinmonitor.domain.model.OnchainPoolOption
 import io.baiyanwu.coinmonitor.domain.model.PoolTokenSide
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
-import io.baiyanwu.coinmonitor.domain.model.looksLikeOnchainAddress
+import io.baiyanwu.coinmonitor.domain.model.inferOnchainChainFamily
 import io.baiyanwu.coinmonitor.domain.model.normalizeOnchainAddress
 import io.baiyanwu.coinmonitor.domain.repository.MarketSearchRepository
 import kotlinx.coroutines.CancellationException
@@ -118,17 +118,11 @@ class DefaultMarketSearchRepository(
     }
 
     override suspend fun searchOnchain(keyword: String): List<WatchItem> {
-        val normalizedQuery = keyword.trim()
+        val (chainFamilyFilter, normalizedQuery) = parseSearchScope(keyword)
         if (normalizedQuery.isBlank()) return emptyList()
-
-        val addressFamily = when {
-            looksLikeOnchainAddress(ChainFamily.EVM, normalizedQuery) -> ChainFamily.EVM
-            looksLikeOnchainAddress(ChainFamily.SOL, normalizedQuery) -> ChainFamily.SOL
-            else -> null
-        }
         return searchPublicOnchain(
             keyword = normalizedQuery,
-            chainFamilyFilter = addressFamily
+            chainFamilyFilter = chainFamilyFilter
         )
     }
 
@@ -245,31 +239,42 @@ class DefaultMarketSearchRepository(
         chainFamilyFilter: ChainFamily? = null
     ): List<WatchItem> {
         val pairs = dexScreenerClient.searchPairs(keyword)
-        val chains = OnchainChainRegistry.entries.filter { chain ->
-            chainFamilyFilter == null || chain.family == chainFamilyFilter
-        }
-        return chains.flatMap { chain ->
-            val chainPairs = pairs.filter { it.chainId.equals(chain.dexScreenerId, ignoreCase = true) }
-            val addresses = chainPairs.flatMap { pair ->
-                DexScreenerPairSelector.matchingTokenAddresses(pair, keyword, chain.family)
-            }
-            addresses
-                .distinctBy { normalizeOnchainAddress(chain.family, it) }
-                .mapNotNull { address ->
-                    val candidates = DexScreenerPairSelector.candidates(
-                        pairs = chainPairs,
-                        tokenAddress = address,
-                        family = chain.family
-                    )
-                    candidates.firstOrNull()?.toOnchainWatchItem(
-                        chain = chain,
-                        candidates = candidates
-                    )
+        return pairs
+            .filter { it.chainId.isNotBlank() }
+            .groupBy { it.chainId.lowercase() }
+            .values
+            .flatMap { chainPairs ->
+                val upstreamChainId = chainPairs.first().chainId
+                val family = inferOnchainChainFamily(
+                    dexScreenerId = upstreamChainId,
+                    addresses = chainPairs.flatMap { pair ->
+                        listOf(pair.baseToken.address, pair.quoteToken.address)
+                    }
+                )
+                if (chainFamilyFilter != null && family != chainFamilyFilter) {
+                    return@flatMap emptyList()
                 }
-        }
+                val chain = OnchainChainRegistry.resolveDexScreenerChain(upstreamChainId, family)
+                    ?: return@flatMap emptyList()
+                val addresses = chainPairs.flatMap { pair ->
+                    DexScreenerPairSelector.matchingTokenAddresses(pair, keyword, chain.family)
+                }
+                addresses
+                    .distinctBy { normalizeOnchainAddress(chain.family, it) }
+                    .mapNotNull { address ->
+                        val candidates = DexScreenerPairSelector.candidates(
+                            pairs = chainPairs,
+                            tokenAddress = address,
+                            family = chain.family
+                        )
+                        candidates.firstOrNull()?.toOnchainWatchItem(
+                            chain = chain,
+                            candidates = candidates
+                        )
+                    }
+            }
             .distinctBy(WatchItem::semanticKey)
             .sortedWith(compareBy({ it.symbol }, { it.name }))
-            .take(80)
     }
 
     private suspend fun loadCache(key: String, block: suspend () -> List<WatchItem>): List<WatchItem> {
