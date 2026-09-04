@@ -73,6 +73,18 @@ class DexScreenerMarketQuoteRepositoryTest {
         assertTrue(error is CancellationException)
     }
 
+    @Test
+    fun `dynamic chain quote uses upstream chain id without local registration`() = runBlocking {
+        val fakeDex = QuoteDexApi()
+        val repository = repository(fakeDex)
+        val robinhood = item("robinhood", "robinhood", ETH_ADDRESS)
+
+        val quote = repository.fetchQuotes(listOf(robinhood)).single()
+
+        assertEquals("pool-robinhood", quote.poolAddress)
+        assertEquals(listOf("robinhood"), fakeDex.requestedChains)
+    }
+
     private fun repository(fakeDex: QuoteDexApi) = DefaultMarketQuoteRepository(
         alphaApi = UnusedAlphaApi,
         binanceApi = UnusedBinanceApi,
@@ -102,6 +114,7 @@ class DexScreenerMarketQuoteRepositoryTest {
         private val returnPairs: Boolean = true
     ) : DexScreenerApi {
         val batchSizes = mutableListOf<Int>()
+        val requestedChains = mutableListOf<String>()
 
         override suspend fun searchPairs(query: String): DexScreenerSearchResponse = error("not used")
 
@@ -114,6 +127,7 @@ class DexScreenerMarketQuoteRepositoryTest {
             chainId: String,
             tokenAddresses: String
         ): List<DexScreenerPair> {
+            requestedChains += chainId
             val addresses = tokenAddresses.split(',')
             batchSizes += addresses.size
             if (chainId == cancellationChain) throw CancellationException("cancelled")

@@ -448,7 +448,7 @@ class OverlayWindowController(
             val bitmap = coinIconService.loadBitmap(
                 symbol = item.baseSymbol,
                 preferredIconUrl = item.iconUrl,
-                fallbackIconUrl = OnchainChainIconRegistry.resolveIconUrl(item.chainIndex),
+                fallbackIconUrls = OnchainChainIconRegistry.resolveIconUrls(item.chainIndex),
                 grayscaleFallback = item.chainIndex != null
             )
             if (bitmap != null) {
@@ -718,7 +718,7 @@ class OverlayWindowController(
                     val bitmap = coinIconService.loadBitmap(
                         symbol = item.baseSymbol,
                         preferredIconUrl = item.iconUrl,
-                        fallbackIconUrl = OnchainChainIconRegistry.resolveIconUrl(item.chainIndex),
+                        fallbackIconUrls = OnchainChainIconRegistry.resolveIconUrls(item.chainIndex),
                         grayscaleFallback = item.chainIndex != null
                     )
                     if (bitmap != null) {

@@ -80,8 +80,9 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 
 - 当前链上能力提供搜索、最新价格、24 小时涨跌、流动性、成交量与 K 线，不提供交易执行
 - 搜索与报价使用无需 API Key 的 `DexScreener`，K 线使用无需 API Key 的 `GeckoTerminal`
-- 链上搜索当前覆盖注册表中的 17 条链：Ethereum、Base、BSC、Arbitrum、Polygon、Optimism、Avalanche、Linea、Scroll、Blast、Mode、Mantle、Polygon zkEVM、zkSync、Fantom、ZetaChain 与 Solana
-- 统一链注册表通过具体 `chainIndex` 精确映射 DexScreener 和 GeckoTerminal 的网络标识；EVM 合约地址统一转为小写，Solana 地址保留原始大小写
+- 链上搜索不再把本地注册表作为白名单：DexScreener 返回的非空 `chainId` 都会参与结果解析，且不再施加本地 80 条结果上限
+- 本地注册表继续为 17 条已知链提供精确 `chainIndex`、DexScreener 与 GeckoTerminal 网络映射；未知链直接持久化 DexScreener `chainId`，后续报价沿用该标识，K 线以同名 GeckoTerminal 网络作最佳努力请求
+- EVM 合约地址统一转为小写，Solana 与其他链地址保留原始大小写；未知网络会根据返回的代币地址形态区分 EVM 与其他链
 - 搜索选池先要求目标合约精确匹配，并排除无有效美元价格或无流动性的池；随后依次按目标代币位于 `base` 侧、美元流动性、24 小时成交量和池地址排序
 - DexScreener 网络 DTO 按官方契约容纳显式 `null`：`pairs`、`labels`、`priceChange` 在解码层保持可空，并在客户端或业务边界统一归一化为空集合，避免单个缺失字段导致整次搜索或报价解析失败
 - 添加观察项时固定池地址和目标代币的 `base / quote` 方向；用户从搜索结果切换池后，已添加标的立即更新绑定，未添加标的会在添加时保存当前选择
@@ -93,8 +94,8 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 - 长周期请求按目标根数扩展日线数量；超过 GeckoTerminal 单次 1000 根时使用 `before_timestamp` 向前分页，直到达到目标、上游无更多历史或请求被取消。页面默认仍以最多 240 根合成 K 线为目标，实际根数受池子创建时间和免费接口可用历史限制
 - 报价和 K 线捕获普通网络异常时不会捕获 `CancellationException`，快速切换标的、周期或重启刷新任务后，旧任务不会继续更新 UI
 - 搜索结果通过 `LazyColumn.itemsIndexed` 逐条组合和回收，不再在单个 lazy item 内用 `forEach` 一次性组合全部结果
-- 代币图标优先使用 DexScreener 返回的公开 `info.imageUrl`；链 Logo 由本地链注册表映射到 Trust Wallet Assets 的静态资源，不依赖 DexScreener 或 GeckoTerminal 提供链图标接口
-- 链上代币缺少自身图标时，会回退到对应链 Logo，并在缓存阶段生成灰阶版本复用
+- 代币图标优先使用 DexScreener 返回的公开 `info.imageUrl`；链 Logo 优先使用本地映射，未命中或下载失败时依次尝试在线链图标候选
+- 链上代币缺少自身图标时，会回退到链 Logo 并在缓存阶段生成灰阶版本复用；所有在线候选都失败时，Compose 列表和原生悬浮窗都使用内置默认占位图，网络异常不会向上抛出中断渲染
 
 ### Overlay
 
@@ -126,11 +127,12 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 - 当前底层默认实现中，`Binance Spot / Binance Alpha / Binance USDT-M Futures / OKX Spot / OKX USDT-M Futures` 优先走 `WSS`
 - 当前实时价格主链路已经改成 `WSS / REST -> InMemory QuoteRepository -> UI`，不再每次报价都直接写回 `watch_items`
 - `watch_items` 里的价格字段当前只承担启动恢复和低频快照持久化，默认在页面不再活跃时落一次，并在前台运行期间按低频兜底写回
-- 链上价格固定使用 `DexScreener REST`，按链分组且每批最多 30 个合约地址；独立轮询间隔范围 `10-120 秒`、步进 `5 秒`、默认 `45 秒`
-- 上述“每批 30 个”表示同一条链上的最多 30 个代币合并为一次 HTTP 请求，并非每个代币单独消耗一次请求；不同链分别形成批次
+- 链上价格固定使用 `DexScreener REST`，按链分组且每批最多 30 个不同合约地址；默认“智能刷新”以 30 秒缓存窗口规划完整轮转，也可选择 `30 / 45 / 60 / 120 秒`固定轮转周期
+- 上述“每批 30 个”表示同一条链上的最多 30 个不同代币合并为一次 HTTP 请求，并非每个代币单独消耗一次请求；不同链分别形成批次，所有批次在完整周期内顺序分散，相邻请求至少间隔 1 秒
+- 首页手动刷新复用同一条链上请求队列，30 秒内已成功刷新的批次不会重复发送；单批失败按 `5 / 10 / 20 / 30 秒`独立退避，其他批次继续轮转
 - DexScreener 客户端统一限制在每分钟最多 240 次请求，为公开接口限额保留余量；429 会优先遵守 `Retry-After`，否则执行带随机抖动的指数退避
 - 链上 K 线固定使用 `GeckoTerminal`，按已保存的池地址和目标代币方向查询，并在客户端限制为每分钟最多 8 次
-- DEX 轮询滑块复用悬浮窗设置的 `SliderDefaults.Track` 和项目统一 Slider 配色，只通过离屏合成增加 `#E60012` 高饱和警告红到绿色的渐变，因此保留原生轨道圆角、刻度、端点和滑块间隙
+- 链上刷新设置页使用智能/固定分段按钮与固定周期选项，并展示当前请求批次数、批次间隔、轮转周期和失败重试批次数
 - HTTP / WSS 网络日志会脱敏 API Key、签名、Passphrase、鉴权头与 Cookie
 
 ### Upstream Docs And Endpoints

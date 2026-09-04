@@ -3,6 +3,7 @@ package io.baiyanwu.coinmonitor.data.ai.market
 import io.baiyanwu.coinmonitor.data.network.DexScreenerClient
 import io.baiyanwu.coinmonitor.data.network.DexScreenerPairSelector
 import io.baiyanwu.coinmonitor.domain.model.OnchainChainRegistry
+import io.baiyanwu.coinmonitor.domain.model.inferOnchainChainFamily
 import io.baiyanwu.coinmonitor.lib.agents.AssetRef
 import io.baiyanwu.coinmonitor.lib.agents.MarketEvidence
 import io.baiyanwu.coinmonitor.lib.agents.MarketEventType
@@ -65,7 +66,13 @@ class ProjectInfoAdapter(
     }
 
     private suspend fun buildDexScreenerOverview(asset: AssetRef): List<MarketEvidence> {
-        val chain = OnchainChainRegistry.find(asset.chainId)
+        val chain = OnchainChainRegistry.resolve(
+            chainIndexOrDexScreenerId = asset.chainId,
+            family = inferOnchainChainFamily(
+                dexScreenerId = asset.chainId,
+                addresses = listOfNotNull(asset.tokenAddress)
+            )
+        )
             ?: return listOf(buildLocalOverview(asset))
         val tokenAddress = asset.tokenAddress.orEmpty()
         val pairs = dexScreenerClient.getTokenPairs(chain.dexScreenerId, tokenAddress)

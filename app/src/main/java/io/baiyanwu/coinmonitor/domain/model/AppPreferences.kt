@@ -22,12 +22,18 @@ enum class RefreshIntervalMode {
     ONE_MINUTE
 }
 
+enum class OnchainRefreshMode {
+    SMART,
+    FIXED
+}
+
 data class AppPreferences(
     val themeMode: AppThemeMode = AppThemeMode.SYSTEM,
     val language: AppLanguage = AppLanguage.SYSTEM,
     val themeTemplate: ThemeTemplateId = ThemeTemplateId.DEFAULT_MD,
     val refreshIntervalMode: RefreshIntervalMode = RefreshIntervalMode.CUSTOM,
     val customRefreshIntervalSeconds: Int = DEFAULT_CUSTOM_REFRESH_INTERVAL_SECONDS,
+    val onchainRefreshMode: OnchainRefreshMode = OnchainRefreshMode.SMART,
     val onchainRefreshIntervalSeconds: Int = DEFAULT_ONCHAIN_REFRESH_INTERVAL_SECONDS,
     val klineIndicatorSettings: KlineIndicatorSettings = KlineIndicatorSettings()
 ) {
@@ -57,22 +63,17 @@ data class AppPreferences(
         const val MAX_REFRESH_INTERVAL_SECONDS = MAX_CUSTOM_REFRESH_INTERVAL_SECONDS
         const val PRESET_THIRTY_SECONDS = 30
         const val PRESET_ONE_MINUTE_SECONDS = 60
-        const val DEFAULT_ONCHAIN_REFRESH_INTERVAL_SECONDS = 45
-        const val MIN_ONCHAIN_REFRESH_INTERVAL_SECONDS = 10
+        const val DEFAULT_ONCHAIN_REFRESH_INTERVAL_SECONDS = 30
+        const val MIN_ONCHAIN_REFRESH_INTERVAL_SECONDS = 30
         const val MAX_ONCHAIN_REFRESH_INTERVAL_SECONDS = 120
-        const val ONCHAIN_REFRESH_INTERVAL_STEP_SECONDS = 5
-        const val RECOMMENDED_MIN_ONCHAIN_REFRESH_INTERVAL_SECONDS = 30
 
         fun normalizeOnchainRefreshIntervalSeconds(value: Int): Int {
-            val clamped = value.coerceIn(
+            return value.coerceIn(
                 MIN_ONCHAIN_REFRESH_INTERVAL_SECONDS,
                 MAX_ONCHAIN_REFRESH_INTERVAL_SECONDS
             )
-            val steps = (
-                clamped - MIN_ONCHAIN_REFRESH_INTERVAL_SECONDS +
-                    ONCHAIN_REFRESH_INTERVAL_STEP_SECONDS / 2
-                ) / ONCHAIN_REFRESH_INTERVAL_STEP_SECONDS
-            return MIN_ONCHAIN_REFRESH_INTERVAL_SECONDS + steps * ONCHAIN_REFRESH_INTERVAL_STEP_SECONDS
         }
+
+        val ONCHAIN_FIXED_INTERVAL_OPTIONS_SECONDS = listOf(30, 45, 60, 120)
     }
 }

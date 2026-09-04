@@ -8,5 +8,6 @@ enum class MarketType {
 
 enum class ChainFamily {
     EVM,
-    SOL
+    SOL,
+    OTHER
 }

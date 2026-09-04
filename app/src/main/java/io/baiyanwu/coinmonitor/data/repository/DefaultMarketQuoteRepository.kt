@@ -14,6 +14,7 @@ import io.baiyanwu.coinmonitor.domain.model.MarketQuote
 import io.baiyanwu.coinmonitor.domain.model.MarketType
 import io.baiyanwu.coinmonitor.domain.model.OnchainChainRegistry
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
+import io.baiyanwu.coinmonitor.domain.model.inferOnchainChainFamily
 import io.baiyanwu.coinmonitor.domain.model.normalizeOnchainAddress
 import io.baiyanwu.coinmonitor.domain.model.onchainAddressesEqual
 import io.baiyanwu.coinmonitor.domain.repository.MarketQuoteRepository
@@ -140,7 +141,15 @@ class DefaultMarketQuoteRepository(
 
     private suspend fun fetchDexScreenerQuotes(items: List<WatchItem>): List<MarketQuote> = coroutineScope {
         if (items.isEmpty()) return@coroutineScope emptyList()
-        items.groupBy { item -> OnchainChainRegistry.find(item.chainIndex) }
+        items.groupBy { item ->
+            OnchainChainRegistry.resolve(
+                chainIndexOrDexScreenerId = item.chainIndex,
+                family = item.chainFamily ?: inferOnchainChainFamily(
+                    dexScreenerId = item.chainIndex,
+                    addresses = listOfNotNull(item.tokenAddress)
+                )
+            )
+        }
             .filterKeys { it != null }
             .map { (chainOrNull, chainItems) ->
                 async {
