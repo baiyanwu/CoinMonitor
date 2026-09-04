@@ -7,7 +7,9 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import io.baiyanwu.coinmonitor.data.AppContainer
-import io.baiyanwu.coinmonitor.domain.model.OverlayEdgeDisplayMode
+import io.baiyanwu.coinmonitor.domain.model.ArrangedEdgeDisplayMode
+import io.baiyanwu.coinmonitor.domain.model.MarqueeSpeed
+import io.baiyanwu.coinmonitor.domain.model.OverlayDisplayType
 import io.baiyanwu.coinmonitor.domain.model.OverlayLeadingDisplayMode
 import io.baiyanwu.coinmonitor.domain.model.OverlaySettings
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
@@ -65,51 +67,81 @@ class OverlaySettingsViewModel(
         }
     }
 
-    fun setOpacity(opacity: Float) {
+    fun setDisplayType(displayType: OverlayDisplayType) {
         viewModelScope.launch {
-            overlayRepository.setOpacity(opacity)
+            overlayRepository.setDisplayType(displayType)
         }
     }
 
-    fun setMaxCount(maxCount: Int) {
+    fun setArrangedOpacity(opacity: Float) {
         viewModelScope.launch {
-            overlayRepository.setMaxCount(maxCount)
+            overlayRepository.setArrangedOpacity(opacity)
         }
     }
 
-    fun setLeadingDisplayMode(mode: OverlayLeadingDisplayMode) {
+    fun setArrangedMaxCount(maxCount: Int) {
         viewModelScope.launch {
-            overlayRepository.setLeadingDisplayMode(mode)
+            overlayRepository.setArrangedMaxCount(maxCount)
         }
     }
 
-    fun setFontScale(fontScale: Float) {
+    fun setArrangedLeadingDisplayMode(mode: OverlayLeadingDisplayMode) {
         viewModelScope.launch {
-            overlayRepository.setFontScale(fontScale)
+            overlayRepository.setArrangedLeadingDisplayMode(mode)
         }
     }
 
-    fun setSnapToEdge(enabled: Boolean) {
+    fun setArrangedFontScale(fontScale: Float) {
         viewModelScope.launch {
-            overlayRepository.setSnapToEdge(enabled)
+            overlayRepository.setArrangedFontScale(fontScale)
         }
     }
 
-    fun setEdgeDisplayMode(mode: OverlayEdgeDisplayMode) {
+    fun setArrangedSnapToEdge(enabled: Boolean) {
         viewModelScope.launch {
-            overlayRepository.setEdgeDisplayMode(mode)
+            overlayRepository.setArrangedSnapToEdge(enabled)
         }
     }
 
-    fun setEdgeTabOpacity(opacity: Float) {
+    fun setArrangedEdgeDisplayMode(mode: ArrangedEdgeDisplayMode) {
         viewModelScope.launch {
-            overlayRepository.setEdgeTabOpacity(opacity)
+            overlayRepository.setArrangedEdgeDisplayMode(mode)
         }
     }
 
-    fun setEdgeAutoCollapseSeconds(seconds: Int) {
+    fun setArrangedEdgeTabOpacity(opacity: Float) {
         viewModelScope.launch {
-            overlayRepository.setEdgeAutoCollapseSeconds(seconds)
+            overlayRepository.setArrangedEdgeTabOpacity(opacity)
+        }
+    }
+
+    fun setArrangedEdgeAutoCollapseSeconds(seconds: Int) {
+        viewModelScope.launch {
+            overlayRepository.setArrangedEdgeAutoCollapseSeconds(seconds)
+        }
+    }
+
+    fun setMarqueeOpacity(opacity: Float) {
+        viewModelScope.launch {
+            overlayRepository.setMarqueeOpacity(opacity)
+        }
+    }
+
+    fun setMarqueeMaxCount(maxCount: Int) {
+        viewModelScope.launch {
+            overlayRepository.setMarqueeMaxCount(maxCount)
+        }
+    }
+
+    fun setMarqueeFontScale(fontScale: Float) {
+        viewModelScope.launch {
+            overlayRepository.setMarqueeFontScale(fontScale)
+        }
+    }
+
+    fun setMarqueeSpeed(speed: MarqueeSpeed) {
+        viewModelScope.launch {
+            overlayRepository.setMarqueeSpeed(speed)
         }
     }
 

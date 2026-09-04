@@ -13,7 +13,9 @@ import io.baiyanwu.coinmonitor.data.repository.createOverlayPreferencesDataStore
 import io.baiyanwu.coinmonitor.data.repository.migrateLegacyOverlaySettings
 import io.baiyanwu.coinmonitor.data.repository.migrateLegacyOverlaySettingsBeforeRoomOpen
 import io.baiyanwu.coinmonitor.data.repository.toOverlaySettings
-import io.baiyanwu.coinmonitor.domain.model.OverlayEdgeDisplayMode
+import io.baiyanwu.coinmonitor.domain.model.ArrangedEdgeDisplayMode
+import io.baiyanwu.coinmonitor.domain.model.ArrangedOverlaySettings
+import io.baiyanwu.coinmonitor.domain.model.MarqueeOverlaySettings
 import io.baiyanwu.coinmonitor.domain.model.OverlayLeadingDisplayMode
 import io.baiyanwu.coinmonitor.domain.model.OverlaySettings
 import java.io.File
@@ -237,19 +239,24 @@ class CoinMonitorDatabaseMigrationTest {
     private fun assertMigratedOverlaySettings(settings: OverlaySettings) {
         assertTrue(settings.enabled)
         assertTrue(settings.locked)
-        assertEquals(0.64f, settings.opacity)
-        assertEquals(7, settings.maxItems)
-        assertEquals(OverlayLeadingDisplayMode.PAIR_NAME, settings.leadingDisplayMode)
-        assertEquals(1.25f, settings.fontScale)
-        assertTrue(settings.snapToEdge)
-        assertEquals(123, settings.windowX)
-        assertEquals(456, settings.windowY)
-        assertEquals(OverlayEdgeDisplayMode.TICKER, settings.edgeDisplayMode)
-        assertEquals(OverlaySettings.DEFAULT_EDGE_TAB_OPACITY, settings.edgeTabOpacity)
+        assertEquals(0.64f, settings.arranged.opacity)
+        assertEquals(7, settings.arranged.maxItems)
+        assertEquals(OverlayLeadingDisplayMode.PAIR_NAME, settings.arranged.leadingDisplayMode)
+        assertEquals(1.25f, settings.arranged.fontScale)
+        assertTrue(settings.arranged.snapToEdge)
+        assertEquals(123, settings.arranged.windowX)
+        assertEquals(456, settings.arranged.windowY)
+        assertEquals(ArrangedEdgeDisplayMode.DOCKED, settings.arranged.edgeDisplayMode)
         assertEquals(
-            OverlaySettings.DEFAULT_EDGE_AUTO_COLLAPSE_SECONDS,
-            settings.edgeAutoCollapseSeconds
+            ArrangedOverlaySettings.DEFAULT_EDGE_TAB_OPACITY,
+            settings.arranged.edgeTabOpacity
         )
+        assertEquals(
+            ArrangedOverlaySettings.DEFAULT_EDGE_AUTO_COLLAPSE_SECONDS,
+            settings.arranged.edgeAutoCollapseSeconds
+        )
+        assertEquals(MarqueeOverlaySettings.DEFAULT_OPACITY, settings.marquee.opacity)
+        assertEquals(456, settings.marquee.windowY)
     }
 
     private fun clearMigrationState() {

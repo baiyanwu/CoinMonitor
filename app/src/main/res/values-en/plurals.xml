@@ -3,4 +3,8 @@
         <item quantity="one">Maximum %1$d pair</item>
         <item quantity="other">Maximum %1$d pairs</item>
     </plurals>
+    <plurals name="overlay_marquee_max_items">
+        <item quantity="one">Show %1$d pair in the marquee</item>
+        <item quantity="other">Show %1$d pairs in the marquee</item>
+    </plurals>
 </resources>
