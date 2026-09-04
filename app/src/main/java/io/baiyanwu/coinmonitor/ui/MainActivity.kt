@@ -21,7 +21,9 @@ class MainActivity : CoinMonitorComposeActivity() {
         setCoinMonitorContent { container ->
             CoinMonitorNavHost(
                 container = container,
-                onOpenSearch = { SearchActivity.start(this@MainActivity) },
+                onOpenSearch = { searchMode ->
+                    SearchActivity.start(this@MainActivity, initialSearchMode = searchMode)
+                },
                 onOpenKlineSearch = { SearchActivity.startForKline(this@MainActivity) },
                 onOpenKlineHistory = { AiChatHistoryActivity.start(this@MainActivity) },
                 onOpenKlineIndicatorSettings = { KlineIndicatorSettingsActivity.start(this@MainActivity) },

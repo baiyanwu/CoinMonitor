@@ -1,8 +1,6 @@
 package io.baiyanwu.coinmonitor.ui.search
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -14,11 +12,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.pager.HorizontalPager
@@ -65,6 +61,7 @@ import io.baiyanwu.coinmonitor.domain.model.OnchainChainIconRegistry
 import io.baiyanwu.coinmonitor.domain.model.OnchainPoolOption
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
 import io.baiyanwu.coinmonitor.ui.components.CoinSymbolIcon
+import io.baiyanwu.coinmonitor.ui.components.MarketModeTabs
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 import kotlinx.coroutines.launch
 import java.util.Locale
@@ -85,6 +82,7 @@ private enum class ChainFamilyLabel {
 fun SearchRoute(
     container: AppContainer,
     entryMode: SearchEntryMode = SearchEntryMode.HOME,
+    initialSearchMode: SearchMode = SearchMode.EXCHANGE,
     onBack: () -> Unit,
     onSelectForKline: (String) -> Unit = {}
 ) {
@@ -93,6 +91,7 @@ fun SearchRoute(
     SearchScreen(
         state = state,
         entryMode = entryMode,
+        initialSearchMode = initialSearchMode,
         onBack = onBack,
         onQueryChange = viewModel::updateQuery,
         onClearQuery = viewModel::clearQuery,
@@ -110,6 +109,7 @@ fun SearchRoute(
 private fun SearchScreen(
     state: SearchUiState,
     entryMode: SearchEntryMode,
+    initialSearchMode: SearchMode,
     onBack: () -> Unit,
     onQueryChange: (SearchMode, String) -> Unit,
     onClearQuery: (SearchMode) -> Unit,
@@ -121,7 +121,7 @@ private fun SearchScreen(
 ) {
     val colors = CoinMonitorThemeTokens.colors
     val pagerState = rememberPagerState(
-        initialPage = SEARCH_MODES.indexOf(state.searchMode).coerceAtLeast(0),
+        initialPage = SEARCH_MODES.indexOf(initialSearchMode).coerceAtLeast(0),
         pageCount = SEARCH_MODES::size
     )
     val coroutineScope = rememberCoroutineScope()
@@ -154,14 +154,22 @@ private fun SearchScreen(
             .background(colors.pageBackground)
             .statusBarsPadding()
     ) {
-        SearchModeTabs(
-            selectedPage = pagerState.currentPage,
-            onSelectPage = { page ->
-                coroutineScope.launch {
-                    pagerState.animateScrollToPage(page)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(colors.pageBackground)
+                .padding(top = 8.dp, bottom = 4.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            MarketModeTabs(
+                selectedPage = pagerState.currentPage,
+                onSelectPage = { page ->
+                    coroutineScope.launch {
+                        pagerState.animateScrollToPage(page)
+                    }
                 }
-            }
-        )
+            )
+        }
 
         HorizontalPager(
             state = pagerState,
@@ -191,70 +199,6 @@ private fun SearchScreen(
                     onSelectOnchainPool = onSelectOnchainPool,
                     onSelectForKline = onSelectForKline
                 )
-            }
-        }
-    }
-}
-
-@Composable
-private fun SearchModeTabs(
-    selectedPage: Int,
-    onSelectPage: (Int) -> Unit
-) {
-    val colors = CoinMonitorThemeTokens.colors
-    val tabWidth = 96.dp
-    val indicatorWidth = 32.dp
-    val indicatorOffset by animateDpAsState(
-        targetValue = if (selectedPage == 0) 32.dp else 128.dp,
-        animationSpec = tween(durationMillis = 180),
-        label = "search-mode-indicator"
-    )
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(colors.pageBackground)
-            .padding(top = 8.dp, bottom = 4.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Box(
-            modifier = Modifier
-                .width(tabWidth * SEARCH_MODES.size)
-                .height(44.dp)
-        ) {
-            Row(modifier = Modifier.fillMaxSize()) {
-                SEARCH_MODES.forEachIndexed { index, mode ->
-                    val selected = index == selectedPage
-                    val labelRes = if (mode == SearchMode.EXCHANGE) {
-                        R.string.search_mode_exchange
-                    } else {
-                        R.string.search_mode_onchain
-                    }
-                    Box(
-                        modifier = Modifier
-                            .width(tabWidth)
-                            .height(44.dp)
-                            .clickable { onSelectPage(index) },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = stringResource(labelRes),
-                            color = if (selected) colors.accent else colors.secondaryText,
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium
-                        )
-                    }
-                }
-            }
-
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .offset(x = indicatorOffset)
-                    .width(indicatorWidth)
-                    .height(3.dp)
-                    .background(colors.accent, RoundedCornerShape(2.dp))
-            ) {
             }
         }
     }

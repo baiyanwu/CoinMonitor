@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -39,6 +38,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import kotlin.math.roundToInt
 import io.baiyanwu.coinmonitor.domain.model.ExchangeSource
 import io.baiyanwu.coinmonitor.domain.model.MarketType
@@ -226,25 +226,28 @@ fun WatchItemCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                .padding(horizontal = 14.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            CoinSymbolIcon(item = item, modifier = Modifier.size(24.dp))
+            CoinSymbolIcon(item = item, size = 20.dp)
 
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 Text(
                     text = item.symbol,
-                    style = MaterialTheme.typography.titleSmall,
+                    style = MaterialTheme.typography.titleSmall.copy(
+                        fontSize = 13.sp,
+                        lineHeight = 17.sp
+                    ),
                     color = colors.primaryText,
                     fontWeight = FontWeight.SemiBold
                 )
 
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     ExchangeBadge(source = item.exchangeSource)
@@ -301,7 +304,10 @@ private fun WatchItemLiveQuote(
 
     Text(
         text = QuoteFormatter.formatPrice(resolvedItem.lastPrice),
-        style = MaterialTheme.typography.titleSmall,
+        style = MaterialTheme.typography.titleSmall.copy(
+            fontSize = 13.sp,
+            lineHeight = 17.sp
+        ),
         color = resolvedItem.resolveLivePriceColor(
             colors = colors,
             defaultColor = colors.primaryText
@@ -314,7 +320,10 @@ private fun WatchItemLiveQuote(
             colors = colors,
             defaultColor = colors.secondaryText
         ),
-        style = MaterialTheme.typography.bodySmall,
+        style = MaterialTheme.typography.bodySmall.copy(
+            fontSize = 10.sp,
+            lineHeight = 13.sp
+        ),
         fontWeight = FontWeight.Medium
     )
 }
@@ -365,13 +374,16 @@ private fun MiniTag(
         color = containerColor
     ) {
         Box(
-            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
+            modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 text = text,
                 color = contentColor,
-                style = MaterialTheme.typography.labelSmall,
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontSize = 9.sp,
+                    lineHeight = 11.sp
+                ),
                 fontWeight = FontWeight.SemiBold
             )
         }

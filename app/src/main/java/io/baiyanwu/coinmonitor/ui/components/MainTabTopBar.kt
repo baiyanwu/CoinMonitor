@@ -14,7 +14,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import io.baiyanwu.coinmonitor.R
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 
 val MainTabTopBarHeight = 38.dp
@@ -51,10 +53,14 @@ fun MainTabTopBar(
 }
 
 @Composable
-fun SearchEntryButton(onClick: () -> Unit) {
+fun SearchEntryButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     TopBarCircleActionButton(
         imageVector = Icons.Rounded.Add,
-        contentDescription = "",
-        onClick = onClick
+        contentDescription = stringResource(R.string.home_open_search),
+        onClick = onClick,
+        modifier = modifier
     )
 }

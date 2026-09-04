@@ -10,10 +10,12 @@ class SearchActivity : CoinMonitorComposeActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val entryMode = resolveEntryMode()
+        val initialSearchMode = resolveInitialSearchMode(intent.getStringExtra(EXTRA_SEARCH_MODE))
         setCoinMonitorContent { container ->
             SearchRoute(
                 container = container,
                 entryMode = entryMode,
+                initialSearchMode = initialSearchMode,
                 onBack = { finish() },
                 onSelectForKline = { itemId ->
                     container.klineSelectionStore.select(itemId)
@@ -30,14 +32,17 @@ class SearchActivity : CoinMonitorComposeActivity() {
 
     companion object {
         private const val EXTRA_ENTRY_MODE = "extra_entry_mode"
+        private const val EXTRA_SEARCH_MODE = "extra_search_mode"
 
-        fun start(activity: Activity) {
+        fun start(
+            activity: Activity,
+            initialSearchMode: SearchMode = SearchMode.EXCHANGE
+        ) {
             DetailPageTransitions.start(
                 activity = activity,
-                intent = Intent(activity, SearchActivity::class.java).putExtra(
-                    EXTRA_ENTRY_MODE,
-                    SearchEntryMode.HOME.name
-                )
+                intent = Intent(activity, SearchActivity::class.java)
+                    .putExtra(EXTRA_ENTRY_MODE, SearchEntryMode.HOME.name)
+                    .putExtra(EXTRA_SEARCH_MODE, initialSearchMode.name)
             )
         }
 
@@ -59,4 +64,8 @@ class SearchActivity : CoinMonitorComposeActivity() {
         val rawMode = intent.getStringExtra(EXTRA_ENTRY_MODE)
         return SearchEntryMode.entries.firstOrNull { it.name == rawMode } ?: SearchEntryMode.HOME
     }
+}
+
+internal fun resolveInitialSearchMode(rawMode: String?): SearchMode {
+    return SearchMode.entries.firstOrNull { it.name == rawMode } ?: SearchMode.EXCHANGE
 }

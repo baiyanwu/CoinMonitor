@@ -29,6 +29,7 @@ import io.baiyanwu.coinmonitor.data.AppContainer
 import io.baiyanwu.coinmonitor.ui.home.HomeRoute
 import io.baiyanwu.coinmonitor.ui.kline.KlineRoute
 import io.baiyanwu.coinmonitor.ui.kline.chart.KlineChartHostView
+import io.baiyanwu.coinmonitor.ui.search.SearchMode
 import io.baiyanwu.coinmonitor.ui.settings.SettingsRoute
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorComponentDefaults
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
@@ -48,7 +49,7 @@ private data class MainTab(
 @Composable
 fun CoinMonitorNavHost(
     container: AppContainer,
-    onOpenSearch: () -> Unit,
+    onOpenSearch: (SearchMode) -> Unit,
     onOpenKlineSearch: () -> Unit,
     onOpenKlineHistory: () -> Unit,
     onOpenKlineIndicatorSettings: () -> Unit,

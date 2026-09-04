@@ -22,9 +22,9 @@
     <string name="exchange_badge_onchain">ONCHAIN</string>
     <string name="market_tag_usdt_futures">USDT-M</string>
 
-    <string name="home_empty_hint">Add a trading pair to start monitoring.</string>
+    <string name="home_empty_exchange_hint">Add an exchange pair to start monitoring.</string>
+    <string name="home_empty_onchain_hint">Add an on-chain token to start monitoring.</string>
     <string name="home_add_pair">Add pair</string>
-    <string name="home_title">Watch</string>
     <string name="home_open_search">Search pairs</string>
     <string name="home_overlay_tag">Overlay</string>
     <string name="home_pinned_tag">Pinned</string>
