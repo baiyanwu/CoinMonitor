@@ -7,6 +7,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
+import android.content.res.Configuration
 import android.os.Build
 import android.os.IBinder
 import android.widget.RemoteViews
@@ -159,6 +160,13 @@ class OverlayForegroundService : Service() {
         OverlayRuntimeSession.reset()
         serviceScope.cancel()
         super.onDestroy()
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        serviceScope.launch {
+            renderLatestOverlay()
+        }
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {

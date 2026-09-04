@@ -1,17 +1,17 @@
-package io.baiyanwu.coinmonitor.overlay
+package io.baiyanwu.coinmonitor.overlay.arranged
 
-import io.baiyanwu.coinmonitor.domain.model.OverlayEdgeDisplayMode
-import io.baiyanwu.coinmonitor.domain.model.OverlaySettings
+import io.baiyanwu.coinmonitor.domain.model.ArrangedEdgeDisplayMode
+import io.baiyanwu.coinmonitor.domain.model.ArrangedOverlaySettings
 
 enum class OverlayEdgePresentation {
     STANDARD,
-    TICKER,
+    DOCKED_CAROUSEL,
     HIDDEN_TAB
 }
 
 object OverlayEdgePresentationPolicy {
     fun resolve(
-        settings: OverlaySettings,
+        settings: ArrangedOverlaySettings,
         hasItems: Boolean,
         hiddenTabExpanded: Boolean
     ): OverlayEdgePresentation {
@@ -19,10 +19,10 @@ object OverlayEdgePresentationPolicy {
             return OverlayEdgePresentation.STANDARD
         }
         return when (settings.edgeDisplayMode) {
-            OverlayEdgeDisplayMode.TICKER -> OverlayEdgePresentation.TICKER
-            OverlayEdgeDisplayMode.HIDDEN_TAB -> {
+            ArrangedEdgeDisplayMode.DOCKED -> OverlayEdgePresentation.DOCKED_CAROUSEL
+            ArrangedEdgeDisplayMode.HIDDEN_TAB -> {
                 if (hiddenTabExpanded) {
-                    OverlayEdgePresentation.TICKER
+                    OverlayEdgePresentation.DOCKED_CAROUSEL
                 } else {
                     OverlayEdgePresentation.HIDDEN_TAB
                 }
@@ -48,8 +48,8 @@ object OverlayEdgeMotionPolicy {
 object OverlayEdgeAutoCollapsePolicy {
     fun normalizeSeconds(seconds: Int): Int {
         return seconds.coerceIn(
-            minimumValue = OverlaySettings.MIN_EDGE_AUTO_COLLAPSE_SECONDS,
-            maximumValue = OverlaySettings.MAX_EDGE_AUTO_COLLAPSE_SECONDS
+            minimumValue = ArrangedOverlaySettings.MIN_EDGE_AUTO_COLLAPSE_SECONDS,
+            maximumValue = ArrangedOverlaySettings.MAX_EDGE_AUTO_COLLAPSE_SECONDS
         )
     }
 

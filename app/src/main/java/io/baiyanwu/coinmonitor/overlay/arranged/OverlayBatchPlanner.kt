@@ -1,4 +1,4 @@
-package io.baiyanwu.coinmonitor.overlay
+package io.baiyanwu.coinmonitor.overlay.arranged
 
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
 

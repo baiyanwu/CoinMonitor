@@ -1,6 +1,5 @@
 package io.baiyanwu.coinmonitor.ui.settings
 
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -9,18 +8,15 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.ArrowForward
+import androidx.compose.material.icons.rounded.Reorder
 import androidx.compose.material3.Button
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -28,34 +24,32 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.Slider
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import io.baiyanwu.coinmonitor.R
 import io.baiyanwu.coinmonitor.data.AppContainer
-import io.baiyanwu.coinmonitor.domain.model.OverlayEdgeDisplayMode
+import io.baiyanwu.coinmonitor.domain.model.ArrangedEdgeDisplayMode
+import io.baiyanwu.coinmonitor.domain.model.MarqueeSpeed
+import io.baiyanwu.coinmonitor.domain.model.OverlayDisplayType
 import io.baiyanwu.coinmonitor.domain.model.OverlayLeadingDisplayMode
-import io.baiyanwu.coinmonitor.domain.model.OverlaySettings
 import io.baiyanwu.coinmonitor.overlay.OverlayRuntimePolicy
+import io.baiyanwu.coinmonitor.ui.settings.overlay.OverlaySettingSwitchRow
+import io.baiyanwu.coinmonitor.ui.settings.overlay.OverlaySettingsCard
+import io.baiyanwu.coinmonitor.ui.settings.overlay.arranged.ArrangedOverlaySettingsSection
+import io.baiyanwu.coinmonitor.ui.settings.overlay.marquee.MarqueeOverlaySettingsSection
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorComponentDefaults
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
-import io.baiyanwu.coinmonitor.R
 import kotlinx.coroutines.launch
-import java.util.Locale
-import kotlin.math.roundToInt
 
 @Composable
 fun OverlaySettingsRoute(
@@ -63,45 +57,40 @@ fun OverlaySettingsRoute(
     overlayPermissionGranted: Boolean,
     notificationPermissionGranted: Boolean,
     onBack: () -> Unit,
+    onNavigateOverlayItems: () -> Unit,
     onRequestOverlayPermission: () -> Unit,
     onRequestNotificationPermission: () -> Unit,
     onStartOverlay: () -> Unit,
     onStopOverlay: () -> Unit
 ) {
-    val viewModel: OverlaySettingsViewModel = viewModel(factory = OverlaySettingsViewModel.factory(container))
+    val viewModel: OverlaySettingsViewModel = viewModel(
+        factory = OverlaySettingsViewModel.factory(container)
+    )
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
-    val context = LocalContext.current
-
-    LaunchedEffect(state.noticeMessage) {
-        val message = state.noticeMessage ?: return@LaunchedEffect
-        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-        viewModel.consumeNotice()
-    }
 
     OverlaySettingsScreen(
         state = state,
         overlayPermissionGranted = overlayPermissionGranted,
         notificationPermissionGranted = notificationPermissionGranted,
         onBack = onBack,
+        onNavigateOverlayItems = onNavigateOverlayItems,
         onRequestOverlayPermission = onRequestOverlayPermission,
         onRequestNotificationPermission = onRequestNotificationPermission,
         onEnabledChange = { enabled ->
             scope.launch {
                 if (enabled) {
-                    if (!notificationPermissionGranted) {
-                        onRequestNotificationPermission()
-                    }
+                    if (!notificationPermissionGranted) onRequestNotificationPermission()
                     val shouldEnable = OverlayRuntimePolicy.shouldPersistEnabled(
                         requestedEnabled = true,
                         canDrawOverlays = overlayPermissionGranted
                     )
                     viewModel.setEnabled(shouldEnable)
-                    if (!shouldEnable) {
+                    if (shouldEnable) {
+                        onStartOverlay()
+                    } else {
                         onStopOverlay()
                         onRequestOverlayPermission()
-                    } else {
-                        onStartOverlay()
                     }
                 } else {
                     viewModel.setEnabled(false)
@@ -110,15 +99,20 @@ fun OverlaySettingsRoute(
             }
         },
         onLockedChange = viewModel::setLocked,
-        onOpacityChange = viewModel::setOpacity,
-        onMaxCountChange = viewModel::setMaxCount,
-        onLeadingDisplayModeChange = viewModel::setLeadingDisplayMode,
-        onFontScaleChange = viewModel::setFontScale,
-        onSnapToEdgeChange = viewModel::setSnapToEdge,
-        onEdgeDisplayModeChange = viewModel::setEdgeDisplayMode,
-        onEdgeTabOpacityChange = viewModel::setEdgeTabOpacity,
-        onEdgeAutoCollapseSecondsChange = viewModel::setEdgeAutoCollapseSeconds,
-        onToggleItem = viewModel::toggleItem
+        onDisplayTypeChange = viewModel::setDisplayType,
+        onArrangedOpacityChange = viewModel::setArrangedOpacity,
+        onArrangedMaxCountChange = viewModel::setArrangedMaxCount,
+        onArrangedLeadingDisplayModeChange = viewModel::setArrangedLeadingDisplayMode,
+        onArrangedFontScaleChange = viewModel::setArrangedFontScale,
+        onArrangedSnapToEdgeChange = viewModel::setArrangedSnapToEdge,
+        onArrangedEdgeDisplayModeChange = viewModel::setArrangedEdgeDisplayMode,
+        onArrangedEdgeTabOpacityChange = viewModel::setArrangedEdgeTabOpacity,
+        onArrangedEdgeAutoCollapseSecondsChange =
+            viewModel::setArrangedEdgeAutoCollapseSeconds,
+        onMarqueeOpacityChange = viewModel::setMarqueeOpacity,
+        onMarqueeMaxCountChange = viewModel::setMarqueeMaxCount,
+        onMarqueeFontScaleChange = viewModel::setMarqueeFontScale,
+        onMarqueeSpeedChange = viewModel::setMarqueeSpeed
     )
 }
 
@@ -128,36 +122,34 @@ private fun OverlaySettingsScreen(
     overlayPermissionGranted: Boolean,
     notificationPermissionGranted: Boolean,
     onBack: () -> Unit,
+    onNavigateOverlayItems: () -> Unit,
     onRequestOverlayPermission: () -> Unit,
     onRequestNotificationPermission: () -> Unit,
     onEnabledChange: (Boolean) -> Unit,
     onLockedChange: (Boolean) -> Unit,
-    onOpacityChange: (Float) -> Unit,
-    onMaxCountChange: (Int) -> Unit,
-    onLeadingDisplayModeChange: (OverlayLeadingDisplayMode) -> Unit,
-    onFontScaleChange: (Float) -> Unit,
-    onSnapToEdgeChange: (Boolean) -> Unit,
-    onEdgeDisplayModeChange: (OverlayEdgeDisplayMode) -> Unit,
-    onEdgeTabOpacityChange: (Float) -> Unit,
-    onEdgeAutoCollapseSecondsChange: (Int) -> Unit,
-    onToggleItem: (String) -> Unit
+    onDisplayTypeChange: (OverlayDisplayType) -> Unit,
+    onArrangedOpacityChange: (Float) -> Unit,
+    onArrangedMaxCountChange: (Int) -> Unit,
+    onArrangedLeadingDisplayModeChange: (OverlayLeadingDisplayMode) -> Unit,
+    onArrangedFontScaleChange: (Float) -> Unit,
+    onArrangedSnapToEdgeChange: (Boolean) -> Unit,
+    onArrangedEdgeDisplayModeChange: (ArrangedEdgeDisplayMode) -> Unit,
+    onArrangedEdgeTabOpacityChange: (Float) -> Unit,
+    onArrangedEdgeAutoCollapseSecondsChange: (Int) -> Unit,
+    onMarqueeOpacityChange: (Float) -> Unit,
+    onMarqueeMaxCountChange: (Int) -> Unit,
+    onMarqueeFontScaleChange: (Float) -> Unit,
+    onMarqueeSpeedChange: (MarqueeSpeed) -> Unit
 ) {
     if (!state.isLoaded) {
-        // 本地配置还没回流前先展示加载态，避免开关、筛选项先用默认值再跳变。
-        OverlaySettingsLoadingScreen(onBack = onBack)
+        OverlaySettingsLoadingScreen(onBack)
         return
     }
-
-    val opacityProgress = opacityToProgress(state.settings.opacity)
-    val opacityPercent = (opacityProgress * 100).roundToInt()
-    val fontSizeSp = fontScaleToFontSizeSp(state.settings.fontScale)
 
     val colors = CoinMonitorThemeTokens.colors
     Scaffold(
         containerColor = colors.pageBackground,
-        topBar = {
-            OverlaySettingsTopBar(onBack = onBack)
-        }
+        topBar = { OverlaySettingsTopBar(onBack = onBack) }
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier
@@ -168,135 +160,69 @@ private fun OverlaySettingsScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item {
-                ElevatedCard(
-                    shape = RoundedCornerShape(20.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CoinMonitorComponentDefaults.elevatedCardColors()
-                ) {
-                    Column(
-                        modifier = Modifier.padding(14.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
-                            SettingSwitchRow(
-                                title = stringResource(R.string.overlay_enable),
-                                checked = state.settings.enabled,
-                                horizontalPadding = 0.dp,
-                                verticalPadding = 0.dp,
-                                onCheckedChange = onEnabledChange
-                            )
-                            SettingSwitchRow(
-                                title = stringResource(R.string.overlay_lock_drag),
-                                checked = state.settings.locked,
-                                horizontalPadding = 0.dp,
-                                verticalPadding = 0.dp,
-                                onCheckedChange = onLockedChange
-                            )
-                        }
+                OverlayItemsNavigationCard(onClick = onNavigateOverlayItems)
+            }
 
-                        Text(stringResource(R.string.overlay_leading_display), style = MaterialTheme.typography.titleSmall)
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            FilterChip(
-                                selected = state.settings.leadingDisplayMode == OverlayLeadingDisplayMode.ICON,
-                                onClick = { onLeadingDisplayModeChange(OverlayLeadingDisplayMode.ICON) },
-                                label = { Text(stringResource(R.string.overlay_display_icon)) },
-                                colors = CoinMonitorComponentDefaults.filterChipColors()
-                            )
-                            FilterChip(
-                                selected = state.settings.leadingDisplayMode == OverlayLeadingDisplayMode.PAIR_NAME,
-                                onClick = { onLeadingDisplayModeChange(OverlayLeadingDisplayMode.PAIR_NAME) },
-                                label = { Text(stringResource(R.string.overlay_display_pair_name)) },
-                                colors = CoinMonitorComponentDefaults.filterChipColors()
-                            )
-                        }
-
-                        Text(
-                            text = stringResource(R.string.overlay_opacity_format, opacityPercent),
-                            style = MaterialTheme.typography.titleSmall
+            item {
+                OverlaySettingsCard {
+                    Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
+                        OverlaySettingSwitchRow(
+                            title = stringResource(R.string.overlay_enable),
+                            checked = state.settings.enabled,
+                            horizontalPadding = 0.dp,
+                            verticalPadding = 0.dp,
+                            onCheckedChange = onEnabledChange
                         )
-                        Slider(
-                            value = opacityProgress,
-                            onValueChange = { onOpacityChange(progressToOpacity(it)) },
-                            valueRange = 0f..1f,
-                            colors = CoinMonitorComponentDefaults.sliderColors()
+                        OverlaySettingSwitchRow(
+                            title = stringResource(R.string.overlay_lock_drag),
+                            checked = state.settings.locked,
+                            horizontalPadding = 0.dp,
+                            verticalPadding = 0.dp,
+                            onCheckedChange = onLockedChange
                         )
-
-                        Text(
-                            text = stringResource(
-                                R.string.overlay_font_size_format,
-                                formatFontSize(fontSizeSp)
-                            ),
-                            style = MaterialTheme.typography.titleSmall
-                        )
-                        Slider(
-                            value = fontSizeSp,
-                            onValueChange = { onFontScaleChange(fontSizeSpToScale(it)) },
-                            valueRange = MIN_OVERLAY_FONT_SIZE_SP..MAX_OVERLAY_FONT_SIZE_SP,
-                            steps = 9,
-                            colors = CoinMonitorComponentDefaults.sliderColors()
-                        )
-                        SliderEndpoints(
-                            startLabel = stringResource(
-                                R.string.overlay_font_size_endpoint,
-                                formatFontSize(MIN_OVERLAY_FONT_SIZE_SP)
-                            ),
-                            endLabel = stringResource(
-                                R.string.overlay_font_size_endpoint,
-                                formatFontSize(MAX_OVERLAY_FONT_SIZE_SP)
-                            )
-                        )
-
-                        Text(
-                            text = pluralStringResource(
-                                id = R.plurals.overlay_max_items,
-                                count = state.settings.maxItems,
-                                state.settings.maxItems
-                            ),
-                            style = MaterialTheme.typography.titleSmall
-                        )
-                        Slider(
-                            value = state.settings.maxItems.toFloat(),
-                            onValueChange = { onMaxCountChange(it.roundToInt()) },
-                            valueRange = 1f..10f,
-                            steps = 8,
-                            colors = CoinMonitorComponentDefaults.sliderColors()
-                        )
-                        SliderEndpoints(
-                            startLabel = stringResource(R.string.common_min_count),
-                            endLabel = stringResource(R.string.common_max_count)
-                        )
-
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            SettingSwitchRow(
-                                title = stringResource(R.string.overlay_snap_to_edge),
-                                subtitle = stringResource(R.string.overlay_snap_to_edge_hint),
-                                checked = state.settings.snapToEdge,
-                                horizontalPadding = 0.dp,
-                                verticalPadding = 0.dp,
-                                onCheckedChange = onSnapToEdgeChange
-                            )
-                            OverlayEdgeModeSelector(
-                                selectedMode = state.settings.edgeDisplayMode,
-                                edgeTabOpacity = state.settings.edgeTabOpacity,
-                                edgeAutoCollapseSeconds =
-                                    state.settings.edgeAutoCollapseSeconds,
-                                enabled = state.settings.snapToEdge,
-                                onModeSelected = onEdgeDisplayModeChange,
-                                onEdgeTabOpacityChange = onEdgeTabOpacityChange,
-                                onEdgeAutoCollapseSecondsChange =
-                                    onEdgeAutoCollapseSecondsChange
-                            )
-                        }
                     }
+                    Text(
+                        text = stringResource(R.string.overlay_display_type),
+                        style = MaterialTheme.typography.titleSmall
+                    )
+                    OverlayDisplayTypeSelector(
+                        selectedType = state.settings.displayType,
+                        onTypeSelected = onDisplayTypeChange
+                    )
+                }
+            }
+
+            item {
+                when (state.settings.displayType) {
+                    OverlayDisplayType.ARRANGED -> ArrangedOverlaySettingsSection(
+                        settings = state.settings.arranged,
+                        onOpacityChange = onArrangedOpacityChange,
+                        onMaxCountChange = onArrangedMaxCountChange,
+                        onLeadingDisplayModeChange = onArrangedLeadingDisplayModeChange,
+                        onFontScaleChange = onArrangedFontScaleChange,
+                        onSnapToEdgeChange = onArrangedSnapToEdgeChange,
+                        onEdgeDisplayModeChange = onArrangedEdgeDisplayModeChange,
+                        onEdgeTabOpacityChange = onArrangedEdgeTabOpacityChange,
+                        onEdgeAutoCollapseSecondsChange =
+                            onArrangedEdgeAutoCollapseSecondsChange
+                    )
+
+                    OverlayDisplayType.MARQUEE -> MarqueeOverlaySettingsSection(
+                        settings = state.settings.marquee,
+                        onOpacityChange = onMarqueeOpacityChange,
+                        onMaxCountChange = onMarqueeMaxCountChange,
+                        onFontScaleChange = onMarqueeFontScaleChange,
+                        onSpeedChange = onMarqueeSpeedChange
+                    )
                 }
             }
 
             if (!overlayPermissionGranted) {
                 item {
                     MessageCard(
-                        message = stringResource(R.string.overlay_permission_message),
-                        buttonLabel = stringResource(R.string.overlay_permission_action),
-                        onClick = onRequestOverlayPermission
+                        stringResource(R.string.overlay_permission_message),
+                        stringResource(R.string.overlay_permission_action),
+                        onRequestOverlayPermission
                     )
                 }
             }
@@ -304,61 +230,10 @@ private fun OverlaySettingsScreen(
             if (!notificationPermissionGranted) {
                 item {
                     MessageCard(
-                        message = stringResource(R.string.notification_permission_message),
-                        buttonLabel = stringResource(R.string.notification_permission_action),
-                        onClick = onRequestNotificationPermission
+                        stringResource(R.string.notification_permission_message),
+                        stringResource(R.string.notification_permission_action),
+                        onRequestNotificationPermission
                     )
-                }
-            }
-
-            item {
-                ElevatedCard(
-                    shape = RoundedCornerShape(20.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CoinMonitorComponentDefaults.elevatedCardColors()
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(14.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Text(
-                            text = stringResource(R.string.overlay_select_items),
-                            style = MaterialTheme.typography.titleSmall
-                        )
-
-                        if (state.items.isEmpty()) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .heightIn(min = 104.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.overlay_empty_state),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = colors.secondaryText
-                                )
-                            }
-                        } else {
-                            Column(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalArrangement = Arrangement.spacedBy(2.dp)
-                            ) {
-                                state.items.forEach { item ->
-                                    SettingSwitchRow(
-                                        title = item.symbol,
-                                        subtitle = item.exchangeSource.title,
-                                        horizontalPadding = 0.dp,
-                                        verticalPadding = 0.dp,
-                                        checked = item.overlaySelected,
-                                        onCheckedChange = { onToggleItem(item.id) }
-                                    )
-                                }
-                            }
-                        }
-                    }
                 }
             }
         }
@@ -366,122 +241,87 @@ private fun OverlaySettingsScreen(
 }
 
 @Composable
-@OptIn(ExperimentalMaterial3Api::class)
-private fun OverlayEdgeModeSelector(
-    selectedMode: OverlayEdgeDisplayMode,
-    edgeTabOpacity: Float,
-    edgeAutoCollapseSeconds: Int,
-    enabled: Boolean,
-    onModeSelected: (OverlayEdgeDisplayMode) -> Unit,
-    onEdgeTabOpacityChange: (Float) -> Unit,
-    onEdgeAutoCollapseSecondsChange: (Int) -> Unit
+private fun OverlayItemsNavigationCard(onClick: () -> Unit) {
+    val colors = CoinMonitorThemeTokens.colors
+    OverlaySettingsCard {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(vertical = 2.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Reorder,
+                contentDescription = null,
+                tint = colors.accent
+            )
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.overlay_items_settings_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = colors.primaryText
+                )
+                Text(
+                    text = stringResource(R.string.overlay_items_settings_description),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.secondaryText
+                )
+            }
+            Icon(
+                imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
+                contentDescription = null,
+                tint = colors.secondaryText
+            )
+        }
+    }
+}
+
+@Composable
+private fun OverlayDisplayTypeSelector(
+    selectedType: OverlayDisplayType,
+    onTypeSelected: (OverlayDisplayType) -> Unit
 ) {
     val options = listOf(
-        OverlayEdgeDisplayMode.TICKER to stringResource(R.string.overlay_edge_display_ticker),
-        OverlayEdgeDisplayMode.HIDDEN_TAB to
-            stringResource(R.string.overlay_edge_display_hidden_tab)
+        OverlayDisplayType.ARRANGED to stringResource(R.string.overlay_display_type_arranged),
+        OverlayDisplayType.MARQUEE to stringResource(R.string.overlay_display_type_marquee)
     )
     val colors = CoinMonitorThemeTokens.colors
-    val normalizedEdgeTabOpacity = edgeTabOpacity.coerceIn(
-        minimumValue = OverlaySettings.MIN_EDGE_TAB_OPACITY,
-        maximumValue = OverlaySettings.MAX_EDGE_TAB_OPACITY
-    )
-    val normalizedAutoCollapseSeconds = edgeAutoCollapseSeconds.coerceIn(
-        minimumValue = OverlaySettings.MIN_EDGE_AUTO_COLLAPSE_SECONDS,
-        maximumValue = OverlaySettings.MAX_EDGE_AUTO_COLLAPSE_SECONDS
-    )
-    val modeHint = if (selectedMode == OverlayEdgeDisplayMode.HIDDEN_TAB) {
-        stringResource(
-            R.string.overlay_edge_display_hidden_tab_hint,
-            normalizedAutoCollapseSeconds
-        )
-    } else {
-        stringResource(R.string.overlay_edge_display_ticker_hint)
-    }
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(start = 12.dp, top = 4.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-            options.forEachIndexed { index, (mode, label) ->
+            options.forEachIndexed { index, (type, label) ->
                 SegmentedButton(
-                    selected = selectedMode == mode,
-                    onClick = { onModeSelected(mode) },
-                    enabled = enabled,
-                    shape = SegmentedButtonDefaults.itemShape(
-                        index = index,
-                        count = options.size
-                    ),
+                    selected = selectedType == type,
+                    onClick = { onTypeSelected(type) },
+                    shape = SegmentedButtonDefaults.itemShape(index, options.size),
                     modifier = Modifier.weight(1f),
                     label = { Text(label) }
                 )
             }
         }
         Text(
-            text = modeHint,
+            text = stringResource(
+                when (selectedType) {
+                    OverlayDisplayType.ARRANGED -> R.string.overlay_display_type_arranged_hint
+                    OverlayDisplayType.MARQUEE -> R.string.overlay_display_type_marquee_hint
+                }
+            ),
             style = MaterialTheme.typography.bodySmall,
             color = colors.secondaryText
         )
-        if (selectedMode == OverlayEdgeDisplayMode.HIDDEN_TAB) {
-            Text(
-                text = stringResource(
-                    R.string.overlay_edge_tab_opacity_format,
-                    (normalizedEdgeTabOpacity * 100).roundToInt()
-                ),
-                style = MaterialTheme.typography.titleSmall,
-                color = if (enabled) colors.primaryText else colors.secondaryText
-            )
-            Slider(
-                value = normalizedEdgeTabOpacity,
-                onValueChange = onEdgeTabOpacityChange,
-                enabled = enabled,
-                valueRange = OverlaySettings.MIN_EDGE_TAB_OPACITY..
-                    OverlaySettings.MAX_EDGE_TAB_OPACITY,
-                colors = CoinMonitorComponentDefaults.sliderColors()
-            )
-            SliderEndpoints(
-                startLabel = stringResource(R.string.overlay_edge_tab_opacity_min),
-                endLabel = stringResource(R.string.overlay_edge_tab_opacity_max)
-            )
-            Text(
-                text = stringResource(
-                    R.string.overlay_edge_auto_collapse_delay_format,
-                    normalizedAutoCollapseSeconds
-                ),
-                style = MaterialTheme.typography.titleSmall,
-                color = if (enabled) colors.primaryText else colors.secondaryText
-            )
-            Slider(
-                value = normalizedAutoCollapseSeconds.toFloat(),
-                onValueChange = {
-                    onEdgeAutoCollapseSecondsChange(it.roundToInt())
-                },
-                enabled = enabled,
-                valueRange = OverlaySettings.MIN_EDGE_AUTO_COLLAPSE_SECONDS.toFloat()..
-                    OverlaySettings.MAX_EDGE_AUTO_COLLAPSE_SECONDS.toFloat(),
-                steps = 3,
-                colors = CoinMonitorComponentDefaults.sliderColors()
-            )
-            SliderEndpoints(
-                startLabel = stringResource(R.string.overlay_edge_auto_collapse_delay_min),
-                endLabel = stringResource(R.string.overlay_edge_auto_collapse_delay_max)
-            )
-        }
     }
 }
 
 @Composable
-private fun OverlaySettingsLoadingScreen(
-    onBack: () -> Unit
-) {
+private fun OverlaySettingsLoadingScreen(onBack: () -> Unit) {
     val colors = CoinMonitorThemeTokens.colors
     Scaffold(
         containerColor = colors.pageBackground,
-        topBar = {
-            OverlaySettingsTopBar(onBack = onBack)
-        }
+        topBar = { OverlaySettingsTopBar(onBack = onBack) }
     ) { innerPadding ->
         Box(
             modifier = Modifier
@@ -500,17 +340,13 @@ private fun OverlaySettingsLoadingScreen(
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
-private fun OverlaySettingsTopBar(
-    onBack: () -> Unit
-) {
+private fun OverlaySettingsTopBar(onBack: () -> Unit) {
     val colors = CoinMonitorThemeTokens.colors
     CenterAlignedTopAppBar(
         colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
             containerColor = colors.pageBackground
         ),
-        title = {
-            Text(text = stringResource(R.string.overlay_settings_title))
-        },
+        title = { Text(stringResource(R.string.overlay_settings_title)) },
         navigationIcon = {
             IconButton(onClick = onBack) {
                 Icon(
@@ -523,127 +359,15 @@ private fun OverlaySettingsTopBar(
 }
 
 @Composable
-private fun MessageCard(
-    message: String,
-    buttonLabel: String,
-    onClick: () -> Unit
-) {
-    ElevatedCard(
-        shape = RoundedCornerShape(20.dp),
-        modifier = Modifier.fillMaxWidth(),
-        colors = CoinMonitorComponentDefaults.elevatedCardColors()
-    ) {
-        Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+private fun MessageCard(message: String, buttonLabel: String, onClick: () -> Unit) {
+    OverlaySettingsCard {
+        Text(message)
+        Button(
+            onClick = onClick,
+            modifier = Modifier.fillMaxWidth(),
+            colors = CoinMonitorComponentDefaults.primaryButtonColors()
         ) {
-            Text(message)
-            Button(
-                onClick = onClick,
-                modifier = Modifier.fillMaxWidth(),
-                colors = CoinMonitorComponentDefaults.primaryButtonColors()
-            ) {
-                Text(buttonLabel)
-            }
+            Text(buttonLabel)
         }
     }
-}
-
-@Composable
-private fun SliderEndpoints(
-    startLabel: String,
-    endLabel: String
-) {
-    val colors = CoinMonitorThemeTokens.colors
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(text = startLabel, style = MaterialTheme.typography.bodySmall, color = colors.secondaryText)
-        Text(text = endLabel, style = MaterialTheme.typography.bodySmall, color = colors.secondaryText)
-    }
-}
-
-@Composable
-private fun SettingSwitchRow(
-    title: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-    subtitle: String? = null,
-    horizontalPadding: Dp = 14.dp,
-    verticalPadding: Dp = 12.dp
-) {
-    val colors = CoinMonitorThemeTokens.colors
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onCheckedChange(!checked) }
-            .padding(horizontal = horizontalPadding, vertical = verticalPadding),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(text = title, style = MaterialTheme.typography.titleSmall)
-            if (subtitle != null) {
-                Text(
-                    text = subtitle,
-                    modifier = Modifier.padding(top = 4.dp),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = colors.secondaryText
-                )
-            }
-        }
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-            colors = CoinMonitorComponentDefaults.switchColors()
-        )
-    }
-}
-
-private fun opacityToProgress(opacity: Float): Float {
-    val minOpacity = 0.16f
-    val maxOpacity = 0.72f
-    return ((opacity - minOpacity) / (maxOpacity - minOpacity)).coerceIn(0f, 1f)
-}
-
-private fun progressToOpacity(progress: Float): Float {
-    val minOpacity = io.baiyanwu.coinmonitor.domain.model.OverlaySettings.MIN_OPACITY
-    val maxOpacity = io.baiyanwu.coinmonitor.domain.model.OverlaySettings.MAX_OPACITY
-    return minOpacity + (maxOpacity - minOpacity) * progress.coerceIn(0f, 1f)
-}
-
-private fun fontScaleToProgress(fontScale: Float): Float {
-    val minFontScale = io.baiyanwu.coinmonitor.domain.model.OverlaySettings.MIN_FONT_SCALE
-    val maxFontScale = io.baiyanwu.coinmonitor.domain.model.OverlaySettings.MAX_FONT_SCALE
-    return ((fontScale - minFontScale) / (maxFontScale - minFontScale)).coerceIn(0f, 1f)
-}
-
-private fun progressToFontScale(progress: Float): Float {
-    val minFontScale = io.baiyanwu.coinmonitor.domain.model.OverlaySettings.MIN_FONT_SCALE
-    val maxFontScale = io.baiyanwu.coinmonitor.domain.model.OverlaySettings.MAX_FONT_SCALE
-    return minFontScale + (maxFontScale - minFontScale) * progress.coerceIn(0f, 1f)
-}
-
-private const val DEFAULT_OVERLAY_FONT_SIZE_SP = 10f
-private const val MIN_OVERLAY_FONT_SIZE_SP = 8.5f
-private const val MAX_OVERLAY_FONT_SIZE_SP = 13.5f
-
-private fun fontScaleToFontSizeSp(fontScale: Float): Float {
-    return (DEFAULT_OVERLAY_FONT_SIZE_SP * fontScale).coerceIn(
-        minimumValue = MIN_OVERLAY_FONT_SIZE_SP,
-        maximumValue = MAX_OVERLAY_FONT_SIZE_SP
-    )
-}
-
-private fun fontSizeSpToScale(fontSizeSp: Float): Float {
-    return (fontSizeSp / DEFAULT_OVERLAY_FONT_SIZE_SP).coerceIn(
-        minimumValue = io.baiyanwu.coinmonitor.domain.model.OverlaySettings.MIN_FONT_SCALE,
-        maximumValue = io.baiyanwu.coinmonitor.domain.model.OverlaySettings.MAX_FONT_SCALE
-    )
-}
-
-private fun formatFontSize(fontSizeSp: Float): String {
-    return String.format(Locale.US, "%.1f", fontSizeSp)
 }

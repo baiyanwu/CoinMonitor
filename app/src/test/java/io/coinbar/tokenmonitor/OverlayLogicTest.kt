@@ -2,7 +2,7 @@ package io.baiyanwu.coinmonitor
 
 import io.baiyanwu.coinmonitor.domain.model.ExchangeSource
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
-import io.baiyanwu.coinmonitor.overlay.OverlayBatchPlanner
+import io.baiyanwu.coinmonitor.overlay.arranged.OverlayBatchPlanner
 import io.baiyanwu.coinmonitor.overlay.PriceTextSizer
 import io.baiyanwu.coinmonitor.overlay.QuoteFormatter
 import org.junit.Assert.assertEquals

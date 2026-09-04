@@ -29,26 +29,34 @@ class OnchainProviderPolicyTest {
     }
 
     @Test
-    fun `room v8 migration preserves ids and clears old onchain quote state`() {
+    fun `room migrations preserve ids clear old onchain quotes and add overlay order`() {
         val databaseSource = readSource(
             "app/src/main/java/io/baiyanwu/coinmonitor/data/local/CoinMonitorDatabase.kt",
             "src/main/java/io/baiyanwu/coinmonitor/data/local/CoinMonitorDatabase.kt"
         )
-        val schema = readSource(
+        val schema8 = readSource(
             "app/schemas/io.baiyanwu.coinmonitor.data.local.CoinMonitorDatabase/8.json",
             "schemas/io.baiyanwu.coinmonitor.data.local.CoinMonitorDatabase/8.json"
         )
+        val schema9 = readSource(
+            "app/schemas/io.baiyanwu.coinmonitor.data.local.CoinMonitorDatabase/9.json",
+            "schemas/io.baiyanwu.coinmonitor.data.local.CoinMonitorDatabase/9.json"
+        )
 
-        assertTrue(databaseSource.contains("version = 8"))
+        assertTrue(databaseSource.contains("version = 9"))
         assertTrue(databaseSource.contains("Migration(7, 8)"))
+        assertTrue(databaseSource.contains("Migration(8, 9)"))
         assertTrue(databaseSource.contains("ADD COLUMN poolAddress TEXT"))
         assertTrue(databaseSource.contains("ADD COLUMN poolTokenSide TEXT"))
+        assertTrue(databaseSource.contains("ADD COLUMN overlayOrder INTEGER"))
         assertTrue(databaseSource.contains("SET source = 'ONCHAIN'"))
         assertTrue(databaseSource.contains("lastPrice = NULL"))
         assertFalse(databaseSource.contains("UPDATE watch_items SET id"))
-        assertTrue(schema.contains("\"version\": 8"))
-        assertTrue(schema.contains("\"columnName\": \"poolAddress\""))
-        assertTrue(schema.contains("\"columnName\": \"poolTokenSide\""))
+        assertTrue(schema8.contains("\"version\": 8"))
+        assertTrue(schema8.contains("\"columnName\": \"poolAddress\""))
+        assertTrue(schema8.contains("\"columnName\": \"poolTokenSide\""))
+        assertTrue(schema9.contains("\"version\": 9"))
+        assertTrue(schema9.contains("\"columnName\": \"overlayOrder\""))
     }
 
     private fun readKotlinMainSources(): String {

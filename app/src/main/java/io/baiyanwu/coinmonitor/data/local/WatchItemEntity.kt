@@ -17,6 +17,7 @@ data class WatchItemEntity(
     val poolTokenSide: String?,
     val iconUrl: String?,
     val overlaySelected: Boolean,
+    val overlayOrder: Long?,
     val addedAt: Long,
     val homePinned: Boolean,
     val homeOrder: Long,

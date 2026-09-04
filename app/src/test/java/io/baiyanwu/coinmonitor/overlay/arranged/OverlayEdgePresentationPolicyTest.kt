@@ -1,17 +1,17 @@
-package io.baiyanwu.coinmonitor.overlay
+package io.baiyanwu.coinmonitor.overlay.arranged
 
-import io.baiyanwu.coinmonitor.domain.model.OverlayEdgeDisplayMode
-import io.baiyanwu.coinmonitor.domain.model.OverlaySettings
+import io.baiyanwu.coinmonitor.domain.model.ArrangedEdgeDisplayMode
+import io.baiyanwu.coinmonitor.domain.model.ArrangedOverlaySettings
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class OverlayEdgePresentationPolicyTest {
     @Test
-    fun `existing snap mode keeps ticker presentation by default`() {
-        val settings = OverlaySettings(snapToEdge = true)
+    fun `existing snap mode keeps docked carousel presentation by default`() {
+        val settings = ArrangedOverlaySettings(snapToEdge = true)
 
         assertEquals(
-            OverlayEdgePresentation.TICKER,
+            OverlayEdgePresentation.DOCKED_CAROUSEL,
             OverlayEdgePresentationPolicy.resolve(
                 settings = settings,
                 hasItems = true,
@@ -21,10 +21,10 @@ class OverlayEdgePresentationPolicyTest {
     }
 
     @Test
-    fun `hidden mode switches between edge tab and ticker`() {
-        val settings = OverlaySettings(
+    fun `hidden mode switches between edge tab and docked carousel`() {
+        val settings = ArrangedOverlaySettings(
             snapToEdge = true,
-            edgeDisplayMode = OverlayEdgeDisplayMode.HIDDEN_TAB
+            edgeDisplayMode = ArrangedEdgeDisplayMode.HIDDEN_TAB
         )
 
         assertEquals(
@@ -36,7 +36,7 @@ class OverlayEdgePresentationPolicyTest {
             )
         )
         assertEquals(
-            OverlayEdgePresentation.TICKER,
+            OverlayEdgePresentation.DOCKED_CAROUSEL,
             OverlayEdgePresentationPolicy.resolve(
                 settings = settings,
                 hasItems = true,
@@ -47,9 +47,9 @@ class OverlayEdgePresentationPolicyTest {
 
     @Test
     fun `edge presentation is disabled without snap or items`() {
-        val hiddenSettings = OverlaySettings(
+        val hiddenSettings = ArrangedOverlaySettings(
             snapToEdge = true,
-            edgeDisplayMode = OverlayEdgeDisplayMode.HIDDEN_TAB
+            edgeDisplayMode = ArrangedEdgeDisplayMode.HIDDEN_TAB
         )
 
         assertEquals(

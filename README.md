@@ -25,8 +25,9 @@
 - Search `Binance Alpha`, Binance spot and USDT-M futures, plus OKX spot and USDT swaps in parallel, then merge, sort, and display one result set after all sources finish
 - Search on-chain tokens by name, symbol, or contract address without selecting a chain; every network returned by `DexScreener` is accepted without a local allowlist
 - Split the home watchlist into swipeable `Exchange / On-chain` pages with category-local ordering, compact quote rows, quick actions, live refresh, and search that opens in the active market mode
-- Pin selected items into a floating overlay with drag lock, adaptive layouts, and foreground-service persistence; edge docking can keep the ticker visible or collapse it into a slim edge tab
-- Tune overlay behavior with a fixed-header settings flow for permissions, body opacity, font size, selected symbols, edge-tab opacity, and a configurable `1–5 second` auto-collapse delay
+- Pin selected items into either an arranged floating panel or a full-width, single-line marquee that scrolls tightly packed coin icons and latest prices, with a subtle dot between complete cycles
+- Choose the overlay type from a fixed-header settings flow; a dedicated Floating Pairs page handles selection and drag ordering across exchange and on-chain pairs, while arranged and marquee appearances keep independent opacity, font size, item count, position, and motion settings
+- Keep the arranged overlay's drag, adaptive layout, and edge docking behavior; it can stay as a docked price panel or collapse into a slim edge tab, with foreground-service persistence for both overlay types
 - Review the current build version, project purpose, author, source repository, Apache-2.0 license, feedback link, and usage notice from the in-app About page
 - Check GitHub's latest published Release once whenever the main screen is created, then prompt users to open the Release page when a newer version is available; no third-party update service is involved
 - Keep exchange quotes flowing through `WSS` first, while DexScreener prices use an independent smart or fixed refresh cycle with sequential request pacing
