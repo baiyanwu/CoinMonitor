@@ -91,6 +91,24 @@
     <string name="network_log_copy">Copy log</string>
     <string name="network_log_copied">Log content copied</string>
 
+    <string name="about_settings_title">About</string>
+    <string name="about_title">About</string>
+    <string name="about_version_format">Version %1$s (%2$d)</string>
+    <string name="about_intro">A lightweight Android crypto market monitor</string>
+    <string name="about_project_section">About the Project</string>
+    <string name="about_project_description">CoinMonitor brings together Binance, OKX, and public on-chain market data in a watchlist and system overlay, making it easy to follow selected assets while using other apps. It displays reference market data only and does not provide trading, order execution, or asset custody.</string>
+    <string name="about_open_source_section">Open-source Information</string>
+    <string name="about_author">Author</string>
+    <string name="about_author_value">baiyanwu</string>
+    <string name="about_repository">Project Repository</string>
+    <string name="about_repository_value">github.com/baiyanwu/CoinMonitor</string>
+    <string name="about_license">License</string>
+    <string name="about_license_value">Apache License 2.0</string>
+    <string name="about_feedback">Issues and Feedback</string>
+    <string name="about_feedback_value">GitHub Issues</string>
+    <string name="about_disclaimer_section">Notice</string>
+    <string name="about_disclaimer">This project is intended for technical exploration and personal learning and does not constitute investment advice. Crypto assets are highly volatile, and displayed market data may be delayed or inaccurate; refer to the relevant trading platform for authoritative data. Binance, OKX, DexScreener, GeckoTerminal, and related names, trademarks, and APIs belong to their respective owners.</string>
+
     <string name="third_party_api_settings_title">Third-party API Settings</string>
     <string name="third_party_api_settings_section_onchain">Free On-chain Market Data</string>
     <string name="third_party_api_settings_section_ai">AI / OpenAI Compatible</string>

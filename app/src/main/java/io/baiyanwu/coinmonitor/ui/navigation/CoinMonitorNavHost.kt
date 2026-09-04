@@ -55,7 +55,8 @@ fun CoinMonitorNavHost(
     onOpenKlineIndicatorSettings: () -> Unit,
     onOpenOverlaySettings: () -> Unit,
     onOpenThirdPartyApiSettings: () -> Unit,
-    onOpenNetworkLog: () -> Unit
+    onOpenNetworkLog: () -> Unit,
+    onOpenAbout: () -> Unit
 ) {
     val context = LocalContext.current
     val navController = rememberNavController()
@@ -146,7 +147,8 @@ fun CoinMonitorNavHost(
                     contentBottomInset = innerPadding.calculateBottomPadding(),
                     onNavigateOverlaySettings = onOpenOverlaySettings,
                     onNavigateThirdPartyApiSettings = onOpenThirdPartyApiSettings,
-                    onNavigateNetworkLog = onOpenNetworkLog
+                    onNavigateNetworkLog = onOpenNetworkLog,
+                    onNavigateAbout = onOpenAbout
                 )
             }
         }
