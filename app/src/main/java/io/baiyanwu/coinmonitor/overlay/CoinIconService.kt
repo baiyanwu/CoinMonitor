@@ -35,12 +35,15 @@ class CoinIconService private constructor(private val context: Context) {
         symbol: String,
         preferredIconUrl: String? = null,
         fallbackIconUrl: String? = null,
-        grayscaleFallback: Boolean = false
+        fallbackIconUrls: List<String> = emptyList(),
+        grayscaleFallback: Boolean = false,
+        allowSymbolLookup: Boolean = true
     ): Bitmap? = withContext(Dispatchers.IO) {
         val normalized = symbol.uppercase()
         val directRequests = buildDirectIconRequests(
             preferredIconUrl = preferredIconUrl,
             fallbackIconUrl = fallbackIconUrl,
+            fallbackIconUrls = fallbackIconUrls,
             grayscaleFallback = grayscaleFallback
         )
         directRequests.forEach { request ->
@@ -57,6 +60,7 @@ class CoinIconService private constructor(private val context: Context) {
                 return@withContext finalBitmap
             }
 
+            if (!allowSymbolLookup) return@withContext null
             memoryCache[normalized]?.let { return@withContext it }
             loadFromDisk(normalized)?.let { bitmap ->
                 memoryCache[normalized] = bitmap
@@ -74,17 +78,21 @@ class CoinIconService private constructor(private val context: Context) {
         symbol: String,
         preferredIconUrl: String? = null,
         fallbackIconUrl: String? = null,
-        grayscaleFallback: Boolean = false
+        fallbackIconUrls: List<String> = emptyList(),
+        grayscaleFallback: Boolean = false,
+        allowSymbolLookup: Boolean = true
     ): Bitmap? {
         val normalized = symbol.uppercase()
         val directRequests = buildDirectIconRequests(
             preferredIconUrl = preferredIconUrl,
             fallbackIconUrl = fallbackIconUrl,
+            fallbackIconUrls = fallbackIconUrls,
             grayscaleFallback = grayscaleFallback
         )
         directRequests.forEach { request ->
             loadCachedBitmap(request.cacheKey)?.let { return it }
         }
+        if (!allowSymbolLookup) return null
         memoryCache[normalized]?.let { return it }
         return loadFromDisk(normalized)?.also { memoryCache[normalized] = it }
     }
@@ -114,6 +122,7 @@ class CoinIconService private constructor(private val context: Context) {
     private fun buildDirectIconRequests(
         preferredIconUrl: String?,
         fallbackIconUrl: String?,
+        fallbackIconUrls: List<String>,
         grayscaleFallback: Boolean
     ): List<IconRequest> {
         val requests = mutableListOf<IconRequest>()
@@ -124,7 +133,10 @@ class CoinIconService private constructor(private val context: Context) {
                 grayscale = false
             )
         }
-        fallbackIconUrl?.takeIf { it.isNotBlank() }?.let { url ->
+        buildList {
+            fallbackIconUrl?.let(::add)
+            addAll(fallbackIconUrls)
+        }.filter(String::isNotBlank).forEach { url ->
             requests += IconRequest(
                 cacheKey = if (grayscaleFallback) {
                     "chain_gray_${buildHash(url)}"
@@ -139,40 +151,48 @@ class CoinIconService private constructor(private val context: Context) {
     }
 
     private fun fetchIconUrl(symbol: String): String? {
-        val encoded = URLEncoder.encode(symbol, Charsets.UTF_8.name())
-        val request = Request.Builder()
-            .url("https://api.coingecko.com/api/v3/search?query=$encoded")
-            .build()
+        return try {
+            val encoded = URLEncoder.encode(symbol, Charsets.UTF_8.name())
+            val request = Request.Builder()
+                .url("https://api.coingecko.com/api/v3/search?query=$encoded")
+                .build()
 
-        httpClient.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) return null
-            val body = response.body?.string().orEmpty()
-            if (body.isBlank()) return null
-            val coins = JSONObject(body).optJSONArray("coins") ?: return null
+            httpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return null
+                val body = response.body?.string().orEmpty()
+                if (body.isBlank()) return null
+                val coins = JSONObject(body).optJSONArray("coins") ?: return null
 
-            var fallbackUrl: String? = null
-            for (index in 0 until coins.length()) {
-                val item = coins.optJSONObject(index) ?: continue
-                val coinSymbol = item.optString("symbol").uppercase()
-                val large = item.optString("large").takeIf { it.isNotBlank() }
-                val thumb = item.optString("thumb").takeIf { it.isNotBlank() }
-                if (fallbackUrl == null) {
-                    fallbackUrl = large ?: thumb
+                var fallbackUrl: String? = null
+                for (index in 0 until coins.length()) {
+                    val item = coins.optJSONObject(index) ?: continue
+                    val coinSymbol = item.optString("symbol").uppercase()
+                    val large = item.optString("large").takeIf { it.isNotBlank() }
+                    val thumb = item.optString("thumb").takeIf { it.isNotBlank() }
+                    if (fallbackUrl == null) {
+                        fallbackUrl = large ?: thumb
+                    }
+                    if (coinSymbol == symbol) {
+                        return large ?: thumb ?: fallbackUrl
+                    }
                 }
-                if (coinSymbol == symbol) {
-                    return large ?: thumb ?: fallbackUrl
-                }
+                fallbackUrl
             }
-            return fallbackUrl
+        } catch (_: Exception) {
+            null
         }
     }
 
     private fun downloadBitmap(url: String): Bitmap? {
-        val request = Request.Builder().url(url).build()
-        httpClient.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) return null
-            val bytes = response.body?.bytes() ?: return null
-            return BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+        return try {
+            val request = Request.Builder().url(url).build()
+            httpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return null
+                val bytes = response.body?.bytes() ?: return null
+                BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+            }
+        } catch (_: Exception) {
+            null
         }
     }
 

@@ -7,6 +7,7 @@ import io.baiyanwu.coinmonitor.domain.model.AppPreferences
 import io.baiyanwu.coinmonitor.domain.model.AppThemeMode
 import io.baiyanwu.coinmonitor.domain.model.KlineIndicator
 import io.baiyanwu.coinmonitor.domain.model.KlineIndicatorSettings
+import io.baiyanwu.coinmonitor.domain.model.OnchainRefreshMode
 import io.baiyanwu.coinmonitor.domain.model.RefreshIntervalMode
 import io.baiyanwu.coinmonitor.domain.model.ThemeTemplateId
 import io.baiyanwu.coinmonitor.domain.repository.AppPreferencesRepository
@@ -82,9 +83,29 @@ class DefaultAppPreferencesRepository(context: Context) : AppPreferencesReposito
         }
     }
 
+    override suspend fun setOnchainRefreshMode(mode: OnchainRefreshMode) {
+        withContext(Dispatchers.IO) {
+            sharedPreferences.edit()
+                .putString(KEY_ONCHAIN_REFRESH_MODE, mode.name)
+                .apply()
+        }
+    }
+
     override suspend fun setOnchainRefreshIntervalSeconds(seconds: Int) {
         withContext(Dispatchers.IO) {
             sharedPreferences.edit()
+                .putInt(
+                    KEY_ONCHAIN_REFRESH_INTERVAL_SECONDS,
+                    AppPreferences.normalizeOnchainRefreshIntervalSeconds(seconds)
+                )
+                .apply()
+        }
+    }
+
+    override suspend fun setOnchainRefreshSettings(mode: OnchainRefreshMode, seconds: Int) {
+        withContext(Dispatchers.IO) {
+            sharedPreferences.edit()
+                .putString(KEY_ONCHAIN_REFRESH_MODE, mode.name)
                 .putInt(
                     KEY_ONCHAIN_REFRESH_INTERVAL_SECONDS,
                     AppPreferences.normalizeOnchainRefreshIntervalSeconds(seconds)
@@ -149,6 +170,12 @@ class DefaultAppPreferencesRepository(context: Context) : AppPreferencesReposito
                 AppPreferences.DEFAULT_ONCHAIN_REFRESH_INTERVAL_SECONDS
             )
         )
+        val onchainRefreshMode = sharedPreferences.getString(
+            KEY_ONCHAIN_REFRESH_MODE,
+            OnchainRefreshMode.SMART.name
+        )?.let { storedMode ->
+            runCatching { OnchainRefreshMode.valueOf(storedMode) }.getOrNull()
+        } ?: OnchainRefreshMode.SMART
 
         return AppPreferences(
             themeMode = themeMode,
@@ -156,6 +183,7 @@ class DefaultAppPreferencesRepository(context: Context) : AppPreferencesReposito
             themeTemplate = themeTemplate,
             refreshIntervalMode = refreshIntervalMode,
             customRefreshIntervalSeconds = customRefreshIntervalSeconds,
+            onchainRefreshMode = onchainRefreshMode,
             onchainRefreshIntervalSeconds = onchainRefreshIntervalSeconds,
             klineIndicatorSettings = klineIndicatorSettings
         )
@@ -176,6 +204,7 @@ class DefaultAppPreferencesRepository(context: Context) : AppPreferencesReposito
         const val KEY_REFRESH_INTERVAL_MODE = "refresh_interval_mode"
         const val KEY_REFRESH_INTERVAL_SECONDS = "refresh_interval_seconds"
         const val KEY_KLINE_INDICATOR_SETTINGS = "kline_indicator_settings"
+        const val KEY_ONCHAIN_REFRESH_MODE = "onchain_refresh_mode"
         const val KEY_ONCHAIN_REFRESH_INTERVAL_SECONDS = "onchain_refresh_interval_seconds"
     }
 }

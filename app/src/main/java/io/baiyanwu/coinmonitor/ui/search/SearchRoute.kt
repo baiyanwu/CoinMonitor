@@ -650,7 +650,9 @@ private fun SearchResultRow(
 @Composable
 private fun OnchainPoolMetadata(item: WatchItem, pool: OnchainPoolOption?) {
     val colors = CoinMonitorThemeTokens.colors
-    val chainName = OnchainChainRegistry.find(resolveChainIndex(item))?.displayName.orEmpty()
+    val chainIndex = resolveChainIndex(item)
+    val chainName = OnchainChainRegistry.resolve(chainIndex, item.chainFamily)?.displayName
+        ?: chainIndex.orEmpty()
     val details = pool?.let { option ->
         val liquidity = stringResource(
             R.string.search_onchain_liquidity,
@@ -667,7 +669,8 @@ private fun OnchainPoolMetadata(item: WatchItem, pool: OnchainPoolOption?) {
     ) {
         CoinSymbolIcon(
             symbol = chainName,
-            iconUrl = OnchainChainIconRegistry.resolveIconUrl(resolveChainIndex(item)),
+            fallbackIconUrls = OnchainChainIconRegistry.resolveIconUrls(chainIndex),
+            allowSymbolLookup = false,
             size = 14.dp
         )
         Text(

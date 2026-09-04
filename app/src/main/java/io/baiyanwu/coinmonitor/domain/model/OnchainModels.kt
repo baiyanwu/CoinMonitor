@@ -52,17 +52,78 @@ object OnchainChainRegistry {
     )
 
     private val byChainIndex = entries.associateBy(OnchainChain::chainIndex)
+    private val byDexScreenerId = entries.associateBy { it.dexScreenerId.lowercase() }
 
     fun find(chainIndex: String?): OnchainChain? = chainIndex?.let(byChainIndex::get)
+
+    fun findByDexScreenerId(dexScreenerId: String?): OnchainChain? {
+        return dexScreenerId
+            ?.trim()
+            ?.lowercase()
+            ?.takeIf(String::isNotBlank)
+            ?.let(byDexScreenerId::get)
+    }
+
+    /**
+     * 已知链沿用本地精确映射；未知链直接使用 DexScreener 返回的 chainId，
+     * 避免本地链注册表变成搜索白名单。
+     */
+    fun resolve(
+        chainIndexOrDexScreenerId: String?,
+        family: ChainFamily? = null
+    ): OnchainChain? {
+        val raw = chainIndexOrDexScreenerId?.trim()?.takeIf(String::isNotBlank) ?: return null
+        return find(raw)
+            ?: findByDexScreenerId(raw)
+            ?: dynamic(raw, family ?: ChainFamily.OTHER)
+    }
+
+    fun resolveDexScreenerChain(
+        dexScreenerId: String?,
+        family: ChainFamily
+    ): OnchainChain? {
+        val raw = dexScreenerId?.trim()?.takeIf(String::isNotBlank) ?: return null
+        return findByDexScreenerId(raw) ?: dynamic(raw, family)
+    }
+
+    private fun dynamic(dexScreenerId: String, family: ChainFamily): OnchainChain {
+        val normalizedId = dexScreenerId.lowercase()
+        return OnchainChain(
+            chainIndex = normalizedId,
+            displayName = normalizedId
+                .split('-', '_', ' ')
+                .filter(String::isNotBlank)
+                .joinToString(" ") { part ->
+                    part.replaceFirstChar { char -> char.titlecase() }
+                }
+                .ifBlank { dexScreenerId },
+            family = family,
+            dexScreenerId = normalizedId,
+            geckoTerminalId = normalizedId
+        )
+    }
 }
 
 fun normalizeOnchainAddress(family: ChainFamily?, address: String): String {
     val trimmed = address.trim()
-    return if (family == ChainFamily.SOL) trimmed else trimmed.lowercase()
+    return if (family == ChainFamily.EVM) trimmed.lowercase() else trimmed
 }
 
 fun onchainAddressesEqual(family: ChainFamily, left: String, right: String): Boolean {
-    return if (family == ChainFamily.SOL) left == right else left.equals(right, ignoreCase = true)
+    return if (family == ChainFamily.EVM) left.equals(right, ignoreCase = true) else left == right
+}
+
+fun inferOnchainChainFamily(
+    dexScreenerId: String?,
+    addresses: Iterable<String>
+): ChainFamily {
+    OnchainChainRegistry.findByDexScreenerId(dexScreenerId)?.let { return it.family }
+    if (dexScreenerId.equals("solana", ignoreCase = true)) return ChainFamily.SOL
+    return if (addresses.any { looksLikeOnchainAddress(ChainFamily.EVM, it) }) {
+        ChainFamily.EVM
+    } else {
+        ChainFamily.OTHER
+    }
 }
 
 data class GeckoTerminalInterval(
@@ -94,6 +155,7 @@ fun looksLikeOnchainAddress(family: ChainFamily, value: String): Boolean {
     return when (family) {
         ChainFamily.EVM -> trimmed.matches(Regex("^0x[0-9a-fA-F]{40}$"))
         ChainFamily.SOL -> trimmed.length in 32..44 && trimmed.all { it in BASE58_ALPHABET }
+        ChainFamily.OTHER -> false
     }
 }
 

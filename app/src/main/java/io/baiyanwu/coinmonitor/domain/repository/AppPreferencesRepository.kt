@@ -5,6 +5,7 @@ import io.baiyanwu.coinmonitor.domain.model.AppPreferences
 import io.baiyanwu.coinmonitor.domain.model.AppThemeMode
 import io.baiyanwu.coinmonitor.domain.model.KlineIndicator
 import io.baiyanwu.coinmonitor.domain.model.KlineIndicatorSettings
+import io.baiyanwu.coinmonitor.domain.model.OnchainRefreshMode
 import io.baiyanwu.coinmonitor.domain.model.RefreshIntervalMode
 import io.baiyanwu.coinmonitor.domain.model.ThemeTemplateId
 import kotlinx.coroutines.flow.Flow
@@ -24,7 +25,11 @@ interface AppPreferencesRepository {
 
     suspend fun setRefreshIntervalMode(mode: RefreshIntervalMode)
 
+    suspend fun setOnchainRefreshMode(mode: OnchainRefreshMode)
+
     suspend fun setOnchainRefreshIntervalSeconds(seconds: Int)
+
+    suspend fun setOnchainRefreshSettings(mode: OnchainRefreshMode, seconds: Int)
 
     suspend fun setKlineMainIndicator(indicator: KlineIndicator)
 

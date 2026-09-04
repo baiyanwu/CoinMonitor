@@ -133,10 +133,10 @@ object DexScreenerPairSelector {
         return pairs
             .mapNotNull { pair -> pair.toSelection(tokenAddress, family) }
             .distinctBy { selection ->
-                if (family == ChainFamily.SOL) {
-                    selection.pair.pairAddress
-                } else {
+                if (family == ChainFamily.EVM) {
                     selection.pair.pairAddress.lowercase()
+                } else {
+                    selection.pair.pairAddress
                 }
             }
             .sortedWith(

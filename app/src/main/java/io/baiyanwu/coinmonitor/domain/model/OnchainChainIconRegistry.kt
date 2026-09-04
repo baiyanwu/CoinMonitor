@@ -6,7 +6,7 @@ package io.baiyanwu.coinmonitor.domain.model
  * 这里覆盖当前产品会用到的主流链，没命中的场景继续保留通用占位图兜底。
  */
 object OnchainChainIconRegistry {
-    private val iconUrlByChainIndex = mapOf(
+    private val localIconUrlByChainIndex = mapOf(
         "1" to "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/info/logo.png",
         "10" to "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/optimism/info/logo.png",
         "56" to "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/smartchain/info/logo.png",
@@ -26,5 +26,27 @@ object OnchainChainIconRegistry {
         "501" to "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/solana/info/logo.png"
     )
 
-    fun resolveIconUrl(chainIndex: String?): String? = iconUrlByChainIndex[chainIndex]
+    fun resolveIconUrl(chainIndex: String?): String? = resolveIconUrls(chainIndex).firstOrNull()
+
+    /**
+     * 本地映射优先；没有映射或映射下载失败时，调用方会顺序尝试通用在线链图标源。
+     * 所有候选都失败后，由 UI/悬浮窗展示内置默认占位图。
+     */
+    fun resolveIconUrls(chainIndex: String?): List<String> {
+        val raw = chainIndex?.trim()?.takeIf(String::isNotBlank) ?: return emptyList()
+        val known = OnchainChainRegistry.find(raw) ?: OnchainChainRegistry.findByDexScreenerId(raw)
+        val canonicalIndex = known?.chainIndex ?: raw
+        val chainSlug = (known?.dexScreenerId ?: raw)
+            .lowercase()
+            .replace(Regex("[^a-z0-9-]+"), "-")
+            .trim('-')
+            .takeIf(String::isNotBlank)
+            ?: return listOfNotNull(localIconUrlByChainIndex[canonicalIndex])
+
+        return buildList {
+            localIconUrlByChainIndex[canonicalIndex]?.let(::add)
+            add("https://icons.llamao.fi/icons/chains/rsz_$chainSlug?w=64&h=64")
+            add("https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/$chainSlug/info/logo.png")
+        }.distinct()
+    }
 }

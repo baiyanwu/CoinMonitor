@@ -28,5 +28,14 @@ data class QuoteRefreshConfig(
     val enabled: Boolean,
     val items: List<WatchItem>,
     val refreshIntervalMillis: Long,
-    val onchainRefreshIntervalMillis: Long = 45_000L
+    val onchainRefreshIntervalMillis: Long = 30_000L,
+    val onchainRequestBatchCount: Int = 0
+)
+
+data class OnchainRefreshRuntimeState(
+    val requestBatchCount: Int = 0,
+    val cycleIntervalSeconds: Int = 30,
+    val requestSpacingMillis: Long = 0L,
+    val failingBatchCount: Int = 0,
+    val active: Boolean = false
 )
