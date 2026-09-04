@@ -109,6 +109,11 @@
     <string name="about_disclaimer_section">Notice</string>
     <string name="about_disclaimer">This project is intended for technical exploration and personal learning and does not constitute investment advice. Crypto assets are highly volatile, and displayed market data may be delayed or inaccurate; refer to the relevant trading platform for authoritative data. Binance, OKX, DexScreener, GeckoTerminal, and related names, trademarks, and APIs belong to their respective owners.</string>
 
+    <string name="app_update_available_title">Update available</string>
+    <string name="app_update_available_message">CoinMonitor %1$s is available. Open GitHub to view the changes and download it.</string>
+    <string name="app_update_later">Later</string>
+    <string name="app_update_open_release">Open update</string>
+
     <string name="third_party_api_settings_title">Third-party API Settings</string>
     <string name="third_party_api_settings_section_onchain">Free On-chain Market Data</string>
     <string name="third_party_api_settings_section_ai">AI / OpenAI Compatible</string>

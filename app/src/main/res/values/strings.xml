@@ -109,6 +109,11 @@
     <string name="about_disclaimer_section">使用说明</string>
     <string name="about_disclaimer">本项目用于技术交流与个人学习，不构成投资建议。加密资产价格波动较大，应用展示的行情可能存在延迟或偏差，请以交易平台实际数据为准。Binance、OKX、DexScreener 与 GeckoTerminal 等名称、商标和接口归各自所有者所有。</string>
 
+    <string name="app_update_available_title">发现新版本</string>
+    <string name="app_update_available_message">CoinMonitor %1$s 已发布，可前往 GitHub 查看更新内容并下载。</string>
+    <string name="app_update_later">稍后</string>
+    <string name="app_update_open_release">前往更新</string>
+
     <string name="third_party_api_settings_title">第三方 API 设置</string>
     <string name="third_party_api_settings_section_onchain">免费链上行情</string>
     <string name="third_party_api_settings_section_ai">AI / OpenAI Compatible</string>

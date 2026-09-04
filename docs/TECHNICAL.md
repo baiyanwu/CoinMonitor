@@ -63,6 +63,13 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 - 页面集中展示项目用途、作者 `baiyanwu`、GitHub 源码仓库、Apache-2.0 许可、Issues 反馈入口及行情风险说明；外部链接统一交由系统 URI 处理器打开
 - 关于页和设置入口均提供简体中文与英文资源；设置入口只展示“关于”标题，不附加重复副标题
 
+### App Update Check
+
+- `MainActivity` 每次创建主界面 Compose 内容时，通过 `LaunchedEffect` 调用一次 `GitHubReleaseUpdateChecker`；不记录上次检查时间，也没有 24 小时缓存
+- 检查器使用应用已有的 `OkHttpClient`，直接请求 GitHub 官方 `GET https://api.github.com/repos/baiyanwu/CoinMonitor/releases/latest`，请求沿用全局 `10 秒` call timeout，不依赖第三方更新服务或 API Key
+- 远端 `tag_name` 与 `BuildConfig.VERSION_NAME` 按数字段比较，兼容 `v1.0.7`、`1.0.7` 与不同段数；标签无法解析、网络失败或非成功响应时静默跳过，不阻塞应用启动
+- 只在远端版本更高时展示双语提示；用户确认后交由系统 URI 处理器打开 `https://github.com/baiyanwu/CoinMonitor/releases/latest`，应用不自动下载或安装 APK
+
 ### K-line
 
 - K 线页、图表、指标设置、搜索回填和 AI 聊天实现仍保留在工程中，但当前不再作为底部导航或首页卡片点击入口暴露
@@ -236,6 +243,7 @@ Release 自动流程：
 - 首页拖动入口为整卡长按，交互时序为 `350ms` 进入拖动、`900ms` 弹出快捷菜单。
 - 首页与搜索页共用 `MarketModeTabs`；首页用 `HorizontalPager` 承载两个分类页面，并为每页维护独立的 `LazyListState` 和拖动状态。
 - 搜索页、悬浮窗设置页和关于页使用独立 `Activity`，避免和主 `NavHost` 的底部导航、转场动画、窗口 inset 相互耦合。
+- 应用更新检查绑定主界面组合生命周期，每次主界面创建只请求一次；请求取消会继续向上抛出 `CancellationException`，普通网络或解析失败才静默忽略。
 - 首页刷新使用 `PullToRefreshBox`，ViewModel 里维护手动刷新态，避免手势刷新和后台轮询互相打架。
 - 第三方 API 设置页、悬浮窗设置页与关于页使用和网络日志页一致的 `Scaffold(topBar = CenterAlignedTopAppBar)` 结构，滚动内容只放在 content 区域，避免下方内容滚动时顶部栏被带走。
 - 设置页里涉及 `Switch` 的横向行都支持整行点击，不只靠右侧小开关命中。

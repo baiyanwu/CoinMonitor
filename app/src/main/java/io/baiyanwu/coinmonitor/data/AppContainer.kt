@@ -10,6 +10,7 @@ import io.baiyanwu.coinmonitor.data.ai.OpenAiCompatibleStreamingClient
 import io.baiyanwu.coinmonitor.data.ai.market.ProjectInfoAdapter
 import io.baiyanwu.coinmonitor.data.refresh.GlobalQuoteRefreshCoordinator
 import io.baiyanwu.coinmonitor.data.network.NetworkFactory
+import io.baiyanwu.coinmonitor.data.update.GitHubReleaseUpdateChecker
 import io.baiyanwu.coinmonitor.data.repository.DefaultAiChatRepository
 import io.baiyanwu.coinmonitor.data.repository.DefaultAiConfigRepository
 import io.baiyanwu.coinmonitor.data.repository.DefaultAppPreferencesRepository
@@ -69,6 +70,11 @@ class AppContainer(context: Context) {
 
     private val networkFactory = NetworkFactory(
         networkLogRepository = networkLogRepository
+    )
+    val appUpdateChecker = GitHubReleaseUpdateChecker(
+        httpClient = networkFactory.okHttpClient.newBuilder()
+            .callTimeout(10, TimeUnit.SECONDS)
+            .build()
     )
     private val dexScreenerClient = io.baiyanwu.coinmonitor.data.network.DexScreenerClient(
         networkFactory.dexScreenerApi
