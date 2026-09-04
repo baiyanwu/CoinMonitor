@@ -1,6 +1,7 @@
 package io.baiyanwu.coinmonitor.data.repository
 
 import io.baiyanwu.coinmonitor.data.local.WatchItemEntity
+import io.baiyanwu.coinmonitor.domain.model.MarketType
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -88,19 +89,54 @@ class WatchlistHomeOrderManagerTest {
         )
     }
 
+    @Test
+    fun `reorder should only renumber items in the same market group`() {
+        val items = listOf(
+            watchItem(id = "exchange-a", addedAt = 1L, homeOrder = 1024L),
+            watchItem(
+                id = "onchain-a",
+                addedAt = 2L,
+                homeOrder = 2048L,
+                marketType = MarketType.ONCHAIN_TOKEN.name
+            ),
+            watchItem(id = "exchange-b", addedAt = 3L, homeOrder = 3072L),
+            watchItem(
+                id = "onchain-b",
+                addedAt = 4L,
+                homeOrder = 4096L,
+                marketType = MarketType.ONCHAIN_TOKEN.name
+            )
+        )
+
+        val updates = WatchlistHomeOrderManager.reorderNormalGroup(
+            items = items,
+            itemId = "exchange-b",
+            targetBeforeId = "exchange-a"
+        )
+
+        assertEquals(
+            listOf(
+                HomeOrderUpdate(id = "exchange-b", order = 1024L),
+                HomeOrderUpdate(id = "exchange-a", order = 2048L)
+            ),
+            updates
+        )
+    }
+
     private fun watchItem(
         id: String,
         addedAt: Long,
         homePinned: Boolean = false,
         homeOrder: Long,
-        homePinnedOrder: Long? = null
+        homePinnedOrder: Long? = null,
+        marketType: String = MarketType.CEX_SPOT.name
     ): WatchItemEntity {
         return WatchItemEntity(
             id = id,
             symbol = "$id/USDT",
             name = id,
             source = "BINANCE",
-            marketType = "CEX_SPOT",
+            marketType = marketType,
             chainFamily = null,
             chainIndex = null,
             tokenAddress = null,

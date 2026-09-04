@@ -1,6 +1,7 @@
 package io.baiyanwu.coinmonitor.data.repository
 
 import io.baiyanwu.coinmonitor.data.local.WatchItemEntity
+import io.baiyanwu.coinmonitor.domain.model.MarketType
 
 internal data class HomeOrderUpdate(
     val id: String,
@@ -59,10 +60,15 @@ internal object WatchlistHomeOrderManager {
         targetBeforeId: String?,
         pinned: Boolean
     ): List<HomeOrderUpdate> {
+        val moving = items.firstOrNull { it.id == itemId && it.homePinned == pinned }
+            ?: return emptyList()
+        val movingOnchain = moving.marketType == MarketType.ONCHAIN_TOKEN.name
         val group = items
-            .filter { it.homePinned == pinned }
+            .filter { item ->
+                item.homePinned == pinned &&
+                    (item.marketType == MarketType.ONCHAIN_TOKEN.name) == movingOnchain
+            }
             .sortedWith(compareGroup(pinned))
-        val moving = group.firstOrNull { it.id == itemId } ?: return emptyList()
         val withoutMoving = group.filterNot { it.id == itemId }.toMutableList()
         val insertionIndex = targetBeforeId
             ?.let { targetId -> withoutMoving.indexOfFirst { it.id == targetId }.takeIf { it >= 0 } }

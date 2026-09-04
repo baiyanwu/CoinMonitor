@@ -25,10 +25,10 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Layers
 import androidx.compose.material.icons.rounded.VerticalAlignTop
@@ -73,11 +73,14 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.baiyanwu.coinmonitor.data.AppContainer
-import io.baiyanwu.coinmonitor.ui.components.MainTabTopBar
+import io.baiyanwu.coinmonitor.domain.model.MarketType
+import io.baiyanwu.coinmonitor.domain.repository.QuoteRepository
+import io.baiyanwu.coinmonitor.ui.components.MainTabTopBarHorizontalPadding
+import io.baiyanwu.coinmonitor.ui.components.MarketModeTabs
 import io.baiyanwu.coinmonitor.ui.components.SearchEntryButton
-import io.baiyanwu.coinmonitor.ui.components.TopBarCircleActionButton
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
 import io.baiyanwu.coinmonitor.ui.components.WatchItemCard
+import io.baiyanwu.coinmonitor.ui.search.SearchMode
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorComponentDefaults
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 import io.baiyanwu.coinmonitor.R
@@ -96,12 +99,22 @@ private data class HomeDragState(
     val didReorder: Boolean = false
 )
 
+private val HOME_MODES = listOf(SearchMode.EXCHANGE, SearchMode.ONCHAIN)
+
+internal fun filterHomeWatchItems(
+    items: List<WatchItem>,
+    mode: SearchMode
+): List<WatchItem> = when (mode) {
+    SearchMode.EXCHANGE -> items.filter { it.marketType != MarketType.ONCHAIN_TOKEN }
+    SearchMode.ONCHAIN -> items.filter { it.marketType == MarketType.ONCHAIN_TOKEN }
+}
+
 @Composable
 fun HomeRoute(
     container: AppContainer,
     contentTopInset: Dp = 0.dp,
     contentBottomInset: Dp = 0.dp,
-    onNavigateSearch: () -> Unit,
+    onNavigateSearch: (SearchMode) -> Unit,
     onNavigateOverlaySettings: () -> Unit
 ) {
     val viewModel: HomeViewModel = viewModel(factory = HomeViewModel.factory(container))
@@ -146,15 +159,14 @@ fun HomeRoute(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun HomeScreen(
     state: HomeUiState,
     contentTopInset: Dp,
     contentBottomInset: Dp,
-    onNavigateSearch: () -> Unit,
+    onNavigateSearch: (SearchMode) -> Unit,
     onNavigateOverlaySettings: () -> Unit,
-    quoteRepository: io.baiyanwu.coinmonitor.domain.repository.QuoteRepository,
+    quoteRepository: QuoteRepository,
     onRemoveWatchItem: (String) -> Unit,
     onToggleOverlay: (String) -> Unit,
     onSetHomePinned: (String, Boolean) -> Unit,
@@ -165,21 +177,25 @@ internal fun HomeScreen(
     var quickMenuState by remember { mutableStateOf<HomeQuickMenuState?>(null) }
     var showOverlayEnableDialog by remember { mutableStateOf(false) }
     var rootSize by remember { mutableStateOf(IntSize.Zero) }
-    var displayItems by remember { mutableStateOf(state.items) }
-    var dragState by remember { mutableStateOf<HomeDragState?>(null) }
     val colors = CoinMonitorThemeTokens.colors
     val dismissInteractionSource = remember { MutableInteractionSource() }
-    val listState = rememberLazyListState()
-    val scope = rememberCoroutineScope()
+    val pagerState = rememberPagerState(
+        initialPage = 0,
+        pageCount = HOME_MODES::size
+    )
+    val exchangeListState = rememberLazyListState()
+    val onchainListState = rememberLazyListState()
+    val pagerScope = rememberCoroutineScope()
+    val pageItems = remember(state.items) {
+        HOME_MODES.map { mode -> filterHomeWatchItems(state.items, mode) }
+    }
     val overlayEnableDialogTitle = stringResource(R.string.home_overlay_enable_dialog_title)
     val overlayEnableDialogMessage = stringResource(R.string.home_overlay_enable_dialog_message)
     val overlayEnableDialogDismiss = stringResource(R.string.common_cancel)
     val overlayEnableDialogConfirm = stringResource(R.string.home_overlay_enable_dialog_confirm)
 
-    LaunchedEffect(state.items) {
-        if (dragState == null) {
-            displayItems = state.items
-        }
+    LaunchedEffect(pagerState.currentPage) {
+        quickMenuState = null
     }
 
     Box(
@@ -190,146 +206,59 @@ internal fun HomeScreen(
             .onSizeChanged { rootSize = it }
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            MainTabTopBar {
-                Text(
-                    text = stringResource(R.string.home_title),
-                    style = MaterialTheme.typography.headlineSmall
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = MainTabTopBarHorizontalPadding, vertical = 4.dp)
+                    .height(44.dp)
+            ) {
+                MarketModeTabs(
+                    selectedPage = pagerState.currentPage,
+                    onSelectPage = { page ->
+                        pagerScope.launch {
+                            pagerState.animateScrollToPage(page)
+                        }
+                    },
+                    modifier = Modifier.align(Alignment.Center)
                 )
-                Box(modifier = Modifier.weight(1f))
-                SearchEntryButton(onClick = onNavigateSearch)
+                SearchEntryButton(
+                    onClick = { onNavigateSearch(HOME_MODES[pagerState.currentPage]) },
+                    modifier = Modifier.align(Alignment.CenterEnd)
+                )
             }
 
-            PullToRefreshBox(
+            HorizontalPager(
+                state = pagerState,
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f),
-                isRefreshing = state.isRefreshing,
-                onRefresh = onRefresh
             ) {
-                if (!state.isLoaded) {
-                    HomeLoadingState()
-                } else if (state.items.isEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = 24.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(14.dp)
-                        ) {
-                            Text(
-                                text = stringResource(R.string.home_empty_hint),
-                                textAlign = TextAlign.Center,
-                                color = colors.secondaryText,
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-                            Button(
-                                onClick = onNavigateSearch,
-                                colors = CoinMonitorComponentDefaults.primaryButtonColors()
-                            ) {
-                                Text(text = stringResource(R.string.home_add_pair))
-                            }
+                val mode = HOME_MODES[it]
+                HomeWatchlistPage(
+                    mode = mode,
+                    isLoaded = state.isLoaded,
+                    isRefreshing = state.isRefreshing,
+                    items = pageItems[it],
+                    overlayIds = state.overlayIds,
+                    listState = if (mode == SearchMode.EXCHANGE) {
+                        exchangeListState
+                    } else {
+                        onchainListState
+                    },
+                    quoteRepository = quoteRepository,
+                    onNavigateSearch = { onNavigateSearch(mode) },
+                    onDismissQuickMenu = { quickMenuState = null },
+                    onLongPress = { item, anchorInRoot ->
+                        quickMenuState = if (quickMenuState?.itemId == item.id) {
+                            null
+                        } else {
+                            HomeQuickMenuState(itemId = item.id, anchorInRoot = anchorInRoot)
                         }
-                    }
-                } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        state = listState,
-                        contentPadding = PaddingValues(
-                            start = 0.dp,
-                            end = 0.dp,
-                            top = 0.dp,
-                            bottom = 24.dp
-                        ),
-                        verticalArrangement = Arrangement.spacedBy(2.dp)
-                    ) {
-                        items(displayItems, key = { it.id }) { item ->
-                            val isDragging = dragState?.itemId == item.id
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .zIndex(if (isDragging) 1f else 0f)
-                            ) {
-                                WatchItemCard(
-                                    item = item,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    quoteRepository = quoteRepository,
-                                    overlaySelected = state.overlayIds.contains(item.id),
-                                    dragOffsetY = if (isDragging) {
-                                        dragState?.dragOffsetY ?: 0f
-                                    } else {
-                                        0f
-                                    },
-                                    onClick = {
-                                        quickMenuState = null
-                                    },
-                                    onLongPress = { anchorInRoot ->
-                                        if (quickMenuState?.itemId == item.id) {
-                                            quickMenuState = null
-                                        } else {
-                                            quickMenuState = HomeQuickMenuState(
-                                                itemId = item.id,
-                                                anchorInRoot = anchorInRoot
-                                            )
-                                        }
-                                    },
-                                    onDragStart = {
-                                        quickMenuState = null
-                                        dragState = HomeDragState(
-                                            itemId = item.id,
-                                            homePinned = item.homePinned
-                                        )
-                                    },
-                                    onDragBy = { dragAmount ->
-                                        val currentDragState = dragState
-                                        if (currentDragState != null && currentDragState.itemId == item.id) {
-                                            val updatedDragState = currentDragState.copy(
-                                                dragOffsetY = currentDragState.dragOffsetY + dragAmount
-                                            )
-                                            dragState = updatedDragState
-                                            maybeMoveDraggedItem(
-                                                items = displayItems,
-                                                listState = listState,
-                                                dragState = updatedDragState
-                                            )?.let { result ->
-                                                displayItems = result.items
-                                                dragState = updatedDragState.copy(
-                                                    dragOffsetY = result.adjustedDragOffsetY,
-                                                    didReorder = true
-                                                )
-                                            }
-                                            scrollDraggedItemIntoView(
-                                                scope = scope,
-                                                listState = listState,
-                                                dragState = dragState
-                                            )
-                                        }
-                                    },
-                                    onDragEnd = {
-                                        finalizeDrag(
-                                            dragState = dragState,
-                                            items = displayItems,
-                                            onMoveHomeItem = onMoveHomeItem,
-                                            onMovePinnedHomeItem = onMovePinnedHomeItem
-                                        )
-                                        dragState = null
-                                    },
-                                    onDragCancel = {
-                                        finalizeDrag(
-                                            dragState = dragState,
-                                            items = displayItems,
-                                            onMoveHomeItem = onMoveHomeItem,
-                                            onMovePinnedHomeItem = onMovePinnedHomeItem
-                                        )
-                                        dragState = null
-                                    }
-                                )
-                            }
-                        }
-                    }
-                }
+                    },
+                    onMoveHomeItem = onMoveHomeItem,
+                    onMovePinnedHomeItem = onMovePinnedHomeItem,
+                    onRefresh = onRefresh
+                )
             }
         }
 
@@ -387,6 +316,159 @@ internal fun HomeScreen(
                     }
                 }
             )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun HomeWatchlistPage(
+    mode: SearchMode,
+    isLoaded: Boolean,
+    isRefreshing: Boolean,
+    items: List<WatchItem>,
+    overlayIds: Set<String>,
+    listState: LazyListState,
+    quoteRepository: QuoteRepository,
+    onNavigateSearch: () -> Unit,
+    onDismissQuickMenu: () -> Unit,
+    onLongPress: (WatchItem, IntOffset) -> Unit,
+    onMoveHomeItem: (String, String?) -> Unit,
+    onMovePinnedHomeItem: (String, String?) -> Unit,
+    onRefresh: () -> Unit
+) {
+    var displayItems by remember { mutableStateOf(items) }
+    var dragState by remember { mutableStateOf<HomeDragState?>(null) }
+    val colors = CoinMonitorThemeTokens.colors
+    val scope = rememberCoroutineScope()
+    val emptyHint = stringResource(
+        if (mode == SearchMode.EXCHANGE) {
+            R.string.home_empty_exchange_hint
+        } else {
+            R.string.home_empty_onchain_hint
+        }
+    )
+
+    LaunchedEffect(items) {
+        if (dragState == null) {
+            displayItems = items
+        }
+    }
+
+    PullToRefreshBox(
+        modifier = Modifier.fillMaxSize(),
+        isRefreshing = isRefreshing,
+        onRefresh = onRefresh
+    ) {
+        if (!isLoaded) {
+            HomeLoadingState()
+        } else if (items.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Text(
+                        text = emptyHint,
+                        textAlign = TextAlign.Center,
+                        color = colors.secondaryText,
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    Button(
+                        onClick = onNavigateSearch,
+                        colors = CoinMonitorComponentDefaults.primaryButtonColors()
+                    ) {
+                        Text(text = stringResource(R.string.home_add_pair))
+                    }
+                }
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                state = listState,
+                contentPadding = PaddingValues(bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                items(displayItems, key = { it.id }) { item ->
+                    val isDragging = dragState?.itemId == item.id
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .zIndex(if (isDragging) 1f else 0f)
+                    ) {
+                        WatchItemCard(
+                            item = item,
+                            modifier = Modifier.fillMaxWidth(),
+                            quoteRepository = quoteRepository,
+                            overlaySelected = overlayIds.contains(item.id),
+                            dragOffsetY = if (isDragging) {
+                                dragState?.dragOffsetY ?: 0f
+                            } else {
+                                0f
+                            },
+                            onClick = onDismissQuickMenu,
+                            onLongPress = { anchorInRoot ->
+                                onLongPress(item, anchorInRoot)
+                            },
+                            onDragStart = {
+                                onDismissQuickMenu()
+                                dragState = HomeDragState(
+                                    itemId = item.id,
+                                    homePinned = item.homePinned
+                                )
+                            },
+                            onDragBy = { dragAmount ->
+                                val currentDragState = dragState
+                                if (currentDragState != null && currentDragState.itemId == item.id) {
+                                    val updatedDragState = currentDragState.copy(
+                                        dragOffsetY = currentDragState.dragOffsetY + dragAmount
+                                    )
+                                    dragState = updatedDragState
+                                    maybeMoveDraggedItem(
+                                        items = displayItems,
+                                        listState = listState,
+                                        dragState = updatedDragState
+                                    )?.let { result ->
+                                        displayItems = result.items
+                                        dragState = updatedDragState.copy(
+                                            dragOffsetY = result.adjustedDragOffsetY,
+                                            didReorder = true
+                                        )
+                                    }
+                                    scrollDraggedItemIntoView(
+                                        scope = scope,
+                                        listState = listState,
+                                        dragState = dragState
+                                    )
+                                }
+                            },
+                            onDragEnd = {
+                                finalizeDrag(
+                                    dragState = dragState,
+                                    items = displayItems,
+                                    onMoveHomeItem = onMoveHomeItem,
+                                    onMovePinnedHomeItem = onMovePinnedHomeItem
+                                )
+                                dragState = null
+                            },
+                            onDragCancel = {
+                                finalizeDrag(
+                                    dragState = dragState,
+                                    items = displayItems,
+                                    onMoveHomeItem = onMoveHomeItem,
+                                    onMovePinnedHomeItem = onMovePinnedHomeItem
+                                )
+                                dragState = null
+                            }
+                        )
+                    }
+                }
+            }
         }
     }
 }

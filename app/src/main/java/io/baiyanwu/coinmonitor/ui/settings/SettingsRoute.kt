@@ -14,6 +14,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.rounded.DarkMode
+import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.ReceiptLong
 import androidx.compose.material.icons.rounded.Tune
@@ -47,7 +48,8 @@ fun SettingsRoute(
     contentBottomInset: Dp = 0.dp,
     onNavigateOverlaySettings: () -> Unit,
     onNavigateThirdPartyApiSettings: () -> Unit,
-    onNavigateNetworkLog: () -> Unit
+    onNavigateNetworkLog: () -> Unit,
+    onNavigateAbout: () -> Unit
 ) {
     val viewModel: SettingsViewModel = viewModel(factory = SettingsViewModel.factory(container))
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -59,6 +61,7 @@ fun SettingsRoute(
         onNavigateOverlaySettings = onNavigateOverlaySettings,
         onNavigateThirdPartyApiSettings = onNavigateThirdPartyApiSettings,
         onNavigateNetworkLog = onNavigateNetworkLog,
+        onNavigateAbout = onNavigateAbout,
         onThemeModeChange = viewModel::setThemeMode,
         onLanguageChange = viewModel::setLanguage
     )
@@ -72,6 +75,7 @@ private fun SettingsScreen(
     onNavigateOverlaySettings: () -> Unit,
     onNavigateThirdPartyApiSettings: () -> Unit,
     onNavigateNetworkLog: () -> Unit,
+    onNavigateAbout: () -> Unit,
     onThemeModeChange: (AppThemeMode) -> Unit,
     onLanguageChange: (AppLanguage) -> Unit
 ) {
@@ -229,6 +233,20 @@ private fun SettingsScreen(
                         )
                     }
                 }
+            }
+        }
+
+        item {
+            ElevatedCard(
+                shape = RoundedCornerShape(20.dp),
+                modifier = Modifier.fillMaxWidth(),
+                colors = CoinMonitorComponentDefaults.elevatedCardColors()
+            ) {
+                SettingNavigationRow(
+                    icon = { Icon(Icons.Rounded.Info, contentDescription = null) },
+                    title = stringResource(R.string.about_settings_title),
+                    onClick = onNavigateAbout
+                )
             }
         }
 

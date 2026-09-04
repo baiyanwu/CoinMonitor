@@ -22,9 +22,9 @@
     <string name="exchange_badge_onchain">ONCHAIN</string>
     <string name="market_tag_usdt_futures">U本位</string>
 
-    <string name="home_empty_hint">先添加一个币对开始监控</string>
+    <string name="home_empty_exchange_hint">先添加一个交易所币对开始监控</string>
+    <string name="home_empty_onchain_hint">先添加一个链上代币开始监控</string>
     <string name="home_add_pair">添加币对</string>
-    <string name="home_title">关注</string>
     <string name="home_open_search">搜索币对</string>
     <string name="home_overlay_tag">悬浮</string>
     <string name="home_pinned_tag">置顶</string>
@@ -90,6 +90,29 @@
     <string name="network_log_protocol_wss">WSS 日志</string>
     <string name="network_log_copy">复制日志</string>
     <string name="network_log_copied">已复制日志内容</string>
+
+    <string name="about_settings_title">关于</string>
+    <string name="about_title">关于</string>
+    <string name="about_version_format">版本 %1$s（%2$d）</string>
+    <string name="about_intro">轻量级 Android 加密资产行情监控工具</string>
+    <string name="about_project_section">项目介绍</string>
+    <string name="about_project_description">CoinMonitor 聚合 Binance、OKX 与公开链上行情，将观察列表和系统悬浮窗结合，方便在使用其他应用时快速查看关注资产的价格变化。应用仅展示参考行情，不提供交易、下单或资产托管功能。</string>
+    <string name="about_open_source_section">开源信息</string>
+    <string name="about_author">作者</string>
+    <string name="about_author_value">baiyanwu</string>
+    <string name="about_repository">项目地址</string>
+    <string name="about_repository_value">github.com/baiyanwu/CoinMonitor</string>
+    <string name="about_license">开源许可</string>
+    <string name="about_license_value">Apache License 2.0</string>
+    <string name="about_feedback">问题与反馈</string>
+    <string name="about_feedback_value">GitHub Issues</string>
+    <string name="about_disclaimer_section">使用说明</string>
+    <string name="about_disclaimer">本项目用于技术交流与个人学习，不构成投资建议。加密资产价格波动较大，应用展示的行情可能存在延迟或偏差，请以交易平台实际数据为准。Binance、OKX、DexScreener 与 GeckoTerminal 等名称、商标和接口归各自所有者所有。</string>
+
+    <string name="app_update_available_title">发现新版本</string>
+    <string name="app_update_available_message">CoinMonitor %1$s 已发布，可前往 GitHub 查看更新内容并下载。</string>
+    <string name="app_update_later">稍后</string>
+    <string name="app_update_open_release">前往更新</string>
 
     <string name="third_party_api_settings_title">第三方 API 设置</string>
     <string name="third_party_api_settings_section_onchain">免费链上行情</string>
