@@ -12,6 +12,7 @@
     <string name="open_search">打开搜索</string>
     <string name="common_back">返回</string>
     <string name="common_cancel">取消</string>
+    <string name="common_confirm">确认</string>
     <string name="common_close">关闭</string>
     <string name="common_clear">清空</string>
     <string name="common_min_count">最少 1 个</string>
@@ -26,6 +27,7 @@
     <string name="home_empty_onchain_hint">先添加一个链上代币开始监控</string>
     <string name="home_add_pair">添加币对</string>
     <string name="home_open_search">搜索币对</string>
+    <string name="home_open_market_page">打开 %1$s 的外部行情页</string>
     <string name="home_overlay_tag">悬浮</string>
     <string name="home_pinned_tag">置顶</string>
     <string name="home_quick_overlay_add">加入悬浮</string>

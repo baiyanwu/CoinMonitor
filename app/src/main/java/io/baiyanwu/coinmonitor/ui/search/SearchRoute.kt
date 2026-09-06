@@ -24,6 +24,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
@@ -31,6 +32,7 @@ import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -161,6 +163,18 @@ private fun SearchScreen(
                 .padding(top = 8.dp, bottom = 4.dp),
             contentAlignment = Alignment.Center
         ) {
+            IconButton(
+                onClick = onBack,
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .padding(start = 4.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                    contentDescription = stringResource(R.string.common_back),
+                    tint = colors.primaryText
+                )
+            }
             MarketModeTabs(
                 selectedPage = pagerState.currentPage,
                 onSelectPage = { page ->
@@ -184,7 +198,6 @@ private fun SearchScreen(
                 SearchHeader(
                     searchMode = pageMode,
                     pageState = pageState,
-                    onBack = onBack,
                     onQueryChange = { query -> onQueryChange(pageMode, query) },
                     onClearQuery = { onClearQuery(pageMode) },
                     onSearch = { onSearch(pageMode) }
@@ -208,7 +221,6 @@ private fun SearchScreen(
 private fun SearchHeader(
     searchMode: SearchMode,
     pageState: SearchPageState,
-    onBack: () -> Unit,
     onQueryChange: (String) -> Unit,
     onClearQuery: () -> Unit,
     onSearch: () -> Unit
@@ -316,12 +328,12 @@ private fun SearchHeader(
         }
 
         Text(
-            text = stringResource(R.string.common_cancel),
+            text = stringResource(R.string.common_confirm),
             color = colors.accent,
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.Medium,
             modifier = Modifier
-                .clickable(onClick = onBack)
+                .clickable(onClick = onSearch)
                 .padding(vertical = 8.dp)
         )
     }

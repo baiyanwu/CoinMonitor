@@ -82,6 +82,7 @@ class DexScreenerPairSelectorTest {
         )
 
         assertEquals(PoolTokenSide.QUOTE, selected?.tokenSide)
+        assertEquals("TGT / OTH", selected?.pairLabel)
         assertEquals(2.0, selected?.priceUsd ?: 0.0, 0.000001)
         assertNull(selected?.change24hPercent)
     }

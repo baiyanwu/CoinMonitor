@@ -2,6 +2,7 @@ package io.baiyanwu.coinmonitor.ui.components
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -9,7 +10,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.OpenInNew
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -32,7 +37,9 @@ import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
 import androidx.compose.ui.input.pointer.positionChangeIgnoreConsumed
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.LocalViewConfiguration
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -42,6 +49,7 @@ import androidx.compose.ui.unit.sp
 import kotlin.math.roundToInt
 import io.baiyanwu.coinmonitor.domain.model.ExchangeSource
 import io.baiyanwu.coinmonitor.domain.model.MarketType
+import io.baiyanwu.coinmonitor.domain.model.MarketPageUrlResolver
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
 import io.baiyanwu.coinmonitor.domain.model.withQuote
 import io.baiyanwu.coinmonitor.domain.repository.QuoteRepository
@@ -73,6 +81,9 @@ fun WatchItemCard(
     onDragCancel: () -> Unit = {}
 ) {
     val colors = CoinMonitorThemeTokens.colors
+    val uriHandler = LocalUriHandler.current
+    val marketPageUrl = remember(item) { MarketPageUrlResolver.resolve(item) }
+    val openMarketPageLabel = stringResource(R.string.home_open_market_page, item.symbol)
     val gestureAnchor = remember { WatchItemGestureAnchor() }
     val viewConfiguration = LocalViewConfiguration.current
     val dragLongPressTimeoutMillis = DRAG_LONG_PRESS_TIMEOUT_MILLIS
@@ -236,15 +247,37 @@ fun WatchItemCard(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                Text(
-                    text = item.symbol,
-                    style = MaterialTheme.typography.titleSmall.copy(
-                        fontSize = 13.sp,
-                        lineHeight = 17.sp
-                    ),
-                    color = colors.primaryText,
-                    fontWeight = FontWeight.SemiBold
-                )
+                Row(
+                    modifier = if (marketPageUrl != null) {
+                        Modifier.clickable(
+                            onClickLabel = openMarketPageLabel,
+                            role = Role.Button,
+                            onClick = { runCatching { uriHandler.openUri(marketPageUrl) } }
+                        )
+                    } else {
+                        Modifier
+                    },
+                    horizontalArrangement = Arrangement.spacedBy(3.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = item.symbol,
+                        style = MaterialTheme.typography.titleSmall.copy(
+                            fontSize = 13.sp,
+                            lineHeight = 17.sp
+                        ),
+                        color = colors.primaryText,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    if (marketPageUrl != null) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Rounded.OpenInNew,
+                            contentDescription = null,
+                            modifier = Modifier.size(13.dp),
+                            tint = colors.accent
+                        )
+                    }
+                }
 
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(4.dp),

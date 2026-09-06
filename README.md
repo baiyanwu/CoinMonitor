@@ -25,6 +25,7 @@
 - Search `Binance Alpha`, Binance spot and USDT-M futures, plus OKX spot and USDT swaps in parallel, then merge, sort, and display one result set after all sources finish
 - Search on-chain tokens by name, symbol, or contract address without selecting a chain; every network returned by `DexScreener` is accepted without a local allowlist
 - Split the home watchlist into swipeable `Exchange / On-chain` pages with category-local ordering, compact quote rows, quick actions, live refresh, and search that opens in the active market mode
+- Open the corresponding external market page from a pair title; on-chain rows show `target / counter token` from the selected pool and keep the label synchronized when the pool or quote source changes
 - Pin selected items into either an arranged floating panel or a full-width, single-line marquee that scrolls tightly packed coin icons and latest prices, with a subtle dot between complete cycles
 - Choose the overlay type from a fixed-header settings flow; a dedicated Floating Pairs page handles selection and drag ordering across exchange and on-chain pairs, while arranged and marquee appearances keep independent opacity, font size, item count, position, and motion settings
 - Keep the arranged overlay's drag, adaptive layout, and edge docking behavior; it can stay as a docked price panel or collapse into a slim edge tab, with foreground-service persistence for both overlay types
@@ -37,6 +38,7 @@
 - On-chain search, latest price, 24h change, liquidity and volume come from `DexScreener`; candlesticks come from `GeckoTerminal`.
 - Results are deduplicated by network and token contract. Each token row shows the selected pair, chain logo, DEX, liquidity, and shortened contract address.
 - When multiple valid pools exist, users can expand the row and switch among the most liquid alternatives. The selected pool is then reused for both quote refreshes and candlesticks.
+- Home rows retain the selected pool's real pair label. Existing watch items missing the counter token are filled automatically after the next valid quote refresh and do not need to be re-added.
 - Icons fall back from known local mappings to online chain-icon candidates and finally to the app's built-in placeholder.
 - Both on-chain sources are public and require no API key. The app does not provide swap, order, or execution capabilities.
 

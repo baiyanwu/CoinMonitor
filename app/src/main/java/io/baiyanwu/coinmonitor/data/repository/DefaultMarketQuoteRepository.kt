@@ -189,7 +189,7 @@ class DefaultMarketQuoteRepository(
                                     item.poolTokenSide != selected.tokenSide
                                 MarketQuote(
                                     id = item.id,
-                                    symbol = item.symbol,
+                                    symbol = selected.pairLabel,
                                     name = item.name,
                                     priceUsd = selected.priceUsd,
                                     change24hPercent = selected.change24hPercent,

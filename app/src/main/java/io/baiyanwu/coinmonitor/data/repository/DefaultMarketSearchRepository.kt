@@ -336,7 +336,7 @@ private fun io.baiyanwu.coinmonitor.data.network.SelectedDexPair.toOnchainWatchI
     val selectedPool = poolOptions.firstOrNull()
     return WatchItem(
         id = "onchain:${chain.chainIndex}:$normalizedAddress",
-        symbol = tokenSymbol.uppercase(),
+        symbol = selectedPool?.pairLabel ?: tokenSymbol.uppercase(),
         name = tokenName,
         exchangeSource = ExchangeSource.ONCHAIN,
         marketType = MarketType.ONCHAIN_TOKEN,
@@ -358,13 +358,10 @@ private fun io.baiyanwu.coinmonitor.data.network.SelectedDexPair.toOnchainWatchI
 private fun io.baiyanwu.coinmonitor.data.network.SelectedDexPair.toPoolOption(
     chain: OnchainChain
 ): OnchainPoolOption {
-    val counterToken = if (tokenSide == PoolTokenSide.BASE) pair.quoteToken else pair.baseToken
-    val targetLabel = tokenSymbol.ifBlank { tokenAddress.take(8) }.uppercase()
-    val counterLabel = counterToken.symbol.ifBlank { counterToken.address.take(8) }.uppercase()
     return OnchainPoolOption(
         poolAddress = normalizeOnchainAddress(chain.family, pair.pairAddress),
         tokenSide = tokenSide,
-        pairLabel = "$targetLabel / $counterLabel",
+        pairLabel = pairLabel,
         dexId = pair.dexId,
         labels = pair.labels.orEmpty(),
         liquidityUsd = pair.liquidity?.usd ?: 0.0,
