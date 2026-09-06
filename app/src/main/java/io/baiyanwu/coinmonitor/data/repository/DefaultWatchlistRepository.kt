@@ -129,6 +129,9 @@ class DefaultWatchlistRepository(
                 val current = existing.toDomain()
                 val bindingChanged = if (current.marketType == MarketType.ONCHAIN_TOKEN) {
                     if (!shouldApplyOnchainQuote(current, quote)) return@forEach
+                    quote.symbol.takeIf(String::isNotBlank)?.let { pairLabel ->
+                        watchItemDao.updateSymbol(id = quote.id, symbol = pairLabel)
+                    }
                     val poolAddress = quote.poolAddress ?: return@forEach
                     val side = quote.poolTokenSide ?: return@forEach
                     val changed = !poolBindingsEqual(

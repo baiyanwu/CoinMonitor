@@ -12,6 +12,7 @@
     <string name="open_search">Open search</string>
     <string name="common_back">Back</string>
     <string name="common_cancel">Cancel</string>
+    <string name="common_confirm">Confirm</string>
     <string name="common_close">Close</string>
     <string name="common_clear">Clear</string>
     <string name="common_min_count">Min 1</string>
@@ -26,6 +27,7 @@
     <string name="home_empty_onchain_hint">Add an on-chain token to start monitoring.</string>
     <string name="home_add_pair">Add pair</string>
     <string name="home_open_search">Search pairs</string>
+    <string name="home_open_market_page">Open the external market page for %1$s</string>
     <string name="home_overlay_tag">Overlay</string>
     <string name="home_pinned_tag">Pinned</string>
     <string name="home_quick_overlay_add">Overlay</string>

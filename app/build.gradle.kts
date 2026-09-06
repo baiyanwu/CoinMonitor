@@ -2,8 +2,8 @@ import java.util.Properties
 
 // 统一维护应用版本信息，避免版本展示与打包产物命名脱节。
 val appArtifactName = "coinmonitor"
-val appVersionCode = 9
-val appVersionName = "1.0.9"
+val appVersionCode = 10
+val appVersionName = "1.0.10"
 
 plugins {
     alias(libs.plugins.android.application)

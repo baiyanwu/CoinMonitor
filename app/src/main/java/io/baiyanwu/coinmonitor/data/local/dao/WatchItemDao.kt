@@ -116,6 +116,9 @@ interface WatchItemDao {
         lastUpdatedAt: Long
     )
 
+    @Query("UPDATE watch_items SET symbol = :symbol WHERE id = :id AND symbol != :symbol")
+    suspend fun updateSymbol(id: String, symbol: String)
+
     @Query(
         """
         UPDATE watch_items

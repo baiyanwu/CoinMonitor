@@ -45,6 +45,7 @@ class DexScreenerMarketSearchRepositoryTest {
         assertTrue(results.all { it.exchangeSource == ExchangeSource.ONCHAIN })
 
         val ethereumResult = results.single { it.chainIndex == "1" }
+        assertEquals("TGT / USDC", ethereumResult.symbol)
         assertEquals("TGT / USDC", ethereumResult.selectedPool?.pairLabel)
         assertEquals("eth-large", ethereumResult.selectedPool?.poolAddress)
         assertEquals(listOf("eth-large", "eth-small"), ethereumResult.poolOptions.map { it.poolAddress })

@@ -122,7 +122,15 @@ data class SelectedDexPair(
     val tokenSymbol: String,
     val priceUsd: Double,
     val change24hPercent: Double?
-)
+) {
+    val pairLabel: String
+        get() {
+            val targetLabel = tokenSymbol.ifBlank { tokenAddress.take(8) }.uppercase()
+            val counterToken = if (tokenSide == PoolTokenSide.BASE) pair.quoteToken else pair.baseToken
+            val counterLabel = counterToken.symbol.ifBlank { counterToken.address.take(8) }.uppercase()
+            return "$targetLabel / $counterLabel"
+        }
+}
 
 object DexScreenerPairSelector {
     fun candidates(

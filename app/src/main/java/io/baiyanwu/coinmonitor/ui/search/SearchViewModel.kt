@@ -98,6 +98,7 @@ internal fun SearchPageState.withSelectedOnchainPool(
 )
 
 private fun WatchItem.withSelectedPool(option: OnchainPoolOption): WatchItem = copy(
+    symbol = option.pairLabel,
     poolAddress = normalizeOnchainAddress(chainFamily, option.poolAddress),
     poolTokenSide = option.tokenSide,
     lastPrice = option.priceUsd,

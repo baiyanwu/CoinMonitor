@@ -53,7 +53,7 @@ object QuoteFormatter {
         val plainText = BigDecimal.valueOf(absoluteValue).stripTrailingZeros().toPlainString()
         val decimalPart = plainText.substringAfter('.', missingDelimiterValue = "")
         val leadingZeroCount = decimalPart.takeWhile { it == '0' }.length
-        if (leadingZeroCount < 4) {
+        if (leadingZeroCount < 3) {
             return sign + DecimalFormat("0.00000000").format(absoluteValue)
         }
 
