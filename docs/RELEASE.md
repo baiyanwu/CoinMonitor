@@ -47,6 +47,40 @@ GitHub Actions secrets 约定：
 - `ANDROID_RELEASE_KEY_ALIAS`
 - `ANDROID_RELEASE_KEY_PASSWORD`
 
+## GitHub Release 更新日志规范
+
+GitHub Release 正文是给产品用户看的最终更新日志，不是 Git 提交记录。每个新版本都必须写清用户能感知到的新增、调整、移除和改进，不能只放 `Full Changelog`、提交列表或 PR 标题。
+
+发布日志以 `docs/CHANGELOG.md`、上一个已发布 tag 到当前发布提交的实际差异为事实来源，但必须改写成产品语言：
+
+- 必须同时提供英文和中文内容，格式参考历史 `release1.0.2`
+- 优先描述用户现在能做什么、界面或行为发生了什么变化
+- 有意义的新增、调整、移除和兼容性影响不能遗漏
+- 无需逐项披露的缺陷可以统一写成 `Bug fixes and stability improvements.` / `修复已知问题并提升稳定性。`
+- 不要把类名、内部架构、重构、commit hash、PR 标题或纯实现细节当作产品日志
+- `Full Changelog` 比较链接可以保留，但只能放在产品日志末尾作为补充
+- 发布时不得保留占位内容
+
+标准结构如下；没有内容的类别直接省略，不要为了凑格式编造：
+
+```markdown
+## X.Y.Z
+
+### What's New
+
+- Added ...
+- Improved ...
+- Bug fixes and stability improvements.
+
+### 更新内容
+
+- 新增……
+- 优化……
+- 修复已知问题并提升稳定性。
+
+**Full Changelog**: https://github.com/baiyanwu/CoinMonitor/compare/PREVIOUS_TAG...vX.Y.Z
+```
+
 ## 发布前本地检查
 
 ```bash
@@ -98,11 +132,17 @@ git push origin v1.0.4
 
 ### 4. 创建 GitHub Release 并等待打包成功
 
+先根据本页规范完成并检查最终产品更新日志，再通过 `--notes-file` 创建 Release。不要使用 `--generate-notes` 代替产品日志。
+
 示例：
 
 ```bash
-gh release create v1.0.4 --title v1.0.4 --generate-notes
+gh release create v1.0.4 --verify-tag --title v1.0.4 \
+  --notes-file /absolute/path/to/reviewed-release-notes.md
+gh release view v1.0.4 --json body,url
 ```
+
+创建后必须回读 Release 正文，确认中英文产品日志完整、没有占位符，并且正文不是只有 `Full Changelog` 链接。
 
 Release 创建后 GitHub Actions 会自动打包上传 APK。**必须等待打包成功后再合入 main**，否则打包失败时 main 上已经有错误版本。
 
@@ -162,8 +202,8 @@ git checkout -b hotfix/1.0.4
 - CI 流程细节见 TECHNICAL.md「CI/CD」章节
 - 单测失败会直接导致 `Android CI` 和 `Android Release` 失败
 - 普通 push 不会自动重跑已经存在的旧 release tag
+- GitHub Release 必须包含最终的中英文产品更新日志；代码比较链接只能作为末尾补充
 - 不要在 `main` 直接做日常开发修复
 - 发布阻塞问题优先修在 `release/x.y.z`
 - 线上紧急问题优先修在 `hotfix/x.y.z`
 - `release/x.y.z` 是后续规范，历史版本不追溯调整
-
