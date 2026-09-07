@@ -85,6 +85,11 @@ class GeckoTerminalClient(
             beforeTimestamp = beforeTimestamp
         )
     }
+
+    suspend fun getTokenHolders(network: String, tokenAddress: String): GeckoTerminalTokenInfoResponse {
+        limiter.awaitPermit()
+        return api.getTokenInfo(network = network, tokenAddress = tokenAddress)
+    }
 }
 
 class RequestRateLimiter(

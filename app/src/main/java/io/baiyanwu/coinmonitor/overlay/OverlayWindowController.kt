@@ -44,19 +44,22 @@ class OverlayWindowController internal constructor(
         context: Context,
         overlayRepository: OverlayRepository,
         appPreferencesRepository: AppPreferencesRepository,
-        scope: CoroutineScope
+        scope: CoroutineScope,
+        onTap: (android.view.View) -> Unit = {}
     ) : this(
         arrangedWindow = ArrangedOverlayWindowController(
             context = context,
             overlayRepository = overlayRepository,
             appPreferencesRepository = appPreferencesRepository,
-            scope = scope
+            scope = scope,
+            onTap = onTap
         ),
         marqueeWindow = MarqueeOverlayWindowController(
             context = context,
             overlayRepository = overlayRepository,
             appPreferencesRepository = appPreferencesRepository,
-            scope = scope
+            scope = scope,
+            onTap = onTap
         )
     )
 

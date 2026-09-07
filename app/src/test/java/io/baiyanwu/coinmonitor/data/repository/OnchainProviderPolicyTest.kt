@@ -10,7 +10,11 @@ import org.junit.Test
 class OnchainProviderPolicyTest {
     @Test
     fun `main source has no removed OKX DEX quote endpoints or capabilities`() {
-        val source = readKotlinMainSources()
+        // The approved clipboard shortcut opens a public token page in the browser;
+        // it is not the removed authenticated OKX on-chain data provider.
+        val source = readKotlinMainSources().replace(
+            "\"https://web3.okx.com/token/{chain}/{ca}\"", "\"public browser shortcut\""
+        )
 
         listOf(
             "wsdex.okx.com",

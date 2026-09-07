@@ -14,6 +14,7 @@ import io.baiyanwu.coinmonitor.data.network.GeckoTerminalClient
 import io.baiyanwu.coinmonitor.data.network.GeckoTerminalOhlcvAttributes
 import io.baiyanwu.coinmonitor.data.network.GeckoTerminalOhlcvData
 import io.baiyanwu.coinmonitor.data.network.GeckoTerminalOhlcvResponse
+import io.baiyanwu.coinmonitor.data.network.GeckoTerminalTokenInfoResponse
 import io.baiyanwu.coinmonitor.data.network.OkxApi
 import io.baiyanwu.coinmonitor.data.network.OkxCandlesResponse
 import io.baiyanwu.coinmonitor.data.network.OkxInstrumentsResponse
@@ -193,6 +194,11 @@ class GeckoTerminalKlineRepositoryTest {
         var token: String? = null
         val limits = mutableListOf<Int>()
         val beforeTimestamps = mutableListOf<Long?>()
+
+        override suspend fun getTokenInfo(
+            network: String,
+            tokenAddress: String
+        ): GeckoTerminalTokenInfoResponse = error("not used")
 
         override suspend fun getPoolOhlcv(
             network: String,

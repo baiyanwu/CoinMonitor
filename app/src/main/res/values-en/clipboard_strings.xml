@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="clipboard_title">CA details</string>
+    <string name="clipboard_settings">Clipboard CA lookup</string>
+    <string name="clipboard_close">Close</string>
+    <string name="clipboard_reading">Reading clipboard…</string>
+    <string name="clipboard_resolving">Looking up CA…</string>
+    <string name="clipboard_no_address">No CA found. Copy a token address and try again.</string>
+    <string name="clipboard_choose_address">Choose a CA</string>
+    <string name="clipboard_choose_chain">Multiple chains found. Choose one.</string>
+    <string name="clipboard_no_pool">No pool with valid market data found.</string>
+    <string name="clipboard_request_failed">Request failed or timed out. Try again.</string>
+    <string name="clipboard_read_failed">Unable to read clipboard. Tap retry.</string>
+    <string name="clipboard_market_cap">Market cap %1$s</string>
+    <string name="clipboard_add_watch">＋ Add to watchlist</string>
+    <string name="clipboard_remove_watch">－ Remove from watchlist</string>
+    <string name="clipboard_add_floating">Add to floating quotes</string>
+    <string name="clipboard_chart_title">Last 24 hours · GeckoTerminal</string>
+    <string name="clipboard_chart_unavailable">Chart unavailable. Quote details remain available.</string>
+    <string name="clipboard_retry">Retry</string>
+    <string name="clipboard_chart_period">Last 24 hours</string>
+    <string name="clipboard_chart_ago">24h ago</string>
+    <string name="clipboard_chart_source">GeckoTerminal · USD</string>
+    <string name="clipboard_chart_now">Now</string>
+    <string name="clipboard_projects">Project</string>
+    <string name="clipboard_holders_description">%1$d holders</string>
+    <string name="clipboard_action_failed">Unable to save. Try again.</string>
+    <string name="clipboard_open_failed">Unable to open this link.</string>
+    <string name="clipboard_back">Back</string>
+    <string name="clipboard_enabled">Tap floating quotes to look up a CA</string>
+    <string name="clipboard_enabled_hint">Reads the current clipboard only after a tap. No background monitoring. Dragging does not trigger lookup; unlock touch-through mode first.</string>
+    <string name="clipboard_floating_hint">Remembered for future additions only. Existing items are unchanged.</string>
+    <string name="clipboard_sites">Quick links</string>
+    <string name="clipboard_sites_hint">Links without a route for the selected chain are disabled.</string>
+    <string name="clipboard_new_site">Add site</string>
+    <string name="clipboard_restore">Restore defaults</string>
+    <string name="clipboard_up">Move up</string>
+    <string name="clipboard_down">Move down</string>
+    <string name="clipboard_drag_handle_description">Drag to reorder %1$s</string>
+    <string name="clipboard_edit">Edit</string>
+    <string name="clipboard_delete">Delete</string>
+    <string name="clipboard_edit_site">Edit quick link</string>
+    <string name="clipboard_site_name">Name</string>
+    <string name="clipboard_site_template">URL template</string>
+    <string name="clipboard_template_hint">Use {ca} for the address and {chain} for the chain. An empty DexScreener template opens the selected pool.</string>
+    <string name="clipboard_chain_mapping">Chain route names</string>
+    <string name="clipboard_chain_templates">Per-chain URLs</string>
+    <string name="clipboard_mapping_hint">One chain=value per line, e.g. solana=sol. For per-chain URLs use ethereum=https://etherscan.io/address/{ca} and leave the main template empty.</string>
+    <string name="clipboard_invalid_site">Enter a name and valid HTTP(S) URL. Check chain mappings for duplicates or invalid values.</string>
+    <string name="clipboard_save">Save</string>
+    <string name="clipboard_cancel">Cancel</string>
+</resources>

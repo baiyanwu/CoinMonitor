@@ -105,6 +105,13 @@ interface GeckoTerminalApi {
         @Query("token") token: String,
         @Query("before_timestamp") beforeTimestamp: Long? = null
     ): GeckoTerminalOhlcvResponse
+
+    @Headers("Accept: application/json;version=20230302")
+    @GET("api/v2/networks/{network}/tokens/{tokenAddress}/info")
+    suspend fun getTokenInfo(
+        @Path("network") network: String,
+        @Path("tokenAddress") tokenAddress: String
+    ): GeckoTerminalTokenInfoResponse
 }
 
 @Serializable
@@ -218,7 +225,8 @@ data class DexScreenerWebsite(
 data class DexScreenerSocial(
     val type: String? = null,
     val platform: String? = null,
-    val handle: String? = null
+    val handle: String? = null,
+    val url: String? = null
 )
 
 @Serializable
@@ -234,6 +242,27 @@ data class GeckoTerminalOhlcvData(
 @Serializable
 data class GeckoTerminalOhlcvAttributes(
     @SerialName("ohlcv_list") val ohlcvList: List<List<Double>> = emptyList()
+)
+
+@Serializable
+data class GeckoTerminalTokenInfoResponse(
+    val data: GeckoTerminalTokenInfoData
+)
+
+@Serializable
+data class GeckoTerminalTokenInfoData(
+    val attributes: GeckoTerminalTokenInfoAttributes
+)
+
+@Serializable
+data class GeckoTerminalTokenInfoAttributes(
+    val address: String = "",
+    val holders: GeckoTerminalHolders? = null
+)
+
+@Serializable
+data class GeckoTerminalHolders(
+    val count: Int? = null
 )
 
 internal fun JsonObject.isAlphaSuccess(): Boolean {

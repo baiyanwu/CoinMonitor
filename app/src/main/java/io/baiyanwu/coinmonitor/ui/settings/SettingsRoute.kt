@@ -79,6 +79,7 @@ private fun SettingsScreen(
     onThemeModeChange: (AppThemeMode) -> Unit,
     onLanguageChange: (AppLanguage) -> Unit
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val colors = CoinMonitorThemeTokens.colors
 
     Column(
@@ -105,6 +106,20 @@ private fun SettingsScreen(
                 ),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+
+        item {
+            ElevatedCard(
+                shape = RoundedCornerShape(20.dp),
+                modifier = Modifier.fillMaxWidth(),
+                colors = CoinMonitorComponentDefaults.elevatedCardColors()
+            ) {
+                SettingNavigationRow(
+                    icon = { Icon(Icons.Rounded.Tune, contentDescription = null) },
+                    title = stringResource(R.string.clipboard_settings),
+                    onClick = { io.baiyanwu.coinmonitor.clipboard.ClipboardSettingsActivity.start(context) }
+                )
+            }
+        }
 
         item {
             ElevatedCard(

@@ -87,6 +87,8 @@ class AppContainer(context: Context) {
     private val geckoTerminalClient = io.baiyanwu.coinmonitor.data.network.GeckoTerminalClient(
         networkFactory.geckoTerminalApi
     )
+    val clipboardSettingsStore = io.baiyanwu.coinmonitor.clipboard.ClipboardSettingsStore(appContext)
+    val clipboardRepository = io.baiyanwu.coinmonitor.clipboard.ClipboardRepository(dexScreenerClient, geckoTerminalClient)
     val appPreferencesRepository: AppPreferencesRepository = DefaultAppPreferencesRepository(
         context = appContext
     )

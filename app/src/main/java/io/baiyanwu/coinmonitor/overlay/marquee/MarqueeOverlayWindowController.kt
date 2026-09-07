@@ -46,7 +46,8 @@ internal class MarqueeOverlayWindowController(
     private val context: Context,
     private val overlayRepository: OverlayRepository,
     private val appPreferencesRepository: AppPreferencesRepository,
-    private val scope: CoroutineScope
+    private val scope: CoroutineScope,
+    private val onTap: (View) -> Unit = {}
 ) : MarqueeOverlayWindowHost {
     private val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
     private val coinIconService = CoinIconService.get(context)
@@ -621,11 +622,14 @@ internal class MarqueeOverlayWindowController(
         config: MarqueeTouchConfig
     ) {
         if (config.locked) {
+            root.setOnClickListener(null)
             root.setOnTouchListener(null)
             return
         }
+        root.setOnClickListener { onTap(root) }
         val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
         root.setOnTouchListener(object : View.OnTouchListener {
+            private var downRawX: Float = 0f
             private var downRawY: Float = 0f
             private var startWindowY: Int = 0
             private var hasDragged: Boolean = false
@@ -636,6 +640,7 @@ internal class MarqueeOverlayWindowController(
                     MotionEvent.ACTION_DOWN -> {
                         isDragging = true
                         hasDragged = false
+                        downRawX = event.rawX
                         downRawY = event.rawY
                         startWindowY = params.y
                         animator?.pause()
@@ -644,7 +649,7 @@ internal class MarqueeOverlayWindowController(
 
                     MotionEvent.ACTION_MOVE -> {
                         val deltaY = event.rawY - downRawY
-                        if (abs(deltaY) > touchSlop) hasDragged = true
+                        if (abs(deltaY) > touchSlop || abs(event.rawX - downRawX) > touchSlop) hasDragged = true
                         if (hasDragged) {
                             params.x = MarqueeWindowPositionPolicy.resolveX()
                             params.y = MarqueeWindowPositionPolicy.resolveY(
@@ -674,6 +679,7 @@ internal class MarqueeOverlayWindowController(
                             scope.launch { overlayRepository.setMarqueeWindowY(resolvedY) }
                         }
                         animator?.resume()
+                        if (event.actionMasked == MotionEvent.ACTION_UP && !hasDragged) view.performClick()
                         return true
                     }
                 }

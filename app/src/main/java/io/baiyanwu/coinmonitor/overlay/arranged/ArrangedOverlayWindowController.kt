@@ -49,7 +49,8 @@ internal class ArrangedOverlayWindowController(
     private val context: Context,
     private val overlayRepository: OverlayRepository,
     private val appPreferencesRepository: AppPreferencesRepository,
-    private val scope: CoroutineScope
+    private val scope: CoroutineScope,
+    private val onTap: (View) -> Unit = {}
 ) : ArrangedOverlayWindowHost {
     private val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
     private val coinIconService = CoinIconService.get(context)
@@ -921,7 +922,7 @@ internal class ArrangedOverlayWindowController(
                 animateHiddenEdgeExpansion()
             }
         } else {
-            root.setOnClickListener(null)
+            root.setOnClickListener { if (!locked) onTap(root) }
         }
 
         val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
@@ -968,6 +969,11 @@ internal class ArrangedOverlayWindowController(
                         isDragging = false
                         if (hiddenEdgeMode && !isHiddenEdgeTabExpanded && !hasDragged) {
                             view.performClick()
+                            return true
+                        }
+                        if (!hasDragged && !locked) {
+                            view.performClick()
+                            consumePendingUpdate()
                             return true
                         }
                         if (!locked) {
