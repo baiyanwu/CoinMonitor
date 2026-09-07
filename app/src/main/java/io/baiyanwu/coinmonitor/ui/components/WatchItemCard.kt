@@ -50,6 +50,7 @@ import kotlin.math.roundToInt
 import io.baiyanwu.coinmonitor.domain.model.ExchangeSource
 import io.baiyanwu.coinmonitor.domain.model.MarketType
 import io.baiyanwu.coinmonitor.domain.model.MarketPageUrlResolver
+import io.baiyanwu.coinmonitor.domain.model.OnchainChainIconRegistry
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
 import io.baiyanwu.coinmonitor.domain.model.withQuote
 import io.baiyanwu.coinmonitor.domain.repository.QuoteRepository
@@ -241,7 +242,12 @@ fun WatchItemCard(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            CoinSymbolIcon(item = item, size = 20.dp)
+            CoilCoinSymbolIcon(
+                symbol = item.baseSymbol,
+                iconUrl = item.iconUrl,
+                fallbackIconUrls = OnchainChainIconRegistry.resolveIconUrls(item.chainIndex),
+                size = 20.dp
+            )
 
             Column(
                 modifier = Modifier.weight(1f),

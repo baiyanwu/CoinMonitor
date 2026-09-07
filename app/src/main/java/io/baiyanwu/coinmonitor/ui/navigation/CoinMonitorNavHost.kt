@@ -53,7 +53,9 @@ fun CoinMonitorNavHost(
     onOpenKlineSearch: () -> Unit,
     onOpenKlineHistory: () -> Unit,
     onOpenKlineIndicatorSettings: () -> Unit,
+    onOpenOverlayItems: () -> Unit,
     onOpenOverlaySettings: () -> Unit,
+    onOpenWalletWatch: () -> Unit,
     onOpenThirdPartyApiSettings: () -> Unit,
     onOpenNetworkLog: () -> Unit,
     onOpenAbout: () -> Unit
@@ -125,7 +127,9 @@ fun CoinMonitorNavHost(
                     contentTopInset = innerPadding.calculateTopPadding(),
                     contentBottomInset = innerPadding.calculateBottomPadding(),
                     onNavigateSearch = onOpenSearch,
-                    onNavigateOverlaySettings = onOpenOverlaySettings
+                    onNavigateOverlayItems = onOpenOverlayItems,
+                    onNavigateOverlaySettings = onOpenOverlaySettings,
+                    onNavigateWalletWatch = onOpenWalletWatch
                 )
             }
             composable(Destinations.KLINE) {

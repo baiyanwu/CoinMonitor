@@ -18,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -25,6 +26,9 @@ import io.baiyanwu.coinmonitor.domain.model.OnchainChainIconRegistry
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
 import io.baiyanwu.coinmonitor.overlay.CoinIconService
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
+import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.request.crossfade
 
 @Composable
 fun CoinSymbolIcon(
@@ -77,6 +81,54 @@ fun CoinSymbolIcon(
         GenericCoinPlaceholder(modifier = iconModifier)
     }
 }
+
+@Composable
+fun CoilCoinSymbolIcon(
+    symbol: String,
+    iconUrl: String? = null,
+    fallbackIconUrls: List<String> = emptyList(),
+    allowSymbolLookup: Boolean = true,
+    modifier: Modifier = Modifier,
+    size: Dp = 20.dp
+) {
+    val context = LocalContext.current
+    val iconService = remember(context) { CoinIconService.get(context) }
+    var resolvedUrl by remember(symbol, allowSymbolLookup) { mutableStateOf<String?>(null) }
+    var failedUrls by remember(symbol, iconUrl, fallbackIconUrls, allowSymbolLookup) {
+        mutableStateOf(emptySet<String>())
+    }
+
+    LaunchedEffect(symbol, allowSymbolLookup) {
+        resolvedUrl = if (allowSymbolLookup) iconService.resolveIconUrl(symbol) else null
+    }
+
+    val candidateUrls = remember(iconUrl, fallbackIconUrls, resolvedUrl) {
+        coilIconCandidateUrls(iconUrl, fallbackIconUrls, resolvedUrl)
+    }
+    val iconModifier = modifier.size(size).clip(CircleShape)
+    val url = candidateUrls.firstOrNull { it !in failedUrls }
+    if (url == null) {
+        GenericCoinPlaceholder(modifier = iconModifier)
+    } else {
+        AsyncImage(
+            model = ImageRequest.Builder(context).data(url).crossfade(false).build(),
+            contentDescription = null,
+            modifier = iconModifier,
+            contentScale = ContentScale.Crop,
+            onError = { failedUrls = failedUrls + url }
+        )
+    }
+}
+
+internal fun coilIconCandidateUrls(
+    preferredUrl: String?,
+    fallbackUrls: List<String>,
+    resolvedSymbolUrl: String?
+): List<String> = buildList {
+    preferredUrl?.takeIf(String::isNotBlank)?.let(::add)
+    addAll(fallbackUrls.filter(String::isNotBlank))
+    resolvedSymbolUrl?.takeIf(String::isNotBlank)?.let(::add)
+}.distinct()
 
 @Composable
 fun CoinSymbolIcon(

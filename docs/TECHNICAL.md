@@ -99,6 +99,12 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 
 ### On-chain
 
+- 首页“链上”分页底部常驻钱包摘要横栏，可启动独立 `WalletWatchActivity`，也可通过横栏内按钮直接刷新当前地址；摘要从最近钱包快照和按地址持久化的隐藏、风险、小额筛选状态计算，返回首页时重新读取。钱包资产模型、仓库和 UI 组件不复用首页币对模型
+- 观察地址支持 EVM 与 Solana，分别路由至 OKX EVM ChainIndex 注册表和 Solana `501`；明细与 token-only 总值并发请求，金额全程使用 `BigDecimal`
+- OKX API Key、Secret Key、Passphrase 使用独立的 `okx_wallet_credentials_secure` 加密偏好保存；安全存储不可用时拒绝明文降级，日志拦截器统一脱敏 OKX 鉴权 Header
+- 观察地址按链切换资产列表；链栏可进入编辑状态并隐藏整条链，长按资产可隐藏单币。两类状态按钱包地址分别持久化，并在底部“已隐藏”面板中分组恢复；页头总资产和数量由全部可见资产汇总，隐藏与恢复会立即同步数值
+- “隐藏风险资产”默认开启；切换时同时更新风险资产可见性并重取对应 OKX 总值。“隐藏小于 1U”只影响当前列表显示，并将无价格或无法计算持仓价值的资产按小额资产处理。完整设计和接口契约见 [WALLET_WATCH.md](WALLET_WATCH.md)
+
 - 当前链上能力提供搜索、最新价格、24 小时涨跌、流动性、成交量与 K 线，不提供交易执行
 - 搜索与报价使用无需 API Key 的 `DexScreener`，K 线使用无需 API Key 的 `GeckoTerminal`
 - 链上搜索不再把本地注册表作为白名单：DexScreener 返回的非空 `chainId` 都会参与结果解析，且不再施加本地 80 条结果上限
@@ -117,7 +123,7 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 - 报价和 K 线捕获普通网络异常时不会捕获 `CancellationException`，快速切换标的、周期或重启刷新任务后，旧任务不会继续更新 UI
 - 搜索结果通过 `LazyColumn.itemsIndexed` 逐条组合和回收，不再在单个 lazy item 内用 `forEach` 一次性组合全部结果
 - 代币图标优先使用 DexScreener 返回的公开 `info.imageUrl`；链 Logo 优先使用本地映射，未命中或下载失败时依次尝试在线链图标候选
-- 链上代币缺少自身图标时，会回退到链 Logo 并在缓存阶段生成灰阶版本复用；所有在线候选都失败时，Compose 列表和原生悬浮窗都使用内置默认占位图，网络异常不会向上抛出中断渲染
+- 链上代币缺少自身图标时会按链 Logo 候选依次回退；所有在线候选都失败时，Compose 列表和原生悬浮窗都使用内置默认占位图，网络异常不会向上抛出中断渲染
 
 ### Overlay
 
@@ -255,7 +261,7 @@ Release 自动流程：
 
 - 首页长按快捷菜单挂在同一棵 Compose 树里渲染，不走独立 `PopupWindow`；菜单会先测量真实宽度，再按手指落点附近定位，并补一段轻量的入场动画。
 - 首页列表在 ViewModel 首次收到本地数据前会先展示加载态，避免把默认空列表误判为空页面。
-- 首页 `CoinSymbolIcon` 会先同步读取本地 / 内存图标缓存，再异步补齐，避免列表滚动时反复闪回占位图。
+- 首页交易所和链上列表统一使用 Coil Compose 请求、解码并维护代币图标的内存与磁盘缓存；项目代码只提供代币图标、链图标和 Symbol 查询 URL 的回退顺序。非 Compose 原生悬浮窗继续使用 `CoinIconService` 位图缓存。
 - 首页实时价格读取下沉到单行价格子树；每个 item 只订阅自己的 quote flow，避免任意一个币价变化时唤醒整屏可见项。
 - 首页与两种悬浮窗的文本币价统一经过 `QuoteFormatter.formatPrice`；悬浮窗只在 `formatOverlayPrice` 外层补充合约标识，不另做数字格式化。小数部分连续前导 0 达到 3 个时使用 Unicode 下标计数压缩，例如 `0.0001234` 显示为 `0.0₃1234`。
 - 首页列表项手势统一收口在自定义 `awaitEachGesture` 流程里：点击、拖动和长按菜单共用一套状态机，避免多套手势监听互相抢占。

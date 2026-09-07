@@ -9,11 +9,10 @@ import org.junit.Test
 
 class OnchainProviderPolicyTest {
     @Test
-    fun `main source has no removed onchain endpoints or capabilities`() {
+    fun `main source has no removed OKX DEX quote endpoints or capabilities`() {
         val source = readKotlinMainSources()
 
         listOf(
-            "web3.okx.com",
             "wsdex.okx.com",
             "OkxOnChainApi",
             "OkxOnChainRequestSigner",
@@ -22,6 +21,8 @@ class OnchainProviderPolicyTest {
         ).forEach { forbidden ->
             assertFalse("Found removed capability: $forbidden", source.contains(forbidden))
         }
+        assertTrue(source.contains("/api/v6/dex/balance/all-token-balances-by-address"))
+        assertTrue(source.contains("/api/v6/dex/balance/total-value-by-address"))
         assertTrue(source.contains("https://www.okx.com/"))
         assertTrue(source.contains("OKX_PUBLIC_WS_URL"))
         assertTrue(source.contains("https://api.dexscreener.com/"))

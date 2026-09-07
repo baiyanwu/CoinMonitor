@@ -40,6 +40,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -70,6 +71,12 @@ fun ThirdPartyApiSettingsRoute(
         onOnchainRefreshModeChange = viewModel::updateOnchainRefreshMode,
         onOnchainRefreshIntervalChange = viewModel::updateOnchainRefreshIntervalSeconds,
         onSaveOnchain = viewModel::saveOnchainSettings,
+        onOkxEnabledChange = viewModel::setOkxWalletEnabled,
+        onOkxApiKeyChange = viewModel::updateOkxWalletApiKey,
+        onOkxSecretKeyChange = viewModel::updateOkxWalletSecretKey,
+        onOkxPassphraseChange = viewModel::updateOkxWalletPassphrase,
+        onSaveOkx = viewModel::saveOkxWalletCredentials,
+        onClearOkx = viewModel::clearOkxWalletCredentials,
         onAiEnabledChange = viewModel::setAiEnabled,
         onAiBaseUrlChange = viewModel::updateAiBaseUrl,
         onAiApiKeyChange = viewModel::updateAiApiKey,
@@ -87,6 +94,12 @@ private fun ThirdPartyApiSettingsScreen(
     onOnchainRefreshModeChange: (OnchainRefreshMode) -> Unit,
     onOnchainRefreshIntervalChange: (Int) -> Unit,
     onSaveOnchain: () -> Unit,
+    onOkxEnabledChange: (Boolean) -> Unit,
+    onOkxApiKeyChange: (String) -> Unit,
+    onOkxSecretKeyChange: (String) -> Unit,
+    onOkxPassphraseChange: (String) -> Unit,
+    onSaveOkx: () -> Unit,
+    onClearOkx: () -> Unit,
     onAiEnabledChange: (Boolean) -> Unit,
     onAiBaseUrlChange: (String) -> Unit,
     onAiApiKeyChange: (String) -> Unit,
@@ -96,7 +109,9 @@ private fun ThirdPartyApiSettingsScreen(
     onClearAi: () -> Unit
 ) {
     val colors = CoinMonitorThemeTokens.colors
+    val uriHandler = LocalUriHandler.current
     var showAiValidationError by rememberSaveable { mutableStateOf(false) }
+    var showOkxValidationError by rememberSaveable { mutableStateOf(false) }
 
     Scaffold(
         containerColor = colors.pageBackground,
@@ -141,6 +156,81 @@ private fun ThirdPartyApiSettingsScreen(
                 ) {
                     Text(text = stringResource(R.string.third_party_api_settings_save))
                 }
+            }
+
+            ThirdPartySectionCard(title = stringResource(R.string.okx_wallet_settings_title)) {
+                Text(
+                    text = stringResource(R.string.okx_wallet_settings_description),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.secondaryText
+                )
+                if (!state.okxWallet.secureStorageAvailable) {
+                    Text(
+                        text = stringResource(R.string.okx_wallet_secure_storage_unavailable),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+                SettingSwitchRow(
+                    title = stringResource(R.string.okx_wallet_settings_enabled),
+                    checked = state.okxWallet.enabled,
+                    onCheckedChange = {
+                        if (it && !state.okxWallet.isComplete) {
+                            showOkxValidationError = true
+                        } else {
+                            showOkxValidationError = false
+                            onOkxEnabledChange(it)
+                        }
+                    },
+                    horizontalPadding = 0.dp,
+                    verticalPadding = 0.dp
+                )
+                OutlinedTextField(
+                    value = state.okxWallet.apiKey,
+                    onValueChange = { showOkxValidationError = false; onOkxApiKeyChange(it) },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text(stringResource(R.string.okx_wallet_api_key)) },
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = state.okxWallet.secretKey,
+                    onValueChange = { showOkxValidationError = false; onOkxSecretKeyChange(it) },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text(stringResource(R.string.okx_wallet_secret_key)) },
+                    visualTransformation = PasswordVisualTransformation(),
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = state.okxWallet.passphrase,
+                    onValueChange = { showOkxValidationError = false; onOkxPassphraseChange(it) },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text(stringResource(R.string.okx_wallet_passphrase)) },
+                    visualTransformation = PasswordVisualTransformation(),
+                    singleLine = true
+                )
+                Text(
+                    text = stringResource(R.string.okx_wallet_developer_portal),
+                    modifier = Modifier.clickable { uriHandler.openUri("https://web3.okx.com/onchainos/dev-portal") },
+                    style = MaterialTheme.typography.labelLarge,
+                    color = colors.accent
+                )
+                if (showOkxValidationError) ValidationText(R.string.okx_wallet_credentials_incomplete)
+                FeedbackText(
+                    savedFlag = state.okxWallet.savedFlag,
+                    clearedFlag = state.okxWallet.clearedFlag,
+                    errorMessage = state.okxWallet.errorMessage
+                )
+                SaveClearButtons(
+                    onSave = {
+                        if ((state.okxWallet.enabled || state.okxWallet.apiKey.isNotBlank() || state.okxWallet.secretKey.isNotBlank() || state.okxWallet.passphrase.isNotBlank()) && !state.okxWallet.isComplete) {
+                            showOkxValidationError = true
+                        } else {
+                            showOkxValidationError = false
+                            onSaveOkx()
+                        }
+                    },
+                    onClear = { showOkxValidationError = false; onClearOkx() }
+                )
             }
 
             if (SHOW_AI_SETTINGS_ENTRY) {

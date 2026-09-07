@@ -10,8 +10,10 @@ import io.baiyanwu.coinmonitor.data.refresh.GlobalQuoteRefreshCoordinator
 import io.baiyanwu.coinmonitor.domain.model.AppPreferences
 import io.baiyanwu.coinmonitor.domain.model.OnchainRefreshMode
 import io.baiyanwu.coinmonitor.domain.model.OpenAiCompatibleConfig
+import io.baiyanwu.coinmonitor.domain.model.OkxWalletCredentials
 import io.baiyanwu.coinmonitor.domain.repository.AiConfigRepository
 import io.baiyanwu.coinmonitor.domain.repository.AppPreferencesRepository
+import io.baiyanwu.coinmonitor.domain.repository.OkxWalletCredentialsRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -48,23 +50,39 @@ data class AiSettingsFormState(
 
 data class ThirdPartyApiSettingsUiState(
     val onchain: OnchainSettingsFormState = OnchainSettingsFormState(),
+    val okxWallet: OkxWalletSettingsFormState = OkxWalletSettingsFormState(),
     val ai: AiSettingsFormState = AiSettingsFormState()
 )
+
+data class OkxWalletSettingsFormState(
+    val enabled: Boolean = false,
+    val apiKey: String = "",
+    val secretKey: String = "",
+    val passphrase: String = "",
+    val secureStorageAvailable: Boolean = true,
+    val savedFlag: Boolean = false,
+    val clearedFlag: Boolean = false,
+    val errorMessage: String? = null
+) {
+    val isComplete: Boolean get() = apiKey.isNotBlank() && secretKey.isNotBlank() && passphrase.isNotBlank()
+}
 
 class ThirdPartyApiSettingsViewModel(
     private val appPreferencesRepository: AppPreferencesRepository,
     private val aiConfigRepository: AiConfigRepository,
+    private val okxWalletCredentialsRepository: OkxWalletCredentialsRepository,
     private val quoteRefreshCoordinator: GlobalQuoteRefreshCoordinator
 ) : ViewModel() {
     private val onchainUiState = MutableStateFlow(OnchainSettingsFormState())
     private val aiUiState = MutableStateFlow(AiSettingsFormState())
+    private val okxWalletUiState = MutableStateFlow(OkxWalletSettingsFormState())
     private val _uiState = MutableStateFlow(ThirdPartyApiSettingsUiState())
     val uiState: StateFlow<ThirdPartyApiSettingsUiState> = _uiState.asStateFlow()
 
     init {
         viewModelScope.launch {
-            combine(onchainUiState, aiUiState) { onchain, ai ->
-                ThirdPartyApiSettingsUiState(onchain = onchain, ai = ai)
+            combine(onchainUiState, okxWalletUiState, aiUiState) { onchain, okxWallet, ai ->
+                ThirdPartyApiSettingsUiState(onchain = onchain, okxWallet = okxWallet, ai = ai)
             }.collect { _uiState.value = it }
         }
         viewModelScope.launch {
@@ -91,9 +109,52 @@ class ThirdPartyApiSettingsViewModel(
             }
         }
         viewModelScope.launch {
+            okxWalletCredentialsRepository.observeCredentials().collect { value ->
+                okxWalletUiState.value = OkxWalletSettingsFormState(
+                    enabled = value.enabled,
+                    apiKey = value.apiKey,
+                    secretKey = value.secretKey,
+                    passphrase = value.passphrase,
+                    secureStorageAvailable = okxWalletCredentialsRepository.isSecureStorageAvailable()
+                )
+            }
+        }
+        viewModelScope.launch {
             aiConfigRepository.observeConfig().collect { config ->
                 aiUiState.value = config.toUiState(aiConfigRepository.isSecureStorageAvailable())
             }
+        }
+    }
+
+    fun setOkxWalletEnabled(value: Boolean) = updateOkx { it.copy(enabled = value) }
+    fun updateOkxWalletApiKey(value: String) = updateOkx { it.copy(apiKey = value) }
+    fun updateOkxWalletSecretKey(value: String) = updateOkx { it.copy(secretKey = value) }
+    fun updateOkxWalletPassphrase(value: String) = updateOkx { it.copy(passphrase = value) }
+
+    private fun updateOkx(block: (OkxWalletSettingsFormState) -> OkxWalletSettingsFormState) {
+        okxWalletUiState.update { block(it).copy(savedFlag = false, clearedFlag = false, errorMessage = null) }
+    }
+
+    fun saveOkxWalletCredentials() {
+        val state = okxWalletUiState.value
+        viewModelScope.launch {
+            runCatching {
+                okxWalletCredentialsRepository.save(
+                    OkxWalletCredentials(state.enabled, state.apiKey, state.secretKey, state.passphrase)
+                )
+            }.onSuccess {
+                okxWalletUiState.update { it.copy(savedFlag = true, clearedFlag = false, errorMessage = null) }
+            }.onFailure { error ->
+                okxWalletUiState.update { it.copy(savedFlag = false, errorMessage = error.message ?: "OKX 凭证保存失败") }
+            }
+        }
+    }
+
+    fun clearOkxWalletCredentials() {
+        viewModelScope.launch {
+            runCatching { okxWalletCredentialsRepository.clear() }
+                .onSuccess { okxWalletUiState.update { OkxWalletSettingsFormState(secureStorageAvailable = it.secureStorageAvailable, clearedFlag = true) } }
+                .onFailure { error -> okxWalletUiState.update { it.copy(errorMessage = error.message ?: "OKX 凭证清除失败") } }
         }
     }
 
@@ -218,6 +279,7 @@ class ThirdPartyApiSettingsViewModel(
                 ThirdPartyApiSettingsViewModel(
                     appPreferencesRepository = container.appPreferencesRepository,
                     aiConfigRepository = container.aiConfigRepository,
+                    okxWalletCredentialsRepository = container.okxWalletCredentialsRepository,
                     quoteRefreshCoordinator = container.globalQuoteRefreshCoordinator
                 )
             }

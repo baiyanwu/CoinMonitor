@@ -32,6 +32,7 @@
 - 设置中的“关于”页集中展示当前构建版本、项目用途、作者、源码仓库、Apache-2.0 许可、问题反馈入口与使用说明
 - 每次主界面创建时通过 GitHub 官方接口检查一次最新已发布 Release；发现更高版本后提示用户打开 Release 页面，不接入第三方更新服务
 - 交易所行情优先使用 `WSS`，链上价格使用独立的智能或固定轮转周期，并顺序分散 DexScreener 请求
+- 首页“链上”分页提供独立“观察地址”页面，可只读查询 EVM 或 Solana 地址的全部非零代币和美元估值；数据来自 OKX Wallet API，凭证保存在 Android 加密存储中
 
 ## 链上说明
 
@@ -62,6 +63,7 @@ cd CoinMonitor
 ## 文档
 
 - 技术实现说明：[TECHNICAL.md](./docs/TECHNICAL.md)
+- 观察地址说明：[WALLET_WATCH.md](./docs/WALLET_WATCH.md)
 - 英文 README：[README.md](./README.md)
 - 贡献说明：[CONTRIBUTING.md](./docs/CONTRIBUTING.md)
 

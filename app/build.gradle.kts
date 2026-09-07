@@ -144,6 +144,8 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.jsoup)
+    implementation(libs.coil.compose)
+    implementation(libs.coil.network.okhttp)
     implementation(libs.androidx.security.crypto)
     implementation(project(":lib"))
     implementation(project(":third_party:lightweightlibrary"))
