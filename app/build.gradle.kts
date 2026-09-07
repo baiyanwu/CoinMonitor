@@ -2,8 +2,8 @@ import java.util.Properties
 
 // 统一维护应用版本信息，避免版本展示与打包产物命名脱节。
 val appArtifactName = "coinmonitor"
-val appVersionCode = 10
-val appVersionName = "1.0.10"
+val appVersionCode = 11
+val appVersionName = "1.0.11"
 
 plugins {
     alias(libs.plugins.android.application)
@@ -144,6 +144,8 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.jsoup)
+    implementation(libs.coil.compose)
+    implementation(libs.coil.network.okhttp)
     implementation(libs.androidx.security.crypto)
     implementation(project(":lib"))
     implementation(project(":third_party:lightweightlibrary"))

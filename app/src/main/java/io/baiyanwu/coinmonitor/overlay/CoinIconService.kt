@@ -24,6 +24,8 @@ class CoinIconService private constructor(private val context: Context) {
     private val httpClient = OkHttpClient()
     private val cacheMutex = Mutex()
     private val memoryCache = ConcurrentHashMap<String, Bitmap>()
+    private val resolvedIconUrls = ConcurrentHashMap<String, String>()
+    private val unresolvedIconSymbols = ConcurrentHashMap.newKeySet<String>()
     private val ttlMillis = 7L * 24L * 60L * 60L * 1000L
     private val iconDir: File by lazy {
         File(context.cacheDir, "coin_icons").apply {
@@ -95,6 +97,15 @@ class CoinIconService private constructor(private val context: Context) {
         if (!allowSymbolLookup) return null
         memoryCache[normalized]?.let { return it }
         return loadFromDisk(normalized)?.also { memoryCache[normalized] = it }
+    }
+
+    suspend fun resolveIconUrl(symbol: String): String? = withContext(Dispatchers.IO) {
+        val normalized = symbol.uppercase()
+        resolvedIconUrls[normalized]?.let { return@withContext it }
+        if (unresolvedIconSymbols.contains(normalized)) return@withContext null
+        val resolved = fetchIconUrl(normalized)
+        if (resolved == null) unresolvedIconSymbols += normalized else resolvedIconUrls[normalized] = resolved
+        resolved
     }
 
     private fun loadCachedBitmap(cacheKey: String): Bitmap? {

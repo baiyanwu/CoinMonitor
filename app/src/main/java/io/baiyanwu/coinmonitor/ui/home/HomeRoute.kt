@@ -2,7 +2,12 @@ package io.baiyanwu.coinmonitor.ui.home
 
 import android.widget.Toast
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
@@ -29,12 +34,16 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Layers
+import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VerticalAlignTop
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -74,18 +83,22 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.baiyanwu.coinmonitor.data.AppContainer
 import io.baiyanwu.coinmonitor.domain.model.MarketType
+import io.baiyanwu.coinmonitor.domain.model.WalletAsset
 import io.baiyanwu.coinmonitor.domain.repository.QuoteRepository
 import io.baiyanwu.coinmonitor.ui.components.MainTabTopBarHorizontalPadding
 import io.baiyanwu.coinmonitor.ui.components.MarketModeTabs
-import io.baiyanwu.coinmonitor.ui.components.SearchEntryButton
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
 import io.baiyanwu.coinmonitor.ui.components.WatchItemCard
 import io.baiyanwu.coinmonitor.ui.search.SearchMode
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorComponentDefaults
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
+import io.baiyanwu.coinmonitor.ui.walletwatch.formatWalletValue
+import io.baiyanwu.coinmonitor.ui.walletwatch.shortenWalletContract
 import io.baiyanwu.coinmonitor.R
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import java.math.BigDecimal
 
 private data class HomeQuickMenuState(
     val itemId: String,
@@ -99,6 +112,14 @@ private data class HomeDragState(
     val didReorder: Boolean = false
 )
 
+internal data class HomeWalletWatchSummary(
+    val address: String,
+    val totalValueUsd: BigDecimal?,
+    val assetCount: Int?
+)
+
+private val HomeWalletWatchBarInset = 66.dp
+
 private val HOME_MODES = listOf(SearchMode.EXCHANGE, SearchMode.ONCHAIN)
 
 internal fun filterHomeWatchItems(
@@ -109,23 +130,34 @@ internal fun filterHomeWatchItems(
     SearchMode.ONCHAIN -> items.filter { it.marketType == MarketType.ONCHAIN_TOKEN }
 }
 
+internal fun shouldShowWalletWatchEntry(mode: SearchMode): Boolean = mode == SearchMode.ONCHAIN
+
 @Composable
 fun HomeRoute(
     container: AppContainer,
     contentTopInset: Dp = 0.dp,
     contentBottomInset: Dp = 0.dp,
     onNavigateSearch: (SearchMode) -> Unit,
-    onNavigateOverlaySettings: () -> Unit
+    onNavigateOverlayItems: () -> Unit,
+    onNavigateOverlaySettings: () -> Unit,
+    onNavigateWalletWatch: () -> Unit
 ) {
     val viewModel: HomeViewModel = viewModel(factory = HomeViewModel.factory(container))
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val lifecycleOwner = LocalLifecycleOwner.current
     val context = LocalContext.current
+    val walletRefreshScope = rememberCoroutineScope()
+    var walletSummaryRefreshKey by remember { mutableStateOf(0) }
+    var walletWatchSummary by remember { mutableStateOf<HomeWalletWatchSummary?>(null) }
+    var walletWatchRefreshing by remember { mutableStateOf(false) }
 
     DisposableEffect(lifecycleOwner, viewModel) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
-                Lifecycle.Event.ON_RESUME -> viewModel.setScreenActive(true)
+                Lifecycle.Event.ON_RESUME -> {
+                    viewModel.setScreenActive(true)
+                    walletSummaryRefreshKey += 1
+                }
                 Lifecycle.Event.ON_PAUSE -> viewModel.setScreenActive(false)
                 else -> Unit
             }
@@ -134,6 +166,25 @@ fun HomeRoute(
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
             viewModel.setScreenActive(false)
+        }
+    }
+
+    LaunchedEffect(container, walletSummaryRefreshKey) {
+        val address = container.walletWatchPreferencesRepository.getLastAddress()
+        val cached = address?.let { container.walletPortfolioCacheRepository.load(it) }
+        walletWatchSummary = if (address == null) {
+            null
+        } else if (cached == null) {
+            HomeWalletWatchSummary(address = address, totalValueUsd = null, assetCount = null)
+        } else {
+            buildHomeWalletWatchSummary(
+                address = address,
+                assets = cached.snapshot.assets,
+                hiddenAssetIds = container.walletWatchPreferencesRepository.getHiddenAssetIds(address),
+                hiddenChainIndexes = container.walletWatchPreferencesRepository.getHiddenChainIndexes(address),
+                hideSmallAssets = container.walletWatchPreferencesRepository.getHideSmallAssets(address),
+                includeRiskAssets = container.walletWatchPreferencesRepository.getIncludeRiskAssets(address)
+            )
         }
     }
 
@@ -148,7 +199,46 @@ fun HomeRoute(
         contentTopInset = contentTopInset,
         contentBottomInset = contentBottomInset,
         onNavigateSearch = onNavigateSearch,
+        onNavigateOverlayItems = onNavigateOverlayItems,
         onNavigateOverlaySettings = onNavigateOverlaySettings,
+        onNavigateWalletWatch = onNavigateWalletWatch,
+        walletWatchSummary = walletWatchSummary,
+        walletWatchRefreshing = walletWatchRefreshing,
+        onRefreshWalletWatch = {
+            val address = walletWatchSummary?.address
+            if (address != null && !walletWatchRefreshing) {
+                walletRefreshScope.launch {
+                    walletWatchRefreshing = true
+                    try {
+                        val includeRiskAssets = container.walletWatchPreferencesRepository
+                            .getIncludeRiskAssets(address)
+                        val snapshot = container.walletPortfolioRepository.load(
+                            address = address,
+                            includeRiskInTotal = includeRiskAssets
+                        )
+                        container.walletPortfolioCacheRepository.save(snapshot, includeRiskAssets)
+                        walletWatchSummary = buildHomeWalletWatchSummary(
+                            address = address,
+                            assets = snapshot.assets,
+                            hiddenAssetIds = container.walletWatchPreferencesRepository.getHiddenAssetIds(address),
+                            hiddenChainIndexes = container.walletWatchPreferencesRepository.getHiddenChainIndexes(address),
+                            hideSmallAssets = container.walletWatchPreferencesRepository.getHideSmallAssets(address),
+                            includeRiskAssets = includeRiskAssets
+                        )
+                    } catch (cancellation: CancellationException) {
+                        throw cancellation
+                    } catch (throwable: Throwable) {
+                        Toast.makeText(
+                            context,
+                            throwable.message ?: context.getString(R.string.home_wallet_watch_refresh_failed),
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    } finally {
+                        walletWatchRefreshing = false
+                    }
+                }
+            }
+        },
         quoteRepository = container.quoteRepository,
         onRemoveWatchItem = viewModel::removeWatchItem,
         onToggleOverlay = viewModel::toggleOverlay,
@@ -165,7 +255,12 @@ internal fun HomeScreen(
     contentTopInset: Dp,
     contentBottomInset: Dp,
     onNavigateSearch: (SearchMode) -> Unit,
+    onNavigateOverlayItems: () -> Unit,
     onNavigateOverlaySettings: () -> Unit,
+    onNavigateWalletWatch: () -> Unit,
+    walletWatchSummary: HomeWalletWatchSummary?,
+    walletWatchRefreshing: Boolean,
+    onRefreshWalletWatch: () -> Unit,
     quoteRepository: QuoteRepository,
     onRemoveWatchItem: (String) -> Unit,
     onToggleOverlay: (String) -> Unit,
@@ -175,6 +270,7 @@ internal fun HomeScreen(
     onRefresh: () -> Unit
 ) {
     var quickMenuState by remember { mutableStateOf<HomeQuickMenuState?>(null) }
+    var pairActionsExpanded by remember { mutableStateOf(false) }
     var showOverlayEnableDialog by remember { mutableStateOf(false) }
     var rootSize by remember { mutableStateOf(IntSize.Zero) }
     val colors = CoinMonitorThemeTokens.colors
@@ -189,6 +285,7 @@ internal fun HomeScreen(
     val pageItems = remember(state.items) {
         HOME_MODES.map { mode -> filterHomeWatchItems(state.items, mode) }
     }
+    val walletWatchEntryVisible = shouldShowWalletWatchEntry(HOME_MODES[pagerState.currentPage])
     val overlayEnableDialogTitle = stringResource(R.string.home_overlay_enable_dialog_title)
     val overlayEnableDialogMessage = stringResource(R.string.home_overlay_enable_dialog_message)
     val overlayEnableDialogDismiss = stringResource(R.string.common_cancel)
@@ -196,6 +293,7 @@ internal fun HomeScreen(
 
     LaunchedEffect(pagerState.currentPage) {
         quickMenuState = null
+        pairActionsExpanded = false
     }
 
     Box(
@@ -220,10 +318,6 @@ internal fun HomeScreen(
                         }
                     },
                     modifier = Modifier.align(Alignment.Center)
-                )
-                SearchEntryButton(
-                    onClick = { onNavigateSearch(HOME_MODES[pagerState.currentPage]) },
-                    modifier = Modifier.align(Alignment.CenterEnd)
                 )
             }
 
@@ -261,6 +355,38 @@ internal fun HomeScreen(
                 )
             }
         }
+
+        if (walletWatchEntryVisible) {
+            HomeWalletWatchBar(
+                summary = walletWatchSummary,
+                refreshing = walletWatchRefreshing,
+                onClick = onNavigateWalletWatch,
+                onRefresh = onRefreshWalletWatch,
+                modifier = Modifier.align(Alignment.BottomCenter)
+            )
+        }
+
+        HomePairActionsMenu(
+            expanded = pairActionsExpanded,
+            onExpandedChange = { expanded ->
+                quickMenuState = null
+                pairActionsExpanded = expanded
+            },
+            onAddPair = {
+                if (pairActionsExpanded) {
+                    pairActionsExpanded = false
+                    onNavigateSearch(HOME_MODES[pagerState.currentPage])
+                }
+            },
+            onConfigureOverlayItems = {
+                if (pairActionsExpanded) {
+                    pairActionsExpanded = false
+                    onNavigateOverlayItems()
+                }
+            },
+            bottomInset = if (walletWatchEntryVisible) HomeWalletWatchBarInset else 0.dp,
+            modifier = Modifier.matchParentSize()
+        )
 
         quickMenuState?.let { menuState ->
             val menuItem = state.items.firstOrNull { it.id == menuState.itemId } ?: return@let
@@ -391,7 +517,9 @@ private fun HomeWatchlistPage(
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 state = listState,
-                contentPadding = PaddingValues(bottom = 24.dp),
+                contentPadding = PaddingValues(
+                    bottom = HomePairActionsContentPadding + if (mode == SearchMode.ONCHAIN) HomeWalletWatchBarInset else 0.dp
+                ),
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 items(displayItems, key = { it.id }) { item ->
@@ -471,6 +599,125 @@ private fun HomeWatchlistPage(
             }
         }
     }
+}
+
+@Composable
+private fun HomeWalletWatchBar(
+    summary: HomeWalletWatchSummary?,
+    refreshing: Boolean,
+    onClick: () -> Unit,
+    onRefresh: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val colors = CoinMonitorThemeTokens.colors
+    val refreshRotation by rememberInfiniteTransition(label = "wallet-watch-refresh").animateFloat(
+        initialValue = 0f,
+        targetValue = if (refreshing) 360f else 0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 800, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "wallet-watch-refresh-rotation"
+    )
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 6.dp)
+            .clickable(onClick = onClick)
+            .testTag("home-wallet-watch-bar"),
+        shape = RoundedCornerShape(14.dp),
+        color = colors.cardBackground,
+        tonalElevation = 3.dp
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 9.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Visibility,
+                contentDescription = null,
+                modifier = Modifier.size(21.dp),
+                tint = colors.accent
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(if (summary == null) R.string.wallet_watch_title else R.string.home_wallet_watch_current),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = summary?.address?.let(::shortenWalletContract)
+                        ?: stringResource(R.string.home_wallet_watch_add_address),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.secondaryText,
+                    maxLines = 1
+                )
+            }
+            if (summary != null) {
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        text = summary.totalValueUsd?.let {
+                            stringResource(R.string.wallet_watch_usd_value, formatWalletValue(it))
+                        } ?: stringResource(R.string.home_wallet_watch_no_assets),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    summary.assetCount?.let { count ->
+                        Text(
+                            text = stringResource(R.string.home_wallet_watch_visible_assets, count),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = colors.secondaryText
+                        )
+                    }
+                }
+                IconButton(
+                    onClick = onRefresh,
+                    enabled = !refreshing,
+                    modifier = Modifier
+                        .size(40.dp)
+                        .testTag("home-wallet-watch-refresh")
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Refresh,
+                        contentDescription = stringResource(R.string.home_wallet_watch_refresh),
+                        modifier = Modifier
+                            .size(19.dp)
+                            .graphicsLayer { rotationZ = if (refreshing) refreshRotation else 0f },
+                        tint = if (refreshing) colors.accent else colors.secondaryText
+                    )
+                }
+            }
+            Icon(
+                imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                tint = colors.secondaryText
+            )
+        }
+    }
+}
+
+internal fun buildHomeWalletWatchSummary(
+    address: String,
+    assets: List<WalletAsset>,
+    hiddenAssetIds: Set<String>,
+    hiddenChainIndexes: Set<String>,
+    hideSmallAssets: Boolean,
+    includeRiskAssets: Boolean
+): HomeWalletWatchSummary {
+    val visibleAssets = assets.filter { asset ->
+        asset.id !in hiddenAssetIds &&
+            asset.chainIndex !in hiddenChainIndexes &&
+            (includeRiskAssets || !asset.isRiskToken) &&
+            (!hideSmallAssets || (asset.holdingValueUsd != null && asset.holdingValueUsd >= BigDecimal.ONE))
+    }
+    return HomeWalletWatchSummary(
+        address = address,
+        totalValueUsd = visibleAssets.mapNotNull(WalletAsset::holdingValueUsd)
+            .fold(BigDecimal.ZERO, BigDecimal::add),
+        assetCount = visibleAssets.size
+    )
 }
 
 @Composable

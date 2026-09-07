@@ -1,5 +1,9 @@
 package io.baiyanwu.coinmonitor.ui.components
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.widget.Toast
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
@@ -14,6 +18,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.OpenInNew
+import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -38,6 +43,7 @@ import androidx.compose.ui.input.pointer.positionChangeIgnoreConsumed
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.platform.testTag
@@ -50,6 +56,7 @@ import kotlin.math.roundToInt
 import io.baiyanwu.coinmonitor.domain.model.ExchangeSource
 import io.baiyanwu.coinmonitor.domain.model.MarketType
 import io.baiyanwu.coinmonitor.domain.model.MarketPageUrlResolver
+import io.baiyanwu.coinmonitor.domain.model.OnchainChainIconRegistry
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
 import io.baiyanwu.coinmonitor.domain.model.withQuote
 import io.baiyanwu.coinmonitor.domain.repository.QuoteRepository
@@ -81,9 +88,18 @@ fun WatchItemCard(
     onDragCancel: () -> Unit = {}
 ) {
     val colors = CoinMonitorThemeTokens.colors
+    val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
     val marketPageUrl = remember(item) { MarketPageUrlResolver.resolve(item) }
     val openMarketPageLabel = stringResource(R.string.home_open_market_page, item.symbol)
+    val tokenAddress = item.tokenAddress
+        ?.trim()
+        ?.takeIf { item.marketType == MarketType.ONCHAIN_TOKEN && it.isNotEmpty() }
+    val compactTokenAddress = remember(tokenAddress) {
+        tokenAddress?.let(::compactContractAddress)
+    }
+    val copyCaDescription = stringResource(R.string.home_copy_ca_description)
+    val caCopiedMessage = stringResource(R.string.home_ca_copied)
     val gestureAnchor = remember { WatchItemGestureAnchor() }
     val viewConfiguration = LocalViewConfiguration.current
     val dragLongPressTimeoutMillis = DRAG_LONG_PRESS_TIMEOUT_MILLIS
@@ -241,7 +257,12 @@ fun WatchItemCard(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            CoinSymbolIcon(item = item, size = 20.dp)
+            CoilCoinSymbolIcon(
+                symbol = item.baseSymbol,
+                iconUrl = item.iconUrl,
+                fallbackIconUrls = OnchainChainIconRegistry.resolveIconUrls(item.chainIndex),
+                size = 20.dp
+            )
 
             Column(
                 modifier = Modifier.weight(1f),
@@ -283,6 +304,32 @@ fun WatchItemCard(
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    if (tokenAddress != null && compactTokenAddress != null) {
+                        Text(
+                            text = compactTokenAddress,
+                            maxLines = 1,
+                            color = colors.secondaryText,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontSize = 9.sp,
+                                lineHeight = 11.sp
+                            )
+                        )
+                        Icon(
+                            imageVector = Icons.Rounded.ContentCopy,
+                            contentDescription = copyCaDescription,
+                            modifier = Modifier
+                                .size(12.dp)
+                                .clickable(
+                                    onClickLabel = copyCaDescription,
+                                    role = Role.Button
+                                ) {
+                                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                    clipboard.setPrimaryClip(ClipData.newPlainText("Contract address", tokenAddress))
+                                    Toast.makeText(context, caCopiedMessage, Toast.LENGTH_SHORT).show()
+                                },
+                            tint = colors.accent
+                        )
+                    }
                     ExchangeBadge(source = item.exchangeSource)
                     if (item.marketType == MarketType.CEX_USDT_FUTURES) {
                         MiniTag(
@@ -422,3 +469,14 @@ private fun MiniTag(
         }
     }
 }
+
+internal fun compactContractAddress(address: String): String {
+    val trimmed = address.trim()
+    if (trimmed.length <= CONTRACT_ADDRESS_VISIBLE_LENGTH) return trimmed
+    return "${trimmed.take(CONTRACT_ADDRESS_HEAD_LENGTH)}…${trimmed.takeLast(CONTRACT_ADDRESS_TAIL_LENGTH)}"
+}
+
+private const val CONTRACT_ADDRESS_HEAD_LENGTH = 6
+private const val CONTRACT_ADDRESS_TAIL_LENGTH = 4
+private const val CONTRACT_ADDRESS_VISIBLE_LENGTH =
+    CONTRACT_ADDRESS_HEAD_LENGTH + CONTRACT_ADDRESS_TAIL_LENGTH + 1

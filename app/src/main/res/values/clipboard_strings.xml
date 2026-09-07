@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="clipboard_title">CA 信息</string>
+    <string name="clipboard_settings">剪贴板 CA 查询</string>
+    <string name="clipboard_close">关闭</string>
+    <string name="clipboard_reading">正在读取剪贴板…</string>
+    <string name="clipboard_resolving">正在解析 CA…</string>
+    <string name="clipboard_no_address">剪贴板中未发现 CA，请复制地址后重试。</string>
+    <string name="clipboard_choose_address">选择要查询的 CA</string>
+    <string name="clipboard_choose_chain">发现多条链，请选择</string>
+    <string name="clipboard_no_pool">未找到有有效行情的交易池。</string>
+    <string name="clipboard_request_failed">请求失败或超时，请重试。</string>
+    <string name="clipboard_read_failed">无法读取剪贴板，请点击重试。</string>
+    <string name="clipboard_market_cap">市值 %1$s</string>
+    <string name="clipboard_add_watch">＋ 加入自选</string>
+    <string name="clipboard_remove_watch">－ 移出自选</string>
+    <string name="clipboard_add_floating">加入悬浮窗</string>
+    <string name="clipboard_chart_title">近 24 小时走势 · GeckoTerminal</string>
+    <string name="clipboard_chart_unavailable">暂无走势数据，基本行情仍可使用。</string>
+    <string name="clipboard_retry">重试</string>
+    <string name="clipboard_chart_period">近 24 小时</string>
+    <string name="clipboard_chart_ago">24 小时前</string>
+    <string name="clipboard_chart_source">GeckoTerminal · USD</string>
+    <string name="clipboard_chart_now">更新时</string>
+    <string name="clipboard_projects">项目</string>
+    <string name="clipboard_holders_description">持仓人数 %1$d</string>
+    <string name="clipboard_action_failed">保存失败，请重试。</string>
+    <string name="clipboard_open_failed">无法打开此链接。</string>
+    <string name="clipboard_back">返回</string>
+    <string name="clipboard_enabled">点击悬浮窗查询 CA</string>
+    <string name="clipboard_enabled_hint">仅在点击后读取当前剪贴板，不在后台监听。拖动不会触发查询；锁定穿透时需先解除锁定。</string>
+    <string name="clipboard_floating_hint">长期记住此偏好，仅影响之后的添加，不改变已有币种。</string>
+    <string name="clipboard_sites">快捷网站</string>
+    <string name="clipboard_sites_hint">不支持当前链的网站在信息卡中不可点击。</string>
+    <string name="clipboard_new_site">新增网站</string>
+    <string name="clipboard_restore">恢复默认网站</string>
+    <string name="clipboard_up">上移</string>
+    <string name="clipboard_down">下移</string>
+    <string name="clipboard_drag_handle_description">拖动调整 %1$s 的顺序</string>
+    <string name="clipboard_edit">编辑</string>
+    <string name="clipboard_delete">删除</string>
+    <string name="clipboard_edit_site">编辑快捷网站</string>
+    <string name="clipboard_site_name">网站名称</string>
+    <string name="clipboard_site_template">网址模板</string>
+    <string name="clipboard_template_hint">使用 {ca} 表示地址、{chain} 表示链。DexScreener 留空时使用当前交易池。</string>
+    <string name="clipboard_chain_mapping">链名称映射</string>
+    <string name="clipboard_chain_templates">各链独立网址</string>
+    <string name="clipboard_mapping_hint">每行填写 链=值，例如 solana=sol。独立网址填写 ethereum=https://etherscan.io/address/{ca}，并留空上方网址模板。</string>
+    <string name="clipboard_invalid_site">请填写名称及有效的 HTTP(S) 网址，检查链映射是否重复或格式错误。</string>
+    <string name="clipboard_save">保存</string>
+    <string name="clipboard_cancel">取消</string>
+</resources>

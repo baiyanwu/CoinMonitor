@@ -18,7 +18,11 @@ import io.baiyanwu.coinmonitor.data.repository.DefaultMarketKlineRepository
 import io.baiyanwu.coinmonitor.data.repository.DefaultMarketQuoteRepository
 import io.baiyanwu.coinmonitor.data.repository.DefaultMarketSearchRepository
 import io.baiyanwu.coinmonitor.data.repository.DefaultNetworkLogRepository
+import io.baiyanwu.coinmonitor.data.repository.DefaultOkxWalletCredentialsRepository
 import io.baiyanwu.coinmonitor.data.repository.DefaultOverlayRepository
+import io.baiyanwu.coinmonitor.data.repository.DefaultWalletPortfolioRepository
+import io.baiyanwu.coinmonitor.data.repository.DefaultWalletPortfolioCacheRepository
+import io.baiyanwu.coinmonitor.data.repository.DefaultWalletWatchPreferencesRepository
 import io.baiyanwu.coinmonitor.data.repository.DefaultWatchlistRepository
 import io.baiyanwu.coinmonitor.data.repository.InMemoryQuoteRepository
 import io.baiyanwu.coinmonitor.data.repository.migrateLegacyOnchainSettings
@@ -83,6 +87,8 @@ class AppContainer(context: Context) {
     private val geckoTerminalClient = io.baiyanwu.coinmonitor.data.network.GeckoTerminalClient(
         networkFactory.geckoTerminalApi
     )
+    val clipboardSettingsStore = io.baiyanwu.coinmonitor.clipboard.ClipboardSettingsStore(appContext)
+    val clipboardRepository = io.baiyanwu.coinmonitor.clipboard.ClipboardRepository(dexScreenerClient, geckoTerminalClient)
     val appPreferencesRepository: AppPreferencesRepository = DefaultAppPreferencesRepository(
         context = appContext
     )
@@ -106,6 +112,16 @@ class AppContainer(context: Context) {
 
     val aiConfigRepository: AiConfigRepository = DefaultAiConfigRepository(
         context = appContext
+    )
+
+    val okxWalletCredentialsRepository = DefaultOkxWalletCredentialsRepository(appContext)
+    val walletWatchPreferencesRepository = DefaultWalletWatchPreferencesRepository(appContext)
+    val walletPortfolioCacheRepository = DefaultWalletPortfolioCacheRepository(appContext)
+    val walletPortfolioRepository = DefaultWalletPortfolioRepository(
+        client = io.baiyanwu.coinmonitor.data.network.OkxWalletClient(
+            httpClient = networkFactory.okHttpClient,
+            credentialsProvider = okxWalletCredentialsRepository::getCredentials
+        )
     )
 
     val marketSearchRepository: MarketSearchRepository = DefaultMarketSearchRepository(

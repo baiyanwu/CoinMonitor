@@ -34,6 +34,7 @@ class OverlayForegroundService : Service() {
     private val container by lazy { appContainer() }
     private lateinit var coordinator: OverlayPriceRefreshCoordinator
     private lateinit var windowController: OverlayWindowController
+    private lateinit var clipboardWindow: io.baiyanwu.coinmonitor.clipboard.ClipboardWindowController
     private var isForegroundStarted: Boolean = false
     private var latestSettings: OverlaySettings = OverlaySettings()
 
@@ -41,11 +42,13 @@ class OverlayForegroundService : Service() {
         super.onCreate()
         createChannelIfNeeded()
 
+        clipboardWindow = io.baiyanwu.coinmonitor.clipboard.ClipboardWindowController(this, container, serviceScope)
         windowController = OverlayWindowController(
             context = this,
             overlayRepository = container.overlayRepository,
             appPreferencesRepository = container.appPreferencesRepository,
-            scope = serviceScope
+            scope = serviceScope,
+            onTap = clipboardWindow::show
         )
         container.globalQuoteRefreshCoordinator.setOverlayActive(true)
         coordinator = OverlayPriceRefreshCoordinator(
@@ -58,6 +61,7 @@ class OverlayForegroundService : Service() {
                 windowController.showOrUpdate(items, settings)
             } else {
                 windowController.hide()
+                clipboardWindow.hide()
             }
         }
         coordinator.start()
@@ -72,6 +76,8 @@ class OverlayForegroundService : Service() {
                     temporarilyHidden = temporarilyHidden
                 )
             }.collect { snapshot ->
+                if (latestSettings.displayType != snapshot.settings.displayType || snapshot.settings.locked ||
+                    !snapshot.settings.enabled || snapshot.temporarilyHidden) clipboardWindow.hide()
                 latestSettings = snapshot.settings
                 if (isForegroundStarted) {
                     notificationManager.notify(
@@ -101,6 +107,7 @@ class OverlayForegroundService : Service() {
                 startForegroundIfNeeded()
                 OverlayRuntimeSession.setTemporarilyHidden(true)
                 windowController.hide()
+                clipboardWindow.hide()
                 return START_STICKY
             }
 
@@ -157,6 +164,7 @@ class OverlayForegroundService : Service() {
         container.globalQuoteRefreshCoordinator.setOverlayActive(false)
         coordinator.stop()
         windowController.hide()
+        clipboardWindow.hide()
         OverlayRuntimeSession.reset()
         serviceScope.cancel()
         super.onDestroy()
@@ -164,6 +172,7 @@ class OverlayForegroundService : Service() {
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
+        clipboardWindow.hide()
         serviceScope.launch {
             renderLatestOverlay()
         }
@@ -189,6 +198,7 @@ class OverlayForegroundService : Service() {
     private suspend fun stopSelfSafely() {
         OverlayRuntimeSession.reset()
         windowController.hide()
+        clipboardWindow.hide()
         stopForeground(STOP_FOREGROUND_REMOVE)
         isForegroundStarted = false
         stopSelf()
@@ -329,6 +339,7 @@ class OverlayForegroundService : Service() {
         val (items, latestSettings) = coordinator.snapshot()
         if (OverlayRuntimeSession.temporarilyHidden.value) {
             windowController.hide()
+            clipboardWindow.hide()
         } else {
             windowController.showOrUpdate(items, latestSettings)
         }
