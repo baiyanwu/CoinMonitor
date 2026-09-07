@@ -31,6 +31,7 @@
     <string name="home_pair_actions_close">Close pair actions menu</string>
     <string name="home_open_market_page">Open the external market page for %1$s</string>
     <string name="home_copy_ca_description">Copy full contract address</string>
+    <string name="home_ca_copied">Contract address copied</string>
     <string name="home_overlay_tag">Overlay</string>
     <string name="home_pinned_tag">Pinned</string>
     <string name="home_quick_overlay_add">Overlay</string>
@@ -338,8 +339,7 @@
     <string name="wallet_watch_no_assets">No token assets were found for this address</string>
     <string name="wallet_watch_empty_guide">Enter an EVM or Solana address to query on-chain assets.</string>
     <string name="wallet_watch_no_price">Price unavailable</string>
-    <string name="wallet_watch_unit_price">Unit price %1$s USD</string>
-    <string name="wallet_watch_usd_value">%1$s USD</string>
+    <string name="wallet_watch_usd_value">$%1$s</string>
     <string name="wallet_watch_risk">Risk</string>
     <string name="wallet_watch_normal">Normal</string>
     <string name="wallet_watch_chain">Chain</string>

@@ -31,6 +31,7 @@
     <string name="home_pair_actions_close">关闭币对操作菜单</string>
     <string name="home_open_market_page">打开 %1$s 的外部行情页</string>
     <string name="home_copy_ca_description">复制完整 CA</string>
+    <string name="home_ca_copied">CA 已复制</string>
     <string name="home_overlay_tag">悬浮</string>
     <string name="home_pinned_tag">置顶</string>
     <string name="home_quick_overlay_add">加入悬浮</string>
@@ -338,8 +339,7 @@
     <string name="wallet_watch_no_assets">该地址暂未查询到代币资产</string>
     <string name="wallet_watch_empty_guide">输入 EVM 或 Solana 地址后查询链上资产。</string>
     <string name="wallet_watch_no_price">暂无价格</string>
-    <string name="wallet_watch_unit_price">单价 %1$s U</string>
-    <string name="wallet_watch_usd_value">%1$s U</string>
+    <string name="wallet_watch_usd_value">$%1$s</string>
     <string name="wallet_watch_risk">风险</string>
     <string name="wallet_watch_normal">普通</string>
     <string name="wallet_watch_chain">链</string>

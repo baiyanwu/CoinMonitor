@@ -500,6 +500,12 @@ private fun WalletAssetRow(asset: WalletAsset, onCopyContract: (String) -> Unit,
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(asset.symbol, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        asset.tokenPriceUsd?.let { stringResource(R.string.wallet_watch_usd_value, formatWalletPrice(it)) }
+                            ?: stringResource(R.string.wallet_watch_no_price),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = CoinMonitorThemeTokens.colors.secondaryText
+                    )
                     if (asset.isRiskToken) Text(stringResource(R.string.wallet_watch_risk), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
                 }
                 if (asset.contractAddress.isBlank()) {
@@ -507,12 +513,6 @@ private fun WalletAssetRow(asset: WalletAsset, onCopyContract: (String) -> Unit,
                 } else {
                     ContractAddressLine(asset.contractAddress, onCopyContract)
                 }
-                Text(
-                    asset.tokenPriceUsd?.let { stringResource(R.string.wallet_watch_unit_price, formatWalletPrice(it)) }
-                        ?: stringResource(R.string.wallet_watch_no_price),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = CoinMonitorThemeTokens.colors.secondaryText
-                )
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text(
