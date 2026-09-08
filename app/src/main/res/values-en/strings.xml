@@ -70,6 +70,9 @@
     <string name="error_search_partial_sources">Some market data sources are temporarily unavailable. Other results are shown. Please try again.</string>
 
     <string name="settings_title">Settings</string>
+    <string name="general_settings_title">General</string>
+    <string name="show_onchain_market_cap">Show on-chain market cap</string>
+    <string name="show_onchain_market_cap_description">Show market cap for on-chain tokens on the home screen and in floating windows</string>
     <string name="settings_subtitle">Manage language, appearance, and floating window features here.</string>
     <string name="appearance_title">Appearance</string>
     <string name="appearance_subtitle">Follow system, or lock the app to light or dark mode.</string>

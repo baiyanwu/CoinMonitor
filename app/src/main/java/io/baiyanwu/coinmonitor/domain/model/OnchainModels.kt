@@ -19,6 +19,7 @@ data class OnchainPoolOption(
     val volume24hUsd: Double? = null,
     val priceUsd: Double,
     val change24hPercent: Double? = null,
+    val marketCap: Double? = null,
     val poolUrl: String? = null
 )
 

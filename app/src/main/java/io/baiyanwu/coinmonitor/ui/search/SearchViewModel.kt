@@ -103,6 +103,7 @@ private fun WatchItem.withSelectedPool(option: OnchainPoolOption): WatchItem = c
     poolTokenSide = option.tokenSide,
     lastPrice = option.priceUsd,
     change24hPercent = option.change24hPercent,
+    marketCap = option.marketCap,
     lastUpdatedAt = System.currentTimeMillis(),
     selectedPool = option
 )

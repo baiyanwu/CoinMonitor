@@ -76,6 +76,8 @@ class InMemoryQuoteRepository : QuoteRepository {
                             liveTrend = trend,
                             change24hPercent = quote.change24hPercent
                                 ?: existing?.change24hPercent?.takeUnless { quote.resetTrend },
+                            marketCap = quote.marketCap
+                                ?: existing?.marketCap?.takeUnless { quote.resetTrend },
                             lastUpdatedAt = now
                         )
                     )

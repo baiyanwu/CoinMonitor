@@ -44,6 +44,7 @@ class DexScreenerMarketQuoteRepositoryTest {
         assertEquals(listOf(ethereum.id), quotes.map { it.id })
         assertEquals("pool-ethereum", quotes.single().poolAddress)
         assertEquals(null, quotes.single().requestedPoolAddress)
+        assertEquals(2_000_000.0, quotes.single().marketCap!!, 0.0)
     }
 
     @Test
@@ -85,6 +86,15 @@ class DexScreenerMarketQuoteRepositoryTest {
         assertEquals(listOf("robinhood"), fakeDex.requestedChains)
     }
 
+    @Test
+    fun `quote-side token never inherits base-token market cap`() = runBlocking {
+        val repository = repository(QuoteDexApi(targetAsQuote = true))
+
+        val quote = repository.fetchQuotes(listOf(item("eth", "1", ETH_ADDRESS))).single()
+
+        assertEquals(null, quote.marketCap)
+    }
+
     private fun repository(fakeDex: QuoteDexApi) = DefaultMarketQuoteRepository(
         alphaApi = UnusedAlphaApi,
         binanceApi = UnusedBinanceApi,
@@ -111,7 +121,8 @@ class DexScreenerMarketQuoteRepositoryTest {
     private class QuoteDexApi(
         private val timeoutChain: String? = null,
         private val cancellationChain: String? = null,
-        private val returnPairs: Boolean = true
+        private val returnPairs: Boolean = true,
+        private val targetAsQuote: Boolean = false
     ) : DexScreenerApi {
         val batchSizes = mutableListOf<Int>()
         val requestedChains = mutableListOf<String>()
@@ -137,13 +148,22 @@ class DexScreenerMarketQuoteRepositoryTest {
                 DexScreenerPair(
                     chainId = chainId,
                     pairAddress = "pool-$chainId",
-                    baseToken = DexScreenerToken(address, "Target", "TGT"),
-                    quoteToken = DexScreenerToken(USD_ADDRESS, "USD Coin", "USDC"),
+                    baseToken = if (targetAsQuote) {
+                        DexScreenerToken(USD_ADDRESS, "USD Coin", "USDC")
+                    } else {
+                        DexScreenerToken(address, "Target", "TGT")
+                    },
+                    quoteToken = if (targetAsQuote) {
+                        DexScreenerToken(address, "Target", "TGT")
+                    } else {
+                        DexScreenerToken(USD_ADDRESS, "USD Coin", "USDC")
+                    },
                     priceNative = "2",
                     priceUsd = "2",
                     volume = mapOf("h24" to 100.0),
                     priceChange = mapOf("h24" to 1.0),
-                    liquidity = DexScreenerLiquidity(1_000.0)
+                    liquidity = DexScreenerLiquidity(1_000.0),
+                    marketCap = 2_000_000.0
                 )
             }
         }

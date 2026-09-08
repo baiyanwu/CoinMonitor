@@ -61,6 +61,7 @@ class DefaultWatchlistRepository(
                     previousPrice = existing?.previousPrice ?: item.previousPrice,
                     liveTrend = existing?.liveTrend?.let(LivePriceTrend::valueOf) ?: item.liveTrend,
                     change24hPercent = existing?.change24hPercent ?: item.change24hPercent,
+                    marketCap = existing?.marketCap ?: item.marketCap,
                     lastUpdatedAt = existing?.lastUpdatedAt ?: item.lastUpdatedAt
                 ).toEntity()
             )
@@ -168,6 +169,7 @@ class DefaultWatchlistRepository(
                     previousPrice = previousPrice,
                     liveTrend = liveTrend.name,
                     change24hPercent = quote.change24hPercent,
+                    marketCap = quote.marketCap ?: existing.marketCap.takeUnless { resetTrend },
                     lastUpdatedAt = now
                 )
             }
@@ -193,6 +195,7 @@ class DefaultWatchlistRepository(
                 previousPrice = existing.lastPrice,
                 liveTrend = liveTrend.name,
                 change24hPercent = quote.change24hPercent,
+                marketCap = quote.marketCap ?: existing.marketCap,
                 lastUpdatedAt = quote.lastUpdatedAt ?: now
             )
         }

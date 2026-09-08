@@ -340,6 +340,7 @@ internal fun HomeScreen(
                         onchainListState
                     },
                     quoteRepository = quoteRepository,
+                    showOnchainMarketCap = state.showOnchainMarketCap,
                     onNavigateSearch = { onNavigateSearch(mode) },
                     onDismissQuickMenu = { quickMenuState = null },
                     onLongPress = { item, anchorInRoot ->
@@ -456,6 +457,7 @@ private fun HomeWatchlistPage(
     overlayIds: Set<String>,
     listState: LazyListState,
     quoteRepository: QuoteRepository,
+    showOnchainMarketCap: Boolean = false,
     onNavigateSearch: () -> Unit,
     onDismissQuickMenu: () -> Unit,
     onLongPress: (WatchItem, IntOffset) -> Unit,
@@ -533,6 +535,7 @@ private fun HomeWatchlistPage(
                             item = item,
                             modifier = Modifier.fillMaxWidth(),
                             quoteRepository = quoteRepository,
+                            showOnchainMarketCap = showOnchainMarketCap,
                             overlaySelected = overlayIds.contains(item.id),
                             dragOffsetY = if (isDragging) {
                                 dragState?.dragOffsetY ?: 0f

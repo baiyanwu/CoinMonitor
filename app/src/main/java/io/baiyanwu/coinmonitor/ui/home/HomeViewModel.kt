@@ -22,6 +22,7 @@ data class HomeUiState(
     val items: List<WatchItem> = emptyList(),
     val overlayIds: Set<String> = emptySet(),
     val overlayEnabled: Boolean = false,
+    val showOnchainMarketCap: Boolean = false,
     val isRefreshing: Boolean = false,
     val noticeMessage: String? = null
 )
@@ -38,6 +39,7 @@ class HomeViewModel(
     private var currentItems: List<WatchItem> = emptyList()
     private var currentOverlayIds: Set<String> = emptySet()
     private var currentOverlayEnabled: Boolean = false
+    private var currentShowOnchainMarketCap: Boolean = false
     private var manualRefreshing: Boolean = false
     private var currentNoticeMessage: String? = null
 
@@ -46,18 +48,21 @@ class HomeViewModel(
             combine(
                 watchlistRepository.observeHomeWatchlist(),
                 overlayRepository.observeOverlayItems(),
-                overlayRepository.observeSettings()
-            ) { items, overlayItems, settings ->
+                overlayRepository.observeSettings(),
+                appContainer.appPreferencesRepository.observePreferences()
+            ) { items, overlayItems, settings, preferences ->
                 HomeUiPayload(
                     items = items,
                     overlayIds = overlayItems.map { it.id }.toSet(),
-                    overlayEnabled = settings.enabled
+                    overlayEnabled = settings.enabled,
+                    showOnchainMarketCap = preferences.showOnchainMarketCap
                 )
             }.collect { payload ->
                 val items = payload.items
                 currentItems = items
                 currentOverlayIds = payload.overlayIds
                 currentOverlayEnabled = payload.overlayEnabled
+                currentShowOnchainMarketCap = payload.showOnchainMarketCap
                 publishUiState(isLoaded = true)
             }
         }
@@ -133,6 +138,7 @@ class HomeViewModel(
             items = currentItems,
             overlayIds = currentOverlayIds,
             overlayEnabled = currentOverlayEnabled,
+            showOnchainMarketCap = currentShowOnchainMarketCap,
             isRefreshing = manualRefreshing,
             noticeMessage = currentNoticeMessage
         )
@@ -155,5 +161,6 @@ class HomeViewModel(
 private data class HomeUiPayload(
     val items: List<WatchItem>,
     val overlayIds: Set<String>,
-    val overlayEnabled: Boolean
+    val overlayEnabled: Boolean,
+    val showOnchainMarketCap: Boolean
 )

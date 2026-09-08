@@ -26,5 +26,6 @@ data class WatchItemEntity(
     val previousPrice: Double?,
     val liveTrend: String,
     val change24hPercent: Double?,
+    val marketCap: Double? = null,
     val lastUpdatedAt: Long?
 )

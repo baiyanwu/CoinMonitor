@@ -23,4 +23,22 @@ class InMemoryQuoteRepositoryTest {
         assertNull(quote.previousPrice)
         assertNull(quote.change24hPercent)
     }
+
+    @Test
+    fun `missing market cap keeps the latest successful value until pool reset`() {
+        val repository = InMemoryQuoteRepository()
+        repository.applyQuotes(
+            listOf(MarketQuote("id", "TGT", "Target", 1.0, 2.0, marketCap = 3_000_000.0))
+        )
+        repository.applyQuotes(
+            listOf(MarketQuote("id", "TGT", "Target", 1.1, 2.5, marketCap = null))
+        )
+
+        assertEquals(3_000_000.0, requireNotNull(repository.getQuote("id")).marketCap!!, 0.0)
+
+        repository.applyQuotes(
+            listOf(MarketQuote("id", "TGT", "Target", 1.2, null, resetTrend = true))
+        )
+        assertNull(requireNotNull(repository.getQuote("id")).marketCap)
+    }
 }

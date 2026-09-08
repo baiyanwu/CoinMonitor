@@ -49,7 +49,8 @@ class OverlayWindowControllerTest {
         override fun showOrUpdate(
             items: List<WatchItem>,
             locked: Boolean,
-            settings: ArrangedOverlaySettings
+            settings: ArrangedOverlaySettings,
+            showOnchainMarketCap: Boolean
         ) {
             events += "arranged:show"
         }
@@ -65,7 +66,8 @@ class OverlayWindowControllerTest {
         override fun showOrUpdate(
             items: List<WatchItem>,
             locked: Boolean,
-            settings: MarqueeOverlaySettings
+            settings: MarqueeOverlaySettings,
+            showOnchainMarketCap: Boolean
         ) {
             events += "marquee:show"
         }

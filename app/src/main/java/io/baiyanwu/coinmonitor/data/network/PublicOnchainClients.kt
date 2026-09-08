@@ -128,6 +128,11 @@ data class SelectedDexPair(
     val priceUsd: Double,
     val change24hPercent: Double?
 ) {
+    val marketCap: Double?
+        get() = pair.marketCap?.takeIf { value ->
+            tokenSide == PoolTokenSide.BASE && value.isFinite() && value >= 0.0
+        }
+
     val pairLabel: String
         get() {
             val targetLabel = tokenSymbol.ifBlank { tokenAddress.take(8) }.uppercase()

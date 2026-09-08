@@ -70,6 +70,9 @@
     <string name="error_search_partial_sources">部分行情来源暂时不可用，已展示其余结果，请重试</string>
 
     <string name="settings_title">设置</string>
+    <string name="general_settings_title">通用设置</string>
+    <string name="show_onchain_market_cap">显示链上市值</string>
+    <string name="show_onchain_market_cap_description">开启后，主页和悬浮窗中的链上币将显示市值</string>
     <string name="settings_subtitle">统一管理语言、主题外观，以及悬浮窗相关能力。</string>
     <string name="appearance_title">外观模式</string>
     <string name="appearance_subtitle">支持跟随系统，也可以固定为白天或夜间模式。</string>

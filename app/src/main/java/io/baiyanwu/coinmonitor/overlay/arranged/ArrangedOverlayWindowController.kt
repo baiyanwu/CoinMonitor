@@ -34,6 +34,7 @@ import io.baiyanwu.coinmonitor.domain.repository.OverlayRepository
 import io.baiyanwu.coinmonitor.overlay.ArrangedOverlayWindowHost
 import io.baiyanwu.coinmonitor.overlay.CoinIconService
 import io.baiyanwu.coinmonitor.overlay.OverlayPermissionHelper
+import io.baiyanwu.coinmonitor.overlay.MarketCapFlashPolicy
 import io.baiyanwu.coinmonitor.overlay.PriceTextSizer
 import io.baiyanwu.coinmonitor.overlay.QuoteFormatter
 import io.baiyanwu.coinmonitor.ui.AppConfigurationApplier
@@ -79,6 +80,9 @@ internal class ArrangedOverlayWindowController(
     private var latestItems: List<WatchItem> = emptyList()
     private var latestSettings: ArrangedOverlaySettings? = null
     private var latestLocked: Boolean = false
+    private var showOnchainMarketCap: Boolean = false
+    private val lastMarketCapRenderAtById = mutableMapOf<String, Long?>()
+    private val marketCapFlashAnimatorsById = mutableMapOf<String, ValueAnimator>()
     private val hiddenEdgeEnterInterpolator = PathInterpolator(0.16f, 1f, 0.3f, 1f)
     private val hiddenEdgeExitInterpolator = PathInterpolator(0.7f, 0f, 0.84f, 0f)
     private val hiddenEdgeAutoCollapseRunnable = object : Runnable {
@@ -116,7 +120,8 @@ internal class ArrangedOverlayWindowController(
     override fun showOrUpdate(
         items: List<WatchItem>,
         locked: Boolean,
-        settings: ArrangedOverlaySettings
+        settings: ArrangedOverlaySettings,
+        showOnchainMarketCap: Boolean
     ) {
         if (!OverlayPermissionHelper.canDrawOverlays(context)) {
             hide()
@@ -126,6 +131,13 @@ internal class ArrangedOverlayWindowController(
         latestItems = items
         latestSettings = settings
         latestLocked = locked
+        if (!this.showOnchainMarketCap && showOnchainMarketCap) {
+            items.forEach { item -> lastMarketCapRenderAtById[item.id] = item.lastUpdatedAt }
+        }
+        if (this.showOnchainMarketCap && !showOnchainMarketCap) {
+            cancelMarketCapFlashAnimations()
+        }
+        this.showOnchainMarketCap = showOnchainMarketCap
         ensureWindow(settings, locked)
         val root = rootView ?: return
         val params = layoutParams ?: return
@@ -243,6 +255,8 @@ internal class ArrangedOverlayWindowController(
         hiddenEdgeTransitionState = HiddenEdgeTransitionState.IDLE
         latestItems = emptyList()
         latestSettings = null
+        cancelMarketCapFlashAnimations()
+        lastMarketCapRenderAtById.clear()
         iconBitmapCache.clear()
         rootView = null
         layoutParams = null
@@ -512,7 +526,7 @@ internal class ArrangedOverlayWindowController(
         metrics: OverlayMetrics
     ): Int {
         val maxWidth = items.maxOfOrNull { item ->
-            val priceText = QuoteFormatter.formatOverlayPrice(item)
+            val priceText = QuoteFormatter.formatOverlayValue(item, showOnchainMarketCap)
             measureTextWidth(
                 text = priceText,
                 textSizeSp = PriceTextSizer.resolveTextSizeSp(priceText) * metrics.fontScale
@@ -702,14 +716,9 @@ internal class ArrangedOverlayWindowController(
         item: WatchItem,
         metrics: OverlayMetrics
     ) {
-        val priceText = QuoteFormatter.formatOverlayPrice(item)
+        val priceText = QuoteFormatter.formatOverlayValue(item, showOnchainMarketCap)
         sidebarItemView.priceView.text = priceText
-        sidebarItemView.priceView.setTextColor(
-            item.resolveLivePriceColor(
-                colors = overlayColors,
-                defaultColor = overlayColors.overlayText
-            ).toArgb()
-        )
+        applyValueColor(sidebarItemView.priceView, item)
         sidebarItemView.priceView.setTextSize(TypedValue.COMPLEX_UNIT_SP, metrics.sidebarTextSizeSp)
         sidebarItemView.priceView.layoutParams = LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT,
@@ -857,14 +866,9 @@ internal class ArrangedOverlayWindowController(
             holder.leadingSignature = leadingSignature
         }
 
-        val priceText = QuoteFormatter.formatOverlayPrice(item)
+        val priceText = QuoteFormatter.formatOverlayValue(item, showOnchainMarketCap)
         holder.priceView.text = priceText
-        holder.priceView.setTextColor(
-            item.resolveLivePriceColor(
-                colors = overlayColors,
-                defaultColor = overlayColors.overlayText
-            ).toArgb()
-        )
+        applyValueColor(holder.priceView, item)
         holder.priceView.setTextSize(
             TypedValue.COMPLEX_UNIT_SP,
             PriceTextSizer.resolveTextSizeSp(priceText) * metrics.fontScale
@@ -873,6 +877,50 @@ internal class ArrangedOverlayWindowController(
             priceWidth,
             ViewGroup.LayoutParams.WRAP_CONTENT
         )
+    }
+
+    private fun applyValueColor(view: TextView, item: WatchItem) {
+        val defaultColor = overlayColors.overlayText.toArgb()
+        if (!showOnchainMarketCap || item.marketType != io.baiyanwu.coinmonitor.domain.model.MarketType.ONCHAIN_TOKEN) {
+            marketCapFlashAnimatorsById.remove(item.id)?.cancel()
+            view.setTextColor(
+                item.resolveLivePriceColor(
+                    colors = overlayColors,
+                    defaultColor = overlayColors.overlayText
+                ).toArgb()
+            )
+            return
+        }
+
+        val lastRenderedAt = lastMarketCapRenderAtById[item.id]
+        val shouldFlash = MarketCapFlashPolicy.shouldFlash(
+            item = item,
+            showOnchainMarketCap = true,
+            lastRenderedAt = lastRenderedAt
+        )
+        lastMarketCapRenderAtById[item.id] = item.lastUpdatedAt
+        marketCapFlashAnimatorsById.remove(item.id)?.cancel()
+        if (!shouldFlash) {
+            view.setTextColor(defaultColor)
+            return
+        }
+
+        val flashColor = item.resolveLivePriceColor(
+            colors = overlayColors,
+            defaultColor = overlayColors.overlayText
+        ).toArgb()
+        ValueAnimator.ofArgb(flashColor, defaultColor).apply {
+            duration = MARKET_CAP_FLASH_DURATION_MILLIS
+            startDelay = MARKET_CAP_FLASH_HOLD_MILLIS
+            addUpdateListener { animator -> view.setTextColor(animator.animatedValue as Int) }
+            marketCapFlashAnimatorsById[item.id] = this
+            start()
+        }
+    }
+
+    private fun cancelMarketCapFlashAnimations() {
+        marketCapFlashAnimatorsById.values.forEach(ValueAnimator::cancel)
+        marketCapFlashAnimatorsById.clear()
     }
 
     private fun buildLeadingSignature(
@@ -1039,7 +1087,7 @@ internal class ArrangedOverlayWindowController(
                 hiddenEdgeTransitionState = HiddenEdgeTransitionState.IDLE
                 root.translationX = 0f
                 latestSettings?.let { settings ->
-                    showOrUpdate(latestItems, latestLocked, settings)
+                    showOrUpdate(latestItems, latestLocked, settings, showOnchainMarketCap)
                 }
                 scheduleHiddenEdgeAutoCollapse()
             }
@@ -1087,7 +1135,7 @@ internal class ArrangedOverlayWindowController(
     private fun completeHiddenEdgeCollapse() {
         isHiddenEdgeTabExpanded = false
         latestSettings?.let { settings ->
-            showOrUpdate(latestItems, latestLocked, settings)
+            showOrUpdate(latestItems, latestLocked, settings, showOnchainMarketCap)
         }
     }
 
@@ -1155,7 +1203,7 @@ internal class ArrangedOverlayWindowController(
         pendingItems = null
         pendingSettings = null
         pendingLocked = null
-        showOrUpdate(latestItems, latestLocked, latestSettings)
+        showOrUpdate(latestItems, latestLocked, latestSettings, showOnchainMarketCap)
     }
 
     private fun applyResolvedPosition(
@@ -1215,7 +1263,7 @@ internal class ArrangedOverlayWindowController(
         pendingSettings = null
         pendingLocked = null
         if (latestItems != null && latestSettings != null && latestLocked != null) {
-            showOrUpdate(latestItems, latestLocked, latestSettings)
+            showOrUpdate(latestItems, latestLocked, latestSettings, showOnchainMarketCap)
         }
     }
 
@@ -1454,5 +1502,7 @@ internal class ArrangedOverlayWindowController(
         const val HIDDEN_EDGE_COLLAPSE_DURATION_MS = 195L
         const val SIDEBAR_SWITCH_INTERVAL_MS = 2200L
         const val SIDEBAR_SWITCH_DURATION_MS = 420L
+        const val MARKET_CAP_FLASH_HOLD_MILLIS = 260L
+        const val MARKET_CAP_FLASH_DURATION_MILLIS = 420L
     }
 }

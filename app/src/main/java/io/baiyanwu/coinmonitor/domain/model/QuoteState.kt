@@ -5,7 +5,8 @@ data class QuoteState(
     val previousPrice: Double? = null,
     val liveTrend: LivePriceTrend = LivePriceTrend.NEUTRAL,
     val change24hPercent: Double? = null,
-    val lastUpdatedAt: Long? = null
+    val lastUpdatedAt: Long? = null,
+    val marketCap: Double? = null
 )
 
 fun WatchItem.toQuoteStateOrNull(): QuoteState? {
@@ -15,6 +16,7 @@ fun WatchItem.toQuoteStateOrNull(): QuoteState? {
         previousPrice = previousPrice,
         liveTrend = liveTrend,
         change24hPercent = change24hPercent,
+        marketCap = marketCap,
         lastUpdatedAt = lastUpdatedAt
     )
 }
@@ -26,6 +28,7 @@ fun WatchItem.withQuote(quoteState: QuoteState?): WatchItem {
         previousPrice = quoteState.previousPrice,
         liveTrend = quoteState.liveTrend,
         change24hPercent = quoteState.change24hPercent,
+        marketCap = quoteState.marketCap,
         lastUpdatedAt = quoteState.lastUpdatedAt
     )
 }
