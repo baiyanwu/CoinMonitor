@@ -40,7 +40,7 @@
 - Results are deduplicated by network and token contract. Each token row shows the selected pair, chain logo, DEX, liquidity, and shortened contract address.
 - When multiple valid pools exist, users can expand the row and switch among the most liquid alternatives. The selected pool is then reused for both quote refreshes and candlesticks.
 - Home rows retain the selected pool's real pair label. Existing watch items missing the counter token are filled automatically after the next valid quote refresh and do not need to be re-added.
-- Icons fall back from known local mappings to online chain-icon candidates and finally to the app's built-in placeholder.
+- Icons prefer the DexScreener token image, then fall back through known and online chain-icon candidates to the app's built-in placeholder; a cached chain fallback never bypasses a higher-priority token image request.
 - Both on-chain sources are public and require no API key. The app does not provide swap, order, or execution capabilities.
 
 ## Requirements

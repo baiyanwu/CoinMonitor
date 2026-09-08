@@ -124,7 +124,7 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 - 报价和 K 线捕获普通网络异常时不会捕获 `CancellationException`，快速切换标的、周期或重启刷新任务后，旧任务不会继续更新 UI
 - 搜索结果通过 `LazyColumn.itemsIndexed` 逐条组合和回收，不再在单个 lazy item 内用 `forEach` 一次性组合全部结果
 - 代币图标优先使用 DexScreener 返回的公开 `info.imageUrl`；链 Logo 优先使用本地映射，未命中或下载失败时依次尝试在线链图标候选
-- 链上代币缺少自身图标时会按链 Logo 候选依次回退；所有在线候选都失败时，Compose 列表和原生悬浮窗都使用内置默认占位图，网络异常不会向上抛出中断渲染
+- 链上代币缺少自身图标时会按链 Logo 候选依次回退；原生悬浮窗严格按“代币图标缓存/下载 → 链 Logo 缓存/下载”的候选顺序处理，低优先级的已缓存链 Logo 不会抢占尚未缓存的代币图标。所有在线候选都失败时，Compose 列表和原生悬浮窗都使用内置默认占位图，网络异常不会向上抛出中断渲染
 
 ### Overlay
 
