@@ -79,7 +79,7 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 ### K-line
 
 - K 线页、图表、指标设置、搜索回填和 AI 聊天实现仍保留在工程中，但当前不再作为底部导航或首页卡片点击入口暴露
-- `NavHost` 中仍保留 `Destinations.KLINE` route，用于后续恢复入口时复用既有实现；底部导航列表只展示首页和设置
+- `NavHost` 中仍保留 `Destinations.KLINE` route，用于后续恢复入口时复用既有实现；底部导航按“首页 / 钱包 / 设置”展示三个一级页面
 - 图表内核当前基于仓库内 vendored 的 `TradingView Lightweight Charts Android wrapper` 源码模块
 - 第三方图表源码当前直接放在 `third_party/lightweightlibrary`，应用不再依赖外部 `aar`，方便直接调试 wrapper 和内嵌 JS core
 - K 线数据统一走 `MarketKlineRepository`，交易所继续使用 `Binance / Binance Alpha / OKX`，链上池使用 `GeckoTerminal`
@@ -101,7 +101,7 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 
 ### On-chain
 
-- 首页“链上”分页底部常驻钱包摘要横栏，可启动独立 `WalletWatchActivity`。资产摘要后的独立刷新按钮会立即为当前地址重新请求完整钱包快照，刷新期间旋转并禁止重复点击；成功后覆盖最近快照并按隐藏、风险、小额筛选状态重算总额和数量，失败时保留旧摘要并提示错误。返回首页时仍会重新读取最近快照。钱包资产模型、仓库和 UI 组件不复用首页币对模型
+- 观察地址已提升为底部导航中间的“钱包”一级页面，直接由主 `NavHost` 承载 `WalletWatchRoute`；首页“链上”分页不再显示钱包摘要横栏或独立刷新入口。钱包页与首页、设置之间使用顶层 Tab 状态恢复，不显示二级页面返回按钮；系统栏和底部导航安全区统一由主 `Scaffold` 传入，钱包页内层 `Scaffold` 使用零 `contentWindowInsets`，避免重复计算顶部安全区。钱包资产模型、仓库和 UI 组件仍不复用首页币对模型
 - 观察地址支持 EVM 与 Solana，分别路由至 OKX EVM ChainIndex 注册表和 Solana `501`；明细与 token-only 总值并发请求，金额全程使用 `BigDecimal`
 - OKX API Key、Secret Key、Passphrase 使用独立的 `okx_wallet_credentials_secure` 加密偏好保存；安全存储不可用时拒绝明文降级，日志拦截器统一脱敏 OKX 鉴权 Header
 - 观察地址按链切换资产列表；链栏可进入编辑状态并隐藏整条链，长按资产可隐藏单币。两类状态按钱包地址分别持久化，并在底部“已隐藏”面板中分组恢复；页头总资产和数量由全部可见资产汇总，隐藏与恢复会立即同步数值

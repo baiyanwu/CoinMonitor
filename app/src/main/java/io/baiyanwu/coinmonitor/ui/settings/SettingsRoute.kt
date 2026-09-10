@@ -40,7 +40,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import io.baiyanwu.coinmonitor.data.AppContainer
 import io.baiyanwu.coinmonitor.domain.model.AppLanguage
 import io.baiyanwu.coinmonitor.domain.model.AppThemeMode
-import io.baiyanwu.coinmonitor.ui.components.MainTabTopBar
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorComponentDefaults
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 import io.baiyanwu.coinmonitor.R
@@ -94,13 +93,6 @@ private fun SettingsScreen(
             .background(colors.pageBackground)
             .padding(top = contentTopInset, bottom = contentBottomInset)
     ) {
-        MainTabTopBar {
-            Text(
-                text = stringResource(R.string.settings_title),
-                style = MaterialTheme.typography.headlineSmall
-            )
-        }
-
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()

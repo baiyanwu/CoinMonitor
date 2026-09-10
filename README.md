@@ -33,7 +33,7 @@
 - Review the current build version, project purpose, author, source repository, Apache-2.0 license, feedback link, and usage notice from the in-app About page
 - Check GitHub's latest published Release once whenever the main screen is created, then prompt users to open the Release page when a newer version is available; no third-party update service is involved
 - Keep exchange quotes flowing through `WSS` first, while DexScreener prices use an independent smart or fixed refresh cycle with sequential request pacing
-- Watch any EVM or Solana address from a dedicated read-only page, using the OKX Wallet API for non-zero token balances and USD valuation; credentials stay in Android encrypted storage
+- Open the middle `Wallet` tab to watch any EVM or Solana address in a dedicated read-only workspace, using the OKX Wallet API for non-zero token balances and USD valuation; credentials stay in Android encrypted storage
 
 ## On-chain Notes
 

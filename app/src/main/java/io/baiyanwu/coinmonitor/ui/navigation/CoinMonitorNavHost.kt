@@ -4,6 +4,7 @@ import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.AccountBalanceWallet
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.Icon
@@ -33,10 +34,12 @@ import io.baiyanwu.coinmonitor.ui.search.SearchMode
 import io.baiyanwu.coinmonitor.ui.settings.SettingsRoute
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorComponentDefaults
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
+import io.baiyanwu.coinmonitor.ui.walletwatch.WalletWatchRoute
 
 private object Destinations {
     const val HOME = "home"
     const val KLINE = "kline"
+    const val WALLET = "wallet"
     const val SETTINGS = "settings"
 }
 
@@ -55,7 +58,6 @@ fun CoinMonitorNavHost(
     onOpenKlineIndicatorSettings: () -> Unit,
     onOpenOverlayItems: () -> Unit,
     onOpenOverlaySettings: () -> Unit,
-    onOpenWalletWatch: () -> Unit,
     onOpenThirdPartyApiSettings: () -> Unit,
     onOpenNetworkLog: () -> Unit,
     onOpenAbout: () -> Unit
@@ -66,6 +68,7 @@ fun CoinMonitorNavHost(
     val tabs = remember {
         listOf(
             MainTab(Destinations.HOME, R.string.tab_home, Icons.Rounded.Home),
+            MainTab(Destinations.WALLET, R.string.tab_wallet, Icons.Rounded.AccountBalanceWallet),
             MainTab(Destinations.SETTINGS, R.string.tab_settings, Icons.Rounded.Settings)
         )
     }
@@ -128,8 +131,7 @@ fun CoinMonitorNavHost(
                     contentBottomInset = innerPadding.calculateBottomPadding(),
                     onNavigateSearch = onOpenSearch,
                     onNavigateOverlayItems = onOpenOverlayItems,
-                    onNavigateOverlaySettings = onOpenOverlaySettings,
-                    onNavigateWalletWatch = onOpenWalletWatch
+                    onNavigateOverlaySettings = onOpenOverlaySettings
                 )
             }
             composable(Destinations.KLINE) {
@@ -153,6 +155,14 @@ fun CoinMonitorNavHost(
                     onNavigateThirdPartyApiSettings = onOpenThirdPartyApiSettings,
                     onNavigateNetworkLog = onOpenNetworkLog,
                     onNavigateAbout = onOpenAbout
+                )
+            }
+            composable(Destinations.WALLET) {
+                WalletWatchRoute(
+                    container = container,
+                    contentTopInset = innerPadding.calculateTopPadding(),
+                    contentBottomInset = innerPadding.calculateBottomPadding(),
+                    onOpenSettings = onOpenThirdPartyApiSettings
                 )
             }
         }
