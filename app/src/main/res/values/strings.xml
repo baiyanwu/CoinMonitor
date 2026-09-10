@@ -2,6 +2,7 @@
     <string name="app_name">CoinMonitor</string>
 
     <string name="tab_home">首页</string>
+    <string name="tab_wallet">钱包</string>
     <string name="tab_kline">K线</string>
     <string name="tab_search">搜索</string>
     <string name="tab_settings">设置</string>
@@ -69,7 +70,9 @@
     <string name="error_search_retry">搜索失败，请稍后重试</string>
     <string name="error_search_partial_sources">部分行情来源暂时不可用，已展示其余结果，请重试</string>
 
-    <string name="settings_title">设置</string>
+    <string name="general_settings_title">通用设置</string>
+    <string name="show_onchain_market_cap">显示链上市值</string>
+    <string name="show_onchain_market_cap_description">开启后，主页和悬浮窗中的链上币将显示市值</string>
     <string name="settings_subtitle">统一管理语言、主题外观，以及悬浮窗相关能力。</string>
     <string name="appearance_title">外观模式</string>
     <string name="appearance_subtitle">支持跟随系统，也可以固定为白天或夜间模式。</string>
@@ -323,7 +326,6 @@
     <string name="overlay_notification_stop">关闭悬浮窗</string>
     <string name="overlay_channel_name">悬浮窗服务</string>
     <string name="overlay_channel_description">用于维持悬浮窗常驻和实时价格更新</string>
-    <string name="wallet_watch_title">观察地址</string>
     <string name="wallet_watch_address_hint">EVM 或 Solana 地址</string>
     <string name="wallet_watch_invalid_address">请输入有效的 EVM 或 Solana 地址</string>
     <string name="wallet_watch_query">查询</string>
@@ -365,12 +367,6 @@
     <string name="wallet_watch_hidden_chains_section">隐藏的链</string>
     <string name="wallet_watch_hidden_assets_section">隐藏的币</string>
     <string name="wallet_watch_hidden_chain_asset_count">%1$d 个资产</string>
-    <string name="home_wallet_watch_current">当前观察</string>
-    <string name="home_wallet_watch_add_address">点击添加地址</string>
-    <string name="home_wallet_watch_no_assets">暂无资产数据</string>
-    <string name="home_wallet_watch_visible_assets">%1$d 个可见资产</string>
-    <string name="home_wallet_watch_refresh">刷新当前钱包资产</string>
-    <string name="home_wallet_watch_refresh_failed">钱包资产刷新失败</string>
     <string name="okx_wallet_settings_title">OKX 钱包资产 API</string>
     <string name="okx_wallet_settings_description">用于只读查询 EVM 与 Solana 地址的代币余额和美元估值。凭证只保存在本机加密存储中。</string>
     <string name="okx_wallet_settings_enabled">启用 OKX 钱包资产 API</string>

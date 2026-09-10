@@ -71,8 +71,7 @@ object ClipboardAddressParser {
 }
 
 data class ClipboardMatch(val chain: OnchainChain, val selection: SelectedDexPair) {
-    val marketCap: Double? get() = selection.pair.marketCap
-        .takeIf { selection.tokenSide == PoolTokenSide.BASE && it != null && it.isFinite() && it >= 0 }
+    val marketCap: Double? get() = selection.marketCap
     // DexScreener's info belongs to the base token, never to the quote token.
     val links: List<Pair<String, String>> get() {
         if (selection.tokenSide != PoolTokenSide.BASE) return emptyList()
@@ -92,6 +91,7 @@ data class ClipboardMatch(val chain: OnchainChain, val selection: SelectedDexPai
             poolTokenSide = selection.tokenSide, overlaySelected = addToFloating,
             iconUrl = selection.pair.info?.imageUrl.takeIf { selection.tokenSide == PoolTokenSide.BASE },
             lastPrice = selection.priceUsd, change24hPercent = selection.change24hPercent,
+            marketCap = marketCap,
             lastUpdatedAt = now, addedAt = now
         )
     }

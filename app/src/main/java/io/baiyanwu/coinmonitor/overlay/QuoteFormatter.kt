@@ -35,6 +35,35 @@ object QuoteFormatter {
         }
     }
 
+    fun formatWatchValue(item: WatchItem, showOnchainMarketCap: Boolean): String {
+        return if (showOnchainMarketCap && item.marketType == MarketType.ONCHAIN_TOKEN) {
+            formatMarketCap(item.marketCap)
+        } else {
+            formatPrice(item.lastPrice)
+        }
+    }
+
+    fun formatOverlayValue(item: WatchItem, showOnchainMarketCap: Boolean): String {
+        return if (showOnchainMarketCap && item.marketType == MarketType.ONCHAIN_TOKEN) {
+            formatMarketCap(item.marketCap)
+        } else {
+            formatOverlayPrice(item)
+        }
+    }
+
+    fun formatMarketCap(value: Double?): String {
+        if (value == null || !value.isFinite() || value < 0.0) return "--"
+        val (divisor, suffix) = when {
+            value >= 1e12 -> 1e12 to "T"
+            value >= 1e9 -> 1e9 to "B"
+            value >= 1e6 -> 1e6 to "M"
+            value >= 1e3 -> 1e3 to "K"
+            else -> 1.0 to ""
+        }
+        val formatted = DecimalFormat("0.##").format(value / divisor)
+        return "\$$formatted$suffix"
+    }
+
     fun formatChange(value: Double?): String {
         if (value == null) return "--"
         val formatted = DecimalFormat("0.00").format(abs(value))
@@ -72,5 +101,21 @@ object QuoteFormatter {
     private fun toSubscriptNumber(value: Int): String {
         val subscriptDigits = charArrayOf('₀', '₁', '₂', '₃', '₄', '₅', '₆', '₇', '₈', '₉')
         return value.toString().map { digit -> subscriptDigits[digit.digitToInt()] }.joinToString("")
+    }
+}
+
+internal object MarketCapFlashPolicy {
+    fun shouldFlash(
+        item: WatchItem,
+        showOnchainMarketCap: Boolean,
+        lastRenderedAt: Long?
+    ): Boolean {
+        return showOnchainMarketCap &&
+            item.marketType == MarketType.ONCHAIN_TOKEN &&
+            item.lastUpdatedAt != null &&
+            item.lastUpdatedAt != lastRenderedAt &&
+            item.previousPrice != null &&
+            item.lastPrice != null &&
+            item.lastPrice != item.previousPrice
     }
 }

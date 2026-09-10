@@ -348,6 +348,7 @@ private fun io.baiyanwu.coinmonitor.data.network.SelectedDexPair.toOnchainWatchI
         iconUrl = pair.info?.imageUrl.takeIf { tokenSide == io.baiyanwu.coinmonitor.domain.model.PoolTokenSide.BASE },
         lastPrice = priceUsd,
         change24hPercent = change24hPercent,
+        marketCap = marketCap,
         lastUpdatedAt = System.currentTimeMillis(),
         addedAt = System.currentTimeMillis(),
         selectedPool = selectedPool,
@@ -368,6 +369,7 @@ private fun io.baiyanwu.coinmonitor.data.network.SelectedDexPair.toPoolOption(
         volume24hUsd = pair.volume["h24"],
         priceUsd = priceUsd,
         change24hPercent = change24hPercent,
+        marketCap = marketCap,
         poolUrl = pair.url
     )
 }

@@ -31,6 +31,8 @@ interface AppPreferencesRepository {
 
     suspend fun setOnchainRefreshSettings(mode: OnchainRefreshMode, seconds: Int)
 
+    suspend fun setShowOnchainMarketCap(show: Boolean)
+
     suspend fun setKlineMainIndicator(indicator: KlineIndicator)
 
     suspend fun setKlineSubIndicator(indicator: KlineIndicator)

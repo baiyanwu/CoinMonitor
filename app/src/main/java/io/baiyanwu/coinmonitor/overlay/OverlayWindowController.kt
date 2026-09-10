@@ -16,7 +16,8 @@ internal interface ArrangedOverlayWindowHost {
     fun showOrUpdate(
         items: List<WatchItem>,
         locked: Boolean,
-        settings: ArrangedOverlaySettings
+        settings: ArrangedOverlaySettings,
+        showOnchainMarketCap: Boolean
     )
 
     fun hide()
@@ -26,7 +27,8 @@ internal interface MarqueeOverlayWindowHost {
     fun showOrUpdate(
         items: List<WatchItem>,
         locked: Boolean,
-        settings: MarqueeOverlaySettings
+        settings: MarqueeOverlaySettings,
+        showOnchainMarketCap: Boolean
     )
 
     fun hide()
@@ -65,19 +67,25 @@ class OverlayWindowController internal constructor(
 
     private var activeDisplayType: OverlayDisplayType? = null
 
-    fun showOrUpdate(items: List<WatchItem>, settings: OverlaySettings) {
+    fun showOrUpdate(
+        items: List<WatchItem>,
+        settings: OverlaySettings,
+        showOnchainMarketCap: Boolean = false
+    ) {
         switchTo(settings.displayType)
         when (settings.displayType) {
             OverlayDisplayType.ARRANGED -> arrangedWindow.showOrUpdate(
                 items = items,
                 locked = settings.locked,
-                settings = settings.arranged
+                settings = settings.arranged,
+                showOnchainMarketCap = showOnchainMarketCap
             )
 
             OverlayDisplayType.MARQUEE -> marqueeWindow.showOrUpdate(
                 items = items,
                 locked = settings.locked,
-                settings = settings.marquee
+                settings = settings.marquee,
+                showOnchainMarketCap = showOnchainMarketCap
             )
         }
     }

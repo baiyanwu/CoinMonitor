@@ -2,6 +2,7 @@ package io.baiyanwu.coinmonitor.ui.settings
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -17,18 +18,21 @@ import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.ReceiptLong
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.rounded.VpnKey
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -36,7 +40,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import io.baiyanwu.coinmonitor.data.AppContainer
 import io.baiyanwu.coinmonitor.domain.model.AppLanguage
 import io.baiyanwu.coinmonitor.domain.model.AppThemeMode
-import io.baiyanwu.coinmonitor.ui.components.MainTabTopBar
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorComponentDefaults
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 import io.baiyanwu.coinmonitor.R
@@ -63,7 +66,8 @@ fun SettingsRoute(
         onNavigateNetworkLog = onNavigateNetworkLog,
         onNavigateAbout = onNavigateAbout,
         onThemeModeChange = viewModel::setThemeMode,
-        onLanguageChange = viewModel::setLanguage
+        onLanguageChange = viewModel::setLanguage,
+        onShowOnchainMarketCapChange = viewModel::setShowOnchainMarketCap
     )
 }
 
@@ -77,7 +81,8 @@ private fun SettingsScreen(
     onNavigateNetworkLog: () -> Unit,
     onNavigateAbout: () -> Unit,
     onThemeModeChange: (AppThemeMode) -> Unit,
-    onLanguageChange: (AppLanguage) -> Unit
+    onLanguageChange: (AppLanguage) -> Unit,
+    onShowOnchainMarketCapChange: (Boolean) -> Unit
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val colors = CoinMonitorThemeTokens.colors
@@ -88,13 +93,6 @@ private fun SettingsScreen(
             .background(colors.pageBackground)
             .padding(top = contentTopInset, bottom = contentBottomInset)
     ) {
-        MainTabTopBar {
-            Text(
-                text = stringResource(R.string.settings_title),
-                style = MaterialTheme.typography.headlineSmall
-            )
-        }
-
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -106,6 +104,56 @@ private fun SettingsScreen(
                 ),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+
+        item {
+            ElevatedCard(
+                shape = RoundedCornerShape(20.dp),
+                modifier = Modifier.fillMaxWidth(),
+                colors = CoinMonitorComponentDefaults.elevatedCardColors()
+            ) {
+                Column {
+                    Row(
+                        modifier = Modifier.padding(start = 14.dp, end = 14.dp, top = 14.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Rounded.Settings, contentDescription = null)
+                        Text(
+                            text = stringResource(R.string.general_settings_title),
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                    }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .toggleable(
+                                value = state.preferences.showOnchainMarketCap,
+                                role = Role.Switch,
+                                onValueChange = onShowOnchainMarketCapChange
+                            )
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.show_onchain_market_cap),
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            Text(
+                                text = stringResource(R.string.show_onchain_market_cap_description),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = colors.secondaryText
+                            )
+                        }
+                        Switch(
+                            checked = state.preferences.showOnchainMarketCap,
+                            onCheckedChange = null
+                        )
+                    }
+                }
+            }
+        }
 
         item {
             ElevatedCard(

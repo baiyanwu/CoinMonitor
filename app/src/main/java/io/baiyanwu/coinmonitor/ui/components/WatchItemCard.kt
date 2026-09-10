@@ -6,6 +6,7 @@ import android.content.Context
 import android.widget.Toast
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.layout.Arrangement
@@ -24,6 +25,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -65,6 +67,7 @@ import io.baiyanwu.coinmonitor.ui.resolveChangeColor
 import io.baiyanwu.coinmonitor.ui.resolveLivePriceColor
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 import io.baiyanwu.coinmonitor.R
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeoutOrNull
 
 private enum class WatchItemDragVisualState {
@@ -78,6 +81,7 @@ fun WatchItemCard(
     item: WatchItem,
     quoteRepository: QuoteRepository,
     overlaySelected: Boolean,
+    showOnchainMarketCap: Boolean = false,
     modifier: Modifier = Modifier,
     dragOffsetY: Float = 0f,
     onClick: () -> Unit = {},
@@ -361,7 +365,8 @@ fun WatchItemCard(
             ) {
                 WatchItemLiveQuote(
                     item = item,
-                    quoteRepository = quoteRepository
+                    quoteRepository = quoteRepository,
+                    showOnchainMarketCap = showOnchainMarketCap
                 )
             }
         }
@@ -371,7 +376,8 @@ fun WatchItemCard(
 @Composable
 private fun WatchItemLiveQuote(
     item: WatchItem,
-    quoteRepository: QuoteRepository
+    quoteRepository: QuoteRepository,
+    showOnchainMarketCap: Boolean
 ) {
     val colors = CoinMonitorThemeTokens.colors
     val quoteFlow = remember(item.id, quoteRepository) {
@@ -381,17 +387,60 @@ private fun WatchItemLiveQuote(
         .collectAsStateWithLifecycle(initialValue = quoteRepository.getQuote(item.id))
         .value
     val resolvedItem = item.withQuote(quoteState)
+    val marketCapMode = showOnchainMarketCap &&
+        resolvedItem.marketType == MarketType.ONCHAIN_TOKEN
+    var lastObservedQuoteAt by remember(item.id) {
+        mutableStateOf(resolvedItem.lastUpdatedAt)
+    }
+    var marketCapFlashing by remember(item.id) { mutableStateOf(false) }
+
+    LaunchedEffect(resolvedItem.lastUpdatedAt, marketCapMode) {
+        val quoteChanged = lastObservedQuoteAt != resolvedItem.lastUpdatedAt
+        lastObservedQuoteAt = resolvedItem.lastUpdatedAt
+        marketCapFlashing = false
+        if (
+            marketCapMode &&
+            quoteChanged &&
+            resolvedItem.previousPrice != null &&
+            resolvedItem.lastPrice != null &&
+            resolvedItem.lastPrice != resolvedItem.previousPrice
+        ) {
+            marketCapFlashing = true
+            delay(MARKET_CAP_FLASH_HOLD_MILLIS)
+            marketCapFlashing = false
+        }
+    }
+
+    val marketCapColor by animateColorAsState(
+        targetValue = if (marketCapFlashing) {
+            resolvedItem.resolveLivePriceColor(colors, colors.primaryText)
+        } else {
+            colors.primaryText
+        },
+        animationSpec = tween(
+            durationMillis = if (marketCapFlashing) {
+                MARKET_CAP_FLASH_ENTER_MILLIS
+            } else {
+                MARKET_CAP_FLASH_EXIT_MILLIS
+            }
+        ),
+        label = "market-cap-flash"
+    )
 
     Text(
-        text = QuoteFormatter.formatPrice(resolvedItem.lastPrice),
+        text = QuoteFormatter.formatWatchValue(resolvedItem, showOnchainMarketCap),
         style = MaterialTheme.typography.titleSmall.copy(
             fontSize = 13.sp,
             lineHeight = 17.sp
         ),
-        color = resolvedItem.resolveLivePriceColor(
-            colors = colors,
-            defaultColor = colors.primaryText
-        ),
+        color = if (marketCapMode) {
+            marketCapColor
+        } else {
+            resolvedItem.resolveLivePriceColor(
+                colors = colors,
+                defaultColor = colors.primaryText
+            )
+        },
         fontWeight = FontWeight.SemiBold
     )
     Text(
@@ -407,6 +456,10 @@ private fun WatchItemLiveQuote(
         fontWeight = FontWeight.Medium
     )
 }
+
+private const val MARKET_CAP_FLASH_ENTER_MILLIS = 80
+private const val MARKET_CAP_FLASH_HOLD_MILLIS = 260L
+private const val MARKET_CAP_FLASH_EXIT_MILLIS = 420
 
 private class WatchItemGestureAnchor {
     var cardRootOffset: IntOffset = IntOffset.Zero

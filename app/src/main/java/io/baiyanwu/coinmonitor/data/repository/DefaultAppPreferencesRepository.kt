@@ -114,6 +114,14 @@ class DefaultAppPreferencesRepository(context: Context) : AppPreferencesReposito
         }
     }
 
+    override suspend fun setShowOnchainMarketCap(show: Boolean) {
+        withContext(Dispatchers.IO) {
+            sharedPreferences.edit()
+                .putBoolean(KEY_SHOW_ONCHAIN_MARKET_CAP, show)
+                .apply()
+        }
+    }
+
     override suspend fun setKlineMainIndicator(indicator: KlineIndicator) {
         withContext(Dispatchers.IO) {
             val current = preferencesFlow.value.klineIndicatorSettings
@@ -176,6 +184,10 @@ class DefaultAppPreferencesRepository(context: Context) : AppPreferencesReposito
         )?.let { storedMode ->
             runCatching { OnchainRefreshMode.valueOf(storedMode) }.getOrNull()
         } ?: OnchainRefreshMode.SMART
+        val showOnchainMarketCap = sharedPreferences.getBoolean(
+            KEY_SHOW_ONCHAIN_MARKET_CAP,
+            false
+        )
 
         return AppPreferences(
             themeMode = themeMode,
@@ -185,6 +197,7 @@ class DefaultAppPreferencesRepository(context: Context) : AppPreferencesReposito
             customRefreshIntervalSeconds = customRefreshIntervalSeconds,
             onchainRefreshMode = onchainRefreshMode,
             onchainRefreshIntervalSeconds = onchainRefreshIntervalSeconds,
+            showOnchainMarketCap = showOnchainMarketCap,
             klineIndicatorSettings = klineIndicatorSettings
         )
     }
@@ -206,5 +219,6 @@ class DefaultAppPreferencesRepository(context: Context) : AppPreferencesReposito
         const val KEY_KLINE_INDICATOR_SETTINGS = "kline_indicator_settings"
         const val KEY_ONCHAIN_REFRESH_MODE = "onchain_refresh_mode"
         const val KEY_ONCHAIN_REFRESH_INTERVAL_SECONDS = "onchain_refresh_interval_seconds"
+        const val KEY_SHOW_ONCHAIN_MARKET_CAP = "show_onchain_market_cap"
     }
 }

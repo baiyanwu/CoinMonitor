@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -32,7 +33,6 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Done
@@ -43,7 +43,6 @@ import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -73,6 +72,7 @@ import androidx.compose.ui.semantics.onLongClick
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.IntOffset
@@ -94,12 +94,18 @@ import java.util.Locale
 import kotlin.math.roundToInt
 
 @Composable
-fun WalletWatchRoute(container: AppContainer, onBack: () -> Unit, onOpenSettings: () -> Unit) {
+fun WalletWatchRoute(
+    container: AppContainer,
+    contentTopInset: Dp = 0.dp,
+    contentBottomInset: Dp = 0.dp,
+    onOpenSettings: () -> Unit
+) {
     val viewModel: WalletWatchViewModel = viewModel(factory = WalletWatchViewModel.factory(container))
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     WalletWatchScreen(
         state = state,
-        onBack = onBack,
+        contentTopInset = contentTopInset,
+        contentBottomInset = contentBottomInset,
         onOpenSettings = onOpenSettings,
         onAddressChange = viewModel::updateAddress,
         onQuery = { viewModel.query() },
@@ -119,7 +125,8 @@ fun WalletWatchRoute(container: AppContainer, onBack: () -> Unit, onOpenSettings
 @Composable
 private fun WalletWatchScreen(
     state: WalletWatchUiState,
-    onBack: () -> Unit,
+    contentTopInset: Dp,
+    contentBottomInset: Dp,
     onOpenSettings: () -> Unit,
     onAddressChange: (String) -> Unit,
     onQuery: () -> Unit,
@@ -156,14 +163,9 @@ private fun WalletWatchScreen(
         Toast.makeText(context, copiedMessage, Toast.LENGTH_SHORT).show()
     }
     Scaffold(
+        modifier = Modifier.padding(top = contentTopInset, bottom = contentBottomInset),
         containerColor = colors.pageBackground,
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text(stringResource(R.string.wallet_watch_title)) },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, stringResource(R.string.common_back)) } },
-                colors = androidx.compose.material3.TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = colors.pageBackground)
-            )
-        },
+        contentWindowInsets = WindowInsets(0),
         bottomBar = {
             if (hiddenChainAssets.isNotEmpty() || hiddenAssets.isNotEmpty()) {
                 HiddenAssetsBottomBar(
@@ -174,7 +176,12 @@ private fun WalletWatchScreen(
             }
         }
     ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding).padding(horizontal = 12.dp)) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(start = 12.dp, top = 8.dp, end = 12.dp)
+        ) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                 Surface(
                     modifier = Modifier.weight(1f).height(44.dp),
@@ -235,7 +242,7 @@ private fun WalletWatchScreen(
                     color = MaterialTheme.colorScheme.error
                 )
             }
-            Spacer(Modifier.height(6.dp))
+            Spacer(Modifier.height(12.dp))
             if (!state.secureStorageAvailable || !state.credentialsReady) {
                 CredentialsRequiredCard(state.secureStorageAvailable, onOpenSettings)
             } else if (state.isInitialLoading) {
@@ -366,7 +373,7 @@ private fun PortfolioSummary(
     onHideSmallAssetsChange: (Boolean) -> Unit
 ) {
     var showDisplayOptions by remember { mutableStateOf(false) }
-    Card(modifier = Modifier.padding(bottom = 6.dp), shape = RoundedCornerShape(16.dp), colors = CoinMonitorComponentDefaults.elevatedCardColors()) {
+    Card(modifier = Modifier.padding(bottom = 12.dp), shape = RoundedCornerShape(16.dp), colors = CoinMonitorComponentDefaults.elevatedCardColors()) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(
@@ -393,7 +400,7 @@ private fun PortfolioSummary(
                     }
                 }
             }
-            Text(stringResource(R.string.wallet_watch_usd_value, formatWalletValue(total)), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.wallet_watch_usd_value, formatWalletValue(total)), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
             if (estimated) Text(stringResource(R.string.wallet_watch_total_estimated), style = MaterialTheme.typography.bodySmall, color = CoinMonitorThemeTokens.colors.secondaryText)
             Text(stringResource(R.string.wallet_watch_summary_meta, count, DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(updatedAtMillis))), style = MaterialTheme.typography.labelSmall, color = CoinMonitorThemeTokens.colors.secondaryText)
         }
@@ -412,7 +419,7 @@ private fun ChainSelector(
 ) {
     val chains = assets.filter { it.chainIndex !in hiddenChainIndexes }.distinctBy(WalletAsset::chainIndex)
     LazyRow(
-        modifier = Modifier.fillMaxWidth().padding(bottom = 3.dp),
+        modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
         horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         item(key = "chain_edit") {
@@ -492,38 +499,50 @@ private fun WalletAssetRow(asset: WalletAsset, onCopyContract: (String) -> Unit,
                         true
                     }
                 }
-                .padding(horizontal = 4.dp, vertical = 8.dp),
+                .padding(horizontal = 4.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            CoilCoinSymbolIcon(symbol = asset.symbol, size = 32.dp)
+            CoilCoinSymbolIcon(symbol = asset.symbol, size = 20.dp)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(asset.symbol, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        asset.symbol,
+                        style = MaterialTheme.typography.titleSmall.copy(fontSize = 13.sp, lineHeight = 17.sp),
+                        fontWeight = FontWeight.SemiBold
+                    )
                     Text(
                         asset.tokenPriceUsd?.let { stringResource(R.string.wallet_watch_usd_value, formatWalletPrice(it)) }
                             ?: stringResource(R.string.wallet_watch_no_price),
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.titleSmall.copy(fontSize = 13.sp, lineHeight = 17.sp),
                         color = CoinMonitorThemeTokens.colors.secondaryText
                     )
-                    if (asset.isRiskToken) Text(stringResource(R.string.wallet_watch_risk), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
+                    if (asset.isRiskToken) Text(
+                        stringResource(R.string.wallet_watch_risk),
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, lineHeight = 11.sp)
+                    )
                 }
                 if (asset.contractAddress.isBlank()) {
-                    Text(stringResource(R.string.wallet_watch_native_token), style = MaterialTheme.typography.bodySmall, color = CoinMonitorThemeTokens.colors.secondaryText)
+                    Text(
+                        stringResource(R.string.wallet_watch_native_token),
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, lineHeight = 11.sp),
+                        color = CoinMonitorThemeTokens.colors.secondaryText
+                    )
                 } else {
                     ContractAddressLine(asset.contractAddress, onCopyContract)
                 }
             }
-            Column(horizontalAlignment = Alignment.End) {
+            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
                     asset.holdingValueUsd?.let { stringResource(R.string.wallet_watch_usd_value, formatWalletValue(it)) }
                         ?: stringResource(R.string.wallet_watch_no_price),
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium
+                    style = MaterialTheme.typography.titleSmall.copy(fontSize = 13.sp, lineHeight = 17.sp),
+                    fontWeight = FontWeight.SemiBold
                 )
                 Text(
                     formatWalletQuantity(asset.balance),
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp, lineHeight = 13.sp),
                     color = CoinMonitorThemeTokens.colors.secondaryText
                 )
             }
@@ -681,14 +700,14 @@ private fun ContractAddressLine(contractAddress: String, onCopyContract: (String
         Text(
             shortenWalletContract(contractAddress),
             modifier = Modifier.clickable { onCopyContract(contractAddress) },
-            style = MaterialTheme.typography.bodySmall,
+            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, lineHeight = 11.sp),
             color = MaterialTheme.colorScheme.primary
         )
         IconButton(onClick = { onCopyContract(contractAddress) }, modifier = Modifier.size(24.dp)) {
             Icon(
                 Icons.Rounded.ContentCopy,
                 contentDescription = stringResource(R.string.home_copy_ca_description),
-                modifier = Modifier.size(14.dp),
+                modifier = Modifier.size(12.dp),
                 tint = MaterialTheme.colorScheme.primary
             )
         }

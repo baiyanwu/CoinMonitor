@@ -195,7 +195,33 @@ class CoinMonitorDatabaseMigrationTest {
     }
 
     @Test
-    fun migration7To9_runsTheCompleteUpgradePath() {
+    fun migration9To10_addsNullableMarketCap() {
+        migrationHelper.createDatabase(MARKET_CAP_DATABASE, 9).close()
+
+        val database = migrationHelper.runMigrationsAndValidate(
+            MARKET_CAP_DATABASE,
+            10,
+            true,
+            CoinMonitorDatabase.MIGRATION_9_10
+        )
+
+        database.query("PRAGMA table_info(watch_items)").use { cursor ->
+            val nameColumn = cursor.getColumnIndexOrThrow("name")
+            val notNullColumn = cursor.getColumnIndexOrThrow("notnull")
+            var found = false
+            while (cursor.moveToNext()) {
+                if (cursor.getString(nameColumn) == "marketCap") {
+                    found = true
+                    assertEquals(0, cursor.getInt(notNullColumn))
+                }
+            }
+            assertTrue(found)
+        }
+        database.close()
+    }
+
+    @Test
+    fun migration7To10_runsTheCompleteUpgradePath() {
         val testContext = isolatedMigrationContext(FULL_UPGRADE_DATABASE)
         migrationHelper.createDatabase(FULL_UPGRADE_DATABASE, 7).apply {
             insertLegacyOnchainWatchItem()
@@ -204,19 +230,21 @@ class CoinMonitorDatabaseMigrationTest {
 
         val database = migrationHelper.runMigrationsAndValidate(
             FULL_UPGRADE_DATABASE,
-            9,
+            10,
             true,
             migration7To8(testContext),
-            CoinMonitorDatabase.MIGRATION_8_9
+            CoinMonitorDatabase.MIGRATION_8_9,
+            CoinMonitorDatabase.MIGRATION_9_10
         )
 
         database.query(
-            "SELECT source, overlayOrder FROM watch_items WHERE id = ?",
+            "SELECT source, overlayOrder, marketCap FROM watch_items WHERE id = ?",
             arrayOf(LEGACY_ONCHAIN_ID)
         ).use { cursor ->
             assertTrue(cursor.moveToFirst())
             assertEquals("ONCHAIN", cursor.getString(0))
             assertEquals(1024L, cursor.getLong(1))
+            assertTrue(cursor.isNull(2))
         }
         database.close()
     }
@@ -429,6 +457,7 @@ class CoinMonitorDatabaseMigrationTest {
         listOf(
             WATCH_ITEM_DATABASE,
             OVERLAY_ORDER_DATABASE,
+            MARKET_CAP_DATABASE,
             FULL_UPGRADE_DATABASE,
             PREOPEN_DATABASE,
             ROOM_FALLBACK_DATABASE
@@ -490,6 +519,7 @@ class CoinMonitorDatabaseMigrationTest {
     private companion object {
         const val WATCH_ITEM_DATABASE = "coin-monitor-migration-watch-item"
         const val OVERLAY_ORDER_DATABASE = "coin-monitor-migration-overlay-order"
+        const val MARKET_CAP_DATABASE = "coin-monitor-migration-market-cap"
         const val FULL_UPGRADE_DATABASE = "coin-monitor-migration-full-upgrade"
         const val PREOPEN_DATABASE = "coin-monitor-migration-preopen"
         const val ROOM_FALLBACK_DATABASE = "coin-monitor-migration-room-fallback"

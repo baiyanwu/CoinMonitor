@@ -49,6 +49,12 @@ class SettingsViewModel(
         }
     }
 
+    fun setShowOnchainMarketCap(show: Boolean) {
+        viewModelScope.launch {
+            appPreferencesRepository.setShowOnchainMarketCap(show)
+        }
+    }
+
     fun setRefreshIntervalSeconds(seconds: Int) {
         viewModelScope.launch {
             appPreferencesRepository.setRefreshIntervalSeconds(seconds)

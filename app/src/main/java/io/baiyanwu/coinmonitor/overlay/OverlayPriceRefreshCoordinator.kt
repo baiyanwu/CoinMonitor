@@ -3,6 +3,7 @@ package io.baiyanwu.coinmonitor.overlay
 import io.baiyanwu.coinmonitor.domain.model.OverlaySettings
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
 import io.baiyanwu.coinmonitor.domain.repository.OverlayRepository
+import io.baiyanwu.coinmonitor.domain.repository.AppPreferencesRepository
 import io.baiyanwu.coinmonitor.domain.repository.QuoteRepository
 import io.baiyanwu.coinmonitor.domain.model.withQuote
 import kotlinx.coroutines.CoroutineScope
@@ -19,7 +20,8 @@ class OverlayPriceRefreshCoordinator(
     private val scope: CoroutineScope,
     private val overlayRepository: OverlayRepository,
     private val quoteRepository: QuoteRepository,
-    private val onRender: (List<WatchItem>, OverlaySettings) -> Unit
+    private val appPreferencesRepository: AppPreferencesRepository,
+    private val onRender: (List<WatchItem>, OverlaySettings, Boolean) -> Unit
 ) {
     private var stateJob: Job? = null
     private var currentItems: List<WatchItem> = emptyList()
@@ -32,11 +34,13 @@ class OverlayPriceRefreshCoordinator(
             combine(
                 overlayRepository.observeSettings(),
                 overlayRepository.observeOverlayItems(),
-                quoteRepository.quotes
-            ) { settings, items, quotes ->
+                quoteRepository.quotes,
+                appPreferencesRepository.observePreferences()
+            ) { settings, items, quotes, preferences ->
                 OverlayRenderSnapshot(
                     items = items.map { item -> item.withQuote(quotes[item.id]) },
-                    settings = settings
+                    settings = settings,
+                    showOnchainMarketCap = preferences.showOnchainMarketCap
                 )
             }
                 .distinctUntilChanged()
@@ -44,7 +48,11 @@ class OverlayPriceRefreshCoordinator(
                 .collect { snapshot ->
                     currentSettings = snapshot.settings
                     currentItems = snapshot.items
-                    onRender(snapshot.items, snapshot.settings)
+                    onRender(
+                        snapshot.items,
+                        snapshot.settings,
+                        snapshot.showOnchainMarketCap
+                    )
                 }
         }
     }
@@ -59,5 +67,6 @@ class OverlayPriceRefreshCoordinator(
 
 private data class OverlayRenderSnapshot(
     val items: List<WatchItem>,
-    val settings: OverlaySettings
+    val settings: OverlaySettings,
+    val showOnchainMarketCap: Boolean
 )

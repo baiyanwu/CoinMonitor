@@ -30,6 +30,7 @@ import io.baiyanwu.coinmonitor.domain.repository.AppPreferencesRepository
 import io.baiyanwu.coinmonitor.domain.repository.OverlayRepository
 import io.baiyanwu.coinmonitor.overlay.CoinIconService
 import io.baiyanwu.coinmonitor.overlay.MarqueeOverlayWindowHost
+import io.baiyanwu.coinmonitor.overlay.MarketCapFlashPolicy
 import io.baiyanwu.coinmonitor.overlay.OverlayPermissionHelper
 import io.baiyanwu.coinmonitor.overlay.QuoteFormatter
 import io.baiyanwu.coinmonitor.ui.AppConfigurationApplier
@@ -72,6 +73,9 @@ internal class MarqueeOverlayWindowController(
     private val iconBitmapCache = LinkedHashMap<String, Bitmap>()
     private val pendingIconLoads = mutableSetOf<String>()
     private val completedIconLoads = mutableSetOf<String>()
+    private var showOnchainMarketCap: Boolean = false
+    private val lastMarketCapRenderAtById = mutableMapOf<String, Long?>()
+    private val marketCapFlashAnimatorsById = mutableMapOf<String, ValueAnimator>()
 
     private val overlayColors: CoinMonitorColors
         get() {
@@ -101,13 +105,22 @@ internal class MarqueeOverlayWindowController(
     override fun showOrUpdate(
         items: List<WatchItem>,
         locked: Boolean,
-        settings: MarqueeOverlaySettings
+        settings: MarqueeOverlaySettings,
+        showOnchainMarketCap: Boolean
     ) {
         if (rootView == null && !OverlayPermissionHelper.canDrawOverlays(context)) {
             hide()
             return
         }
 
+        val displayValueModeChanged = this.showOnchainMarketCap != showOnchainMarketCap
+        if (!this.showOnchainMarketCap && showOnchainMarketCap) {
+            items.forEach { item -> lastMarketCapRenderAtById[item.id] = item.lastUpdatedAt }
+        }
+        if (this.showOnchainMarketCap && !showOnchainMarketCap) {
+            cancelMarketCapFlashAnimations()
+        }
+        this.showOnchainMarketCap = showOnchainMarketCap
         val colors = overlayColors
         val metrics = MarqueeMetrics.from(context, settings)
         ensureWindow(settings, locked, metrics)
@@ -144,7 +157,7 @@ internal class MarqueeOverlayWindowController(
                 root = root,
                 metrics = metrics,
                 colors = colors,
-                forceRebuild = visualStyleChanged
+                forceRebuild = visualStyleChanged || displayValueModeChanged
             )
         } else {
             renderMarquee(
@@ -188,6 +201,8 @@ internal class MarqueeOverlayWindowController(
         iconBitmapCache.clear()
         pendingIconLoads.clear()
         completedIconLoads.clear()
+        cancelMarketCapFlashAnimations()
+        lastMarketCapRenderAtById.clear()
         rootView = null
         trackView = null
         layoutParams = null
@@ -387,7 +402,7 @@ internal class MarqueeOverlayWindowController(
             fontFeatureSettings = "tnum"
         }
         return items.associateTo(LinkedHashMap()) { item ->
-            val priceText = QuoteFormatter.formatOverlayPrice(item)
+            val priceText = QuoteFormatter.formatOverlayValue(item, showOnchainMarketCap)
             val measuredWidthPx = if (priceText == "--") {
                 metrics.priceWidthPx
             } else {
@@ -493,22 +508,69 @@ internal class MarqueeOverlayWindowController(
     ) {
         val holders = holdersById[item.id].orEmpty()
         val presentation = MarqueeQuotePresentation(
-            priceText = QuoteFormatter.formatOverlayPrice(item),
-            priceColor = item.resolveLivePriceColor(colors, colors.overlayText).toArgb()
+            priceText = QuoteFormatter.formatOverlayValue(item, showOnchainMarketCap),
+            priceColor = if (showOnchainMarketCap && item.marketType == io.baiyanwu.coinmonitor.domain.model.MarketType.ONCHAIN_TOKEN) {
+                colors.overlayText.toArgb()
+            } else {
+                item.resolveLivePriceColor(colors, colors.overlayText).toArgb()
+            }
         )
+        val lastRenderedAt = lastMarketCapRenderAtById[item.id]
+        val shouldFlash = MarketCapFlashPolicy.shouldFlash(
+            item = item,
+            showOnchainMarketCap = showOnchainMarketCap,
+            lastRenderedAt = lastRenderedAt
+        )
+        if (showOnchainMarketCap) {
+            lastMarketCapRenderAtById[item.id] = item.lastUpdatedAt
+        }
         if (
             MarqueeRenderPolicy.shouldBindQuote(
                 previous = quotePresentationsById[item.id],
                 next = presentation
-            )
+            ) || shouldFlash
         ) {
             holders.forEach { holder ->
                 holder.price.text = presentation.priceText
-                holder.price.setTextColor(presentation.priceColor)
             }
+            applyValueColors(holders, item, colors, presentation.priceColor, shouldFlash)
             quotePresentationsById[item.id] = presentation
         }
         bindItemIcons(holders, item, metrics, colors)
+    }
+
+    private fun applyValueColors(
+        holders: List<MarqueeItemHolder>,
+        item: WatchItem,
+        colors: CoinMonitorColors,
+        steadyColor: Int,
+        shouldFlash: Boolean
+    ) {
+        marketCapFlashAnimatorsById.remove(item.id)?.cancel()
+        if (!shouldFlash) {
+            holders.forEach { holder -> holder.price.setTextColor(steadyColor) }
+            return
+        }
+
+        val flashColor = item.resolveLivePriceColor(
+            colors = colors,
+            defaultColor = colors.overlayText
+        ).toArgb()
+        ValueAnimator.ofArgb(flashColor, steadyColor).apply {
+            duration = MARKET_CAP_FLASH_DURATION_MILLIS
+            startDelay = MARKET_CAP_FLASH_HOLD_MILLIS
+            addUpdateListener { animator ->
+                val color = animator.animatedValue as Int
+                holders.forEach { holder -> holder.price.setTextColor(color) }
+            }
+            marketCapFlashAnimatorsById[item.id] = this
+            start()
+        }
+    }
+
+    private fun cancelMarketCapFlashAnimations() {
+        marketCapFlashAnimatorsById.values.forEach(ValueAnimator::cancel)
+        marketCapFlashAnimatorsById.clear()
     }
 
     private fun bindItemIcons(
@@ -761,5 +823,7 @@ internal class MarqueeOverlayWindowController(
 
     private companion object {
         const val DEFAULT_WINDOW_Y_DP = 180
+        const val MARKET_CAP_FLASH_HOLD_MILLIS = 260L
+        const val MARKET_CAP_FLASH_DURATION_MILLIS = 420L
     }
 }

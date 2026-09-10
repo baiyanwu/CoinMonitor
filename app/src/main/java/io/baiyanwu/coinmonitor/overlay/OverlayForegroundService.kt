@@ -55,10 +55,11 @@ class OverlayForegroundService : Service() {
             scope = serviceScope,
             overlayRepository = container.overlayRepository,
             quoteRepository = container.quoteRepository,
-        ) { items, settings ->
+            appPreferencesRepository = container.appPreferencesRepository
+        ) { items, settings, showOnchainMarketCap ->
             // 临时隐藏属于运行态，后续行情刷新时也必须继续尊重这个状态。
             if (settings.enabled && !OverlayRuntimeSession.temporarilyHidden.value) {
-                windowController.showOrUpdate(items, settings)
+                windowController.showOrUpdate(items, settings, showOnchainMarketCap)
             } else {
                 windowController.hide()
                 clipboardWindow.hide()
@@ -341,7 +342,11 @@ class OverlayForegroundService : Service() {
             windowController.hide()
             clipboardWindow.hide()
         } else {
-            windowController.showOrUpdate(items, latestSettings)
+            windowController.showOrUpdate(
+                items,
+                latestSettings,
+                container.appPreferencesRepository.getPreferences().showOnchainMarketCap
+            )
         }
         return true
     }

@@ -11,5 +11,6 @@ data class MarketQuote(
     /** 发起报价请求时使用的池绑定，用于拒绝过期请求回写。 */
     val requestedPoolAddress: String? = null,
     val requestedPoolTokenSide: PoolTokenSide? = null,
-    val resetTrend: Boolean = false
+    val resetTrend: Boolean = false,
+    val marketCap: Double? = null
 )

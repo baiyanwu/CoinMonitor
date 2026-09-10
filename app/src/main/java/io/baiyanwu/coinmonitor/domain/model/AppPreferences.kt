@@ -35,6 +35,7 @@ data class AppPreferences(
     val customRefreshIntervalSeconds: Int = DEFAULT_CUSTOM_REFRESH_INTERVAL_SECONDS,
     val onchainRefreshMode: OnchainRefreshMode = OnchainRefreshMode.SMART,
     val onchainRefreshIntervalSeconds: Int = DEFAULT_ONCHAIN_REFRESH_INTERVAL_SECONDS,
+    val showOnchainMarketCap: Boolean = false,
     val klineIndicatorSettings: KlineIndicatorSettings = KlineIndicatorSettings()
 ) {
     val klineMainIndicator: KlineIndicator

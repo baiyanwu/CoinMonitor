@@ -63,6 +63,7 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 
 ### Settings
 
+- 设置页顶部新增“通用设置”分组，其中“显示链上市值”通过 Preferences DataStore 全局持久化；该状态由首页和前台悬浮服务共同观察，冷启动、Activity 重建与悬浮窗重建后保持一致，仅改变 `ONCHAIN_TOKEN` 的主数值展示
 - 设置页新增独立 `AboutActivity`，沿用统一 Compose Activity 宿主、主题、语言和详情页转场
 - “关于”页通过 `BuildConfig.VERSION_NAME / VERSION_CODE` 读取当前构建版本，版本信息不在字符串资源中重复维护
 - 页面集中展示项目用途、作者 `baiyanwu`、GitHub 源码仓库、Apache-2.0 许可、Issues 反馈入口及行情风险说明；外部链接统一交由系统 URI 处理器打开
@@ -78,7 +79,7 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 ### K-line
 
 - K 线页、图表、指标设置、搜索回填和 AI 聊天实现仍保留在工程中，但当前不再作为底部导航或首页卡片点击入口暴露
-- `NavHost` 中仍保留 `Destinations.KLINE` route，用于后续恢复入口时复用既有实现；底部导航列表只展示首页和设置
+- `NavHost` 中仍保留 `Destinations.KLINE` route，用于后续恢复入口时复用既有实现；底部导航按“首页 / 钱包 / 设置”展示三个一级页面
 - 图表内核当前基于仓库内 vendored 的 `TradingView Lightweight Charts Android wrapper` 源码模块
 - 第三方图表源码当前直接放在 `third_party/lightweightlibrary`，应用不再依赖外部 `aar`，方便直接调试 wrapper 和内嵌 JS core
 - K 线数据统一走 `MarketKlineRepository`，交易所继续使用 `Binance / Binance Alpha / OKX`，链上池使用 `GeckoTerminal`
@@ -100,7 +101,7 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 
 ### On-chain
 
-- 首页“链上”分页底部常驻钱包摘要横栏，可启动独立 `WalletWatchActivity`。资产摘要后的独立刷新按钮会立即为当前地址重新请求完整钱包快照，刷新期间旋转并禁止重复点击；成功后覆盖最近快照并按隐藏、风险、小额筛选状态重算总额和数量，失败时保留旧摘要并提示错误。返回首页时仍会重新读取最近快照。钱包资产模型、仓库和 UI 组件不复用首页币对模型
+- 观察地址已提升为底部导航中间的“钱包”一级页面，直接由主 `NavHost` 承载 `WalletWatchRoute`；首页“链上”分页不再显示钱包摘要横栏或独立刷新入口。钱包页与首页、设置之间使用顶层 Tab 状态恢复，不显示二级页面返回按钮；系统栏和底部导航安全区统一由主 `Scaffold` 传入，钱包页内层 `Scaffold` 使用零 `contentWindowInsets`，避免重复计算顶部安全区。钱包资产模型、仓库和 UI 组件仍不复用首页币对模型
 - 观察地址支持 EVM 与 Solana，分别路由至 OKX EVM ChainIndex 注册表和 Solana `501`；明细与 token-only 总值并发请求，金额全程使用 `BigDecimal`
 - OKX API Key、Secret Key、Passphrase 使用独立的 `okx_wallet_credentials_secure` 加密偏好保存；安全存储不可用时拒绝明文降级，日志拦截器统一脱敏 OKX 鉴权 Header
 - 观察地址按链切换资产列表；链栏可进入编辑状态并隐藏整条链，长按资产可隐藏单币。两类状态按钱包地址分别持久化，并在底部“已隐藏”面板中分组恢复；页头总资产和数量由全部可见资产汇总，隐藏与恢复会立即同步数值
@@ -113,6 +114,7 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 - EVM 合约地址统一转为小写，Solana 与其他链地址保留原始大小写；未知网络会根据返回的代币地址形态区分 EVM 与其他链
 - 搜索选池先要求目标合约精确匹配，并排除无有效美元价格或无流动性的池；随后依次按目标代币位于 `base` 侧、美元流动性、24 小时成交量和池地址排序
 - DexScreener 网络 DTO 按官方契约容纳显式 `null`：`pairs`、`labels`、`priceChange` 在解码层保持可空，并在客户端或业务边界统一归一化为空集合，避免单个缺失字段导致整次搜索或报价解析失败
+- DexScreener 的 `marketCap` 从搜索、固定池报价、`MarketQuote`、内存 `QuoteState` 到 Room 快照保持可空传递；只有目标合约位于所选池的 base 侧时才接受该值，quote 侧不会误用 base 代币市值，也不以 `fdv` 回退。无有效市值时统一显示 `--`
 - 添加观察项时固定池地址和目标代币的 `base / quote` 方向；用户从搜索结果切换池后，已添加标的立即更新绑定，未添加标的会在添加时保存当前选择
 - 链上观察项的 `symbol` 保存为当前池的 `目标币 / 另一侧币种`；生成标签时无论目标合约位于池子的 `base` 还是 `quote` 侧，都固定把目标币放在前面。新添加和切池时立即更新，历史项在下一次通过绑定校验的 DexScreener 报价落库时自动回填，不新增 Room 字段或迁移
 - 同一标的连续切池时会取消上一任务，并等待上一代数据库写入完全结束后再写入最新选择；报价落库还会比较“请求发起时的池绑定”和当前绑定，拒绝迟到旧请求回写池地址或价格
@@ -124,7 +126,7 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 - 报价和 K 线捕获普通网络异常时不会捕获 `CancellationException`，快速切换标的、周期或重启刷新任务后，旧任务不会继续更新 UI
 - 搜索结果通过 `LazyColumn.itemsIndexed` 逐条组合和回收，不再在单个 lazy item 内用 `forEach` 一次性组合全部结果
 - 代币图标优先使用 DexScreener 返回的公开 `info.imageUrl`；链 Logo 优先使用本地映射，未命中或下载失败时依次尝试在线链图标候选
-- 链上代币缺少自身图标时会按链 Logo 候选依次回退；所有在线候选都失败时，Compose 列表和原生悬浮窗都使用内置默认占位图，网络异常不会向上抛出中断渲染
+- 链上代币缺少自身图标时会按链 Logo 候选依次回退；原生悬浮窗严格按“代币图标缓存/下载 → 链 Logo 缓存/下载”的候选顺序处理，低优先级的已缓存链 Logo 不会抢占尚未缓存的代币图标。所有在线候选都失败时，Compose 列表和原生悬浮窗都使用内置默认占位图，网络异常不会向上抛出中断渲染
 
 ### Overlay
 
@@ -144,6 +146,7 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 - 跑马灯背景保留透明度设置，但外层不绘制边界线；图标复用公共缓存并按圆形裁剪，在线图标缺失时显示内置圆形占位
 - 跑马灯按 `24 / 40 / 56 dp/s` 提供慢速、正常、快速三档；轨道复制到足以覆盖屏幕并线性无限移动一个内容周期，形成无空白接缝
 - 跑马灯价格列宽在每次轨道创建后冻结，行情刷新只更新实际变化的价格文本和颜色，不再重新测量价格、重绑图标、更新窗口布局或重启动画；只有币对集合、字体、速度、主题或屏幕宽度变化时才重建轨道。系统动画关闭时回退为静态横排行情
+- 首页、排列型与跑马灯型统一由全局偏好决定链上主数值显示价格或市值；市值文本由 `QuoteFormatter.formatMarketCap` 统一压缩为美元单位。红绿闪烁始终比较底层真实价格，新价格上涨/下跌时短暂着色后恢复中性色，相同价格或缺少前值时不触发
 - 悬浮窗行情协调器对相同渲染快照去重，并在主线程繁忙时只保留最新快照，避免未选币对更新或积压的中间行情重复触发窗口渲染
 - 前台服务和应用页面当前位于同一进程并共享主线程，系统悬浮窗口与 `Activity` 又分别拥有独立 `ViewRoot`；因此在 `120Hz` 等高刷新率设备上，首页滚动或页面切换的大量重绘仍可能短暂延迟跑马灯帧。现有优化解决的是行情刷新造成的额外工作，不等同于渲染线程隔离；如后续要求彻底隔离，需要把跑马灯改为独立 `Surface` 渲染线程或单独进程，并重新验证透明合成、触摸、图标与数据同步
 - 实体机对比已否决两种局部方案：强制整条轨道使用硬件缓存层会放大宽纹理合成成本，手动用 `Choreographer` 在高刷屏限频也会增加截止帧；当前继续使用系统 `ObjectAnimator`，不保留这两类试验代码
@@ -287,9 +290,9 @@ Release 自动流程：
 - 旧 `overlay_settings` 数据会先暂存并通过 `SharedPreferencesMigration` 一次性导入 DataStore；已经安装过旧 version 8 的开发包也会在 Room 打开前执行兼容导入。
 - 前台通知使用自定义 `RemoteViews` 内容布局，统一正文与操作按钮的对齐方式。
 - 数据库移除默认破坏性迁移，开启 Room schema 导出，为后续显式 migration 留出接口。
-- Room schema 为 `v9`，迁移路径：v4→v5（悬浮窗字体/吸附）→v6（旧链上字段）→v7（首页排序与置顶 + AI 聊天表）→v8（通用链上来源、固定池地址与代币方向 + 旧悬浮窗配置导出）→v9（悬浮币对独立全局顺序）。
-- v7→v8 继续负责保留旧链上观察项 ID、迁移通用 `ONCHAIN` 来源、清理旧价格快照并把旧悬浮配置暂存给 DataStore；v8→v9 只增加可空 `overlayOrder`，按旧版实际查询顺序为已选币对写入间隔序号，不改动首页排序字段。
-- `androidTest` 使用 Room `MigrationTestHelper` 和仓库内导出的 v7/v8/v9 schema，覆盖 v7→v8、v8→v9 与 v7→v9 连续升级；测试数据库、偏好和 DataStore 目录全部隔离，不读写正式用户配置。
+- Room schema 为 `v10`，迁移路径：v4→v5（悬浮窗字体/吸附）→v6（旧链上字段）→v7（首页排序与置顶 + AI 聊天表）→v8（通用链上来源、固定池地址与代币方向 + 旧悬浮窗配置导出）→v9（悬浮币对独立全局顺序）→v10（观察项可空 `marketCap`）。
+- v7→v8 继续负责保留旧链上观察项 ID、迁移通用 `ONCHAIN` 来源、清理旧价格快照并把旧悬浮配置暂存给 DataStore；v8→v9 只增加可空 `overlayOrder`，v9→v10 只增加可空 `marketCap`，均不破坏已有观察列表与排序状态。
+- `androidTest` 使用 Room `MigrationTestHelper` 和仓库内导出的 v7/v8/v9/v10 schema，覆盖 v7→v8、v8→v9、v9→v10 与连续升级；测试数据库、偏好和 DataStore 目录全部隔离，不读写正式用户配置。
 - 为兼容已经运行过早期 version 8 的开发包，v8 schema 暂时保留空的 `overlay_settings` 表壳，但运行时已删除对应 DAO，迁移后也会清空旧行；这张表不再是悬浮窗配置的数据源。
 - 调试网络日志只在 Debug 构建输出，Release 默认关闭。
 - AI 聊天复用同一套带网络日志拦截器的 `OkHttpClient`，`K线 AI` 请求也会进入网络日志页。

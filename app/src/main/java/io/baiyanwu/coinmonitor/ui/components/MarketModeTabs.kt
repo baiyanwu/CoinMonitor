@@ -30,6 +30,7 @@ private const val MARKET_MODE_PAGE_COUNT = 2
 fun MarketModeTabs(
     selectedPage: Int,
     onSelectPage: (Int) -> Unit,
+    prominentLabels: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val colors = CoinMonitorThemeTokens.colors
@@ -65,7 +66,11 @@ fun MarketModeTabs(
                     Text(
                         text = stringResource(labelRes),
                         color = if (selected) colors.accent else colors.secondaryText,
-                        style = MaterialTheme.typography.labelLarge,
+                        style = if (prominentLabels) {
+                            MaterialTheme.typography.titleMedium
+                        } else {
+                            MaterialTheme.typography.labelLarge
+                        },
                         fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium
                     )
                 }

@@ -68,7 +68,8 @@ class AppContainer(context: Context) {
             context = appContext,
             migrateOverlaySettings = ::migrateLegacyOverlaySettings
         ),
-        CoinMonitorDatabase.MIGRATION_8_9
+        CoinMonitorDatabase.MIGRATION_8_9,
+        CoinMonitorDatabase.MIGRATION_9_10
     ).build()
 
     val networkLogRepository: NetworkLogRepository = DefaultNetworkLogRepository()

@@ -1,15 +1,15 @@
 # 观察地址
 
-“观察地址”是独立的只读钱包资产页。首页“链上”分页底部提供常驻摘要横栏，显示当前观察地址的头尾缩写和经过用户隐藏、风险及小额筛选后的可见资产总额；点击整条横栏进入 `WalletWatchActivity`，右侧刷新按钮可直接更新当前地址的快照。第一版支持 EVM 与 Solana 地址，不提供交易、转账、盈亏分析、地址命名、多地址管理、定时轮询或悬浮窗展示。
+“观察地址”是底部导航中间“钱包”Tab 对应的一级只读钱包资产页，与“首页”“设置”并列。页面不再显示单独的“观察地址”标题，地址搜索区直接排列在顶部系统安全区下方；搜索区、总资产卡和链选择区之间保留清晰的分组间距。页面支持 EVM 与 Solana 地址，不提供交易、转账、盈亏分析、地址命名、多地址管理、定时轮询或悬浮窗展示。
 
 ## 使用流程
 
 1. 在 OKX [Developer Portal](https://web3.okx.com/onchainos/dev-portal) 创建 API 凭证，取得 API Key、Secret Key 和 Passphrase。
 2. 打开应用“设置 → 第三方 API 设置 → OKX 钱包资产 API”，填写三项凭证并启用。鉴权规则见 [OKX API access and usage](https://web3.okx.com/zh-hans/onchainos/dev-docs/home/api-access-and-usage)。
-3. 回到首页“链上”分页，点击底部“观察地址”摘要横栏。
+3. 点击底部导航中间的“钱包”。
 4. 输入 `0x` 加 40 个十六进制字符的 EVM 地址，或 Base58 解码后为 32 字节的 Solana 地址，然后查询。
 
-最后一次有效地址保存于普通应用偏好中，重新进入页面后会自动查询。API 凭证只保存在 `EncryptedSharedPreferences`，主密钥由 Android Keystore 管理；安全存储不可用时应用拒绝保存和使用凭证，不会降级为明文。
+最后一次有效地址保存于普通应用偏好中，切换回钱包 Tab 后页面保留当前状态；应用进程重建后会自动查询最后一次有效地址。API 凭证只保存在 `EncryptedSharedPreferences`，主密钥由 Android Keystore 管理；安全存储不可用时应用拒绝保存和使用凭证，不会降级为明文。
 
 ## 数据范围
 
@@ -76,7 +76,6 @@ data/network/OkxWalletClient.kt
 data/repository/DefaultOkxWalletCredentialsRepository.kt
 data/repository/DefaultWalletPortfolioRepository.kt
 data/repository/DefaultWalletPortfolioCacheRepository.kt
-ui/walletwatch/WalletWatchActivity.kt
 ui/walletwatch/WalletWatchViewModel.kt
 ui/walletwatch/WalletWatchRoute.kt
 ```

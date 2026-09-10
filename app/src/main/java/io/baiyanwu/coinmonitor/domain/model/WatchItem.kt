@@ -22,6 +22,7 @@ data class WatchItem(
     val previousPrice: Double? = null,
     val liveTrend: LivePriceTrend = LivePriceTrend.NEUTRAL,
     val change24hPercent: Double? = null,
+    val marketCap: Double? = null,
     val lastUpdatedAt: Long? = null,
     val selectedPool: OnchainPoolOption? = null,
     val poolOptions: List<OnchainPoolOption> = emptyList()

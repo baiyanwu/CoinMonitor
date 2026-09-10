@@ -2,6 +2,7 @@
     <string name="app_name">CoinMonitor</string>
 
     <string name="tab_home">Home</string>
+    <string name="tab_wallet">Wallet</string>
     <string name="tab_kline">Kline</string>
     <string name="tab_search">Search</string>
     <string name="tab_settings">Settings</string>
@@ -69,7 +70,9 @@
     <string name="error_search_retry">Search failed. Please try again later.</string>
     <string name="error_search_partial_sources">Some market data sources are temporarily unavailable. Other results are shown. Please try again.</string>
 
-    <string name="settings_title">Settings</string>
+    <string name="general_settings_title">General</string>
+    <string name="show_onchain_market_cap">Show on-chain market cap</string>
+    <string name="show_onchain_market_cap_description">Show market cap for on-chain tokens on the home screen and in floating windows</string>
     <string name="settings_subtitle">Manage language, appearance, and floating window features here.</string>
     <string name="appearance_title">Appearance</string>
     <string name="appearance_subtitle">Follow system, or lock the app to light or dark mode.</string>
@@ -323,7 +326,6 @@
     <string name="overlay_notification_stop">Close floating window</string>
     <string name="overlay_channel_name">Floating window service</string>
     <string name="overlay_channel_description">Keeps the floating window alive and updates prices in real time.</string>
-    <string name="wallet_watch_title">Watch address</string>
     <string name="wallet_watch_address_hint">EVM or Solana address</string>
     <string name="wallet_watch_invalid_address">Enter a valid EVM or Solana address</string>
     <string name="wallet_watch_query">Query</string>
@@ -365,12 +367,6 @@
     <string name="wallet_watch_hidden_chains_section">Hidden chains</string>
     <string name="wallet_watch_hidden_assets_section">Hidden tokens</string>
     <string name="wallet_watch_hidden_chain_asset_count">%1$d assets</string>
-    <string name="home_wallet_watch_current">Watching</string>
-    <string name="home_wallet_watch_add_address">Tap to add an address</string>
-    <string name="home_wallet_watch_no_assets">No asset data</string>
-    <string name="home_wallet_watch_visible_assets">%1$d visible assets</string>
-    <string name="home_wallet_watch_refresh">Refresh current wallet assets</string>
-    <string name="home_wallet_watch_refresh_failed">Failed to refresh wallet assets</string>
     <string name="okx_wallet_settings_title">OKX Wallet Asset API</string>
     <string name="okx_wallet_settings_description">Read-only token balances and USD valuations for EVM and Solana addresses. Credentials stay in encrypted storage on this device.</string>
     <string name="okx_wallet_settings_enabled">Enable OKX Wallet Asset API</string>

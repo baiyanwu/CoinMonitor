@@ -48,19 +48,24 @@ class CoinIconService private constructor(private val context: Context) {
             fallbackIconUrls = fallbackIconUrls,
             grayscaleFallback = grayscaleFallback
         )
-        directRequests.forEach { request ->
+        // 只能快捷命中最高优先级候选。若代币图标尚未缓存而链图标已有缓存，
+        // 扫描全部缓存会跳过代币图标下载，导致悬浮窗长期显示链图标。
+        directRequests.firstOrNull()?.let { request ->
             loadCachedBitmap(request.cacheKey)?.let { return@withContext it }
         }
 
         cacheMutex.withLock {
-            directRequests.forEach { request ->
-                loadCachedBitmap(request.cacheKey)?.let { return@withContext it }
-                val bitmap = downloadBitmap(request.url) ?: return@forEach
-                val finalBitmap = if (request.grayscale) bitmap.toGrayscale() else bitmap
-                saveToDisk(request.cacheKey, finalBitmap)
-                memoryCache[request.cacheKey] = finalBitmap
-                return@withContext finalBitmap
-            }
+            firstAvailableIconInOrder(
+                candidates = directRequests,
+                cached = { request -> loadCachedBitmap(request.cacheKey) },
+                fetch = { request ->
+                    val bitmap = downloadBitmap(request.url) ?: return@firstAvailableIconInOrder null
+                    val finalBitmap = if (request.grayscale) bitmap.toGrayscale() else bitmap
+                    saveToDisk(request.cacheKey, finalBitmap)
+                    memoryCache[request.cacheKey] = finalBitmap
+                    finalBitmap
+                }
+            )?.let { return@withContext it }
 
             if (!allowSymbolLookup) return@withContext null
             memoryCache[normalized]?.let { return@withContext it }
@@ -243,4 +248,19 @@ class CoinIconService private constructor(private val context: Context) {
             }
         }
     }
+}
+
+/**
+ * 严格按候选优先级逐项执行“读缓存 -> 获取”，避免低优先级缓存抢占高优先级远端图标。
+ */
+internal fun <Candidate, Value> firstAvailableIconInOrder(
+    candidates: List<Candidate>,
+    cached: (Candidate) -> Value?,
+    fetch: (Candidate) -> Value?
+): Value? {
+    candidates.forEach { candidate ->
+        cached(candidate)?.let { return it }
+        fetch(candidate)?.let { return it }
+    }
+    return null
 }

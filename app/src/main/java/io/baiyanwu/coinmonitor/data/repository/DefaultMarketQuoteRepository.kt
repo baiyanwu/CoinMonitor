@@ -193,6 +193,7 @@ class DefaultMarketQuoteRepository(
                                     name = item.name,
                                     priceUsd = selected.priceUsd,
                                     change24hPercent = selected.change24hPercent,
+                                    marketCap = selected.marketCap,
                                     poolAddress = selectedPoolAddress,
                                     poolTokenSide = selected.tokenSide,
                                     requestedPoolAddress = item.poolAddress,

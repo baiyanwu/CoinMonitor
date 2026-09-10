@@ -103,6 +103,7 @@ interface WatchItemDao {
             previousPrice = :previousPrice,
             liveTrend = :liveTrend,
             change24hPercent = :change24hPercent,
+            marketCap = :marketCap,
             lastUpdatedAt = :lastUpdatedAt
         WHERE id = :id
         """
@@ -113,6 +114,7 @@ interface WatchItemDao {
         previousPrice: Double?,
         liveTrend: String,
         change24hPercent: Double?,
+        marketCap: Double?,
         lastUpdatedAt: Long
     )
 
@@ -128,6 +130,7 @@ interface WatchItemDao {
             previousPrice = NULL,
             liveTrend = 'NEUTRAL',
             change24hPercent = NULL,
+            marketCap = NULL,
             lastUpdatedAt = NULL
         WHERE id = :id
           AND (poolAddress IS NOT :poolAddress OR poolTokenSide IS NOT :poolTokenSide)

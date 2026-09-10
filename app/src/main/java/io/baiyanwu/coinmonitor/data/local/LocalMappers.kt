@@ -34,6 +34,7 @@ fun WatchItemEntity.toDomain(): WatchItem {
         previousPrice = previousPrice,
         liveTrend = LivePriceTrend.valueOf(liveTrend),
         change24hPercent = change24hPercent,
+        marketCap = marketCap,
         lastUpdatedAt = lastUpdatedAt
     )
 }
@@ -61,6 +62,7 @@ fun WatchItem.toEntity(): WatchItemEntity {
         previousPrice = previousPrice,
         liveTrend = liveTrend.name,
         change24hPercent = change24hPercent,
+        marketCap = marketCap,
         lastUpdatedAt = lastUpdatedAt
     )
 }
