@@ -12,6 +12,7 @@ import io.baiyanwu.coinmonitor.domain.model.WalletNetworkConfiguration
 import io.baiyanwu.coinmonitor.domain.model.WalletPortfolio
 import io.baiyanwu.coinmonitor.domain.model.WalletPrivateKeyType
 import io.baiyanwu.coinmonitor.domain.model.WalletProfile
+import io.baiyanwu.coinmonitor.domain.repository.OkxWalletCredentialsRepository
 import io.baiyanwu.coinmonitor.domain.repository.SelfCustodyWalletRepository
 import io.baiyanwu.coinmonitor.domain.repository.WalletNetworkSettingsRepository
 import io.baiyanwu.coinmonitor.domain.repository.WalletTransferEstimate
@@ -46,6 +47,7 @@ data class WalletSendState(
 data class WalletUiState(
     val vault: WalletVaultState = WalletVaultState(),
     val networkConfiguration: WalletNetworkConfiguration = WalletNetworkConfiguration(),
+    val okxCredentialsReady: Boolean = false,
     val portfolio: WalletPortfolio? = null,
     val loading: Boolean = false,
     val refreshing: Boolean = false,
@@ -76,7 +78,8 @@ class WalletViewModel(
     private val vaultRepository: WalletVaultRepository,
     private val networkSettingsRepository: WalletNetworkSettingsRepository,
     private val walletRepository: SelfCustodyWalletRepository,
-    private val displayPreferencesRepository: WalletWatchPreferencesRepository
+    private val displayPreferencesRepository: WalletWatchPreferencesRepository,
+    private val okxCredentialsRepository: OkxWalletCredentialsRepository
 ) : ViewModel() {
     private val initialVault = vaultRepository.currentState()
     private val initialDisplayKey = initialVault.activeWallet?.let(::displayPreferencesKey)
@@ -84,6 +87,7 @@ class WalletViewModel(
         WalletUiState(
             vault = initialVault,
             networkConfiguration = networkSettingsRepository.get(),
+            okxCredentialsReady = okxCredentialsRepository.getCredentials().isReady,
             hideAssetsBelowOneUsd = initialDisplayKey?.let(displayPreferencesRepository::getHideSmallAssets) ?: true,
             includeUnverifiedAssets = initialDisplayKey?.let(displayPreferencesRepository::getIncludeRiskAssets) ?: false
         )
@@ -130,6 +134,15 @@ class WalletViewModel(
                             config.enabledNetworks.firstOrNull { it.id == selected.id }
                         }
                     )
+                }
+            }
+        }
+        viewModelScope.launch {
+            okxCredentialsRepository.observeCredentials().collect { credentials ->
+                val wasReady = _uiState.value.okxCredentialsReady
+                _uiState.update { it.copy(okxCredentialsReady = credentials.isReady) }
+                if (!wasReady && credentials.isReady && _uiState.value.vault.unlocked && _uiState.value.activeWallet != null) {
+                    loadPortfolio(initial = _uiState.value.portfolio == null)
                 }
             }
         }
@@ -233,6 +246,7 @@ class WalletViewModel(
         _uiState.value = WalletUiState(
             vault = vaultRepository.currentState(),
             networkConfiguration = networkSettingsRepository.get(),
+            okxCredentialsReady = okxCredentialsRepository.getCredentials().isReady,
             message = "本地钱包保险库已重置"
         )
     }
@@ -313,11 +327,15 @@ class WalletViewModel(
     }
 
     fun openSend(asset: SelfCustodyAsset? = null) {
-        val selected = asset ?: _uiState.value.visibleAssets.firstOrNull()
+        val selected = asset?.takeIf(SelfCustodyAsset::transferable)
+            ?: _uiState.value.visibleAssets.firstOrNull(SelfCustodyAsset::transferable)
         _uiState.update { it.copy(page = WalletPage.SEND, send = WalletSendState(asset = selected)) }
     }
 
-    fun selectSendAsset(asset: SelfCustodyAsset) = _uiState.update { it.copy(send = WalletSendState(asset = asset)) }
+    fun selectSendAsset(asset: SelfCustodyAsset) {
+        require(asset.transferable) { "该资产缺少可靠的精度信息，暂不支持转账。" }
+        _uiState.update { it.copy(send = WalletSendState(asset = asset)) }
+    }
     fun updateRecipient(value: String) = updateSend { it.copy(recipient = value, estimate = null, errorMessage = null) }
     fun updateAmount(value: String) = updateSend { it.copy(amount = value, sendMaximum = false, estimate = null, errorMessage = null) }
     fun setMaximum() = updateSend { state ->
@@ -423,6 +441,7 @@ class WalletViewModel(
         val state = _uiState.value
         val wallet = state.activeWallet ?: return null
         val asset = state.send.asset ?: return failAndNull("请选择资产。")
+        if (!asset.transferable) return failAndNull("该资产缺少可靠的精度信息，暂不支持转账。")
         if (state.send.recipient.isBlank()) return failAndNull("请输入收款地址。")
         if (state.send.amount.isBlank()) return failAndNull("请输入转账金额。")
         if (!state.send.sendMaximum && (state.send.amount.toBigDecimalOrNull() ?: java.math.BigDecimal.ZERO) > asset.balance) {
@@ -468,7 +487,8 @@ class WalletViewModel(
                     vaultRepository = container.walletVaultRepository,
                     networkSettingsRepository = container.walletNetworkSettingsRepository,
                     walletRepository = container.selfCustodyWalletRepository,
-                    displayPreferencesRepository = container.walletWatchPreferencesRepository
+                    displayPreferencesRepository = container.walletWatchPreferencesRepository,
+                    okxCredentialsRepository = container.okxWalletCredentialsRepository
                 )
             }
         }

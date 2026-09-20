@@ -33,9 +33,9 @@
 - Review the current build version, project purpose, author, source repository, Apache-2.0 license, feedback link, and usage notice from the in-app About page
 - Check GitHub's latest published Release once whenever the main screen is created, then prompt users to open the Release page when a newer version is available; no third-party update service is involved
 - Keep exchange quotes flowing through `WSS` first, while DexScreener prices use an independent smart or fixed refresh cycle with sequential request pacing
-- Use the middle `Wallet` tab as a local self-custody wallet for dynamically managed EVM networks and Solana, with multi-wallet creation/import, receive/send, native/ERC20/SPL balances, activity, encrypted local keys, and optional biometric unlock
+- Use the middle `Wallet` tab as a local self-custody wallet for dynamically managed EVM networks and Solana: OKX Onchain aggregates assets, prices, metadata, and risk flags, while Alchemy or a per-chain custom RPC handles transaction preflight, broadcast, and status
 - Enable Ethereum, BNB Chain, Robinhood Chain, and Solana by default; additional catalog EVM networks or a user-verified custom EVM RPC can be enabled without changing the wallet model
-- Open the existing OKX-powered read-only watch-address workspace from the wallet menu; its addresses, filters, cache, and credentials remain isolated from self-custody assets
+- Open the existing OKX-powered read-only watch-address workspace from the wallet menu; it shares encrypted OKX credentials with self-custody asset queries while keeping addresses, filters, models, and caches isolated
 
 ## On-chain Notes
 

@@ -27,6 +27,7 @@ class WalletInfrastructurePolicyTest {
         val construction = container.substringAfter("val selfCustodyWalletRepository")
             .substringBefore("val walletSessionLockObserver")
         assertTrue(construction.contains("httpClient = networkFactory.okHttpClient"))
+        assertTrue(construction.contains("okxCredentials = okxWalletCredentialsRepository"))
     }
 
     private fun readSource(rootRelativePath: String, moduleRelativePath: String): String {

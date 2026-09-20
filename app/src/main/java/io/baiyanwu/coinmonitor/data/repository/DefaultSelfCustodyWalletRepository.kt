@@ -2,7 +2,11 @@ package io.baiyanwu.coinmonitor.data.repository
 
 import android.content.Context
 import io.baiyanwu.coinmonitor.data.network.AlchemyWalletClient
+import io.baiyanwu.coinmonitor.data.network.OkxWalletClient
+import io.baiyanwu.coinmonitor.data.network.OkxWalletTokenMetadata
+import io.baiyanwu.coinmonitor.data.network.OkxWalletTokenRow
 import io.baiyanwu.coinmonitor.data.network.WalletRpcClient
+import io.baiyanwu.coinmonitor.data.network.okxTokenMetadataId
 import io.baiyanwu.coinmonitor.data.wallet.WalletTransactionSigner
 import io.baiyanwu.coinmonitor.domain.model.WalletActivity
 import io.baiyanwu.coinmonitor.domain.model.WalletActivityDirection
@@ -13,6 +17,7 @@ import io.baiyanwu.coinmonitor.domain.model.WalletPortfolio
 import io.baiyanwu.coinmonitor.domain.model.WalletProfile
 import io.baiyanwu.coinmonitor.domain.model.WalletRefreshFailures
 import io.baiyanwu.coinmonitor.domain.repository.SelfCustodyWalletRepository
+import io.baiyanwu.coinmonitor.domain.repository.OkxWalletCredentialsRepository
 import io.baiyanwu.coinmonitor.domain.repository.WalletNetworkSettingsRepository
 import io.baiyanwu.coinmonitor.domain.repository.WalletTransferEstimate
 import io.baiyanwu.coinmonitor.domain.repository.WalletTransferRequest
@@ -33,10 +38,12 @@ import java.util.UUID
 class DefaultSelfCustodyWalletRepository(
     context: Context,
     private val networkSettings: WalletNetworkSettingsRepository,
+    okxCredentials: OkxWalletCredentialsRepository,
     httpClient: OkHttpClient
 ) : SelfCustodyWalletRepository {
     private val rpc = WalletRpcClient(httpClient)
     private val alchemy = AlchemyWalletClient(httpClient)
+    private val okx = OkxWalletClient(httpClient, okxCredentials::getCredentials)
     private val signer = WalletTransactionSigner()
     private val preferences = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     private val json = Json { ignoreUnknownKeys = true; explicitNulls = false }
@@ -46,11 +53,11 @@ class DefaultSelfCustodyWalletRepository(
         val config = networkSettings.get()
         val supported = config.enabledNetworks.filter(wallet::supports)
         val assetIndexFailures = linkedSetOf<WalletNetwork>()
-        val nativeBalanceFailures = linkedSetOf<WalletNetwork>()
         val activityIndexFailures = linkedSetOf<WalletNetwork>()
-        var aggregateAssetIndexFailure = false
-        var assets: List<SelfCustodyAsset> = if (config.hasAlchemy) {
-            runCatching { alchemy.loadPortfolio(wallet, config.alchemyApiKey, supported) }
+        val cachedAssets = readAssetCache(wallet.id)
+        var aggregateAssetIndexFailure = !okx.isConfigured()
+        var assets: List<SelfCustodyAsset> = if (okx.isConfigured()) {
+            runCatching { loadOkxPortfolio(wallet, supported, cachedAssets) }
                 .fold(
                     onSuccess = {
                         assetIndexFailures += it.partialNetworks
@@ -59,24 +66,11 @@ class DefaultSelfCustodyWalletRepository(
                     },
                     onFailure = {
                         aggregateAssetIndexFailure = true
-                        readAssetCache(wallet.id)
+                        cachedAssets
                     }
                 )
         } else {
-            emptyList()
-        }
-
-        val nativeRefreshes = supported.mapNotNull { network ->
-            val url = config.rpcUrl(network) ?: return@mapNotNull null
-            async {
-                runCatching { loadNativeAsset(wallet, network, url) }
-                    .onFailure { synchronized(nativeBalanceFailures) { nativeBalanceFailures += network } }
-                    .getOrNull()
-            }
-        }.awaitAll().filterNotNull()
-        if (nativeRefreshes.isNotEmpty()) {
-            val refreshedIds = nativeRefreshes.mapTo(hashSetOf(), SelfCustodyAsset::id)
-            assets = assets.filterNot { it.id in refreshedIds } + nativeRefreshes
+            cachedAssets
         }
 
         val localActivities = readLocalActivities(wallet.id).map { activity ->
@@ -112,10 +106,62 @@ class DefaultSelfCustodyWalletRepository(
             refreshFailures = WalletRefreshFailures(
                 aggregateAssetIndex = aggregateAssetIndexFailure,
                 assetIndex = assetIndexFailures,
-                nativeBalance = nativeBalanceFailures,
+                nativeBalance = emptySet(),
                 activityIndex = activityIndexFailures
             ),
-            tokenIndexAvailable = config.hasAlchemy
+            tokenIndexAvailable = okx.isConfigured()
+        )
+    }
+
+    private suspend fun loadOkxPortfolio(
+        wallet: WalletProfile,
+        networks: List<WalletNetwork>,
+        cachedAssets: List<SelfCustodyAsset>
+    ): OkxPortfolioResult = coroutineScope {
+        val supportedIndexes = okx.getSupportedChainIndexes()
+        val mapped = networks.mapNotNull { network -> network.okxChainIndex()?.let { network to it } }
+        val partialNetworks = mapped.filterNot { (_, index) -> index in supportedIndexes }
+            .mapTo(linkedSetOf()) { it.first }
+        val requests = mapped.filter { (_, index) -> index in supportedIndexes }
+            .groupBy(
+                keySelector = { (network) -> wallet.addressFor(network).orEmpty() },
+                valueTransform = { it }
+            )
+            .filterKeys(String::isNotBlank)
+
+        val rows = mutableListOf<OkxWalletTokenRow>()
+        requests.map { (address, entries) ->
+            async {
+                val requestNetworks = entries.map { it.first }
+                runCatching { okx.getAllTokenBalances(address, entries.map { it.second }) }
+                    .onSuccess { result -> synchronized(rows) { rows += result } }
+                    .onFailure { synchronized(partialNetworks) { partialNetworks += requestNetworks } }
+            }
+        }.awaitAll()
+        if (requests.isNotEmpty() && rows.isEmpty() && partialNetworks.containsAll(mapped.map { it.first })) {
+            error("OKX 资产索引暂时不可用。")
+        }
+
+        val metadata = runCatching {
+            okx.getTokenBasicInfo(rows.map { it.chainIndex to it.contractAddress })
+        }.getOrDefault(emptyMap())
+        val networkByIndex = mapped.associate { (network, index) -> index to network }
+        val cachedById = cachedAssets.associateBy { asset ->
+            selfCustodyAssetId(asset.network, asset.tokenAddress.orEmpty())
+        }
+        val refreshedAssets = rows.mapNotNull { row ->
+                val network = networkByIndex[row.chainIndex] ?: return@mapNotNull null
+                val assetId = selfCustodyAssetId(network, row.contractAddress)
+                row.toSelfCustodyAsset(
+                    network = network,
+                    metadata = metadata[okxTokenMetadataId(row.chainIndex, row.contractAddress)],
+                    cached = cachedById[assetId]
+                )
+            }
+        OkxPortfolioResult(
+            assets = (refreshedAssets + cachedAssets.filter { it.network in partialNetworks })
+                .distinctBy(SelfCustodyAsset::id),
+            partialNetworks = partialNetworks
         )
     }
 
@@ -190,30 +236,73 @@ class DefaultSelfCustodyWalletRepository(
         check(editor.commit()) { "钱包本地缓存清理失败。" }
     }
 
-    private suspend fun loadNativeAsset(wallet: WalletProfile, network: WalletNetwork, url: String): SelfCustodyAsset {
-        val address = requireNotNull(wallet.addressFor(network))
-        val raw = if (network.isEvm) {
-            rpc.evmBalance(url, address).hexQuantity()
-        } else {
-            BigInteger.valueOf(rpc.solanaBalance(url, address))
+    private fun WalletNetwork.okxChainIndex(): String? = when {
+        isEvm -> chainId?.toString()
+        id == WalletNetwork.SOLANA.id -> OKX_SOLANA_CHAIN_INDEX
+        else -> null
+    }
+
+    private fun selfCustodyAssetId(network: WalletNetwork, contractAddress: String): String {
+        val tokenId = when {
+            contractAddress.isBlank() -> "native"
+            network.isEvm -> contractAddress.lowercase()
+            else -> contractAddress
         }
-        val balance = BigDecimal(raw).movePointLeft(network.decimals).stripTrailingZeros()
-        val cached = readAssetCache(wallet.id).firstOrNull { it.network == network && it.isNative }
+        return "${network.name}:$tokenId"
+    }
+
+    private fun OkxWalletTokenRow.toSelfCustodyAsset(
+        network: WalletNetwork,
+        metadata: OkxWalletTokenMetadata?,
+        cached: SelfCustodyAsset?
+    ): SelfCustodyAsset? {
+        val parsedBalance = balance.toBigDecimalOrNull()?.takeIf { it.signum() > 0 } ?: return null
+        val isNative = contractAddress.isBlank()
+        val decimals = when {
+            isNative -> network.decimals
+            metadata != null -> metadata.decimals
+            cached != null -> cached.decimals
+            else -> inferDecimals(rawBalance, parsedBalance)
+        }
+        val atomicBalance = rawBalance?.toBigIntegerOrNull()
+            ?: decimals?.let { precision ->
+                runCatching { parsedBalance.movePointRight(precision).toBigIntegerExact() }.getOrNull()
+            }
+            ?: cached?.rawBalance?.toBigIntegerOrNull()
+        val price = tokenPrice?.toBigDecimalOrNull()?.takeIf { it.signum() > 0 }
+        val resolvedDecimals = decimals ?: 0
+        val resolvedSymbol = metadata?.symbol?.takeIf(String::isNotBlank)
+            ?: this.symbol.takeIf { it.isNotBlank() && it != "?" }
+            ?: cached?.symbol
+            ?: "UNKNOWN"
+        val name = if (isNative) {
+            network.displayName
+        } else {
+            metadata?.name?.takeIf(String::isNotBlank) ?: cached?.name ?: resolvedSymbol
+        }
         return SelfCustodyAsset(
-            id = "${network.name}:native",
+            id = selfCustodyAssetId(network, contractAddress),
             network = network,
-            tokenAddress = null,
-            name = network.displayName,
-            symbol = network.symbol,
-            decimals = network.decimals,
-            rawBalance = raw.toString(),
-            balance = balance,
-            priceUsd = cached?.priceUsd,
-            valueUsd = cached?.priceUsd?.multiply(balance)?.stripTrailingZeros(),
-            logoUrl = cached?.logoUrl,
-            verified = true,
-            isNative = true
+            tokenAddress = contractAddress.takeIf(String::isNotBlank),
+            name = name,
+            symbol = resolvedSymbol,
+            decimals = resolvedDecimals,
+            rawBalance = atomicBalance?.toString().orEmpty(),
+            balance = parsedBalance.stripTrailingZeros(),
+            priceUsd = price,
+            valueUsd = price?.multiply(parsedBalance)?.setScale(8, RoundingMode.HALF_UP)?.stripTrailingZeros(),
+            logoUrl = metadata?.logoUrl ?: cached?.logoUrl,
+            verified = isNative || !isRiskToken,
+            isNative = isNative,
+            transferable = isNative || (decimals != null && atomicBalance != null)
         )
+    }
+
+    private fun inferDecimals(rawBalance: String?, balance: BigDecimal): Int? {
+        val raw = rawBalance?.toBigIntegerOrNull() ?: return null
+        return (0..MAX_TOKEN_DECIMALS).firstOrNull { decimals ->
+            BigDecimal(raw).movePointLeft(decimals).compareTo(balance) == 0
+        }
     }
 
     private suspend fun estimateEvm(request: WalletTransferRequest, url: String, sender: String): WalletTransferEstimate {
@@ -222,6 +311,10 @@ class DefaultSelfCustodyWalletRepository(
         val requestedAtomic = amountToAtomic(request.amount, request.tokenDecimals)
         val data = request.tokenAddress?.let { encodeErc20Transfer(request.recipient, requestedAtomic) }
         val nativeBalance = rpc.evmBalance(url, sender).hexQuantity()
+        request.tokenAddress?.let { tokenAddress ->
+            val tokenBalance = rpc.evmTokenBalance(url, tokenAddress, sender).hexQuantity()
+            require(tokenBalance >= requestedAtomic) { "代币链上余额不足。" }
+        }
         val value = when {
             request.tokenAddress != null -> BigInteger.ZERO
             request.sendMaximum -> {
@@ -275,6 +368,10 @@ class DefaultSelfCustodyWalletRepository(
             "SOL 余额不足以支付转账金额、账户租金和网络费。"
         }
         val senderToken = request.tokenAddress?.let { signer.solanaTokenAddress(sender, it) }
+        senderToken?.let { tokenAccount ->
+            val tokenBalance = rpc.solanaTokenBalance(url, tokenAccount).toBigInteger()
+            require(tokenBalance >= amount) { "代币链上余额不足。" }
+        }
         return WalletTransferEstimate(
             request = request,
             amountAtomic = amount.toString(),
@@ -352,25 +449,35 @@ class DefaultSelfCustodyWalletRepository(
         val priceUsd: String?,
         val logoUrl: String?,
         val verified: Boolean,
-        val isNative: Boolean
+        val isNative: Boolean,
+        val balance: String? = null,
+        val transferable: Boolean = true
     ) {
         fun toDomain(): SelfCustodyAsset {
-            val balance = BigDecimal(rawBalance).movePointLeft(decimals).stripTrailingZeros()
+            val parsedBalance = balance?.toBigDecimalOrNull()
+                ?: rawBalance.toBigDecimalOrNull()?.movePointLeft(decimals)
+                ?: BigDecimal.ZERO
             val price = priceUsd?.toBigDecimalOrNull()
             return SelfCustodyAsset(
-                id, network, tokenAddress, name, symbol, decimals, rawBalance, balance, price,
-                price?.multiply(balance)?.setScale(8, RoundingMode.HALF_UP)?.stripTrailingZeros(),
-                logoUrl, verified, isNative
+                id, network, tokenAddress, name, symbol, decimals, rawBalance, parsedBalance.stripTrailingZeros(), price,
+                price?.multiply(parsedBalance)?.setScale(8, RoundingMode.HALF_UP)?.stripTrailingZeros(),
+                logoUrl, verified, isNative, transferable
             )
         }
 
         companion object {
             fun from(asset: SelfCustodyAsset) = CachedAsset(
                 asset.id, asset.network, asset.tokenAddress, asset.name, asset.symbol, asset.decimals,
-                asset.rawBalance, asset.priceUsd?.toPlainString(), asset.logoUrl, asset.verified, asset.isNative
+                asset.rawBalance, asset.priceUsd?.toPlainString(), asset.logoUrl, asset.verified, asset.isNative,
+                asset.balance.toPlainString(), asset.transferable
             )
         }
     }
+
+    private data class OkxPortfolioResult(
+        val assets: List<SelfCustodyAsset>,
+        val partialNetworks: Set<WalletNetwork>
+    )
 
     @Serializable
     private data class CachedActivity(
@@ -405,6 +512,8 @@ class DefaultSelfCustodyWalletRepository(
         const val SOLANA_BASE_FEE_LAMPORTS = 5_000L
         const val SPL_TOKEN_ACCOUNT_SIZE = 165
         const val EVM_NATIVE_TRANSFER_GAS = 21_000L
+        const val OKX_SOLANA_CHAIN_INDEX = "501"
+        const val MAX_TOKEN_DECIMALS = 36
         const val STALE_AFTER_MILLIS = 30 * 60 * 1000L
     }
 }

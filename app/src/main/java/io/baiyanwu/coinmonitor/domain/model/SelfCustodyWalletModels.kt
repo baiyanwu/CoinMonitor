@@ -184,7 +184,8 @@ data class SelfCustodyAsset(
     val valueUsd: BigDecimal?,
     val logoUrl: String?,
     val verified: Boolean,
-    val isNative: Boolean
+    val isNative: Boolean,
+    val transferable: Boolean = true
 )
 
 enum class WalletActivityDirection { INCOMING, OUTGOING, SELF, UNKNOWN }

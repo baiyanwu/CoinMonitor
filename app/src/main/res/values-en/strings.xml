@@ -373,7 +373,7 @@
     <string name="wallet_watch_hidden_assets_section">Hidden tokens</string>
     <string name="wallet_watch_hidden_chain_asset_count">%1$d assets</string>
     <string name="okx_wallet_settings_title">OKX Onchain API</string>
-    <string name="okx_wallet_settings_description">Used for read-only wallet assets and for on-chain search and quotes in your selected provider order. User-provided credentials stay in encrypted storage on this device.</string>
+    <string name="okx_wallet_settings_description">Used for asset, price, and risk-flag queries in watch-only and self-custody wallets, plus on-chain search and quotes in your selected provider order. User-provided credentials stay in encrypted storage on this device.</string>
     <string name="okx_wallet_settings_enabled">Enable OKX Onchain API</string>
     <string name="search_okx_fallback_prompt">No result from the available provider. Configure your own OKX Onchain API to add another search source.</string>
     <string name="search_okx_fallback_configure">Configure API</string>
@@ -387,12 +387,12 @@
     <string name="cancel">Cancel</string>
     <string name="save">Save</string>
     <string name="wallet_network_settings_title">Wallet network</string>
-    <string name="wallet_network_settings_description">Most users only need an Alchemy API Key. Enable EVM networks dynamically in Network management; self-hosted and third-party RPCs are advanced overrides.</string>
+    <string name="wallet_network_settings_description">The Alchemy API Key provides the default transaction RPC; OKX Onchain API provides assets, prices, and risk flags. EVM networks can be enabled dynamically, with per-chain custom RPC overrides.</string>
     <string name="wallet_network_secure_storage_unavailable">Secure storage is unavailable, so wallet network credentials cannot be saved.</string>
     <string name="wallet_network_alchemy_api_key">Alchemy API Key</string>
     <string name="wallet_network_rpc_advanced">Custom RPC by network (advanced)</string>
-    <string name="wallet_provider_alchemy">Alchemy</string>
-    <string name="wallet_provider_custom_with_alchemy">Custom RPC + Alchemy index</string>
+    <string name="wallet_provider_alchemy">Alchemy RPC</string>
+    <string name="wallet_provider_custom_with_alchemy">Custom RPC + Alchemy activity index</string>
     <string name="wallet_provider_custom_only">Custom RPC only</string>
     <string name="wallet_provider_unconfigured">Not configured</string>
     <string name="wallet_network_validating">Validating network…</string>
@@ -404,7 +404,7 @@
     <string name="wallet_network_add_custom_evm_description">For standard EVM networks. The RPC-reported Chain ID is verified before saving.</string>
     <string name="wallet_network_custom_rpc_short">RPC</string>
     <string name="wallet_network_custom_rpc_title">Custom RPC for %1$s</string>
-    <string name="wallet_network_custom_rpc_description">When empty, Alchemy is used. Once saved, this RPC takes priority for balances, fees, broadcasting, and transaction status.</string>
+    <string name="wallet_network_custom_rpc_description">When empty, Alchemy is used. Once saved, this RPC takes priority for transaction-time balance checks, fees, broadcasting, and transaction status.</string>
     <string name="wallet_network_rpc_url">RPC URL</string>
     <string name="wallet_network_clear_rpc">Clear RPC</string>
     <string name="wallet_network_remove">Remove</string>
@@ -462,7 +462,10 @@
     <string name="wallet_not_backed_up">Not backed up</string>
     <string name="wallet_not_backed_up_description">This high-priority reminder remains until the recovery phrase order is verified.</string>
     <string name="wallet_network_not_configured">Network service not configured</string>
-    <string name="wallet_network_not_configured_description">Addresses remain available offline. Add an Alchemy API Key or a custom RPC for the network in Settings to load assets.</string>
+    <string name="wallet_network_not_configured_description">Addresses and OKX assets remain available. Add an Alchemy API Key or a custom RPC to execute transactions and query on-chain status.</string>
+    <string name="wallet_asset_provider_not_configured">Asset provider not configured</string>
+    <string name="wallet_asset_provider_not_configured_description">Configure and enable the OKX Onchain API in Third-party API Settings to load multi-chain assets, prices, and risk flags.</string>
+    <string name="wallet_asset_not_transferable">Transfer unavailable</string>
     <string name="wallet_configure_network">Configure network service</string>
     <string name="wallet_price_index_failure">Prices are temporarily unavailable</string>
     <string name="wallet_asset_index_failure">Token and price indexing is temporarily unavailable for: %1$s. Native balances refresh independently.</string>
@@ -480,8 +483,8 @@
     <string name="wallet_finish_network_edit">Finish editing</string>
     <string name="wallet_remove_network">Remove %1$s</string>
     <string name="wallet_price_unavailable">Price unavailable</string>
-    <string name="wallet_unverified">Unverified</string>
-    <string name="wallet_hide_unverified_assets">Hide unverified assets</string>
+    <string name="wallet_unverified">Risk</string>
+    <string name="wallet_hide_unverified_assets">Hide risk assets</string>
     <string name="wallet_activity_received">Received</string>
     <string name="wallet_activity_sent">Sent</string>
     <string name="wallet_activity_self">Local transaction</string>

@@ -373,7 +373,7 @@
     <string name="wallet_watch_hidden_assets_section">隐藏的币</string>
     <string name="wallet_watch_hidden_chain_asset_count">%1$d 个资产</string>
     <string name="okx_wallet_settings_title">OKX Onchain API</string>
-    <string name="okx_wallet_settings_description">用于只读查询钱包资产，以及按用户设置的 Provider 顺序搜索和刷新链上行情。凭证由用户提供，只保存在本机加密存储中。</string>
+    <string name="okx_wallet_settings_description">用于观察地址与自托管钱包的资产、价格和风险标记查询，以及按用户设置的 Provider 顺序搜索和刷新链上行情。凭证由用户提供，只保存在本机加密存储中。</string>
     <string name="okx_wallet_settings_enabled">启用 OKX Onchain API</string>
     <string name="search_okx_fallback_prompt">当前 Provider 暂无结果。配置你自己的 OKX Onchain API，可增加一个搜索来源。</string>
     <string name="search_okx_fallback_configure">前往配置</string>
@@ -387,12 +387,12 @@
     <string name="cancel">取消</string>
     <string name="save">保存</string>
     <string name="wallet_network_settings_title">钱包网络</string>
-    <string name="wallet_network_settings_description">普通用户只需填写 Alchemy API Key。EVM 网络可在网络管理中动态启用；自建节点或其他服务商 RPC 属于高级覆盖项。</string>
+    <string name="wallet_network_settings_description">Alchemy API Key 用作默认交易 RPC；资产、价格和风险标记由 OKX Onchain API 查询。EVM 网络可动态启用，自建或第三方 RPC 可逐链覆盖 Alchemy。</string>
     <string name="wallet_network_secure_storage_unavailable">当前设备无法使用安全存储，钱包网络凭证不可保存。</string>
     <string name="wallet_network_alchemy_api_key">Alchemy API Key</string>
     <string name="wallet_network_rpc_advanced">各网络自定义 RPC（高级）</string>
-    <string name="wallet_provider_alchemy">Alchemy</string>
-    <string name="wallet_provider_custom_with_alchemy">自定义 RPC + Alchemy 索引</string>
+    <string name="wallet_provider_alchemy">Alchemy RPC</string>
+    <string name="wallet_provider_custom_with_alchemy">自定义 RPC + Alchemy 活动索引</string>
     <string name="wallet_provider_custom_only">仅自定义 RPC</string>
     <string name="wallet_provider_unconfigured">未配置</string>
     <string name="wallet_network_validating">正在验证网络…</string>
@@ -404,7 +404,7 @@
     <string name="wallet_network_add_custom_evm_description">适用于标准 EVM 网络。保存前会调用 RPC 校验实际 Chain ID。</string>
     <string name="wallet_network_custom_rpc_short">RPC</string>
     <string name="wallet_network_custom_rpc_title">%1$s 自定义 RPC</string>
-    <string name="wallet_network_custom_rpc_description">留空时使用 Alchemy；保存后该网络的余额、手续费、广播和状态查询优先走此 RPC。</string>
+    <string name="wallet_network_custom_rpc_description">留空时使用 Alchemy；保存后该网络的交易前链上余额校验、手续费、广播和状态查询优先走此 RPC。</string>
     <string name="wallet_network_rpc_url">RPC URL</string>
     <string name="wallet_network_clear_rpc">清除 RPC</string>
     <string name="wallet_network_remove">删除</string>
@@ -462,7 +462,10 @@
     <string name="wallet_not_backed_up">尚未备份</string>
     <string name="wallet_not_backed_up_description">完成助记词词序校验前，这条提醒会一直保留。</string>
     <string name="wallet_network_not_configured">网络服务未配置</string>
-    <string name="wallet_network_not_configured_description">地址仍可离线查看。请在设置中填写 Alchemy API Key 或对应网络的自定义 RPC 后读取资产。</string>
+    <string name="wallet_network_not_configured_description">地址和 OKX 资产仍可查看。请填写 Alchemy API Key 或对应网络的自定义 RPC 后执行交易和查询链上状态。</string>
+    <string name="wallet_asset_provider_not_configured">尚未配置资产查询服务</string>
+    <string name="wallet_asset_provider_not_configured_description">请在第三方 API 设置中配置并启用 OKX Onchain API，以读取多链资产、价格和风险标记。</string>
+    <string name="wallet_asset_not_transferable">暂不可转账</string>
     <string name="wallet_configure_network">配置网络服务</string>
     <string name="wallet_price_index_failure">价格暂时读取失败</string>
     <string name="wallet_asset_index_failure">Token、价格索引暂时失败：%1$s。原生余额仍会独立刷新。</string>
@@ -480,8 +483,8 @@
     <string name="wallet_finish_network_edit">完成编辑</string>
     <string name="wallet_remove_network">移除 %1$s</string>
     <string name="wallet_price_unavailable">暂无价格</string>
-    <string name="wallet_unverified">未验证</string>
-    <string name="wallet_hide_unverified_assets">隐藏未验证资产</string>
+    <string name="wallet_unverified">风险</string>
+    <string name="wallet_hide_unverified_assets">隐藏风险资产</string>
     <string name="wallet_activity_received">收入</string>
     <string name="wallet_activity_sent">支出</string>
     <string name="wallet_activity_self">本机交易</string>

@@ -275,6 +275,7 @@ private fun MainShell(
                     contentTopInset = innerPadding.calculateTopPadding(),
                     contentBottomInset = innerPadding.calculateBottomPadding(),
                     onOpenWatchWallet = onOpenWatchWallet,
+                    onOpenAssetSettings = onOpenThirdPartyApiSettings,
                     onOpenNetworkSettings = onOpenWalletNetworkSettings,
                     onOpenPage = onOpenWalletPage
                 )

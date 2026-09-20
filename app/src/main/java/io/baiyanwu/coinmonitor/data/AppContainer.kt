@@ -161,6 +161,7 @@ class AppContainer(context: Context) {
     val selfCustodyWalletRepository = DefaultSelfCustodyWalletRepository(
         context = appContext,
         networkSettings = walletNetworkSettingsRepository,
+        okxCredentials = okxWalletCredentialsRepository,
         httpClient = networkFactory.okHttpClient
     )
     val walletSessionLockObserver = WalletSessionLockObserver(walletVaultRepository).also {

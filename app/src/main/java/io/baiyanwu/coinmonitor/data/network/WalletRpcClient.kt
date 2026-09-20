@@ -62,6 +62,21 @@ class WalletRpcClient(private val httpClient: OkHttpClient) {
         buildJsonArray { add(JsonPrimitive(address)); add(JsonPrimitive("latest")) }
     ).jsonPrimitive.content
 
+    suspend fun evmTokenBalance(url: String, tokenAddress: String, ownerAddress: String): String {
+        val owner = ownerAddress.removePrefix("0x").lowercase().padStart(64, '0')
+        return call(
+            url,
+            "eth_call",
+            buildJsonArray {
+                add(buildJsonObject {
+                    put("to", tokenAddress)
+                    put("data", "0x70a08231$owner")
+                })
+                add(JsonPrimitive("latest"))
+            }
+        ).jsonPrimitive.content
+    }
+
     suspend fun evmNonce(url: String, address: String): String = call(
         url,
         "eth_getTransactionCount",
@@ -121,6 +136,15 @@ class WalletRpcClient(private val httpClient: OkHttpClient) {
             add(buildJsonObject { put("encoding", "base64"); put("commitment", "confirmed") })
         }
     ).jsonObject["value"] !is JsonNull
+
+    suspend fun solanaTokenBalance(url: String, tokenAccount: String): String = call(
+        url,
+        "getTokenAccountBalance",
+        buildJsonArray {
+            add(JsonPrimitive(tokenAccount))
+            add(buildJsonObject { put("commitment", "confirmed") })
+        }
+    ).jsonObject.getValue("value").jsonObject.getValue("amount").jsonPrimitive.content
 
     suspend fun solanaSendTransaction(url: String, transaction: String): String = call(
         url,

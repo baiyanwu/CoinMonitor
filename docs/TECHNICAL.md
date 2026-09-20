@@ -189,12 +189,12 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 
 - Wallet Core `4.8.3` 负责 BIP39、EVM/Solana 地址派生与交易签名；网络数据与广播不进入 Wallet Core。
 - `DefaultWalletVaultRepository` 管理加密的多钱包保险库；`DefaultWalletNetworkSettingsRepository` 独立管理 Alchemy Key、动态 EVM 目录、启用网络与逐链 RPC，二者都拒绝在 Android 安全存储不可用时降级。
-- `DefaultSelfCustodyWalletRepository` 执行 `custom RPC > Alchemy RPC` 的节点路由，并把 Alchemy Portfolio/Transfers 作为独立索引层。缓存按 wallet ID 隔离。
-- 钱包刷新把 Token/价格索引、原生余额 RPC 与活动索引的失败集合分开。Portfolio 整体异常记录为独立的聚合索引失败，只触发底部短暂提示，不归因到具体网络；部分 Token、原生余额和活动异常只在实际失败网络对应的“资产”或“活动”页面展示，“全部网络”和页头不汇总跨链错误。
+- `DefaultSelfCustodyWalletRepository` 执行 `custom RPC > Alchemy RPC` 的交易节点路由；OKX Onchain Balance/Token API 是资产、价格、元数据与风险标记索引层，Alchemy Transfers 只保留为活动历史索引。缓存按 wallet ID 隔离。
+- 钱包刷新按 EVM 地址与 Solana 地址分别查询当前启用网络，并与 OKX 实时支持链取交集。OKX 整体失败时保留最后缓存；部分地址体系或不支持网络只记录到对应资产失败集合。活动索引失败保持独立，不会把正常空资产误报为错误。
 - 自托管钱包首次默认启用 Ethereum、BNB Chain、Robinhood Chain 与 Solana；网络栏复用观察地址页的紧凑编辑样式。停用网络会从持久化的启用列表移除并停止后续拉取，恢复入口统一放在钱包网络设置中。
-- 自托管钱包复用观察地址的总资产卡、紧凑资产行与 `AssetAmountFormatter`。默认隐藏估值小于 1 美元和未验证资产；Alchemy 没有提供与 OKX 风险标记等价的字段，因此这里明确使用“未验证”语义，不推断 Token 风险。
-- 默认 EVM 元数据来自应用内种子与 `docs/wallet-evm-networks.json` 远程目录，使用 CAIP-2 风格 `eip155:<chainId>` 作为稳定标识；用户也可添加经 `eth_chainId` 验证的任意标准 EVM RPC。远程目录按网络声明 Portfolio/Transfers 能力，不支持索引的网络只读取原生币并保留本地活动。
-- 原 `WalletWatchRoute` 由独立 `WalletWatchActivity` 承载，OKX 数据流与真实钱包仓库没有共享模型、缓存或凭证。
+- 自托管钱包复用观察地址的总资产卡、紧凑资产行与 `AssetAmountFormatter`。默认隐藏估值小于 1 美元和 OKX 标记的风险资产；缺少可靠 Token 精度的资产可展示但不可进入转账流程。
+- 默认 EVM 网络元数据来自应用内种子与 `docs/wallet-evm-networks.json` 远程目录，使用 CAIP-2 风格 `eip155:<chainId>` 作为稳定标识；用户也可添加经 `eth_chainId` 验证的任意标准 EVM RPC。资产覆盖由 OKX 实时支持链决定，Alchemy Portfolio 标记不再控制资产可见性。
+- 原 `WalletWatchRoute` 由独立 `WalletWatchActivity` 承载；观察地址与自托管钱包复用 OKX 客户端实现和同一套加密凭证，但各自持有客户端实例，并保持独立模型、筛选与缓存。
 - 详细规则、构建凭证和验证边界见 [SELF_CUSTODY_WALLET.md](SELF_CUSTODY_WALLET.md)。
 
 ### Upstream Docs And Endpoints

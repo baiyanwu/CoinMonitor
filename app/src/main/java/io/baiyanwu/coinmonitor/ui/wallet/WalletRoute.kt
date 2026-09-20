@@ -148,6 +148,7 @@ fun WalletRoute(
     contentTopInset: Dp = 0.dp,
     contentBottomInset: Dp = 0.dp,
     onOpenWatchWallet: () -> Unit,
+    onOpenAssetSettings: () -> Unit,
     onOpenNetworkSettings: () -> Unit,
     onOpenPage: (WalletPage) -> Unit
 ) {
@@ -201,6 +202,7 @@ fun WalletRoute(
                     state = state,
                     viewModel = viewModel,
                     onOpenWatchWallet = onOpenWatchWallet,
+                    onOpenAssetSettings = onOpenAssetSettings,
                     onOpenNetworkSettings = onOpenNetworkSettings
                 )
             }
@@ -689,6 +691,7 @@ private fun WalletDashboard(
     state: WalletUiState,
     viewModel: WalletViewModel,
     onOpenWatchWallet: () -> Unit,
+    onOpenAssetSettings: () -> Unit,
     onOpenNetworkSettings: () -> Unit
 ) {
     val wallet = state.activeWallet ?: return
@@ -803,7 +806,7 @@ private fun WalletDashboard(
                         WalletContentTab.ASSETS -> WalletAssetsPage(
                             state = state,
                             listState = assetsListState,
-                            onOpenNetworkSettings = onOpenNetworkSettings,
+                            onOpenAssetSettings = onOpenAssetSettings,
                             onOpenSend = viewModel::openSend
                         )
                         WalletContentTab.ACTIVITY -> WalletActivityPage(
@@ -837,7 +840,7 @@ private fun WalletDashboard(
 private fun WalletAssetsPage(
     state: WalletUiState,
     listState: LazyListState,
-    onOpenNetworkSettings: () -> Unit,
+    onOpenAssetSettings: () -> Unit,
     onOpenSend: (SelfCustodyAsset) -> Unit
 ) {
     LazyColumn(
@@ -858,18 +861,18 @@ private fun WalletAssetsPage(
                 }
             }
             if (state.visibleAssets.isEmpty()) item {
-                if (state.networkConfiguration.hasAlchemy || state.networkConfiguration.customRpcUrls.isNotEmpty()) {
+                if (state.okxCredentialsReady) {
                     EmptyInline(stringResource(R.string.wallet_no_assets))
                 } else {
                     WalletConfigurationPrompt(
-                        title = stringResource(R.string.wallet_network_not_configured),
-                        description = stringResource(R.string.wallet_network_not_configured_description),
-                        onClick = onOpenNetworkSettings
+                        title = stringResource(R.string.wallet_asset_provider_not_configured),
+                        description = stringResource(R.string.wallet_asset_provider_not_configured_description),
+                        onClick = onOpenAssetSettings
                     )
                 }
             }
             items(state.visibleAssets, key = SelfCustodyAsset::id) { asset ->
-                AssetRow(asset) { onOpenSend(asset) }
+                AssetRow(asset) { if (asset.transferable) onOpenSend(asset) }
             }
         }
     }
@@ -1116,7 +1119,8 @@ private fun WalletNetworkChip(label: String, selected: Boolean, onClick: () -> U
 @Composable
 private fun AssetRow(asset: SelfCustodyAsset, onClick: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 4.dp, vertical = 4.dp),
+        Modifier.fillMaxWidth().clickable(enabled = asset.transferable, onClick = onClick)
+            .padding(horizontal = 4.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
@@ -1137,6 +1141,13 @@ private fun AssetRow(asset: SelfCustodyAsset, onClick: () -> Unit) {
                 if (!asset.verified) {
                     Text(
                         stringResource(R.string.wallet_unverified),
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, lineHeight = 11.sp),
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+                if (!asset.transferable) {
+                    Text(
+                        stringResource(R.string.wallet_asset_not_transferable),
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, lineHeight = 11.sp),
                         color = MaterialTheme.colorScheme.error
                     )
@@ -1321,7 +1332,9 @@ private fun ReceiveScreen(state: WalletUiState, onBack: () -> Unit) {
 @Composable
 private fun SendScreen(state: WalletUiState, viewModel: WalletViewModel, biometricManager: WalletBiometricManager) {
     val send = state.send
-    val assets = state.portfolio?.assets.orEmpty().filter { state.activeWallet?.supports(it.network) == true }
+    val assets = state.portfolio?.assets.orEmpty().filter {
+        it.transferable && state.activeWallet?.supports(it.network) == true
+    }
     var assetMenu by remember { mutableStateOf(false) }
     DetailScreenScaffold(stringResource(R.string.wallet_send), viewModel::goHome) {
         Column(

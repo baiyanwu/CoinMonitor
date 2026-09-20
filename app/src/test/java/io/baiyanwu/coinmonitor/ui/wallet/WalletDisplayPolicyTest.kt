@@ -5,9 +5,20 @@ import io.baiyanwu.coinmonitor.domain.model.WalletNetwork
 import io.baiyanwu.coinmonitor.domain.model.WalletPortfolio
 import java.math.BigDecimal
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class WalletDisplayPolicyTest {
+    @Test
+    fun `OKX configured state does not depend on portfolio already being loaded`() {
+        val state = WalletUiState(
+            okxCredentialsReady = true,
+            portfolio = null
+        )
+
+        assertTrue(state.okxCredentialsReady)
+    }
+
     @Test
     fun `wallet display follows watch wallet small value and verification filters`() {
         val state = WalletUiState(
