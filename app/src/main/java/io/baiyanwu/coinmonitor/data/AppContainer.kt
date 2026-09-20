@@ -2,6 +2,7 @@ package io.baiyanwu.coinmonitor.data
 
 import android.content.Context
 import androidx.room.Room
+import androidx.lifecycle.ProcessLifecycleOwner
 import io.baiyanwu.coinmonitor.data.local.CoinMonitorDatabase
 import io.baiyanwu.coinmonitor.data.ai.AppAnalysisHost
 import io.baiyanwu.coinmonitor.data.ai.market.BinanceAnnouncementAdapter
@@ -17,11 +18,17 @@ import io.baiyanwu.coinmonitor.data.repository.DefaultAppPreferencesRepository
 import io.baiyanwu.coinmonitor.data.repository.DefaultMarketKlineRepository
 import io.baiyanwu.coinmonitor.data.repository.DefaultMarketQuoteRepository
 import io.baiyanwu.coinmonitor.data.repository.DefaultMarketSearchRepository
+import io.baiyanwu.coinmonitor.data.repository.DexScreenerOnchainMarketProvider
+import io.baiyanwu.coinmonitor.data.repository.OkxDexOnchainMarketProvider
+import io.baiyanwu.coinmonitor.data.repository.OnchainProviderRouter
 import io.baiyanwu.coinmonitor.data.repository.DefaultNetworkLogRepository
 import io.baiyanwu.coinmonitor.data.repository.DefaultOkxWalletCredentialsRepository
 import io.baiyanwu.coinmonitor.data.repository.DefaultOverlayRepository
 import io.baiyanwu.coinmonitor.data.repository.DefaultWalletPortfolioRepository
 import io.baiyanwu.coinmonitor.data.repository.DefaultWalletPortfolioCacheRepository
+import io.baiyanwu.coinmonitor.data.repository.DefaultWalletNetworkSettingsRepository
+import io.baiyanwu.coinmonitor.data.repository.DefaultWalletVaultRepository
+import io.baiyanwu.coinmonitor.data.repository.DefaultSelfCustodyWalletRepository
 import io.baiyanwu.coinmonitor.data.repository.DefaultWalletWatchPreferencesRepository
 import io.baiyanwu.coinmonitor.data.repository.DefaultWatchlistRepository
 import io.baiyanwu.coinmonitor.data.repository.InMemoryQuoteRepository
@@ -43,7 +50,10 @@ import io.baiyanwu.coinmonitor.lib.agents.AnalysisService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import java.util.concurrent.TimeUnit
+import io.baiyanwu.coinmonitor.data.wallet.WalletSessionLockObserver
 
 class AppContainer(context: Context) {
     val appContext: Context = context.applicationContext
@@ -69,7 +79,8 @@ class AppContainer(context: Context) {
             migrateOverlaySettings = ::migrateLegacyOverlaySettings
         ),
         CoinMonitorDatabase.MIGRATION_8_9,
-        CoinMonitorDatabase.MIGRATION_9_10
+        CoinMonitorDatabase.MIGRATION_9_10,
+        CoinMonitorDatabase.MIGRATION_10_11
     ).build()
 
     val networkLogRepository: NetworkLogRepository = DefaultNetworkLogRepository()
@@ -116,6 +127,24 @@ class AppContainer(context: Context) {
     )
 
     val okxWalletCredentialsRepository = DefaultOkxWalletCredentialsRepository(appContext)
+    private val okxDexMarketClient = io.baiyanwu.coinmonitor.data.network.OkxDexMarketClient(
+        httpClient = networkFactory.okHttpClient,
+        credentialsProvider = okxWalletCredentialsRepository::getCredentials
+    )
+    private val onchainMarketProviders = listOf(
+        DexScreenerOnchainMarketProvider(dexScreenerClient),
+        OkxDexOnchainMarketProvider(okxDexMarketClient)
+    )
+    private val onchainProviderRouter = OnchainProviderRouter(
+        providers = onchainMarketProviders,
+        providerOrder = { appPreferencesRepository.getPreferences().onchainProviderOrder },
+        routingState = combine(
+            appPreferencesRepository.observePreferences(),
+            okxWalletCredentialsRepository.observeCredentials()
+        ) { preferences, credentials ->
+            "${preferences.onchainProviderOrder.joinToString(",") { it.name }}:${credentials.isReady}"
+        }.distinctUntilChanged()
+    )
     val walletWatchPreferencesRepository = DefaultWalletWatchPreferencesRepository(appContext)
     val walletPortfolioCacheRepository = DefaultWalletPortfolioCacheRepository(appContext)
     val walletPortfolioRepository = DefaultWalletPortfolioRepository(
@@ -124,13 +153,26 @@ class AppContainer(context: Context) {
             credentialsProvider = okxWalletCredentialsRepository::getCredentials
         )
     )
+    val walletVaultRepository = DefaultWalletVaultRepository(appContext)
+    val walletNetworkSettingsRepository = DefaultWalletNetworkSettingsRepository(
+        context = appContext,
+        httpClient = networkFactory.okHttpClient
+    )
+    val selfCustodyWalletRepository = DefaultSelfCustodyWalletRepository(
+        context = appContext,
+        networkSettings = walletNetworkSettingsRepository,
+        httpClient = networkFactory.okHttpClient
+    )
+    val walletSessionLockObserver = WalletSessionLockObserver(walletVaultRepository).also {
+        ProcessLifecycleOwner.get().lifecycle.addObserver(it)
+    }
 
     val marketSearchRepository: MarketSearchRepository = DefaultMarketSearchRepository(
         alphaApi = networkFactory.alphaApi,
         binanceApi = networkFactory.binanceApi,
         binanceFuturesApi = networkFactory.binanceFuturesApi,
         okxApi = networkFactory.okxApi,
-        dexScreenerClient = dexScreenerClient
+        onchainRouter = onchainProviderRouter
     )
 
     val marketQuoteRepository: MarketQuoteRepository = DefaultMarketQuoteRepository(
@@ -138,7 +180,7 @@ class AppContainer(context: Context) {
         binanceApi = networkFactory.binanceApi,
         binanceFuturesApi = networkFactory.binanceFuturesApi,
         okxApi = networkFactory.okxApi,
-        dexScreenerClient = dexScreenerClient
+        onchainRouter = onchainProviderRouter
     )
 
     val marketKlineRepository: MarketKlineRepository = DefaultMarketKlineRepository(
@@ -183,6 +225,7 @@ class AppContainer(context: Context) {
         quoteRepository = quoteRepository,
         appPreferencesRepository = appPreferencesRepository,
         marketQuoteRepository = marketQuoteRepository,
+        onchainProviderRouter = onchainProviderRouter,
         networkLogRepository = networkLogRepository
     )
 }

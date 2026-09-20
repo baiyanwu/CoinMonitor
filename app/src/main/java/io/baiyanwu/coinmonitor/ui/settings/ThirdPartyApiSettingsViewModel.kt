@@ -8,12 +8,16 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import io.baiyanwu.coinmonitor.data.AppContainer
 import io.baiyanwu.coinmonitor.data.refresh.GlobalQuoteRefreshCoordinator
 import io.baiyanwu.coinmonitor.domain.model.AppPreferences
+import io.baiyanwu.coinmonitor.domain.model.OnchainDataProvider
 import io.baiyanwu.coinmonitor.domain.model.OnchainRefreshMode
 import io.baiyanwu.coinmonitor.domain.model.OpenAiCompatibleConfig
 import io.baiyanwu.coinmonitor.domain.model.OkxWalletCredentials
+import io.baiyanwu.coinmonitor.domain.model.WalletNetwork
+import io.baiyanwu.coinmonitor.domain.model.WalletNetworkConfiguration
 import io.baiyanwu.coinmonitor.domain.repository.AiConfigRepository
 import io.baiyanwu.coinmonitor.domain.repository.AppPreferencesRepository
 import io.baiyanwu.coinmonitor.domain.repository.OkxWalletCredentialsRepository
+import io.baiyanwu.coinmonitor.domain.repository.WalletNetworkSettingsRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -24,6 +28,7 @@ import kotlinx.coroutines.launch
 data class OnchainSettingsFormState(
     val refreshMode: OnchainRefreshMode = OnchainRefreshMode.SMART,
     val refreshIntervalSeconds: Int = AppPreferences.DEFAULT_ONCHAIN_REFRESH_INTERVAL_SECONDS,
+    val providerOrder: List<OnchainDataProvider> = AppPreferences.DEFAULT_ONCHAIN_PROVIDER_ORDER,
     val requestBatchCount: Int = 0,
     val cycleIntervalSeconds: Int = 30,
     val requestSpacingMillis: Long = 0L,
@@ -50,9 +55,29 @@ data class AiSettingsFormState(
 
 data class ThirdPartyApiSettingsUiState(
     val onchain: OnchainSettingsFormState = OnchainSettingsFormState(),
+    val walletNetwork: WalletNetworkSettingsFormState = WalletNetworkSettingsFormState(),
     val okxWallet: OkxWalletSettingsFormState = OkxWalletSettingsFormState(),
     val ai: AiSettingsFormState = AiSettingsFormState()
 )
+
+data class WalletNetworkSettingsFormState(
+    val alchemyApiKey: String = "",
+    val customRpcUrls: Map<String, String> = emptyMap(),
+    val availableNetworks: List<WalletNetwork> = WalletNetwork.seedCatalog,
+    val enabledNetworkIds: Set<String> = WalletNetwork.defaultEnabledNetworkIds,
+    val secureStorageAvailable: Boolean = true,
+    val saving: Boolean = false,
+    val refreshingCatalog: Boolean = false,
+    val savedFlag: Boolean = false,
+    val errorMessage: String? = null
+) {
+    fun configuration() = WalletNetworkConfiguration(
+        alchemyApiKey = alchemyApiKey.trim(),
+        customRpcUrls = customRpcUrls.mapValues { it.value.trim() },
+        availableNetworks = availableNetworks,
+        enabledNetworkIds = enabledNetworkIds
+    )
+}
 
 data class OkxWalletSettingsFormState(
     val enabled: Boolean = false,
@@ -71,18 +96,25 @@ class ThirdPartyApiSettingsViewModel(
     private val appPreferencesRepository: AppPreferencesRepository,
     private val aiConfigRepository: AiConfigRepository,
     private val okxWalletCredentialsRepository: OkxWalletCredentialsRepository,
+    private val walletNetworkSettingsRepository: WalletNetworkSettingsRepository,
     private val quoteRefreshCoordinator: GlobalQuoteRefreshCoordinator
 ) : ViewModel() {
     private val onchainUiState = MutableStateFlow(OnchainSettingsFormState())
     private val aiUiState = MutableStateFlow(AiSettingsFormState())
     private val okxWalletUiState = MutableStateFlow(OkxWalletSettingsFormState())
+    private val walletNetworkUiState = MutableStateFlow(WalletNetworkSettingsFormState())
     private val _uiState = MutableStateFlow(ThirdPartyApiSettingsUiState())
     val uiState: StateFlow<ThirdPartyApiSettingsUiState> = _uiState.asStateFlow()
 
     init {
         viewModelScope.launch {
-            combine(onchainUiState, okxWalletUiState, aiUiState) { onchain, okxWallet, ai ->
-                ThirdPartyApiSettingsUiState(onchain = onchain, okxWallet = okxWallet, ai = ai)
+            combine(onchainUiState, walletNetworkUiState, okxWalletUiState, aiUiState) { onchain, walletNetwork, okxWallet, ai ->
+                ThirdPartyApiSettingsUiState(
+                    onchain = onchain,
+                    walletNetwork = walletNetwork,
+                    okxWallet = okxWallet,
+                    ai = ai
+                )
             }.collect { _uiState.value = it }
         }
         viewModelScope.launch {
@@ -90,7 +122,8 @@ class ThirdPartyApiSettingsViewModel(
                 onchainUiState.update { state ->
                     state.copy(
                         refreshMode = preferences.onchainRefreshMode,
-                        refreshIntervalSeconds = preferences.onchainRefreshIntervalSeconds
+                        refreshIntervalSeconds = preferences.onchainRefreshIntervalSeconds,
+                        providerOrder = preferences.onchainProviderOrder
                     )
                 }
             }
@@ -109,6 +142,21 @@ class ThirdPartyApiSettingsViewModel(
             }
         }
         viewModelScope.launch {
+            walletNetworkSettingsRepository.observe().collect { config ->
+                walletNetworkUiState.value = WalletNetworkSettingsFormState(
+                    alchemyApiKey = config.alchemyApiKey,
+                    customRpcUrls = config.customRpcUrls,
+                    availableNetworks = config.availableNetworks,
+                    enabledNetworkIds = config.enabledNetworkIds,
+                    secureStorageAvailable = walletNetworkSettingsRepository.isSecureStorageAvailable(),
+                    refreshingCatalog = walletNetworkUiState.value.refreshingCatalog,
+                    savedFlag = walletNetworkUiState.value.savedFlag,
+                    errorMessage = walletNetworkUiState.value.errorMessage
+                )
+            }
+        }
+        refreshWalletNetworkCatalog(reportFailure = false)
+        viewModelScope.launch {
             okxWalletCredentialsRepository.observeCredentials().collect { value ->
                 okxWalletUiState.value = OkxWalletSettingsFormState(
                     enabled = value.enabled,
@@ -123,6 +171,118 @@ class ThirdPartyApiSettingsViewModel(
             aiConfigRepository.observeConfig().collect { config ->
                 aiUiState.value = config.toUiState(aiConfigRepository.isSecureStorageAvailable())
             }
+        }
+    }
+
+    fun updateAlchemyApiKey(value: String) {
+        walletNetworkUiState.update { it.copy(alchemyApiKey = value, savedFlag = false, errorMessage = null) }
+    }
+
+    fun saveWalletNetworkSettings() {
+        val snapshot = walletNetworkUiState.value
+        viewModelScope.launch {
+            walletNetworkUiState.update { it.copy(saving = true, errorMessage = null) }
+            runCatching {
+                walletNetworkSettingsRepository.saveAlchemyApiKey(snapshot.alchemyApiKey)
+            }.onSuccess {
+                walletNetworkUiState.update { it.copy(saving = false, savedFlag = true, errorMessage = null) }
+            }.onFailure { error ->
+                walletNetworkUiState.update {
+                    it.copy(saving = false, savedFlag = false, errorMessage = error.message ?: "钱包网络配置保存失败")
+                }
+            }
+        }
+    }
+
+    fun refreshWalletNetworkCatalog() {
+        refreshWalletNetworkCatalog(reportFailure = true)
+    }
+
+    private fun refreshWalletNetworkCatalog(reportFailure: Boolean) {
+        viewModelScope.launch {
+            walletNetworkUiState.update { it.copy(refreshingCatalog = true) }
+            walletNetworkSettingsRepository.refreshNetworkCatalog()
+                .onSuccess { walletNetworkUiState.update { state -> state.copy(refreshingCatalog = false) } }
+                .onFailure { error ->
+                    walletNetworkUiState.update { state ->
+                        state.copy(
+                            refreshingCatalog = false,
+                            errorMessage = if (reportFailure) {
+                                "远程网络目录暂不可用，已保留本地目录：${error.message}"
+                            } else {
+                                state.errorMessage
+                            }
+                        )
+                    }
+                }
+        }
+    }
+
+    fun setWalletNetworkEnabled(network: WalletNetwork, enabled: Boolean) {
+        viewModelScope.launch {
+            runCatching { walletNetworkSettingsRepository.setNetworkEnabled(network.id, enabled) }
+                .onFailure { error ->
+                    walletNetworkUiState.update { it.copy(errorMessage = error.message ?: "网络状态保存失败") }
+                }
+        }
+    }
+
+    fun saveWalletCustomRpc(network: WalletNetwork, url: String) {
+        viewModelScope.launch {
+            walletNetworkUiState.update { it.copy(saving = true, errorMessage = null) }
+            runCatching { walletNetworkSettingsRepository.saveCustomRpc(network, url) }
+                .onSuccess { walletNetworkUiState.update { it.copy(saving = false, savedFlag = true) } }
+                .onFailure { error ->
+                    walletNetworkUiState.update {
+                        it.copy(saving = false, errorMessage = error.message ?: "自定义 RPC 保存失败")
+                    }
+                }
+        }
+    }
+
+    fun clearWalletCustomRpc(network: WalletNetwork) {
+        viewModelScope.launch {
+            runCatching { walletNetworkSettingsRepository.clearCustomRpc(network) }
+                .onFailure { error ->
+                    walletNetworkUiState.update { it.copy(errorMessage = error.message ?: "自定义 RPC 清除失败") }
+                }
+        }
+    }
+
+    fun addCustomEvmNetwork(
+        name: String,
+        chainId: String,
+        symbol: String,
+        explorerUrl: String,
+        rpcUrl: String
+    ) {
+        viewModelScope.launch {
+            walletNetworkUiState.update { it.copy(saving = true, errorMessage = null) }
+            runCatching {
+                val parsedChainId = chainId.trim().toLongOrNull() ?: error("Chain ID 格式不正确。")
+                walletNetworkSettingsRepository.addCustomEvmNetwork(
+                    name = name,
+                    chainId = parsedChainId,
+                    symbol = symbol,
+                    explorerUrl = explorerUrl,
+                    rpcUrl = rpcUrl
+                )
+            }.onSuccess {
+                walletNetworkUiState.update { it.copy(saving = false, savedFlag = true) }
+            }.onFailure { error ->
+                walletNetworkUiState.update {
+                    it.copy(saving = false, errorMessage = error.message ?: "自定义 EVM 网络添加失败")
+                }
+            }
+        }
+    }
+
+    fun removeCustomEvmNetwork(network: WalletNetwork) {
+        viewModelScope.launch {
+            runCatching { walletNetworkSettingsRepository.removeCustomEvmNetwork(network.id) }
+                .onFailure { error ->
+                    walletNetworkUiState.update { it.copy(errorMessage = error.message ?: "自定义 EVM 网络删除失败") }
+                }
         }
     }
 
@@ -178,6 +338,18 @@ class ThirdPartyApiSettingsViewModel(
         }
     }
 
+    fun updateOnchainProviderPriority(provider: OnchainDataProvider) {
+        onchainUiState.update { state ->
+            state.copy(
+                providerOrder = AppPreferences.normalizeOnchainProviderOrder(
+                    listOf(provider) + state.providerOrder
+                ),
+                savedFlag = false,
+                errorMessage = null
+            )
+        }
+    }
+
     fun saveOnchainSettings() {
         val snapshot = onchainUiState.value
         viewModelScope.launch {
@@ -186,6 +358,7 @@ class ThirdPartyApiSettingsViewModel(
                     mode = snapshot.refreshMode,
                     seconds = snapshot.refreshIntervalSeconds
                 )
+                appPreferencesRepository.setOnchainProviderOrder(snapshot.providerOrder)
             }
                 .onSuccess {
                     onchainUiState.update { it.copy(savedFlag = true, errorMessage = null) }
@@ -280,6 +453,7 @@ class ThirdPartyApiSettingsViewModel(
                     appPreferencesRepository = container.appPreferencesRepository,
                     aiConfigRepository = container.aiConfigRepository,
                     okxWalletCredentialsRepository = container.okxWalletCredentialsRepository,
+                    walletNetworkSettingsRepository = container.walletNetworkSettingsRepository,
                     quoteRefreshCoordinator = container.globalQuoteRefreshCoordinator
                 )
             }

@@ -1,6 +1,8 @@
 package io.baiyanwu.coinmonitor.data.refresh
 
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
+import io.baiyanwu.coinmonitor.domain.model.OnchainRefreshMode
+import io.baiyanwu.coinmonitor.data.repository.OnchainProviderRouter
 import io.baiyanwu.coinmonitor.domain.repository.AppPreferencesRepository
 import io.baiyanwu.coinmonitor.domain.repository.MarketQuoteRepository
 import io.baiyanwu.coinmonitor.domain.repository.NetworkLogRepository
@@ -28,6 +30,7 @@ class GlobalQuoteRefreshCoordinator(
     private val quoteRepository: QuoteRepository,
     private val appPreferencesRepository: AppPreferencesRepository,
     marketQuoteRepository: MarketQuoteRepository,
+    private val onchainProviderRouter: OnchainProviderRouter,
     networkLogRepository: NetworkLogRepository
 ) {
     private val homeActive = MutableStateFlow(false)
@@ -40,6 +43,7 @@ class GlobalQuoteRefreshCoordinator(
         watchlistRepository = watchlistRepository,
         quoteRepository = quoteRepository,
         marketQuoteRepository = marketQuoteRepository,
+        onchainProviderRouter = onchainProviderRouter,
         networkLogRepository = networkLogRepository,
         onOnchainRuntimeStateChanged = { state ->
             _onchainRefreshRuntimeState.value = state
@@ -89,10 +93,11 @@ class GlobalQuoteRefreshCoordinator(
             combine(
                 watchlistRepository.observeWatchlist(),
                 appPreferencesRepository.observePreferences(),
+                onchainProviderRouter.routingState,
                 homeActive,
                 overlayActive
-            ) { items, preferences, isHomeActive, isOverlayActive ->
-                val onchainPlan = OnchainRefreshPolicy.resolve(
+            ) { items, preferences, _, isHomeActive, isOverlayActive ->
+                val onchainPlan = onchainProviderRouter.createPollingPlan(
                     items = items,
                     mode = preferences.onchainRefreshMode,
                     fixedIntervalSeconds = preferences.onchainRefreshIntervalSeconds
@@ -100,8 +105,9 @@ class GlobalQuoteRefreshCoordinator(
                 RefreshSnapshot(
                     items = items,
                     refreshIntervalMillis = preferences.refreshIntervalSeconds * 1_000L,
-                    onchainRefreshIntervalMillis = onchainPlan.cycleIntervalSeconds * 1_000L,
-                    onchainRequestBatchCount = onchainPlan.requestBatchCount,
+                    onchainPollingPlan = onchainPlan,
+                    onchainRefreshMode = preferences.onchainRefreshMode,
+                    onchainFixedIntervalSeconds = preferences.onchainRefreshIntervalSeconds,
                     shouldRun = isHomeActive || isOverlayActive
                 )
             }.collect { snapshot ->
@@ -117,8 +123,9 @@ class GlobalQuoteRefreshCoordinator(
                         enabled = snapshot.shouldRun,
                         items = snapshot.items,
                         refreshIntervalMillis = snapshot.refreshIntervalMillis,
-                        onchainRefreshIntervalMillis = snapshot.onchainRefreshIntervalMillis,
-                        onchainRequestBatchCount = snapshot.onchainRequestBatchCount
+                        onchainPollingPlan = snapshot.onchainPollingPlan,
+                        onchainRefreshMode = snapshot.onchainRefreshMode,
+                        onchainFixedIntervalSeconds = snapshot.onchainFixedIntervalSeconds
                     )
                 )
             }
@@ -144,8 +151,9 @@ class GlobalQuoteRefreshCoordinator(
     private data class RefreshSnapshot(
         val items: List<WatchItem>,
         val refreshIntervalMillis: Long,
-        val onchainRefreshIntervalMillis: Long,
-        val onchainRequestBatchCount: Int,
+        val onchainPollingPlan: OnchainPollingPlan,
+        val onchainRefreshMode: OnchainRefreshMode,
+        val onchainFixedIntervalSeconds: Int,
         val shouldRun: Boolean
     )
 

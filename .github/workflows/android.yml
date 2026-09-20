@@ -31,6 +31,7 @@ on:
 
 permissions:
   contents: read
+  packages: read
 
 concurrency:
   group: android-ci-${{ github.ref }}
@@ -39,6 +40,9 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      GITHUB_ACTOR: ${{ github.actor }}
+      GITHUB_TOKEN: ${{ github.token }}
 
     steps:
       - name: Checkout

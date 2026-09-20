@@ -25,7 +25,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
-internal object OkxWalletRequestSigner {
+internal object OkxOnchainRequestSigner {
     fun signature(secretKey: String, timestamp: String, method: String, requestPath: String, body: String = ""): String {
         val mac = Mac.getInstance("HmacSHA256")
         mac.init(SecretKeySpec(secretKey.toByteArray(Charsets.UTF_8), "HmacSHA256"))
@@ -110,14 +110,14 @@ internal class OkxWalletClient(
 
     private suspend fun execute(url: HttpUrl): JsonObject {
         val credentials = credentialsProvider()
-        if (!credentials.isReady) throw OkxWalletApiException("CREDENTIALS", "请先配置并启用 OKX 钱包资产 API。")
+        if (!credentials.isReady) throw OkxWalletApiException("CREDENTIALS", "请先配置并启用 OKX Onchain API。")
         val timestamp = DateTimeFormatter.ISO_INSTANT.format(
             Instant.ofEpochMilli(clock.millis() + getServerTimeOffsetMillis())
         )
         val requestPath = url.encodedPath + if (url.encodedQuery != null) "?${url.encodedQuery}" else ""
         val request = Request.Builder().url(url).get()
             .header("OK-ACCESS-KEY", credentials.apiKey)
-            .header("OK-ACCESS-SIGN", OkxWalletRequestSigner.signature(credentials.secretKey, timestamp, "GET", requestPath))
+            .header("OK-ACCESS-SIGN", OkxOnchainRequestSigner.signature(credentials.secretKey, timestamp, "GET", requestPath))
             .header("OK-ACCESS-PASSPHRASE", credentials.passphrase)
             .header("OK-ACCESS-TIMESTAMP", timestamp)
             .build()

@@ -60,6 +60,7 @@ import io.baiyanwu.coinmonitor.domain.model.ExchangeSource
 import io.baiyanwu.coinmonitor.domain.model.MarketType
 import io.baiyanwu.coinmonitor.domain.model.OnchainChainRegistry
 import io.baiyanwu.coinmonitor.domain.model.OnchainChainIconRegistry
+import io.baiyanwu.coinmonitor.domain.model.OnchainDataProvider
 import io.baiyanwu.coinmonitor.domain.model.OnchainPoolOption
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
 import io.baiyanwu.coinmonitor.ui.components.CoinSymbolIcon
@@ -86,6 +87,7 @@ fun SearchRoute(
     entryMode: SearchEntryMode = SearchEntryMode.HOME,
     initialSearchMode: SearchMode = SearchMode.EXCHANGE,
     onBack: () -> Unit,
+    onOpenThirdPartyApiSettings: () -> Unit = {},
     onSelectForKline: (String) -> Unit = {}
 ) {
     val viewModel: SearchViewModel = viewModel(factory = SearchViewModel.factory(container))
@@ -95,6 +97,7 @@ fun SearchRoute(
         entryMode = entryMode,
         initialSearchMode = initialSearchMode,
         onBack = onBack,
+        onOpenThirdPartyApiSettings = onOpenThirdPartyApiSettings,
         onQueryChange = viewModel::updateQuery,
         onClearQuery = viewModel::clearQuery,
         onSearch = viewModel::search,
@@ -113,6 +116,7 @@ private fun SearchScreen(
     entryMode: SearchEntryMode,
     initialSearchMode: SearchMode,
     onBack: () -> Unit,
+    onOpenThirdPartyApiSettings: () -> Unit,
     onQueryChange: (SearchMode, String) -> Unit,
     onClearQuery: (SearchMode) -> Unit,
     onSearch: (SearchMode) -> Unit,
@@ -210,7 +214,11 @@ private fun SearchScreen(
                     results = if (pageMode == SearchMode.EXCHANGE) exchangeResults else onchainResults,
                     onToggleItem = onToggleItem,
                     onSelectOnchainPool = onSelectOnchainPool,
-                    onSelectForKline = onSelectForKline
+                    onSelectForKline = onSelectForKline,
+                    showOkxSetupPrompt = pageMode == SearchMode.ONCHAIN &&
+                        pageState.hasSearched &&
+                        !state.okxOnchainCredentialsReady,
+                    onOpenThirdPartyApiSettings = onOpenThirdPartyApiSettings
                 )
             }
         }
@@ -348,7 +356,9 @@ private fun SearchModePage(
     results: List<WatchItem>,
     onToggleItem: (WatchItem) -> Unit,
     onSelectOnchainPool: (WatchItem, OnchainPoolOption) -> Unit,
-    onSelectForKline: (WatchItem) -> Unit
+    onSelectForKline: (WatchItem) -> Unit,
+    showOkxSetupPrompt: Boolean,
+    onOpenThirdPartyApiSettings: () -> Unit
 ) {
     val colors = CoinMonitorThemeTokens.colors
 
@@ -387,11 +397,31 @@ private fun SearchModePage(
                             pageMode == SearchMode.ONCHAIN -> R.string.search_empty_initial_onchain
                             else -> R.string.search_empty_initial
                         }
-                        Text(
-                            text = stringResource(emptyTextRes),
-                            color = colors.secondaryText,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
+                        if (showOkxSetupPrompt) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.search_okx_fallback_prompt),
+                                    color = colors.secondaryText,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                                Text(
+                                    text = stringResource(R.string.search_okx_fallback_configure),
+                                    modifier = Modifier.clickable(onClick = onOpenThirdPartyApiSettings),
+                                    color = colors.accent,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        } else {
+                            Text(
+                                text = stringResource(emptyTextRes),
+                                color = colors.secondaryText,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
                     }
                 }
             }
@@ -617,7 +647,10 @@ private fun OnchainPoolMetadata(item: WatchItem, pool: OnchainPoolOption?) {
         listOf(chainName, formatDexName(option), liquidity)
             .filter(String::isNotBlank)
             .joinToString(" · ")
-    } ?: chainName
+    } ?: listOf(
+        chainName,
+        if (item.onchainDataProvider == OnchainDataProvider.OKX_DEX) "OKX DEX" else null
+    ).filterNotNull().filter(String::isNotBlank).joinToString(" · ")
 
     Row(
         horizontalArrangement = Arrangement.spacedBy(5.dp),

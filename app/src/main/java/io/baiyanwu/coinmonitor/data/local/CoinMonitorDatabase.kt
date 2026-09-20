@@ -15,7 +15,7 @@ import io.baiyanwu.coinmonitor.data.local.dao.WatchItemDao
         AiChatSessionEntity::class,
         AiChatMessageEntity::class
     ],
-    version = 10,
+    version = 11,
     exportSchema = true
 )
 abstract class CoinMonitorDatabase : RoomDatabase() {
@@ -163,6 +163,14 @@ abstract class CoinMonitorDatabase : RoomDatabase() {
         val MIGRATION_9_10: Migration = object : Migration(9, 10) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL("ALTER TABLE watch_items ADD COLUMN marketCap REAL")
+            }
+        }
+
+        val MIGRATION_10_11: Migration = object : Migration(10, 11) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    "ALTER TABLE watch_items ADD COLUMN onchainDataProvider TEXT NOT NULL DEFAULT 'DEX_SCREENER'"
+                )
             }
         }
 

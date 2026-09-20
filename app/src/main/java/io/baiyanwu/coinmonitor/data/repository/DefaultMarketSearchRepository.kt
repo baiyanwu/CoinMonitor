@@ -4,21 +4,15 @@ import io.baiyanwu.coinmonitor.data.network.BinanceAlphaApi
 import io.baiyanwu.coinmonitor.data.network.BinanceApi
 import io.baiyanwu.coinmonitor.data.network.BinanceFuturesApi
 import io.baiyanwu.coinmonitor.data.network.DexScreenerClient
-import io.baiyanwu.coinmonitor.data.network.DexScreenerPair
-import io.baiyanwu.coinmonitor.data.network.DexScreenerPairSelector
 import io.baiyanwu.coinmonitor.data.network.OkxApi
 import io.baiyanwu.coinmonitor.data.network.parseAlphaExchangeInfo
 import io.baiyanwu.coinmonitor.data.network.parseAlphaTokenList
+import io.baiyanwu.coinmonitor.domain.model.AppPreferences
 import io.baiyanwu.coinmonitor.domain.model.ChainFamily
 import io.baiyanwu.coinmonitor.domain.model.ExchangeSource
 import io.baiyanwu.coinmonitor.domain.model.MarketType
-import io.baiyanwu.coinmonitor.domain.model.OnchainChain
-import io.baiyanwu.coinmonitor.domain.model.OnchainChainRegistry
-import io.baiyanwu.coinmonitor.domain.model.OnchainPoolOption
-import io.baiyanwu.coinmonitor.domain.model.PoolTokenSide
+import io.baiyanwu.coinmonitor.domain.model.OnchainDataProvider
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
-import io.baiyanwu.coinmonitor.domain.model.inferOnchainChainFamily
-import io.baiyanwu.coinmonitor.domain.model.normalizeOnchainAddress
 import io.baiyanwu.coinmonitor.domain.repository.MarketSearchRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
@@ -40,8 +34,38 @@ class DefaultMarketSearchRepository(
     private val binanceApi: BinanceApi,
     private val binanceFuturesApi: BinanceFuturesApi,
     private val okxApi: OkxApi,
-    private val dexScreenerClient: DexScreenerClient
+    private val onchainRouter: OnchainProviderRouter
 ) : MarketSearchRepository {
+    constructor(
+        alphaApi: BinanceAlphaApi,
+        binanceApi: BinanceApi,
+        binanceFuturesApi: BinanceFuturesApi,
+        okxApi: OkxApi,
+        onchainProviders: List<OnchainMarketProvider>,
+        onchainProviderOrder: () -> List<OnchainDataProvider> = {
+            AppPreferences.DEFAULT_ONCHAIN_PROVIDER_ORDER
+        }
+    ) : this(
+        alphaApi,
+        binanceApi,
+        binanceFuturesApi,
+        okxApi,
+        OnchainProviderRouter(onchainProviders, onchainProviderOrder)
+    )
+
+    constructor(
+        alphaApi: BinanceAlphaApi,
+        binanceApi: BinanceApi,
+        binanceFuturesApi: BinanceFuturesApi,
+        okxApi: OkxApi,
+        dexScreenerClient: DexScreenerClient
+    ) : this(
+        alphaApi,
+        binanceApi,
+        binanceFuturesApi,
+        okxApi,
+        OnchainProviderRouter(listOf(DexScreenerOnchainMarketProvider(dexScreenerClient)))
+    )
     private val supportedBinanceFuturesPerpetualContractTypes = setOf("PERPETUAL", "TRADIFI_PERPETUAL")
     private val cacheMutex = Mutex()
     private val cache = mutableMapOf<String, CacheEntry>()
@@ -237,45 +261,7 @@ class DefaultMarketSearchRepository(
     private suspend fun searchPublicOnchain(
         keyword: String,
         chainFamilyFilter: ChainFamily? = null
-    ): List<WatchItem> {
-        val pairs = dexScreenerClient.searchPairs(keyword)
-        return pairs
-            .filter { it.chainId.isNotBlank() }
-            .groupBy { it.chainId.lowercase() }
-            .values
-            .flatMap { chainPairs ->
-                val upstreamChainId = chainPairs.first().chainId
-                val family = inferOnchainChainFamily(
-                    dexScreenerId = upstreamChainId,
-                    addresses = chainPairs.flatMap { pair ->
-                        listOf(pair.baseToken.address, pair.quoteToken.address)
-                    }
-                )
-                if (chainFamilyFilter != null && family != chainFamilyFilter) {
-                    return@flatMap emptyList()
-                }
-                val chain = OnchainChainRegistry.resolveDexScreenerChain(upstreamChainId, family)
-                    ?: return@flatMap emptyList()
-                val addresses = chainPairs.flatMap { pair ->
-                    DexScreenerPairSelector.matchingTokenAddresses(pair, keyword, chain.family)
-                }
-                addresses
-                    .distinctBy { normalizeOnchainAddress(chain.family, it) }
-                    .mapNotNull { address ->
-                        val candidates = DexScreenerPairSelector.candidates(
-                            pairs = chainPairs,
-                            tokenAddress = address,
-                            family = chain.family
-                        )
-                        candidates.firstOrNull()?.toOnchainWatchItem(
-                            chain = chain,
-                            candidates = candidates
-                        )
-                    }
-            }
-            .distinctBy(WatchItem::semanticKey)
-            .sortedWith(compareBy({ it.symbol }, { it.name }))
-    }
+    ): List<WatchItem> = onchainRouter.search(keyword, chainFamilyFilter)
 
     private suspend fun loadCache(key: String, block: suspend () -> List<WatchItem>): List<WatchItem> {
         cacheMutex.withLock {
@@ -325,51 +311,4 @@ private fun parseSearchScope(keyword: String): Pair<ChainFamily?, String> {
         raw.startsWith("SOL:", ignoreCase = true) -> ChainFamily.SOL to raw.substringAfter(':').trim()
         else -> null to raw
     }
-}
-
-private fun io.baiyanwu.coinmonitor.data.network.SelectedDexPair.toOnchainWatchItem(
-    chain: OnchainChain,
-    candidates: List<io.baiyanwu.coinmonitor.data.network.SelectedDexPair>
-): WatchItem {
-    val normalizedAddress = normalizeOnchainAddress(chain.family, tokenAddress)
-    val poolOptions = candidates.map { candidate -> candidate.toPoolOption(chain) }
-    val selectedPool = poolOptions.firstOrNull()
-    return WatchItem(
-        id = "onchain:${chain.chainIndex}:$normalizedAddress",
-        symbol = selectedPool?.pairLabel ?: tokenSymbol.uppercase(),
-        name = tokenName,
-        exchangeSource = ExchangeSource.ONCHAIN,
-        marketType = MarketType.ONCHAIN_TOKEN,
-        chainFamily = chain.family,
-        chainIndex = chain.chainIndex,
-        tokenAddress = normalizedAddress,
-        poolAddress = normalizeOnchainAddress(chain.family, pair.pairAddress),
-        poolTokenSide = tokenSide,
-        iconUrl = pair.info?.imageUrl.takeIf { tokenSide == io.baiyanwu.coinmonitor.domain.model.PoolTokenSide.BASE },
-        lastPrice = priceUsd,
-        change24hPercent = change24hPercent,
-        marketCap = marketCap,
-        lastUpdatedAt = System.currentTimeMillis(),
-        addedAt = System.currentTimeMillis(),
-        selectedPool = selectedPool,
-        poolOptions = poolOptions
-    )
-}
-
-private fun io.baiyanwu.coinmonitor.data.network.SelectedDexPair.toPoolOption(
-    chain: OnchainChain
-): OnchainPoolOption {
-    return OnchainPoolOption(
-        poolAddress = normalizeOnchainAddress(chain.family, pair.pairAddress),
-        tokenSide = tokenSide,
-        pairLabel = pairLabel,
-        dexId = pair.dexId,
-        labels = pair.labels.orEmpty(),
-        liquidityUsd = pair.liquidity?.usd ?: 0.0,
-        volume24hUsd = pair.volume["h24"],
-        priceUsd = priceUsd,
-        change24hPercent = change24hPercent,
-        marketCap = marketCap,
-        poolUrl = pair.url
-    )
 }

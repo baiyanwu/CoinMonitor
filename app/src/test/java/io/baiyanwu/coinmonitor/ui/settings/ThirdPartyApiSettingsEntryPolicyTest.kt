@@ -58,7 +58,7 @@ class ThirdPartyApiSettingsEntryPolicyTest {
     }
 
     @Test
-    fun `free onchain settings expose smart and fixed refresh modes`() {
+    fun `onchain settings expose provider priority and refresh modes`() {
         val routeSource = readSource(
             rootRelativePath = "app/src/main/java/io/baiyanwu/coinmonitor/ui/settings/ThirdPartyApiSettingsRoute.kt",
             moduleRelativePath = "src/main/java/io/baiyanwu/coinmonitor/ui/settings/ThirdPartyApiSettingsRoute.kt"
@@ -73,18 +73,40 @@ class ThirdPartyApiSettingsEntryPolicyTest {
         )
 
         assertTrue(routeSource.contains("DexPollingIntervalSetting"))
+        assertTrue(routeSource.contains("OnchainProviderPrioritySetting"))
+        assertTrue(routeSource.contains("OnchainDataProvider.DEX_SCREENER"))
+        assertTrue(routeSource.contains("OnchainDataProvider.OKX_DEX"))
         assertTrue(routeSource.contains("SingleChoiceSegmentedButtonRow"))
         assertTrue(routeSource.contains("OnchainRefreshMode.SMART"))
         assertTrue(routeSource.contains("OnchainRefreshMode.FIXED"))
         assertTrue(routeSource.contains("ONCHAIN_FIXED_INTERVAL_OPTIONS_SECONDS"))
         assertTrue(routeSource.contains("FilterChip("))
         assertTrue(routeSource.contains("colors.positive"))
-        assertTrue(chineseStrings.contains("DexScreener · GeckoTerminal"))
-        assertTrue(englishStrings.contains("DexScreener · GeckoTerminal"))
+        assertTrue(chineseStrings.contains("DexScreener · OKX DEX · GeckoTerminal"))
+        assertTrue(englishStrings.contains("DexScreener · OKX DEX · GeckoTerminal"))
+        assertTrue(chineseStrings.contains("third_party_api_settings_provider_priority_title"))
+        assertTrue(englishStrings.contains("third_party_api_settings_provider_priority_title"))
         assertTrue(chineseStrings.contains("third_party_api_settings_refresh_status_active"))
         assertTrue(englishStrings.contains("third_party_api_settings_refresh_status_active"))
         assertTrue(chineseStrings.contains("third_party_api_settings_refresh_smart_hint"))
         assertTrue(englishStrings.contains("third_party_api_settings_refresh_smart_hint"))
+    }
+
+    @Test
+    fun `wallet prompts can open settings at wallet network section`() {
+        val routeSource = readSource(
+            rootRelativePath = "app/src/main/java/io/baiyanwu/coinmonitor/ui/settings/ThirdPartyApiSettingsRoute.kt",
+            moduleRelativePath = "src/main/java/io/baiyanwu/coinmonitor/ui/settings/ThirdPartyApiSettingsRoute.kt"
+        )
+        val activitySource = readSource(
+            rootRelativePath = "app/src/main/java/io/baiyanwu/coinmonitor/ui/settings/ThirdPartyApiSettingsActivity.kt",
+            moduleRelativePath = "src/main/java/io/baiyanwu/coinmonitor/ui/settings/ThirdPartyApiSettingsActivity.kt"
+        )
+
+        assertTrue(routeSource.contains("ThirdPartyApiSettingsSection.WALLET_NETWORK"))
+        assertTrue(routeSource.contains("initialFirstVisibleItemIndex"))
+        assertTrue(activitySource.contains("EXTRA_INITIAL_SECTION"))
+        assertTrue(activitySource.contains("initialSection.name"))
     }
 
     private fun extractStringValue(source: String, name: String): String {

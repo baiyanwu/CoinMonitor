@@ -1,6 +1,7 @@
 package io.baiyanwu.coinmonitor.data.repository
 
 import io.baiyanwu.coinmonitor.domain.model.NetworkLogEntry
+import io.baiyanwu.coinmonitor.domain.model.NetworkLogEventKind
 import io.baiyanwu.coinmonitor.domain.model.NetworkLogProtocol
 import io.baiyanwu.coinmonitor.domain.model.NetworkLogRecordingSettings
 import io.baiyanwu.coinmonitor.domain.repository.NetworkLogRepository
@@ -50,7 +51,12 @@ class DefaultNetworkLogRepository : NetworkLogRepository {
         entries.value = emptyList()
     }
 
-    override fun append(protocol: NetworkLogProtocol, line: String, detail: String) {
+    override fun append(
+        protocol: NetworkLogProtocol,
+        kind: NetworkLogEventKind,
+        line: String,
+        detail: String
+    ) {
         val settings = recordingSettings.value
         if (!settings.recordingEnabled || !settings.isEnabledFor(protocol)) return
 
@@ -66,6 +72,7 @@ class DefaultNetworkLogRepository : NetworkLogRepository {
         val entry = NetworkLogEntry(
             id = nextId.getAndIncrement(),
             protocol = protocol,
+            kind = kind,
             line = formattedLine,
             detail = formattedDetail,
             createdAt = createdAt

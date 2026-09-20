@@ -8,6 +8,7 @@ import io.baiyanwu.coinmonitor.domain.model.AiChatSession
 import io.baiyanwu.coinmonitor.domain.model.AiChatSessionSummary
 import io.baiyanwu.coinmonitor.domain.model.LivePriceTrend
 import io.baiyanwu.coinmonitor.domain.model.MarketType
+import io.baiyanwu.coinmonitor.domain.model.OnchainDataProvider
 import io.baiyanwu.coinmonitor.domain.model.PoolTokenSide
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
 
@@ -21,6 +22,7 @@ fun WatchItemEntity.toDomain(): WatchItem {
         chainFamily = chainFamily?.toEnumOrNull<ChainFamily>(),
         chainIndex = chainIndex,
         tokenAddress = tokenAddress,
+        onchainDataProvider = onchainDataProvider.toEnumOrDefault(OnchainDataProvider.DEX_SCREENER),
         poolAddress = poolAddress,
         poolTokenSide = poolTokenSide?.toEnumOrNull<PoolTokenSide>(),
         iconUrl = iconUrl,
@@ -49,6 +51,7 @@ fun WatchItem.toEntity(): WatchItemEntity {
         chainFamily = chainFamily?.name,
         chainIndex = chainIndex,
         tokenAddress = tokenAddress,
+        onchainDataProvider = onchainDataProvider.name,
         poolAddress = poolAddress,
         poolTokenSide = poolTokenSide?.name,
         iconUrl = iconUrl,

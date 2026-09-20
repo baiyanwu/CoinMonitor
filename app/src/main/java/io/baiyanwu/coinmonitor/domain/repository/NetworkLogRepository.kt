@@ -1,6 +1,7 @@
 package io.baiyanwu.coinmonitor.domain.repository
 
 import io.baiyanwu.coinmonitor.domain.model.NetworkLogEntry
+import io.baiyanwu.coinmonitor.domain.model.NetworkLogEventKind
 import io.baiyanwu.coinmonitor.domain.model.NetworkLogProtocol
 import io.baiyanwu.coinmonitor.domain.model.NetworkLogRecordingSettings
 import kotlinx.coroutines.flow.Flow
@@ -18,5 +19,10 @@ interface NetworkLogRepository {
     fun setRecordingEnabled(enabled: Boolean)
     fun setProtocolEnabled(protocol: NetworkLogProtocol, enabled: Boolean)
     fun clear()
-    fun append(protocol: NetworkLogProtocol, line: String, detail: String = line)
+    fun append(
+        protocol: NetworkLogProtocol,
+        kind: NetworkLogEventKind,
+        line: String,
+        detail: String = line
+    )
 }

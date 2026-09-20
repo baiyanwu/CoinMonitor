@@ -7,23 +7,32 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
@@ -31,6 +40,7 @@ import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -49,15 +59,22 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import io.baiyanwu.coinmonitor.R
 import io.baiyanwu.coinmonitor.data.AppContainer
 import io.baiyanwu.coinmonitor.domain.model.AppPreferences
+import io.baiyanwu.coinmonitor.domain.model.OnchainDataProvider
 import io.baiyanwu.coinmonitor.domain.model.OnchainRefreshMode
+import io.baiyanwu.coinmonitor.domain.model.WalletNetwork
+import io.baiyanwu.coinmonitor.domain.model.WalletProviderMode
+import io.baiyanwu.coinmonitor.domain.model.modeFor
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorComponentDefaults
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 
 private const val SHOW_AI_SETTINGS_ENTRY = false
 
+enum class ThirdPartyApiSettingsSection { TOP, WALLET_NETWORK }
+
 @Composable
 fun ThirdPartyApiSettingsRoute(
     container: AppContainer,
+    initialSection: ThirdPartyApiSettingsSection = ThirdPartyApiSettingsSection.TOP,
     onBack: () -> Unit
 ) {
     val viewModel: ThirdPartyApiSettingsViewModel = viewModel(
@@ -67,10 +84,20 @@ fun ThirdPartyApiSettingsRoute(
 
     ThirdPartyApiSettingsScreen(
         state = state,
+        initialSection = initialSection,
         onBack = onBack,
         onOnchainRefreshModeChange = viewModel::updateOnchainRefreshMode,
         onOnchainRefreshIntervalChange = viewModel::updateOnchainRefreshIntervalSeconds,
+        onOnchainProviderPriorityChange = viewModel::updateOnchainProviderPriority,
         onSaveOnchain = viewModel::saveOnchainSettings,
+        onAlchemyApiKeyChange = viewModel::updateAlchemyApiKey,
+        onSaveWalletNetwork = viewModel::saveWalletNetworkSettings,
+        onRefreshWalletNetworks = viewModel::refreshWalletNetworkCatalog,
+        onSetWalletNetworkEnabled = viewModel::setWalletNetworkEnabled,
+        onSaveWalletCustomRpc = viewModel::saveWalletCustomRpc,
+        onClearWalletCustomRpc = viewModel::clearWalletCustomRpc,
+        onAddCustomEvmNetwork = viewModel::addCustomEvmNetwork,
+        onRemoveCustomEvmNetwork = viewModel::removeCustomEvmNetwork,
         onOkxEnabledChange = viewModel::setOkxWalletEnabled,
         onOkxApiKeyChange = viewModel::updateOkxWalletApiKey,
         onOkxSecretKeyChange = viewModel::updateOkxWalletSecretKey,
@@ -90,10 +117,20 @@ fun ThirdPartyApiSettingsRoute(
 @Composable
 private fun ThirdPartyApiSettingsScreen(
     state: ThirdPartyApiSettingsUiState,
+    initialSection: ThirdPartyApiSettingsSection,
     onBack: () -> Unit,
     onOnchainRefreshModeChange: (OnchainRefreshMode) -> Unit,
     onOnchainRefreshIntervalChange: (Int) -> Unit,
+    onOnchainProviderPriorityChange: (OnchainDataProvider) -> Unit,
     onSaveOnchain: () -> Unit,
+    onAlchemyApiKeyChange: (String) -> Unit,
+    onSaveWalletNetwork: () -> Unit,
+    onRefreshWalletNetworks: () -> Unit,
+    onSetWalletNetworkEnabled: (WalletNetwork, Boolean) -> Unit,
+    onSaveWalletCustomRpc: (WalletNetwork, String) -> Unit,
+    onClearWalletCustomRpc: (WalletNetwork) -> Unit,
+    onAddCustomEvmNetwork: (String, String, String, String, String) -> Unit,
+    onRemoveCustomEvmNetwork: (WalletNetwork) -> Unit,
     onOkxEnabledChange: (Boolean) -> Unit,
     onOkxApiKeyChange: (String) -> Unit,
     onOkxSecretKeyChange: (String) -> Unit,
@@ -112,6 +149,12 @@ private fun ThirdPartyApiSettingsScreen(
     val uriHandler = LocalUriHandler.current
     var showAiValidationError by rememberSaveable { mutableStateOf(false) }
     var showOkxValidationError by rememberSaveable { mutableStateOf(false) }
+    var showWalletNetworkManager by rememberSaveable { mutableStateOf(false) }
+    var showAddCustomEvm by rememberSaveable { mutableStateOf(false) }
+    var customRpcNetworkId by rememberSaveable { mutableStateOf<String?>(null) }
+    val listState = rememberLazyListState(
+        initialFirstVisibleItemIndex = if (initialSection == ThirdPartyApiSettingsSection.WALLET_NETWORK) 2 else 0
+    )
 
     Scaffold(
         containerColor = colors.pageBackground,
@@ -119,16 +162,17 @@ private fun ThirdPartyApiSettingsScreen(
             ThirdPartyApiTopBar(onBack = onBack)
         }
     ) { innerPadding ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .background(colors.pageBackground)
-                .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 14.dp, vertical = 12.dp),
+                .padding(innerPadding),
+            state = listState,
+            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            ThirdPartySectionCard(title = stringResource(R.string.third_party_api_settings_section_onchain)) {
+            item {
+                ThirdPartySectionCard(title = stringResource(R.string.third_party_api_settings_section_onchain)) {
                 Text(
                     text = stringResource(R.string.third_party_api_settings_onchain_description),
                     style = MaterialTheme.typography.bodySmall,
@@ -138,6 +182,10 @@ private fun ThirdPartyApiSettingsScreen(
                     text = stringResource(R.string.third_party_api_settings_onchain_providers),
                     style = MaterialTheme.typography.bodySmall,
                     color = colors.accent
+                )
+                OnchainProviderPrioritySetting(
+                    providerOrder = state.onchain.providerOrder,
+                    onPriorityChange = onOnchainProviderPriorityChange
                 )
                 DexPollingIntervalSetting(
                     state = state.onchain,
@@ -156,9 +204,11 @@ private fun ThirdPartyApiSettingsScreen(
                 ) {
                     Text(text = stringResource(R.string.third_party_api_settings_save))
                 }
+                }
             }
 
-            ThirdPartySectionCard(title = stringResource(R.string.okx_wallet_settings_title)) {
+            item {
+                ThirdPartySectionCard(title = stringResource(R.string.okx_wallet_settings_title)) {
                 Text(
                     text = stringResource(R.string.okx_wallet_settings_description),
                     style = MaterialTheme.typography.bodySmall,
@@ -231,10 +281,73 @@ private fun ThirdPartyApiSettingsScreen(
                     },
                     onClear = { showOkxValidationError = false; onClearOkx() }
                 )
+                }
+            }
+
+            item {
+                ThirdPartySectionCard(title = stringResource(R.string.wallet_network_settings_title)) {
+                Text(
+                    text = stringResource(R.string.wallet_network_settings_description),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.secondaryText
+                )
+                if (!state.walletNetwork.secureStorageAvailable) {
+                    Text(
+                        text = stringResource(R.string.wallet_network_secure_storage_unavailable),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+                OutlinedTextField(
+                    value = state.walletNetwork.alchemyApiKey,
+                    onValueChange = onAlchemyApiKeyChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text(stringResource(R.string.wallet_network_alchemy_api_key)) },
+                    visualTransformation = PasswordVisualTransformation(),
+                    singleLine = true
+                )
+                Text(
+                    text = stringResource(
+                        R.string.wallet_network_enabled_count,
+                        state.walletNetwork.enabledNetworkIds.size
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.secondaryText
+                )
+                OutlinedButton(
+                    onClick = { showWalletNetworkManager = true },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(stringResource(R.string.wallet_network_manage))
+                }
+                OutlinedButton(
+                    onClick = { showAddCustomEvm = true },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(stringResource(R.string.wallet_network_add_custom_evm))
+                }
+                FeedbackText(
+                    savedFlag = state.walletNetwork.savedFlag,
+                    clearedFlag = false,
+                    errorMessage = state.walletNetwork.errorMessage
+                )
+                Button(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = onSaveWalletNetwork,
+                    enabled = !state.walletNetwork.saving && state.walletNetwork.secureStorageAvailable,
+                    colors = CoinMonitorComponentDefaults.primaryButtonColors()
+                ) {
+                    Text(
+                        if (state.walletNetwork.saving) stringResource(R.string.wallet_network_validating)
+                        else stringResource(R.string.third_party_api_settings_save)
+                    )
+                }
+                }
             }
 
             if (SHOW_AI_SETTINGS_ENTRY) {
-                ThirdPartySectionCard(title = stringResource(R.string.third_party_api_settings_section_ai)) {
+                item {
+                    ThirdPartySectionCard(title = stringResource(R.string.third_party_api_settings_section_ai)) {
                     Text(
                         text = stringResource(R.string.third_party_api_settings_ai_disclaimer),
                         style = MaterialTheme.typography.bodySmall,
@@ -319,9 +432,256 @@ private fun ThirdPartyApiSettingsScreen(
                             onClearAi()
                         }
                     )
+                    }
                 }
             }
         }
+    }
+
+    if (showWalletNetworkManager) {
+        WalletNetworkManagerDialog(
+            state = state.walletNetwork,
+            onDismiss = { showWalletNetworkManager = false },
+            onRefresh = onRefreshWalletNetworks,
+            onToggle = onSetWalletNetworkEnabled,
+            onConfigureRpc = { customRpcNetworkId = it.id },
+            onRemove = onRemoveCustomEvmNetwork
+        )
+    }
+    state.walletNetwork.availableNetworks.firstOrNull { it.id == customRpcNetworkId }?.let { network ->
+        WalletCustomRpcDialog(
+            network = network,
+            initialUrl = state.walletNetwork.customRpcUrls[network.id].orEmpty(),
+            saving = state.walletNetwork.saving,
+            onDismiss = { customRpcNetworkId = null },
+            onSave = {
+                onSaveWalletCustomRpc(network, it)
+                customRpcNetworkId = null
+            },
+            onClear = {
+                onClearWalletCustomRpc(network)
+                customRpcNetworkId = null
+            }
+        )
+    }
+    if (showAddCustomEvm) {
+        AddCustomEvmNetworkDialog(
+            saving = state.walletNetwork.saving,
+            onDismiss = { showAddCustomEvm = false },
+            onAdd = { name, chainId, symbol, explorer, rpc ->
+                onAddCustomEvmNetwork(name, chainId, symbol, explorer, rpc)
+                showAddCustomEvm = false
+            }
+        )
+    }
+}
+
+@Composable
+private fun WalletNetworkManagerDialog(
+    state: WalletNetworkSettingsFormState,
+    onDismiss: () -> Unit,
+    onRefresh: () -> Unit,
+    onToggle: (WalletNetwork, Boolean) -> Unit,
+    onConfigureRpc: (WalletNetwork) -> Unit,
+    onRemove: (WalletNetwork) -> Unit
+) {
+    var query by rememberSaveable { mutableStateOf("") }
+    val visibleNetworks = state.availableNetworks.filter {
+        query.isBlank() || it.displayName.contains(query, ignoreCase = true) ||
+            it.chainId?.toString()?.contains(query) == true
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.wallet_network_manage)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text(stringResource(R.string.wallet_network_search)) },
+                    singleLine = true
+                )
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth().heightIn(max = 420.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    items(visibleNetworks, key = WalletNetwork::id) { network ->
+                        val enabled = network.id in state.enabledNetworkIds
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text(network.displayName, style = MaterialTheme.typography.titleSmall)
+                                Text(
+                                    network.chainId?.let { "Chain ID $it · ${network.symbol}" }
+                                        ?: network.symbol,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = CoinMonitorThemeTokens.colors.secondaryText
+                                )
+                                state.customRpcUrls[network.id]?.takeIf(String::isNotBlank)?.let {
+                                    Text(
+                                        stringResource(R.string.wallet_provider_custom_only),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = CoinMonitorThemeTokens.colors.accent
+                                    )
+                                }
+                            }
+                            TextButton(onClick = { onConfigureRpc(network) }) {
+                                Text(stringResource(R.string.wallet_network_custom_rpc_short))
+                            }
+                            if (network.userDefined) {
+                                TextButton(onClick = { onRemove(network) }) {
+                                    Text(stringResource(R.string.wallet_network_remove))
+                                }
+                            }
+                            Switch(checked = enabled, onCheckedChange = { onToggle(network, it) })
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.wallet_network_done)) } },
+        dismissButton = {
+            TextButton(onClick = onRefresh, enabled = !state.refreshingCatalog) {
+                if (state.refreshingCatalog) CircularProgressIndicator(strokeWidth = 2.dp)
+                else Text(stringResource(R.string.wallet_network_refresh_catalog))
+            }
+        }
+    )
+}
+
+@Composable
+private fun WalletCustomRpcDialog(
+    network: WalletNetwork,
+    initialUrl: String,
+    saving: Boolean,
+    onDismiss: () -> Unit,
+    onSave: (String) -> Unit,
+    onClear: () -> Unit
+) {
+    var url by rememberSaveable(network.id) { mutableStateOf(initialUrl) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.wallet_network_custom_rpc_title, network.displayName)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    stringResource(R.string.wallet_network_custom_rpc_description),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = CoinMonitorThemeTokens.colors.secondaryText
+                )
+                OutlinedTextField(
+                    value = url,
+                    onValueChange = { url = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text(stringResource(R.string.wallet_network_rpc_url)) },
+                    singleLine = true
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onSave(url) }, enabled = url.isNotBlank() && !saving) {
+                Text(stringResource(R.string.third_party_api_settings_save))
+            }
+        },
+        dismissButton = {
+            Row {
+                if (initialUrl.isNotBlank()) {
+                    TextButton(onClick = onClear, enabled = !saving) {
+                        Text(stringResource(R.string.wallet_network_clear_rpc))
+                    }
+                }
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) }
+            }
+        }
+    )
+}
+
+@Composable
+private fun AddCustomEvmNetworkDialog(
+    saving: Boolean,
+    onDismiss: () -> Unit,
+    onAdd: (String, String, String, String, String) -> Unit
+) {
+    var name by rememberSaveable { mutableStateOf("") }
+    var chainId by rememberSaveable { mutableStateOf("") }
+    var symbol by rememberSaveable { mutableStateOf("") }
+    var explorer by rememberSaveable { mutableStateOf("") }
+    var rpc by rememberSaveable { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.wallet_network_add_custom_evm)) },
+        text = {
+            Column(
+                modifier = Modifier.heightIn(max = 460.dp).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    stringResource(R.string.wallet_network_add_custom_evm_description),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = CoinMonitorThemeTokens.colors.secondaryText
+                )
+                OutlinedTextField(name, { name = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.wallet_network_name)) }, singleLine = true)
+                OutlinedTextField(chainId, { chainId = it.filter(Char::isDigit) }, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.wallet_network_chain_id)) }, singleLine = true)
+                OutlinedTextField(symbol, { symbol = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.wallet_network_native_symbol)) }, singleLine = true)
+                OutlinedTextField(rpc, { rpc = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.wallet_network_rpc_url)) }, singleLine = true)
+                OutlinedTextField(explorer, { explorer = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.wallet_network_explorer_optional)) }, singleLine = true)
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onAdd(name, chainId, symbol, explorer, rpc) },
+                enabled = name.isNotBlank() && chainId.isNotBlank() && symbol.isNotBlank() && rpc.isNotBlank() && !saving
+            ) { Text(stringResource(R.string.wallet_network_add)) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) } }
+    )
+}
+
+@Composable
+@OptIn(ExperimentalMaterial3Api::class)
+private fun OnchainProviderPrioritySetting(
+    providerOrder: List<OnchainDataProvider>,
+    onPriorityChange: (OnchainDataProvider) -> Unit
+) {
+    val colors = CoinMonitorThemeTokens.colors
+    val primaryProvider = providerOrder.firstOrNull()
+        ?: AppPreferences.DEFAULT_ONCHAIN_PROVIDER_ORDER.first()
+    val providers = OnchainDataProvider.entries
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = stringResource(R.string.third_party_api_settings_provider_priority_title),
+            style = MaterialTheme.typography.titleSmall
+        )
+        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+            providers.forEachIndexed { index, provider ->
+                SegmentedButton(
+                    selected = primaryProvider == provider,
+                    onClick = { onPriorityChange(provider) },
+                    shape = SegmentedButtonDefaults.itemShape(index, providers.size),
+                    modifier = Modifier.weight(1f),
+                    label = {
+                        Text(
+                            when (provider) {
+                                OnchainDataProvider.DEX_SCREENER -> stringResource(
+                                    R.string.onchain_provider_dex_screener
+                                )
+                                OnchainDataProvider.OKX_DEX -> stringResource(
+                                    R.string.onchain_provider_okx_dex
+                                )
+                            }
+                        )
+                    }
+                )
+            }
+        }
+        Text(
+            text = stringResource(R.string.third_party_api_settings_provider_priority_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = colors.secondaryText
+        )
     }
 }
 

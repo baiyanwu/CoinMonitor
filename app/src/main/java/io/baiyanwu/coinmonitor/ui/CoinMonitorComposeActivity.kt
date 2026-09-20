@@ -21,6 +21,11 @@ import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
  * 统一承接主题、语言和系统栏样式，避免每个页面 Activity 各自重复一套 Compose 宿主配置。
  */
 abstract class CoinMonitorComposeActivity : AppCompatActivity() {
+    override fun onUserInteraction() {
+        super.onUserInteraction()
+        appContainer().walletSessionLockObserver.recordUserInteraction()
+    }
+
     override fun attachBaseContext(newBase: Context) {
         super.attachBaseContext(AppConfigurationApplier.wrapContext(newBase))
     }

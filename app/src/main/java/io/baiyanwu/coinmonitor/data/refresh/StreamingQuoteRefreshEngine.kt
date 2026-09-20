@@ -3,10 +3,14 @@ package io.baiyanwu.coinmonitor.data.refresh
 import android.os.SystemClock
 import android.util.Log
 import io.baiyanwu.coinmonitor.data.network.NetworkLogRedactor
+import io.baiyanwu.coinmonitor.data.repository.OnchainBatchExecutionResult
+import io.baiyanwu.coinmonitor.data.repository.OnchainProviderRouter
 import io.baiyanwu.coinmonitor.domain.model.ExchangeSource
 import io.baiyanwu.coinmonitor.domain.model.MarketQuote
 import io.baiyanwu.coinmonitor.domain.model.MarketType
 import io.baiyanwu.coinmonitor.domain.model.NetworkLogProtocol
+import io.baiyanwu.coinmonitor.domain.model.NetworkLogEventKind
+import io.baiyanwu.coinmonitor.domain.model.OnchainDataProvider
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
 import io.baiyanwu.coinmonitor.domain.repository.MarketQuoteRepository
 import io.baiyanwu.coinmonitor.domain.repository.NetworkLogRepository
@@ -45,13 +49,14 @@ import java.util.concurrent.TimeUnit
  * 行情刷新默认优先走交易所官方 WSS，把“每轮全量 HTTP 询价”改成“增量推送”。
  *
  * 当前覆盖 Binance Spot / Binance USD-M Futures / Binance Alpha / OKX Spot / OKX USD-M Futures。
- * 链上行情独立使用 DexScreener REST 轮询，不参与任何交易所 WSS 生命周期。
+ * 链上行情按用户设置的 Provider 顺序使用 REST 轮询，不参与任何交易所 WSS 生命周期。
  */
 class StreamingQuoteRefreshEngine(
     private val scope: CoroutineScope,
     private val watchlistRepository: WatchlistRepository,
     private val quoteRepository: QuoteRepository,
     private val marketQuoteRepository: MarketQuoteRepository,
+    private val onchainProviderRouter: OnchainProviderRouter,
     private val networkLogRepository: NetworkLogRepository,
     private val onOnchainRuntimeStateChanged: (OnchainRefreshRuntimeState) -> Unit = {}
 ) : QuoteRefreshEngine {
@@ -91,8 +96,9 @@ class StreamingQuoteRefreshEngine(
         val shouldRestart = nextFingerprint != currentSubscriptionFingerprint ||
             config.enabled != currentConfig.enabled ||
             config.refreshIntervalMillis != currentConfig.refreshIntervalMillis ||
-            config.onchainRefreshIntervalMillis != currentConfig.onchainRefreshIntervalMillis ||
-            config.onchainRequestBatchCount != currentConfig.onchainRequestBatchCount
+            config.onchainPollingPlan != currentConfig.onchainPollingPlan ||
+            config.onchainRefreshMode != currentConfig.onchainRefreshMode ||
+            config.onchainFixedIntervalSeconds != currentConfig.onchainFixedIntervalSeconds
         currentConfig = config
         if (!shouldRestart) return
 
@@ -199,7 +205,7 @@ class StreamingQuoteRefreshEngine(
         if (onchainItems.isNotEmpty()) {
             reportOnchainRuntimeState(active = true)
             onchainPollingJob = scope.launch {
-                runOnchainPollingLoop(onchainItems)
+                runOnchainPollingLoop()
             }
         } else {
             reportOnchainRuntimeState(active = false)
@@ -514,29 +520,22 @@ class StreamingQuoteRefreshEngine(
         }
     }
 
-    private suspend fun runOnchainPollingLoop(items: List<WatchItem>) {
-        val requestBatches = OnchainRefreshPolicy.buildRequestBatches(items)
-        if (requestBatches.isEmpty()) {
+    private suspend fun runOnchainPollingLoop() {
+        val plan = currentConfig.onchainPollingPlan
+        if (plan.batches.isEmpty()) {
             reportOnchainRuntimeState(active = false)
             return
         }
-
-        val cycleIntervalMillis = currentConfig.onchainRefreshIntervalMillis
-            .coerceAtLeast(OnchainRefreshPolicy.SOURCE_CACHE_WINDOW_SECONDS * 1_000L)
-        val requestSpacingMillis = OnchainRefreshPolicy.requestSpacingMillis(
-            cycleIntervalSeconds = (cycleIntervalMillis / 1_000L).toInt(),
-            requestBatchCount = requestBatches.size
-        )
         val startedAtMillis = SystemClock.elapsedRealtime()
-        val scheduledBatches = requestBatches.mapIndexed { index, batch ->
+        val scheduledBatches = plan.batches.mapIndexedTo(mutableListOf()) { index, batch ->
             ScheduledOnchainBatch(
-                key = batch.key,
+                batch = batch,
                 order = index,
-                itemIds = batch.items.mapTo(linkedSetOf(), WatchItem::id),
-                nextDueAtMillis = startedAtMillis + index * requestSpacingMillis
+                nextDueAtMillis = startedAtMillis
             )
         }
-        var lastRequestCompletedAtMillis: Long? = null
+        val lastRequestCompletedByProvider = mutableMapOf<OnchainDataProvider, Long>()
+        var fallbackSequence = 0
 
         reportOnchainRuntimeState(active = true, failingBatchCount = 0)
         while (scope.isActive && currentConfig.enabled) {
@@ -562,8 +561,8 @@ class StreamingQuoteRefreshEngine(
                 continue
             }
 
-            val pacedStartAtMillis = lastRequestCompletedAtMillis
-                ?.plus(OnchainRefreshPolicy.MIN_REQUEST_GAP_MILLIS)
+            val pacedStartAtMillis = lastRequestCompletedByProvider[nextBatch.batch.provider]
+                ?.plus(nextBatch.batch.minimumRequestGapMillis)
                 ?: nowMillis
             val pacingDelayMillis = pacedStartAtMillis - nowMillis
             if (pacingDelayMillis > 0L) {
@@ -571,49 +570,92 @@ class StreamingQuoteRefreshEngine(
             }
 
             val currentItems = currentConfig.items.filter { item ->
-                item.id in nextBatch.itemIds && isOnchainItem(item)
+                item.id in nextBatch.batch.itemIds && isOnchainItem(item)
             }
             if (currentItems.isEmpty()) {
-                nextBatch.nextDueAtMillis = SystemClock.elapsedRealtime() + cycleIntervalMillis
+                if (nextBatch.batch.recurring) {
+                    nextBatch.nextDueAtMillis =
+                        SystemClock.elapsedRealtime() + nextBatch.batch.cycleIntervalMillis
+                } else {
+                    scheduledBatches.remove(nextBatch)
+                }
                 continue
             }
 
-            val succeeded = try {
-                refreshQuotes(currentItems)
+            val execution = try {
+                refreshMutex.withLock {
+                    onchainProviderRouter.executeBatch(nextBatch.batch, currentItems).also { result ->
+                        if (result.quotes.isNotEmpty()) quoteRepository.applyQuotes(result.quotes)
+                    }
+                }
             } catch (error: CancellationException) {
                 throw error
             } catch (_: Exception) {
-                false
+                OnchainBatchExecutionResult(
+                    quotes = emptyList(),
+                    unresolvedItems = currentItems
+                )
             }
             val completedAtMillis = SystemClock.elapsedRealtime()
-            lastRequestCompletedAtMillis = completedAtMillis
-            if (succeeded) {
-                nextBatch.consecutiveFailures = 0
-                nextBatch.lastSuccessfulAtMillis = completedAtMillis
-                var nextDueAtMillis = nextBatch.nextDueAtMillis + cycleIntervalMillis
-                while (nextDueAtMillis <= completedAtMillis) {
-                    nextDueAtMillis += cycleIntervalMillis
-                }
-                nextBatch.nextDueAtMillis = nextDueAtMillis
-            } else {
-                nextBatch.consecutiveFailures =
-                    (nextBatch.consecutiveFailures + 1).coerceAtMost(4)
-                nextBatch.nextDueAtMillis = completedAtMillis + resolveOnchainFailureBackoffMillis(
-                    nextBatch.consecutiveFailures
+            lastRequestCompletedByProvider[nextBatch.batch.provider] = completedAtMillis
+
+            if (execution.unresolvedItems.isNotEmpty()) {
+                val fallbackBatches = onchainProviderRouter.createFallbackBatches(
+                    items = execution.unresolvedItems,
+                    failedProvider = nextBatch.batch.provider,
+                    mode = currentConfig.onchainRefreshMode,
+                    fixedIntervalSeconds = currentConfig.onchainFixedIntervalSeconds
                 )
+                fallbackBatches.forEach { fallbackBatch ->
+                    fallbackSequence += 1
+                    scheduledBatches += ScheduledOnchainBatch(
+                        batch = fallbackBatch.copy(
+                            key = "${fallbackBatch.key}:fallback:$fallbackSequence"
+                        ),
+                        order = plan.batches.size + fallbackSequence,
+                        nextDueAtMillis = completedAtMillis
+                    )
+                }
+            }
+
+            if (nextBatch.batch.recurring) {
+                if (execution.quotes.isNotEmpty()) {
+                    nextBatch.consecutiveFailures = 0
+                    nextBatch.lastSuccessfulAtMillis = completedAtMillis
+                    var nextDueAtMillis = nextBatch.nextDueAtMillis + nextBatch.batch.cycleIntervalMillis
+                    while (nextDueAtMillis <= completedAtMillis) {
+                        nextDueAtMillis += nextBatch.batch.cycleIntervalMillis
+                    }
+                    nextBatch.nextDueAtMillis = nextDueAtMillis
+                } else {
+                    nextBatch.consecutiveFailures =
+                        (nextBatch.consecutiveFailures + 1).coerceAtMost(4)
+                    nextBatch.nextDueAtMillis = completedAtMillis +
+                        onchainProviderRouter.retryDelayMillis(
+                            provider = nextBatch.batch.provider,
+                            consecutiveFailures = nextBatch.consecutiveFailures
+                        )
+                }
+            } else {
+                scheduledBatches.remove(nextBatch)
             }
             reportOnchainRuntimeState(
                 active = true,
-                failingBatchCount = scheduledBatches.count { it.consecutiveFailures > 0 }
+                failingBatchCount = scheduledBatches.count {
+                    it.batch.recurring && it.consecutiveFailures > 0
+                }
             )
         }
     }
 
     private fun prioritizeStaleOnchainBatches(batches: List<ScheduledOnchainBatch>) {
         val nowMillis = SystemClock.elapsedRealtime()
-        val staleAfterMillis = OnchainRefreshPolicy.SOURCE_CACHE_WINDOW_SECONDS * 1_000L
+        val staleAfterMillis = currentConfig.onchainPollingPlan.batches
+            .minOfOrNull(OnchainPollingBatch::cycleIntervalMillis)
+            ?: 30_000L
         batches
             .filter { batch ->
+                if (!batch.batch.recurring) return@filter false
                 batch.lastSuccessfulAtMillis?.let { lastSuccess ->
                     nowMillis - lastSuccess >= staleAfterMillis
                 } ?: true
@@ -621,7 +663,7 @@ class StreamingQuoteRefreshEngine(
             .sortedBy(ScheduledOnchainBatch::order)
             .forEachIndexed { index, batch ->
                 val priorityDueAtMillis =
-                    nowMillis + index * OnchainRefreshPolicy.MIN_REQUEST_GAP_MILLIS
+                    nowMillis + index * batch.batch.minimumRequestGapMillis
                 batch.nextDueAtMillis = minOf(batch.nextDueAtMillis, priorityDueAtMillis)
             }
     }
@@ -637,30 +679,16 @@ class StreamingQuoteRefreshEngine(
         }
     }
 
-    private fun resolveOnchainFailureBackoffMillis(consecutiveFailures: Int): Long {
-        val seconds = when (consecutiveFailures) {
-            1 -> 5
-            2 -> 10
-            3 -> 20
-            else -> 30
-        }
-        return seconds * 1_000L
-    }
-
     private fun reportOnchainRuntimeState(
         active: Boolean,
         failingBatchCount: Int = 0
     ) {
-        val cycleIntervalSeconds =
-            (currentConfig.onchainRefreshIntervalMillis / 1_000L).toInt().coerceAtLeast(1)
+        val plan = currentConfig.onchainPollingPlan
         onOnchainRuntimeStateChanged(
             OnchainRefreshRuntimeState(
-                requestBatchCount = currentConfig.onchainRequestBatchCount,
-                cycleIntervalSeconds = cycleIntervalSeconds,
-                requestSpacingMillis = OnchainRefreshPolicy.requestSpacingMillis(
-                    cycleIntervalSeconds = cycleIntervalSeconds,
-                    requestBatchCount = currentConfig.onchainRequestBatchCount
-                ),
+                requestBatchCount = plan.requestBatchCount,
+                cycleIntervalSeconds = plan.displayCycleIntervalSeconds,
+                requestSpacingMillis = plan.displayRequestSpacingMillis,
                 failingBatchCount = failingBatchCount,
                 active = active
             )
@@ -714,14 +742,25 @@ class StreamingQuoteRefreshEngine(
             append('|')
             append(config.refreshIntervalMillis)
             append('|')
+            config.onchainPollingPlan.batches.forEach { batch ->
+                append(batch.key)
+                append('@')
+                append(batch.cycleIntervalMillis)
+                append('@')
+                append(batch.itemIds.joinToString(","))
+                append(';')
+            }
+            append('|')
             config.items
                 .map { item ->
                     listOf(
                         item.id,
                         item.exchangeSource.name,
                         item.marketType.name,
+                        item.onchainDataProvider.name,
                         item.chainIndex.orEmpty(),
-                        item.tokenAddress.orEmpty()
+                        item.tokenAddress.orEmpty(),
+                        item.poolAddress.orEmpty()
                     ).joinToString("#")
                 }
                 .sorted()
@@ -863,6 +902,7 @@ class StreamingQuoteRefreshEngine(
     private fun logWs(line: String, detail: String = line) {
         networkLogRepository.append(
             protocol = NetworkLogProtocol.WSS,
+            kind = NetworkLogEventKind.WSS_EVENT,
             line = NetworkLogRedactor.redactText(line),
             detail = NetworkLogRedactor.redactText(detail)
         )
@@ -878,9 +918,8 @@ class StreamingQuoteRefreshEngine(
     }
 
     private data class ScheduledOnchainBatch(
-        val key: String,
+        val batch: OnchainPollingBatch,
         val order: Int,
-        val itemIds: Set<String>,
         var nextDueAtMillis: Long,
         var consecutiveFailures: Int = 0,
         var lastSuccessfulAtMillis: Long? = null

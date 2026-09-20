@@ -5,18 +5,14 @@ import io.baiyanwu.coinmonitor.data.network.BinanceApi
 import io.baiyanwu.coinmonitor.data.network.BinanceFuturesApi
 import io.baiyanwu.coinmonitor.data.network.BinanceTickerRow
 import io.baiyanwu.coinmonitor.data.network.DexScreenerClient
-import io.baiyanwu.coinmonitor.data.network.DexScreenerPairSelector
 import io.baiyanwu.coinmonitor.data.network.OkxApi
-import io.baiyanwu.coinmonitor.data.network.PinnedPoolSelectionPolicy
 import io.baiyanwu.coinmonitor.data.network.parseAlphaTicker
+import io.baiyanwu.coinmonitor.domain.model.AppPreferences
 import io.baiyanwu.coinmonitor.domain.model.ExchangeSource
 import io.baiyanwu.coinmonitor.domain.model.MarketQuote
 import io.baiyanwu.coinmonitor.domain.model.MarketType
-import io.baiyanwu.coinmonitor.domain.model.OnchainChainRegistry
+import io.baiyanwu.coinmonitor.domain.model.OnchainDataProvider
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
-import io.baiyanwu.coinmonitor.domain.model.inferOnchainChainFamily
-import io.baiyanwu.coinmonitor.domain.model.normalizeOnchainAddress
-import io.baiyanwu.coinmonitor.domain.model.onchainAddressesEqual
 import io.baiyanwu.coinmonitor.domain.repository.MarketQuoteRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
@@ -28,9 +24,38 @@ class DefaultMarketQuoteRepository(
     private val binanceApi: BinanceApi,
     private val binanceFuturesApi: BinanceFuturesApi,
     private val okxApi: OkxApi,
-    private val dexScreenerClient: DexScreenerClient
+    private val onchainRouter: OnchainProviderRouter
 ) : MarketQuoteRepository {
-    private val pinnedPoolSelectionPolicy = PinnedPoolSelectionPolicy()
+    constructor(
+        alphaApi: BinanceAlphaApi,
+        binanceApi: BinanceApi,
+        binanceFuturesApi: BinanceFuturesApi,
+        okxApi: OkxApi,
+        onchainProviders: List<OnchainMarketProvider>,
+        onchainProviderOrder: () -> List<OnchainDataProvider> = {
+            AppPreferences.DEFAULT_ONCHAIN_PROVIDER_ORDER
+        }
+    ) : this(
+        alphaApi,
+        binanceApi,
+        binanceFuturesApi,
+        okxApi,
+        OnchainProviderRouter(onchainProviders, onchainProviderOrder)
+    )
+
+    constructor(
+        alphaApi: BinanceAlphaApi,
+        binanceApi: BinanceApi,
+        binanceFuturesApi: BinanceFuturesApi,
+        okxApi: OkxApi,
+        dexScreenerClient: DexScreenerClient
+    ) : this(
+        alphaApi,
+        binanceApi,
+        binanceFuturesApi,
+        okxApi,
+        OnchainProviderRouter(listOf(DexScreenerOnchainMarketProvider(dexScreenerClient)))
+    )
 
     override suspend fun fetchQuotes(items: List<WatchItem>): List<MarketQuote> {
         if (items.isEmpty()) return emptyList()
@@ -59,7 +84,7 @@ class DefaultMarketQuoteRepository(
         }
         val okxQuotes = fetchOrEmpty { fetchOkxQuotes(okxItems) }
         val okxFuturesQuotes = fetchOrEmpty { fetchOkxQuotes(okxFuturesItems) }
-        val onChainQuotes = fetchDexScreenerQuotes(onChainItems)
+        val onChainQuotes = onchainRouter.fetchQuotes(onChainItems)
 
         val quotes = (
             alphaQuotes +
@@ -139,80 +164,6 @@ class DefaultMarketQuoteRepository(
         }.awaitAll().filterNotNull()
     }
 
-    private suspend fun fetchDexScreenerQuotes(items: List<WatchItem>): List<MarketQuote> = coroutineScope {
-        if (items.isEmpty()) return@coroutineScope emptyList()
-        items.groupBy { item ->
-            OnchainChainRegistry.resolve(
-                chainIndexOrDexScreenerId = item.chainIndex,
-                family = item.chainFamily ?: inferOnchainChainFamily(
-                    dexScreenerId = item.chainIndex,
-                    addresses = listOfNotNull(item.tokenAddress)
-                )
-            )
-        }
-            .filterKeys { it != null }
-            .map { (chainOrNull, chainItems) ->
-                async {
-                    val chain = chainOrNull ?: return@async emptyList()
-                    chainItems.chunked(MAX_TOKEN_ADDRESSES_PER_REQUEST).flatMap { chunk ->
-                        try {
-                            val addresses = chunk.mapNotNull { item ->
-                                item.tokenAddress?.takeIf(String::isNotBlank)
-                                    ?.let { normalizeOnchainAddress(chain.family, it) }
-                            }.distinct()
-                            if (addresses.isEmpty()) return@flatMap emptyList()
-                            val pairs = dexScreenerClient.getTokenPairsBatch(
-                                chainId = chain.dexScreenerId,
-                                tokenAddresses = addresses
-                            ).filter { pair ->
-                                pair.chainId.equals(chain.dexScreenerId, ignoreCase = true)
-                            }
-                            chunk.mapNotNull { item ->
-                                val tokenAddress = item.tokenAddress ?: return@mapNotNull null
-                                val selected = pinnedPoolSelectionPolicy.select(
-                                    itemId = item.id,
-                                    pairs = pairs,
-                                    tokenAddress = tokenAddress,
-                                    family = chain.family,
-                                    preferredPoolAddress = item.poolAddress
-                                ) ?: return@mapNotNull null
-                                val selectedPoolAddress = normalizeOnchainAddress(
-                                    chain.family,
-                                    selected.pair.pairAddress
-                                )
-                                val bindingChanged = item.poolAddress == null ||
-                                    !onchainAddressesEqual(
-                                        chain.family,
-                                        item.poolAddress,
-                                        selectedPoolAddress
-                                    ) ||
-                                    item.poolTokenSide != selected.tokenSide
-                                MarketQuote(
-                                    id = item.id,
-                                    symbol = selected.pairLabel,
-                                    name = item.name,
-                                    priceUsd = selected.priceUsd,
-                                    change24hPercent = selected.change24hPercent,
-                                    marketCap = selected.marketCap,
-                                    poolAddress = selectedPoolAddress,
-                                    poolTokenSide = selected.tokenSide,
-                                    requestedPoolAddress = item.poolAddress,
-                                    requestedPoolTokenSide = item.poolTokenSide,
-                                    resetTrend = bindingChanged
-                                )
-                            }
-                        } catch (error: CancellationException) {
-                            throw error
-                        } catch (_: Exception) {
-                            emptyList()
-                        }
-                    }
-                }
-            }
-            .awaitAll()
-            .flatten()
-    }
-
     private fun BinanceTickerRow.toMarketQuote(item: WatchItem): MarketQuote? {
         val lastPrice = lastPrice.toDoubleOrNull() ?: return null
         val change = priceChangePercent.toDoubleOrNull() ?: return null
@@ -235,7 +186,4 @@ class DefaultMarketQuoteRepository(
         }
     }
 
-    private companion object {
-        const val MAX_TOKEN_ADDRESSES_PER_REQUEST = 30
-    }
 }

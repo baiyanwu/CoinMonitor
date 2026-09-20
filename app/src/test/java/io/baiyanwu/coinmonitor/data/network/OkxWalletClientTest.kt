@@ -35,7 +35,7 @@ class OkxWalletClientTest {
         val path = "/api/v6/dex/balance/total-value-by-address?address=0xabc&chains=1&assetType=1&excludeRiskToken=true"
         assertEquals(
             "P7QbbMSfhEDHTSr8Vg9pXKVHs5RX3+Zmhz5Nb8K+xBw=",
-            OkxWalletRequestSigner.signature("secret", "2020-12-08T09:08:57.715Z", "GET", path)
+            OkxOnchainRequestSigner.signature("secret", "2020-12-08T09:08:57.715Z", "GET", path)
         )
     }
 
@@ -55,7 +55,7 @@ class OkxWalletClientTest {
         assertTrue(request.url.encodedQuery!!.contains("address=a%2Fb&chains=501&excludeRiskToken=1"))
         assertEquals("key", request.header("OK-ACCESS-KEY"))
         val expectedPath = request.url.encodedPath + "?" + request.url.encodedQuery
-        assertEquals(OkxWalletRequestSigner.signature("secret", "2020-12-08T09:08:57.715Z", "GET", expectedPath), request.header("OK-ACCESS-SIGN"))
+        assertEquals(OkxOnchainRequestSigner.signature("secret", "2020-12-08T09:08:57.715Z", "GET", expectedPath), request.header("OK-ACCESS-SIGN"))
         assertEquals("mint/address", rows.single().contractAddress)
         assertTrue(rows.single().isRiskToken)
     }

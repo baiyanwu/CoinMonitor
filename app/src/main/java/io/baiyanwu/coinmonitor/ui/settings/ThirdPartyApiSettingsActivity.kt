@@ -9,9 +9,15 @@ import io.baiyanwu.coinmonitor.ui.navigation.DetailPageTransitions
 class ThirdPartyApiSettingsActivity : CoinMonitorComposeActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val initialSection = runCatching {
+            ThirdPartyApiSettingsSection.valueOf(
+                intent.getStringExtra(EXTRA_INITIAL_SECTION).orEmpty()
+            )
+        }.getOrDefault(ThirdPartyApiSettingsSection.TOP)
         setCoinMonitorContent { container ->
             ThirdPartyApiSettingsRoute(
                 container = container,
+                initialSection = initialSection,
                 onBack = { finish() }
             )
         }
@@ -23,12 +29,17 @@ class ThirdPartyApiSettingsActivity : CoinMonitorComposeActivity() {
     }
 
     companion object {
-        fun start(activity: Activity) {
+        private const val EXTRA_INITIAL_SECTION = "initial_section"
+
+        fun start(
+            activity: Activity,
+            initialSection: ThirdPartyApiSettingsSection = ThirdPartyApiSettingsSection.TOP
+        ) {
             DetailPageTransitions.start(
                 activity = activity,
                 intent = Intent(activity, ThirdPartyApiSettingsActivity::class.java)
+                    .putExtra(EXTRA_INITIAL_SECTION, initialSection.name)
             )
         }
     }
 }
-

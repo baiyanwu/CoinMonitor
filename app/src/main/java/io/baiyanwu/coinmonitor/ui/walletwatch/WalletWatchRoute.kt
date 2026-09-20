@@ -82,15 +82,12 @@ import io.baiyanwu.coinmonitor.R
 import io.baiyanwu.coinmonitor.data.AppContainer
 import io.baiyanwu.coinmonitor.domain.model.WalletAsset
 import io.baiyanwu.coinmonitor.ui.components.CoilCoinSymbolIcon
+import io.baiyanwu.coinmonitor.ui.format.AssetAmountFormatter
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorComponentDefaults
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 import java.math.BigDecimal
-import java.math.RoundingMode
 import java.text.DateFormat
-import java.text.DecimalFormat
-import java.text.DecimalFormatSymbols
 import java.util.Date
-import java.util.Locale
 import kotlin.math.roundToInt
 
 @Composable
@@ -717,20 +714,9 @@ private fun ContractAddressLine(contractAddress: String, onCopyContract: (String
 @Composable private fun EmptyCard(text: String) { Card(shape = RoundedCornerShape(18.dp)) { Text(text, Modifier.fillMaxWidth().padding(20.dp), style = MaterialTheme.typography.bodyMedium) } }
 @Composable private fun ErrorCard(message: String, onRetry: () -> Unit, onOpenSettings: () -> Unit, modifier: Modifier = Modifier) { Card(modifier = modifier, shape = RoundedCornerShape(18.dp)) { Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) { Text(message, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall); Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { Button(onClick = onRetry) { Text(stringResource(R.string.wallet_watch_retry)) }; Button(onClick = onOpenSettings) { Text(stringResource(R.string.wallet_watch_api_settings)) } } } } }
 
-internal fun formatWalletValue(value: BigDecimal): String = formatWalletNumber(value, maxFractionDigits = 2, tinyThreshold = BigDecimal("0.01"))
-internal fun formatWalletPrice(value: BigDecimal): String = formatWalletNumber(value, maxFractionDigits = 8, tinyThreshold = BigDecimal("0.00000001"))
-internal fun formatWalletQuantity(value: BigDecimal): String = formatWalletNumber(value, maxFractionDigits = 8, tinyThreshold = BigDecimal("0.00000001"))
-
-private fun formatWalletNumber(value: BigDecimal, maxFractionDigits: Int, tinyThreshold: BigDecimal): String {
-    if (value.compareTo(BigDecimal.ZERO) == 0) return "0"
-    if (value.abs() < tinyThreshold) return "<${tinyThreshold.stripTrailingZeros().toPlainString()}"
-    val rounded = value.setScale(maxFractionDigits, RoundingMode.HALF_UP).stripTrailingZeros()
-    return DecimalFormat("#,##0", DecimalFormatSymbols(Locale.US)).apply {
-        minimumFractionDigits = 0
-        maximumFractionDigits = maxFractionDigits
-        roundingMode = RoundingMode.HALF_UP
-    }.format(rounded)
-}
+internal fun formatWalletValue(value: BigDecimal): String = AssetAmountFormatter.fiat(value)
+internal fun formatWalletPrice(value: BigDecimal): String = AssetAmountFormatter.price(value)
+internal fun formatWalletQuantity(value: BigDecimal): String = AssetAmountFormatter.token(value)
 
 internal fun shouldShowWalletAsset(asset: WalletAsset, hideSmallAssets: Boolean, hideRiskAssets: Boolean): Boolean =
     (!hideRiskAssets || !asset.isRiskToken) &&

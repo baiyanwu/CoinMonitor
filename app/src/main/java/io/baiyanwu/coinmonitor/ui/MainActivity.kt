@@ -22,7 +22,9 @@ import io.baiyanwu.coinmonitor.ui.settings.NetworkLogActivity
 import io.baiyanwu.coinmonitor.ui.settings.OverlayItemsSettingsActivity
 import io.baiyanwu.coinmonitor.ui.settings.OverlaySettingsActivity
 import io.baiyanwu.coinmonitor.ui.settings.ThirdPartyApiSettingsActivity
+import io.baiyanwu.coinmonitor.ui.settings.ThirdPartyApiSettingsSection
 import io.baiyanwu.coinmonitor.ui.update.AppUpdatePrompt
+import io.baiyanwu.coinmonitor.ui.walletwatch.WalletWatchActivity
 import kotlinx.coroutines.launch
 
 class MainActivity : CoinMonitorComposeActivity() {
@@ -51,6 +53,13 @@ class MainActivity : CoinMonitorComposeActivity() {
                 onOpenOverlayItems = { OverlayItemsSettingsActivity.start(this@MainActivity) },
                 onOpenOverlaySettings = { OverlaySettingsActivity.start(this@MainActivity) },
                 onOpenThirdPartyApiSettings = { ThirdPartyApiSettingsActivity.start(this@MainActivity) },
+                onOpenWalletNetworkSettings = {
+                    ThirdPartyApiSettingsActivity.start(
+                        this@MainActivity,
+                        ThirdPartyApiSettingsSection.WALLET_NETWORK
+                    )
+                },
+                onOpenWatchWallet = { WalletWatchActivity.start(this@MainActivity) },
                 onOpenNetworkLog = { NetworkLogActivity.start(this@MainActivity) },
                 onOpenAbout = { AboutActivity.start(this@MainActivity) }
             )

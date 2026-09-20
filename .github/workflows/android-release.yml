@@ -16,6 +16,7 @@ on:
 
 permissions:
   contents: write
+  packages: read
 
 concurrency:
   group: android-release-${{ github.event.release.tag_name || github.ref }}
@@ -24,6 +25,9 @@ concurrency:
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      GITHUB_ACTOR: ${{ github.actor }}
+      GITHUB_TOKEN: ${{ github.token }}
 
     steps:
       - name: Resolve target ref
