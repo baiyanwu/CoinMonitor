@@ -274,7 +274,8 @@ class AlchemyWalletClient(private val httpClient: OkHttpClient) {
         counterparty = null,
         timestampMillis = timestamp,
         status = status,
-        locallySubmitted = false
+        locallySubmitted = false,
+        tokenAddress = discriminator
     )
 
     private fun parseAsset(
@@ -328,6 +329,8 @@ class AlchemyWalletClient(private val httpClient: OkHttpClient) {
             runCatching { Instant.parse(it).toEpochMilli() }.getOrDefault(0L)
         } ?: 0L
         val symbol = transfer["asset"]?.jsonPrimitive?.contentOrNull ?: network.symbol
+        val tokenAddress = transfer["rawContract"]?.takeUnless { it is JsonNull }?.jsonObject
+            ?.get("address")?.takeUnless { it is JsonNull }?.jsonPrimitive?.contentOrNull
         val amount = transfer["value"]?.takeUnless { it is JsonNull }?.jsonPrimitive?.contentOrNull?.toBigDecimalOrNull()
         val counterparty = if (direction == WalletActivityDirection.INCOMING) {
             transfer["from"]?.jsonPrimitive?.contentOrNull
@@ -345,7 +348,8 @@ class AlchemyWalletClient(private val httpClient: OkHttpClient) {
             counterparty = counterparty,
             timestampMillis = timestamp,
             status = WalletActivityStatus.CONFIRMED,
-            locallySubmitted = false
+            locallySubmitted = false,
+            tokenAddress = tokenAddress
         )
     }
 

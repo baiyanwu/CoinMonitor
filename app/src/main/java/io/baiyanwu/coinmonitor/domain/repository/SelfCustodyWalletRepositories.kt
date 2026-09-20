@@ -61,6 +61,7 @@ interface WalletNetworkSettingsRepository {
 }
 
 interface SelfCustodyWalletRepository {
+    suspend fun loadCachedPortfolio(wallet: WalletProfile): WalletPortfolio?
     suspend fun loadPortfolio(wallet: WalletProfile): WalletPortfolio
     suspend fun estimateTransfer(request: WalletTransferRequest): WalletTransferEstimate
     suspend fun signAndBroadcast(estimate: WalletTransferEstimate, privateKey: ByteArray): WalletActivity

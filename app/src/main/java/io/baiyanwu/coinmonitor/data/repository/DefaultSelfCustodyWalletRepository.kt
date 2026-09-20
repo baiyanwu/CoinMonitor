@@ -49,6 +49,28 @@ class DefaultSelfCustodyWalletRepository(
     private val json = Json { ignoreUnknownKeys = true; explicitNulls = false }
     private val storageMutex = Mutex()
 
+    override suspend fun loadCachedPortfolio(wallet: WalletProfile): WalletPortfolio? {
+        val supported = networkSettings.get().enabledNetworks.filter(wallet::supports)
+        val supportedIds = supported.mapTo(hashSetOf(), WalletNetwork::id)
+        val localActivities = readLocalActivities(wallet.id)
+        val hasSnapshot = preferences.contains(assetKey(wallet.id)) ||
+            preferences.contains(indexedActivityKey(wallet.id)) ||
+            localActivities.isNotEmpty()
+        if (!hasSnapshot) return null
+
+        return WalletPortfolio(
+            assets = sortAssets(readAssetCache(wallet.id).filter { it.network.id in supportedIds }),
+            activities = mergeActivities(
+                localActivities + readIndexedActivities(wallet.id).filter { it.network.id in supportedIds }
+            ),
+            tokenIndexAvailable = preferences.contains(assetKey(wallet.id)),
+            updatedAtMillis = maxOf(
+                preferences.getLong(assetUpdatedAtKey(wallet.id), 0L),
+                preferences.getLong(indexedActivityUpdatedAtKey(wallet.id), 0L)
+            ).takeIf { it > 0L } ?: System.currentTimeMillis()
+        )
+    }
+
     override suspend fun loadPortfolio(wallet: WalletProfile): WalletPortfolio = coroutineScope {
         val config = networkSettings.get()
         val supported = config.enabledNetworks.filter(wallet::supports)
@@ -80,28 +102,30 @@ class DefaultSelfCustodyWalletRepository(
         }
         saveLocalActivities(wallet.id, localActivities.filter(WalletActivity::locallySubmitted))
 
+        val cachedIndexedActivities = readIndexedActivities(wallet.id)
+            .filter { activity -> supported.any { it.id == activity.network.id } }
+        val indexedNetworks = supported.filter(WalletNetwork::alchemyTransfersSupported).toSet()
         val indexedActivities = if (config.hasAlchemy) {
             runCatching { alchemy.loadActivities(wallet, config.alchemyApiKey, supported, assets) }
-                .onSuccess { activityIndexFailures += it.second }
-                .getOrElse {
-                    emptyList<WalletActivity>() to supported
-                        .filter(WalletNetwork::alchemyTransfersSupported)
-                        .toSet()
-                }
-                .first
-        } else emptyList()
+                .fold(
+                    onSuccess = { (fresh, failures) ->
+                        activityIndexFailures += failures
+                        val refreshedNetworkIds = (indexedNetworks - failures).mapTo(hashSetOf(), WalletNetwork::id)
+                        val merged = fresh + cachedIndexedActivities.filter { it.network.id !in refreshedNetworkIds }
+                        saveIndexedActivities(wallet.id, merged)
+                        merged
+                    },
+                    onFailure = {
+                        activityIndexFailures += indexedNetworks
+                        cachedIndexedActivities
+                    }
+                )
+        } else cachedIndexedActivities
 
-        val activities = (localActivities + indexedActivities)
-            .groupBy { "${it.network}:${it.transactionHash}:${it.symbol}:${it.direction}" }
-            .map { (_, versions) -> versions.minByOrNull { activityStatusRank(it.status) }!! }
-            .sortedByDescending(WalletActivity::timestampMillis)
+        val activities = mergeActivities(localActivities + indexedActivities)
 
         WalletPortfolio(
-            assets = assets.filter { it.balance.signum() != 0 }.sortedWith(
-                compareByDescending<SelfCustodyAsset> { it.valueUsd ?: BigDecimal.valueOf(-1) }
-                    .thenBy { it.network.displayName }
-                    .thenBy(SelfCustodyAsset::symbol)
-            ),
+            assets = sortAssets(assets),
             activities = activities,
             refreshFailures = WalletRefreshFailures(
                 aggregateAssetIndex = aggregateAssetIndexFailure,
@@ -203,7 +227,8 @@ class DefaultSelfCustodyWalletRepository(
             counterparty = request.recipient,
             timestampMillis = System.currentTimeMillis(),
             status = WalletActivityStatus.PENDING,
-            locallySubmitted = true
+            locallySubmitted = true,
+            tokenAddress = request.tokenAddress
         )
         saveLocalActivities(request.wallet.id, listOf(activity) + readLocalActivities(request.wallet.id))
         return activity
@@ -232,7 +257,13 @@ class DefaultSelfCustodyWalletRepository(
 
     override suspend fun clearLocalData(walletIds: Collection<String>) = storageMutex.withLock {
         val editor = preferences.edit()
-        walletIds.forEach { walletId -> editor.remove(assetKey(walletId)).remove(activityKey(walletId)) }
+        walletIds.forEach { walletId ->
+            editor.remove(assetKey(walletId))
+                .remove(assetUpdatedAtKey(walletId))
+                .remove(activityKey(walletId))
+                .remove(indexedActivityKey(walletId))
+                .remove(indexedActivityUpdatedAtKey(walletId))
+        }
         check(editor.commit()) { "钱包本地缓存清理失败。" }
     }
 
@@ -412,13 +443,32 @@ class DefaultSelfCustodyWalletRepository(
         WalletActivityStatus.PENDING -> 3
     }
 
+    private fun activityIdentity(activity: WalletActivity): String =
+        "${activity.network.id}:${activity.transactionHash}:${activity.tokenAddress ?: "native"}:${activity.direction}"
+
+    private fun mergeActivities(activities: List<WalletActivity>): List<WalletActivity> = activities
+        .groupBy(::activityIdentity)
+        .map { (_, versions) -> versions.minByOrNull { activityStatusRank(it.status) }!! }
+        .sortedByDescending(WalletActivity::timestampMillis)
+
+    private fun sortAssets(assets: List<SelfCustodyAsset>): List<SelfCustodyAsset> = assets
+        .filter { it.balance.signum() != 0 }
+        .sortedWith(
+            compareByDescending<SelfCustodyAsset> { it.valueUsd ?: BigDecimal.valueOf(-1) }
+                .thenBy { it.network.displayName }
+                .thenBy(SelfCustodyAsset::symbol)
+        )
+
     private suspend fun replaceLocalActivity(activity: WalletActivity) {
         val current = readLocalActivities(activity.walletId)
         saveLocalActivities(activity.walletId, current.map { if (it.transactionHash == activity.transactionHash) activity else it })
     }
 
     private suspend fun saveAssetCache(walletId: String, assets: List<SelfCustodyAsset>) = storageMutex.withLock {
-        preferences.edit().putString(assetKey(walletId), json.encodeToString(assets.map(CachedAsset::from))).commit()
+        preferences.edit()
+            .putString(assetKey(walletId), json.encodeToString(assets.map(CachedAsset::from)))
+            .putLong(assetUpdatedAtKey(walletId), System.currentTimeMillis())
+            .commit()
     }
 
     private fun readAssetCache(walletId: String): List<SelfCustodyAsset> = preferences.getString(assetKey(walletId), null)?.let {
@@ -434,8 +484,25 @@ class DefaultSelfCustodyWalletRepository(
         runCatching { json.decodeFromString<List<CachedActivity>>(it).map(CachedActivity::toDomain) }.getOrDefault(emptyList())
     }.orEmpty()
 
+    private suspend fun saveIndexedActivities(walletId: String, activities: List<WalletActivity>) = storageMutex.withLock {
+        val compact = mergeActivities(activities).take(MAX_INDEXED_ACTIVITY_CACHE)
+        preferences.edit()
+            .putString(indexedActivityKey(walletId), json.encodeToString(compact.map(CachedActivity::from)))
+            .putLong(indexedActivityUpdatedAtKey(walletId), System.currentTimeMillis())
+            .commit()
+    }
+
+    private fun readIndexedActivities(walletId: String): List<WalletActivity> =
+        preferences.getString(indexedActivityKey(walletId), null)?.let {
+            runCatching { json.decodeFromString<List<CachedActivity>>(it).map(CachedActivity::toDomain) }
+                .getOrDefault(emptyList())
+        }.orEmpty()
+
     private fun assetKey(walletId: String) = "assets_$walletId"
+    private fun assetUpdatedAtKey(walletId: String) = "assets_updated_at_$walletId"
     private fun activityKey(walletId: String) = "activities_$walletId"
+    private fun indexedActivityKey(walletId: String) = "indexed_activities_$walletId"
+    private fun indexedActivityUpdatedAtKey(walletId: String) = "indexed_activities_updated_at_$walletId"
 
     @Serializable
     private data class CachedAsset(
@@ -491,18 +558,19 @@ class DefaultSelfCustodyWalletRepository(
         val counterparty: String?,
         val timestamp: Long,
         val status: WalletActivityStatus,
-        val locallySubmitted: Boolean
+        val locallySubmitted: Boolean,
+        val tokenAddress: String? = null
     ) {
         fun toDomain() = WalletActivity(
             id, walletId, network, hash, direction, symbol, amount?.toBigDecimalOrNull(), counterparty,
-            timestamp, status, locallySubmitted
+            timestamp, status, locallySubmitted, tokenAddress
         )
 
         companion object {
             fun from(value: WalletActivity) = CachedActivity(
                 value.id, value.walletId, value.network, value.transactionHash, value.direction,
                 value.symbol, value.amount?.toPlainString(), value.counterparty, value.timestampMillis,
-                value.status, value.locallySubmitted
+                value.status, value.locallySubmitted, value.tokenAddress
             )
         }
     }
@@ -515,5 +583,6 @@ class DefaultSelfCustodyWalletRepository(
         const val OKX_SOLANA_CHAIN_INDEX = "501"
         const val MAX_TOKEN_DECIMALS = 36
         const val STALE_AFTER_MILLIS = 30 * 60 * 1000L
+        const val MAX_INDEXED_ACTIVITY_CACHE = 500
     }
 }

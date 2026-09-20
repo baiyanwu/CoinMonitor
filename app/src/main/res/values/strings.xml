@@ -474,6 +474,12 @@
     <string name="wallet_total_estimated">总资产（估算）</string>
     <string name="wallet_receive">收款</string>
     <string name="wallet_send">转账</string>
+    <string name="wallet_swap">兑换</string>
+    <string name="wallet_bridge">跨链桥</string>
+    <string name="wallet_asset_history">交易历史</string>
+    <string name="wallet_no_asset_activity">这个资产暂无交易记录</string>
+    <string name="wallet_asset_unavailable">资产已不可用</string>
+    <string name="wallet_asset_unavailable_description">返回钱包首页刷新后重试。</string>
     <string name="wallet_assets">资产</string>
     <string name="wallet_activity">活动</string>
     <string name="wallet_no_assets">暂无非零资产</string>

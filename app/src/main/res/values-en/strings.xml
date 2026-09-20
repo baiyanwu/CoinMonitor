@@ -474,6 +474,12 @@
     <string name="wallet_total_estimated">Total assets (estimated)</string>
     <string name="wallet_receive">Receive</string>
     <string name="wallet_send">Send</string>
+    <string name="wallet_swap">Swap</string>
+    <string name="wallet_bridge">Bridge</string>
+    <string name="wallet_asset_history">Transaction history</string>
+    <string name="wallet_no_asset_activity">No transactions for this asset</string>
+    <string name="wallet_asset_unavailable">Asset unavailable</string>
+    <string name="wallet_asset_unavailable_description">Return to the wallet and refresh, then try again.</string>
     <string name="wallet_assets">Assets</string>
     <string name="wallet_activity">Activity</string>
     <string name="wallet_no_assets">No non-zero assets</string>

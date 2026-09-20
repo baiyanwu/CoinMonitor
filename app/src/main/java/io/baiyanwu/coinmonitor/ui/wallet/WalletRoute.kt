@@ -36,6 +36,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.CompareArrows
+import androidx.compose.material.icons.automirrored.rounded.Send
 import androidx.compose.material.icons.rounded.AccountBalanceWallet
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.ContentCopy
@@ -48,8 +50,8 @@ import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Refresh
-import androidx.compose.material.icons.rounded.Send
 import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.SwapHoriz
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
@@ -94,6 +96,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
@@ -229,6 +232,23 @@ fun WalletManageRoute(
 }
 
 @Composable
+fun WalletAssetDetailRoute(
+    container: AppContainer,
+    onFinished: () -> Unit,
+    onNavigate: (WalletPage) -> Unit
+) = WalletStandaloneRoute(container, WalletPage.ASSET_DETAIL, onFinished, onNavigate) { state, viewModel ->
+    val asset = state.selectedAsset
+    if (asset == null) {
+        EmptyMessage(
+            title = stringResource(R.string.wallet_asset_unavailable),
+            body = stringResource(R.string.wallet_asset_unavailable_description)
+        )
+    } else {
+        WalletAssetDetailScreen(state, asset, viewModel)
+    }
+}
+
+@Composable
 fun WalletReceiveRoute(
     container: AppContainer,
     onFinished: () -> Unit,
@@ -271,6 +291,8 @@ private fun WalletStandaloneRoute(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var retainedState by remember(page) { mutableStateOf(state) }
     val snackbar = remember { SnackbarHostState() }
+    val context = LocalContext.current
+    val biometricManager = remember(context) { WalletBiometricManager(context) }
 
     SideEffect {
         if (state.page == page) retainedState = state
@@ -291,7 +313,15 @@ private fun WalletStandaloneRoute(
     BackHandler { viewModel.goHome() }
 
     Box(Modifier.fillMaxSize()) {
-        content(if (state.page == page) state else retainedState, viewModel)
+        if (!state.vault.unlocked) {
+            WalletUnlock(
+                onUnlock = viewModel::unlock,
+                biometricManager = biometricManager,
+                onBiometricKey = viewModel::unlockWithDerivedKey
+            )
+        } else {
+            content(if (state.page == page) state else retainedState, viewModel)
+        }
         SnackbarHost(
             hostState = snackbar,
             modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp)
@@ -807,7 +837,7 @@ private fun WalletDashboard(
                             state = state,
                             listState = assetsListState,
                             onOpenAssetSettings = onOpenAssetSettings,
-                            onOpenSend = viewModel::openSend
+                            onOpenDetail = viewModel::openAssetDetail
                         )
                         WalletContentTab.ACTIVITY -> WalletActivityPage(
                             state = state,
@@ -841,7 +871,7 @@ private fun WalletAssetsPage(
     state: WalletUiState,
     listState: LazyListState,
     onOpenAssetSettings: () -> Unit,
-    onOpenSend: (SelfCustodyAsset) -> Unit
+    onOpenDetail: (SelfCustodyAsset) -> Unit
 ) {
     LazyColumn(
         state = listState,
@@ -872,7 +902,7 @@ private fun WalletAssetsPage(
                 }
             }
             items(state.visibleAssets, key = SelfCustodyAsset::id) { asset ->
-                AssetRow(asset) { if (asset.transferable) onOpenSend(asset) }
+                AssetRow(asset) { onOpenDetail(asset) }
             }
         }
     }
@@ -1035,7 +1065,7 @@ private fun PortfolioSummary(
                     Icon(Icons.Rounded.Download, null); Text(stringResource(R.string.wallet_receive), Modifier.padding(start = 6.dp))
                 }
                 OutlinedButton(onSend, Modifier.weight(1f)) {
-                    Icon(Icons.Rounded.Send, null); Text(stringResource(R.string.wallet_send), Modifier.padding(start = 6.dp))
+                    Icon(Icons.AutoMirrored.Rounded.Send, null); Text(stringResource(R.string.wallet_send), Modifier.padding(start = 6.dp))
                 }
         }
     }
@@ -1112,6 +1142,131 @@ private fun WalletNetworkChip(label: String, selected: Boolean, onClick: () -> U
             modifier = Modifier.padding(horizontal = 13.dp, vertical = 7.dp),
             style = MaterialTheme.typography.labelMedium,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
+        )
+    }
+}
+
+@Composable
+private fun WalletAssetDetailScreen(
+    state: WalletUiState,
+    asset: SelfCustodyAsset,
+    viewModel: WalletViewModel
+) {
+    val uriHandler = LocalUriHandler.current
+    val swapUrl = remember(asset.id) { uniswapSwapUrl(asset) }
+    val activities = remember(state.portfolio?.activities, asset.id) {
+        state.portfolio?.activities.orEmpty().filter { it.belongsTo(asset) }
+    }
+    DetailScreenScaffold(asset.symbol, viewModel::goHome) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp)
+        ) {
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 18.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    CoilCoinSymbolIcon(symbol = asset.symbol, iconUrl = asset.logoUrl, size = 42.dp)
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(asset.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            asset.network.displayName,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = CoinMonitorThemeTokens.colors.secondaryText
+                        )
+                    }
+                    Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(
+                            "${formatWalletQuantity(asset.balance)} ${asset.symbol}",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            asset.valueUsd?.let { stringResource(R.string.wallet_watch_usd_value, formatWalletValue(it)) }
+                                ?: stringResource(R.string.wallet_watch_no_price),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = CoinMonitorThemeTokens.colors.secondaryText
+                        )
+                    }
+                }
+            }
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 22.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    WalletAssetAction(
+                        icon = Icons.Rounded.Download,
+                        label = stringResource(R.string.wallet_receive),
+                        onClick = { viewModel.openReceive(asset.network) }
+                    )
+                    WalletAssetAction(
+                        icon = Icons.AutoMirrored.Rounded.Send,
+                        label = stringResource(R.string.wallet_send),
+                        enabled = asset.transferable,
+                        onClick = { viewModel.openSend(asset) }
+                    )
+                    WalletAssetAction(
+                        icon = Icons.Rounded.SwapHoriz,
+                        label = stringResource(R.string.wallet_swap),
+                        enabled = swapUrl != null,
+                        onClick = { swapUrl?.let(uriHandler::openUri) }
+                    )
+                    WalletAssetAction(
+                        icon = Icons.AutoMirrored.Rounded.CompareArrows,
+                        label = stringResource(R.string.wallet_bridge),
+                        onClick = { uriHandler.openUri(OKX_BRIDGE_URL) }
+                    )
+                }
+            }
+            item {
+                Text(
+                    stringResource(R.string.wallet_asset_history),
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+            if (asset.network in state.portfolio?.refreshFailures?.activityIndex.orEmpty()) {
+                item { WalletRefreshWarning(R.string.wallet_activity_index_failure, setOf(asset.network)) }
+            }
+            if (activities.isEmpty()) {
+                item { EmptyInline(stringResource(R.string.wallet_no_asset_activity)) }
+            } else {
+                items(activities, key = WalletActivity::id) { activity -> ActivityRow(activity) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun WalletAssetAction(
+    icon: ImageVector,
+    label: String,
+    enabled: Boolean = true,
+    onClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier.clickable(enabled = enabled, onClick = onClick).padding(horizontal = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(5.dp)
+    ) {
+        Surface(
+            modifier = Modifier.size(48.dp),
+            shape = RoundedCornerShape(50),
+            color = if (enabled) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+            contentColor = if (enabled) MaterialTheme.colorScheme.onPrimaryContainer else CoinMonitorThemeTokens.colors.secondaryText
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(icon, contentDescription = label, modifier = Modifier.size(21.dp))
+            }
+        }
+        Text(
+            label,
+            style = MaterialTheme.typography.labelSmall,
+            color = if (enabled) MaterialTheme.colorScheme.onSurface else CoinMonitorThemeTokens.colors.secondaryText
         )
     }
 }
@@ -1202,13 +1357,33 @@ private fun ActivityRow(activity: WalletActivity) {
             }.padding(horizontal = 4.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(Modifier.weight(1f)) {
-                Text("$direction · ${activity.symbol}", fontWeight = FontWeight.SemiBold)
-                Text("${activity.network.displayName} · ${DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(activity.timestampMillis))}", style = MaterialTheme.typography.bodySmall, color = CoinMonitorThemeTokens.colors.secondaryText)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    "$direction · ${activity.symbol}",
+                    style = MaterialTheme.typography.titleSmall.copy(fontSize = 13.sp, lineHeight = 17.sp),
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    "${activity.network.displayName} · ${DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(activity.timestampMillis))}",
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, lineHeight = 11.sp),
+                    color = CoinMonitorThemeTokens.colors.secondaryText
+                )
             }
-            Column(horizontalAlignment = Alignment.End) {
-                Text(activity.amount?.let(AssetAmountFormatter::token) ?: "—")
-                Text(status, style = MaterialTheme.typography.labelSmall, color = if (activity.status == WalletActivityStatus.FAILED) MaterialTheme.colorScheme.error else CoinMonitorThemeTokens.colors.secondaryText)
+            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    activity.amount?.let(AssetAmountFormatter::token) ?: "—",
+                    style = MaterialTheme.typography.titleSmall.copy(fontSize = 13.sp, lineHeight = 17.sp),
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    status,
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, lineHeight = 11.sp),
+                    color = if (activity.status == WalletActivityStatus.FAILED) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        CoinMonitorThemeTokens.colors.secondaryText
+                    }
+                )
             }
         }
         HorizontalDivider(color = CoinMonitorThemeTokens.colors.divider.copy(alpha = 0.55f))
@@ -1812,6 +1987,30 @@ private fun WalletRefreshWarning(messageRes: Int, networks: Set<WalletNetwork>) 
 }
 
 private fun compactAddress(value: String): String = if (value.length <= 16) value else "${value.take(8)}…${value.takeLast(6)}"
+
+private fun WalletActivity.belongsTo(asset: SelfCustodyAsset): Boolean {
+    if (network.id != asset.network.id) return false
+    if (asset.isNative) return tokenAddress == null && symbol.equals(asset.symbol, ignoreCase = true)
+    val activityToken = tokenAddress ?: return false
+    val assetToken = asset.tokenAddress ?: return false
+    return if (network.isEvm) activityToken.equals(assetToken, ignoreCase = true) else activityToken == assetToken
+}
+
+private fun uniswapSwapUrl(asset: SelfCustodyAsset): String? {
+    val chain = when (asset.network.chainId) {
+        1L -> "mainnet"
+        10L -> "optimism"
+        56L -> "bnb"
+        137L -> "polygon"
+        8453L -> "base"
+        42161L -> "arbitrum"
+        else -> return null
+    }
+    val outputToken = asset.tokenAddress?.let { "&outputCurrency=$it" }.orEmpty()
+    return "https://app.uniswap.org/swap?chain=$chain$outputToken"
+}
+
+private const val OKX_BRIDGE_URL = "https://web3.okx.com/dex-swap/bridge"
 
 private fun receiveQrPayload(network: WalletNetwork, address: String): String = if (network.isEvm) {
     "ethereum:$address@${requireNotNull(network.chainId)}"

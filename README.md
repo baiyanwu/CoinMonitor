@@ -34,6 +34,7 @@
 - Check GitHub's latest published Release once whenever the main screen is created, then prompt users to open the Release page when a newer version is available; no third-party update service is involved
 - Keep exchange quotes flowing through `WSS` first, while DexScreener prices use an independent smart or fixed refresh cycle with sequential request pacing
 - Use the middle `Wallet` tab as a local self-custody wallet for dynamically managed EVM networks and Solana: OKX Onchain aggregates assets, prices, metadata, and risk flags, while Alchemy or a per-chain custom RPC handles transaction preflight, broadcast, and status
+- Open a dedicated asset detail page for receive, send, and external Uniswap / OKX Bridge shortcuts; wallet-scoped OKX asset and Alchemy activity snapshots render before background refresh, and external pages never receive local keys or signing access
 - Enable Ethereum, BNB Chain, Robinhood Chain, and Solana by default; additional catalog EVM networks or a user-verified custom EVM RPC can be enabled without changing the wallet model
 - Open the existing OKX-powered read-only watch-address workspace from the wallet menu; it shares encrypted OKX credentials with self-custody asset queries while keeping addresses, filters, models, and caches isolated
 
@@ -46,7 +47,7 @@
 - Market cap comes from the selected DexScreener pool and is accepted only when the tracked token is on the pool's base side. FDV is not used as a fallback, and missing data is rendered as `--`.
 - In market-cap mode, brief red/green flashes still follow real price movement. Repeated refreshes at the same price do not flash, and the value returns to its neutral color afterward.
 - Icons prefer the DexScreener token image, then fall back through known and online chain-icon candidates to the app's built-in placeholder; a cached chain fallback never bypasses a higher-priority token image request.
-- DexScreener and GeckoTerminal remain public and keyless. OKX is optional, uses only credentials entered by the user, and stores them in Android encrypted storage; the project ships no developer credential. The app does not provide swap, order, or execution capabilities.
+- DexScreener and GeckoTerminal remain public and keyless. OKX is optional, uses only credentials entered by the user, and stores them in Android encrypted storage; the project ships no developer credential. The app signs and broadcasts direct transfers but does not execute swaps, bridges, orders, or external-page contract calls.
 
 ## Requirements
 
@@ -85,7 +86,7 @@ cd CoinMonitor
 
 - This project is for technical exploration and personal learning only and does not constitute investment advice.
 - `Binance`, `OKX`, and other platform names or APIs belong to their respective owners.
-- The wallet can sign and broadcast direct transfers. It does not provide swaps, orders, bridges, staking, or investment advice; prices are estimates and crypto assets are highly volatile.
+- The wallet can sign and broadcast direct transfers and provides external shortcuts to Uniswap and OKX Bridge. The app itself does not execute swaps, orders, bridges, staking, or external-page signatures; prices are estimates and crypto assets are highly volatile.
 
 ## License
 

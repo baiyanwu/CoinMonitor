@@ -202,7 +202,8 @@ data class WalletActivity(
     val counterparty: String?,
     val timestampMillis: Long,
     val status: WalletActivityStatus,
-    val locallySubmitted: Boolean
+    val locallySubmitted: Boolean,
+    val tokenAddress: String? = null
 )
 
 data class WalletPortfolio(

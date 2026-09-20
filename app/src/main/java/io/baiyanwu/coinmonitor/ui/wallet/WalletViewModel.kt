@@ -28,7 +28,7 @@ import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
 
 enum class WalletContentTab { ASSETS, ACTIVITY }
-enum class WalletPage { HOME, ADD, MANAGE, RECEIVE, SEND, BACKUP, SECURITY }
+enum class WalletPage { HOME, ADD, MANAGE, ASSET_DETAIL, RECEIVE, SEND, BACKUP, SECURITY }
 enum class WalletImportMode { MNEMONIC, PRIVATE_KEY }
 
 data class WalletSendState(
@@ -57,6 +57,7 @@ data class WalletUiState(
     val hideAssetsBelowOneUsd: Boolean = true,
     val includeUnverifiedAssets: Boolean = false,
     val receiveNetwork: WalletNetwork? = null,
+    val selectedAsset: SelfCustodyAsset? = null,
     val send: WalletSendState = WalletSendState(),
     val revealedSecret: String? = null,
     val pendingMnemonic: String? = null,
@@ -100,23 +101,27 @@ class WalletViewModel(
         viewModelScope.launch {
             vaultRepository.observeState().collect { vault ->
                 _uiState.update { state ->
-                    val walletChanged = state.activeWallet?.id != vault.activeWallet?.id
+                    val incomingWalletId = vault.activeWallet?.id
+                    val walletChanged = vault.unlocked && lastLoadedWalletId != null &&
+                        incomingWalletId != null && incomingWalletId != lastLoadedWalletId
                     val displayKey = vault.activeWallet?.let(::displayPreferencesKey)
                     state.copy(
                         vault = vault,
-                        portfolio = if (state.activeWallet?.id == vault.activeWallet?.id) state.portfolio else null,
+                        portfolio = if (walletChanged) null else state.portfolio,
+                        selectedAsset = if (walletChanged) null else state.selectedAsset,
                         hideAssetsBelowOneUsd = if (walletChanged && displayKey != null) {
                             displayPreferencesRepository.getHideSmallAssets(displayKey)
                         } else state.hideAssetsBelowOneUsd,
                         includeUnverifiedAssets = if (walletChanged && displayKey != null) {
                             displayPreferencesRepository.getIncludeRiskAssets(displayKey)
                         } else state.includeUnverifiedAssets,
-                        page = if (!vault.unlocked) WalletPage.HOME else state.page,
                         revealedSecret = if (!vault.unlocked) null else state.revealedSecret
                     )
                 }
                 val active = vault.activeWallet
-                if (vault.unlocked && active != null && lastLoadedWalletId != active.id) {
+                if (vault.unlocked && active != null &&
+                    (lastLoadedWalletId != active.id || _uiState.value.portfolio == null)
+                ) {
                     lastLoadedWalletId = active.id
                     loadPortfolio(initial = true)
                 }
@@ -256,7 +261,21 @@ class WalletViewModel(
     private fun loadPortfolio(initial: Boolean) {
         val wallet = _uiState.value.activeWallet ?: return
         viewModelScope.launch {
-            _uiState.update { if (initial) it.copy(loading = true, errorMessage = null) else it.copy(refreshing = true, errorMessage = null) }
+            val cachedPortfolio = if (initial) {
+                runCatching { walletRepository.loadCachedPortfolio(wallet) }.getOrNull()
+            } else null
+            _uiState.update { state ->
+                when {
+                    cachedPortfolio != null -> state.copy(
+                        portfolio = cachedPortfolio,
+                        loading = false,
+                        refreshing = true,
+                        errorMessage = null
+                    )
+                    initial -> state.copy(loading = true, errorMessage = null)
+                    else -> state.copy(refreshing = true, errorMessage = null)
+                }
+            }
             runCatching { walletRepository.loadPortfolio(wallet) }
                 .onSuccess { portfolio ->
                     lastLoadedWalletId = wallet.id
@@ -274,7 +293,13 @@ class WalletViewModel(
 
     fun goHome() {
         _uiState.update {
-            it.copy(page = WalletPage.HOME, send = WalletSendState(), receiveNetwork = null, revealedSecret = null)
+            it.copy(
+                page = WalletPage.HOME,
+                selectedAsset = null,
+                send = WalletSendState(),
+                receiveNetwork = null,
+                revealedSecret = null
+            )
         }
     }
 
@@ -324,6 +349,10 @@ class WalletViewModel(
     fun openReceive(network: WalletNetwork) {
         require(_uiState.value.activeWallet?.supports(network) == true)
         _uiState.update { it.copy(page = WalletPage.RECEIVE, receiveNetwork = network) }
+    }
+
+    fun openAssetDetail(asset: SelfCustodyAsset) {
+        _uiState.update { it.copy(page = WalletPage.ASSET_DETAIL, selectedAsset = asset) }
     }
 
     fun openSend(asset: SelfCustodyAsset? = null) {

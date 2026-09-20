@@ -40,6 +40,7 @@ import io.baiyanwu.coinmonitor.ui.settings.SettingsRoute
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorComponentDefaults
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 import io.baiyanwu.coinmonitor.ui.wallet.WalletAddRoute
+import io.baiyanwu.coinmonitor.ui.wallet.WalletAssetDetailRoute
 import io.baiyanwu.coinmonitor.ui.wallet.WalletBackupRoute
 import io.baiyanwu.coinmonitor.ui.wallet.WalletManageRoute
 import io.baiyanwu.coinmonitor.ui.wallet.WalletPage
@@ -55,6 +56,7 @@ private object Destinations {
     const val WALLET = "wallet"
     const val WALLET_ADD = "wallet/add"
     const val WALLET_MANAGE = "wallet/manage"
+    const val WALLET_ASSET_DETAIL = "wallet/asset-detail"
     const val WALLET_RECEIVE = "wallet/receive"
     const val WALLET_SEND = "wallet/send"
     const val WALLET_BACKUP = "wallet/backup"
@@ -95,6 +97,7 @@ fun CoinMonitorNavHost(
         when (page) {
             WalletPage.ADD -> Destinations.WALLET_ADD
             WalletPage.MANAGE -> Destinations.WALLET_MANAGE
+            WalletPage.ASSET_DETAIL -> Destinations.WALLET_ASSET_DETAIL
             WalletPage.RECEIVE -> Destinations.WALLET_RECEIVE
             WalletPage.SEND -> Destinations.WALLET_SEND
             WalletPage.BACKUP -> Destinations.WALLET_BACKUP
@@ -148,6 +151,9 @@ fun CoinMonitorNavHost(
         }
         walletDetailComposable(Destinations.WALLET_MANAGE) {
             WalletManageRoute(container, finishWalletPage, openWalletPage)
+        }
+        walletDetailComposable(Destinations.WALLET_ASSET_DETAIL) {
+            WalletAssetDetailRoute(container, finishWalletPage, openWalletPage)
         }
         walletDetailComposable(Destinations.WALLET_RECEIVE) {
             WalletReceiveRoute(container, finishWalletPage, openWalletPage)
