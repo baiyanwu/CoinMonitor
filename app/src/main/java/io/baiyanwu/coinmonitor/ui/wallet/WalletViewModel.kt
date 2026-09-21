@@ -231,6 +231,19 @@ class WalletViewModel(
         _uiState.update { it.copy(page = WalletPage.HOME, selectedNetwork = null, portfolio = null) }
     }
 
+    fun selectWalletForBackup(id: String) = launchAction {
+        vaultRepository.selectWallet(id)
+        lastLoadedWalletId = null
+        _uiState.update {
+            it.copy(
+                page = WalletPage.BACKUP,
+                selectedNetwork = null,
+                portfolio = null,
+                revealedSecret = null
+            )
+        }
+    }
+
     fun renameWallet(id: String, name: String) = launchAction { vaultRepository.renameWallet(id, name) }
 
     fun deleteWallet(id: String, password: String) = launchAction {

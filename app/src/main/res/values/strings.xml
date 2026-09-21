@@ -140,6 +140,11 @@
     <string name="error_search_partial_sources">部分行情来源暂时不可用，已展示其余结果，请重试</string>
 
     <string name="general_settings_title">通用设置</string>
+    <string name="general_settings_subtitle">管理链上市值、外观模式、语言和网络日志</string>
+    <string name="wallet_settings_title">钱包设置</string>
+    <string name="wallet_settings_subtitle">管理钱包、备份和安全选项</string>
+    <string name="wallet_backup_choose_title">选择钱包</string>
+    <string name="wallet_backup_choose_description">选择要备份的钱包</string>
     <string name="show_onchain_market_cap">显示链上市值</string>
     <string name="show_onchain_market_cap_description">开启后，主页和悬浮窗中的链上币将显示市值</string>
     <string name="settings_subtitle">统一管理语言、主题外观，以及悬浮窗相关能力。</string>
@@ -154,7 +159,7 @@
     <string name="language_chinese">简体中文</string>
     <string name="language_english">English</string>
     <string name="settings_third_party_api_title">第三方 API 设置</string>
-    <string name="settings_third_party_api_subtitle">免费链上行情设置</string>
+    <string name="settings_third_party_api_subtitle">管理链上行情来源、钱包网络与 API 凭证</string>
     <string name="network_log_title">网络日志</string>
     <string name="network_log_settings_subtitle">按时间顺序查看 HTTP 与 WSS 请求行日志</string>
     <string name="network_log_start">开始记录</string>
@@ -325,7 +330,7 @@
     <string name="overlay_settings_title">悬浮窗设置</string>
     <string name="overlay_items_settings_title">悬浮币对</string>
     <string name="overlay_items_settings_description">选择币对并调整悬浮窗中的全局显示顺序</string>
-    <string name="overlay_settings_subtitle">管理悬浮窗权限、样式和展示币对。</string>
+    <string name="overlay_settings_subtitle">管理剪贴板 CA 查询、悬浮币对和悬浮窗样式</string>
     <string name="overlay_settings_page_subtitle">这一页只负责悬浮窗权限、样式和展示币对，不影响首页观察列表。</string>
     <string name="overlay_enable">启用悬浮窗</string>
     <string name="overlay_lock_drag">锁定拖动</string>

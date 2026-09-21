@@ -63,7 +63,7 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 
 ### Settings
 
-- 设置页顶部新增“通用设置”分组，其中“显示链上市值”通过 Preferences DataStore 全局持久化；该状态由首页和前台悬浮服务共同观察，冷启动、Activity 重建与悬浮窗重建后保持一致，仅改变 `ONCHAIN_TOKEN` 的主数值展示
+- 设置首页依次提供“通用设置”“钱包设置”“悬浮窗设置”。“通用设置”收纳外观模式、语言、“显示链上市值”和网络日志；其中市值开关通过 Preferences DataStore 全局持久化，由首页和前台悬浮服务共同观察，冷启动、Activity 重建与悬浮窗重建后保持一致，仅改变 `ONCHAIN_TOKEN` 的主数值展示。“钱包设置”复用 Activity 级 `WalletViewModel` 与既有钱包功能页面；管理和安全直接进入，备份先在独立选择页切换目标钱包，再进入既有备份流程，钱包页右上角菜单仍直接作用于当前钱包
 - 设置页新增独立 `AboutActivity`，沿用统一 Compose Activity 宿主、主题、语言和详情页转场
 - “关于”页通过 `BuildConfig.VERSION_NAME / VERSION_CODE` 读取当前构建版本，版本信息不在字符串资源中重复维护
 - 页面集中展示项目用途、作者 `baiyanwu`、GitHub 源码仓库、Apache-2.0 许可、Issues 反馈入口及行情风险说明；外部链接统一交由系统 URI 处理器打开
@@ -157,7 +157,7 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 - 未锁定时，按下跑马灯会暂停动画，超过触摸阈值后只允许上下拖动，松手保存位置并继续滚动；锁定后窗口不可触摸但行情与动画继续运行
 - 通知栏支持临时隐藏 / 恢复显示，以及拖动开关
 - 只有在悬浮窗权限满足时，应用才会把悬浮窗正式标记为启用
-- 悬浮窗设置页顶部只保留“悬浮币对”入口；独立的 `OverlayItemsSettingsActivity` 和 `OverlayItemsSettingsViewModel` 承载选择、10 项上限与排序业务，避免外观设置页过长
+- 悬浮窗设置页顶部依次放置“剪贴板 CA 查询”和“悬浮币对”导航卡，两者共用图标、标题/小文案和右箭头结构；前者打开既有 `ClipboardSettingsActivity`，后者由独立的 `OverlayItemsSettingsActivity` 和 `OverlayItemsSettingsViewModel` 承载选择、10 项上限与排序业务，避免外观设置页过长
 - 悬浮币对页将已选币对和可添加币对分区：已选区显示全局序号、交易来源、市场类型、当前显示范围与专用拖动把手，可添加区继续按交易所/链上分组。拖动把手从按下起独占指针，拖动期间父级滚动停用；列表项使用稳定 ID 保存 Compose 节点身份，换位时同步更新相邻项坐标缓存，显示范围标记不改变行高，结束后一次性持久化
 - 悬浮币对页只观察一份 Room 关注列表快照，再按 `overlaySelected/overlayOrder` 原子拆分已选区和可添加区；非拖动状态直接渲染最新快照，本地副本仅在拖动期间存在，避免开关币对时上下分区不同步或晚一帧刷新
 - 悬浮窗顺序由 Room 中独立的可空 `overlayOrder` 决定，不再复用 `homePinned`、`homeOrder` 或 `homePinnedOrder`；首页排序只影响对应市场分页，悬浮排序可以跨市场调整且不回写首页字段

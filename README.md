@@ -24,11 +24,12 @@
 
 - Search `Binance Alpha`, Binance spot and USDT-M futures, plus OKX spot and USDT swaps in parallel, then merge, sort, and display one result set after all sources finish
 - Search on-chain tokens by name, symbol, or contract address without selecting a chain; every network returned by `DexScreener` is accepted without a local allowlist
-- Use the persistent `Show on-chain market cap` switch at the top of Settings to change every on-chain row across Home, the arranged overlay, and the marquee overlay between price and market cap; exchange quotes are unaffected
+- Open `General` from Settings to manage the persistent `Show on-chain market cap` switch together with appearance, language, and network logs; the switch changes every on-chain row across Home, the arranged overlay, and the marquee overlay between price and market cap, while exchange quotes are unaffected
+- Open `Wallet Settings` for wallet management, backup, and security; backup started from Settings first asks which wallet to use, while the original three entries remain available from the wallet page menu
 - Split the home watchlist into swipeable `Exchange / On-chain` pages with category-local ordering, compact quote rows, quick actions, live refresh, and search that opens in the active market mode
 - Open the corresponding external market page from a pair title; on-chain rows show `target / counter token` from the selected pool, provide a compact contract address with one-tap full-address copy, and keep the label synchronized when the pool or quote source changes
 - Pin selected items into either an arranged floating panel or a full-width, single-line marquee that scrolls tightly packed coin icons and latest prices, with a subtle dot between complete cycles
-- Choose the overlay type from a fixed-header settings flow; a dedicated Floating Pairs page handles selection and drag ordering across exchange and on-chain pairs, while arranged and marquee appearances keep independent opacity, font size, item count, position, and motion settings
+- Open Floating Window Settings directly below Wallet Settings; its first two entries are Clipboard CA Lookup and Floating Pairs. The dedicated Floating Pairs page handles selection and drag ordering across exchange and on-chain pairs, while arranged and marquee appearances keep independent opacity, font size, item count, position, and motion settings
 - Keep the arranged overlay's drag, adaptive layout, and edge docking behavior; it can stay as a docked price panel or collapse into a slim edge tab, with foreground-service persistence for both overlay types
 - Review the current build version, project purpose, author, source repository, Apache-2.0 license, feedback link, and usage notice from the in-app About page
 - Check GitHub's latest published Release once whenever the main screen is created, then prompt users to open the Release page when a newer version is available; no third-party update service is involved

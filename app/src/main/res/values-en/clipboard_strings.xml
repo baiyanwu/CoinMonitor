@@ -2,6 +2,7 @@
 <resources>
     <string name="clipboard_title">CA details</string>
     <string name="clipboard_settings">Clipboard CA lookup</string>
+    <string name="clipboard_settings_description">Copy a CA, then tap the floating window for quotes and quick links</string>
     <string name="clipboard_close">Close</string>
     <string name="clipboard_reading">Reading clipboard…</string>
     <string name="clipboard_resolving">Looking up CA…</string>

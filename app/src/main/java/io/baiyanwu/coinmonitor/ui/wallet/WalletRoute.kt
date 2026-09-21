@@ -35,6 +35,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.automirrored.rounded.CompareArrows
 import androidx.compose.material.icons.automirrored.rounded.Send
 import androidx.compose.material.icons.rounded.AccountBalanceWallet
@@ -312,14 +313,22 @@ private fun WalletStandaloneRoute(
     BackHandler { viewModel.goHome() }
 
     Box(Modifier.fillMaxSize()) {
-        if (!state.vault.unlocked) {
-            WalletUnlockGate(
+        when {
+            !state.vault.secureStorageAvailable -> SecureStorageUnavailable()
+            !state.vault.initialized -> FirstWalletSetup(
+                onCreate = viewModel::createFirstWallet,
+                onImport = viewModel::importFirstWallet
+            )
+            !state.vault.unlocked -> WalletUnlockGate(
                 onUnlock = viewModel::unlock,
                 biometricManager = biometricManager,
                 onBiometricKey = viewModel::unlockWithDerivedKey
             )
-        } else {
-            content(if (state.page == page) state else retainedState, viewModel)
+            state.vault.wallets.isEmpty() -> EmptyUnlockedVault(
+                onCreate = viewModel::createAdditionalWallet,
+                onImport = viewModel::importAdditionalWallet
+            )
+            else -> content(if (state.page == page) state else retainedState, viewModel)
         }
         SnackbarHost(
             hostState = snackbar,
@@ -338,7 +347,98 @@ fun WalletBackupRoute(
 }
 
 @Composable
-private fun activityWalletViewModel(container: AppContainer): WalletViewModel {
+fun WalletBackupSelectionRoute(
+    container: AppContainer,
+    onBack: () -> Unit,
+    onNavigateBackup: () -> Unit
+) {
+    val viewModel = activityWalletViewModel(container)
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val biometricManager = remember(context) { WalletBiometricManager(context) }
+
+    LaunchedEffect(state.page) {
+        if (state.page != WalletPage.BACKUP) return@LaunchedEffect
+        onNavigateBackup()
+    }
+
+    DetailScreenScaffold(stringResource(R.string.wallet_backup_choose_title), onBack) {
+        when {
+            !state.vault.secureStorageAvailable -> SecureStorageUnavailable()
+            !state.vault.initialized -> FirstWalletSetup(
+                onCreate = viewModel::createFirstWallet,
+                onImport = viewModel::importFirstWallet
+            )
+            !state.vault.unlocked -> WalletUnlockGate(
+                onUnlock = viewModel::unlock,
+                biometricManager = biometricManager,
+                onBiometricKey = viewModel::unlockWithDerivedKey
+            )
+            state.vault.wallets.isEmpty() -> EmptyUnlockedVault(
+                onCreate = viewModel::createAdditionalWallet,
+                onImport = viewModel::importAdditionalWallet
+            )
+            else -> WalletBackupSelectionScreen(
+                wallets = state.vault.wallets,
+                onSelectWallet = viewModel::selectWalletForBackup
+            )
+        }
+    }
+}
+
+@Composable
+private fun WalletBackupSelectionScreen(
+    wallets: List<WalletProfile>,
+    onSelectWallet: (String) -> Unit
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(14.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        item {
+            Text(
+                text = stringResource(R.string.wallet_backup_choose_description),
+                color = CoinMonitorThemeTokens.colors.secondaryText,
+                modifier = Modifier.padding(horizontal = 2.dp, vertical = 4.dp)
+            )
+        }
+        items(wallets, key = WalletProfile::id) { wallet ->
+            ElevatedCard(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onSelectWallet(wallet.id) },
+                colors = CoinMonitorComponentDefaults.elevatedCardColors()
+            ) {
+                Row(
+                    modifier = Modifier.padding(14.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Rounded.AccountBalanceWallet, contentDescription = null)
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(wallet.name, style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            text = stringResource(
+                                if (wallet.kind == WalletKind.MNEMONIC) {
+                                    R.string.wallet_mnemonic_wallet
+                                } else {
+                                    R.string.wallet_private_key_wallet
+                                }
+                            ),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = CoinMonitorThemeTokens.colors.secondaryText
+                        )
+                    }
+                    Icon(Icons.AutoMirrored.Rounded.ArrowForward, contentDescription = null)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+internal fun activityWalletViewModel(container: AppContainer): WalletViewModel {
     val owner = checkNotNull(LocalContext.current.findFragmentActivity()) {
         "Wallet screens require a FragmentActivity host"
     }

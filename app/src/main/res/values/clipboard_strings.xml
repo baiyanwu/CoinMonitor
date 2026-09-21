@@ -2,6 +2,7 @@
 <resources>
     <string name="clipboard_title">CA 信息</string>
     <string name="clipboard_settings">剪贴板 CA 查询</string>
+    <string name="clipboard_settings_description">复制 CA 后，点击悬浮窗查询行情与快捷入口</string>
     <string name="clipboard_close">关闭</string>
     <string name="clipboard_reading">正在读取剪贴板…</string>
     <string name="clipboard_resolving">正在解析 CA…</string>

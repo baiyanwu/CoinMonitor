@@ -7,6 +7,7 @@
 - 助记词钱包使用一组 12 词 BIP39 助记词，派生首个 EVM 地址和首个 Solana 地址。
 - 原始私钥导入按密钥体系选择 `EVM` 或 `Solana`。EVM 私钥派生出的同一地址适用于全部已启用 EVM 网络；Solana 私钥只用于 Solana，不把 ETH、BNB Chain、Base 等 EVM 网络拆成重复钱包。
 - 支持多钱包创建、助记词/原始私钥导入、唯一命名、切换、备份、删除、收款与转账。
+- “设置 → 钱包设置”复用钱包页右上角菜单中的钱包管理、备份钱包和安全设置功能；钱包管理与安全设置直接进入既有页面，备份钱包会先要求选择目标钱包。钱包页右上角三个原入口继续保留，并直接作用于当前钱包。
 - 支持 EVM 原生币与 ERC20、SOL 与 SPL Token。资产详情仍可通过系统浏览器打开 Uniswap“兑换”和 OKX Bridge“跨链桥”；底部“浏览”页提供本地 DApp 目录，选择条目或确认手输 HTTPS 地址后，在独立 Activity 的受限 WebView 中注入 EIP-1193 Provider。浏览器开放连接钱包、账户/Chain ID、网络切换、只读 RPC、标准 EVM 交易、`personal_sign`、原始 `eth_sign`、EIP-712 V3/V4，以及经原生确认的网络和 ERC20 Token 添加请求。
 - Trust Wallet Core 负责密钥、地址、App 内转账及 DApp 交易/消息的本地签名；Trust Web3 Provider 只负责浏览页的 JavaScript Provider 协议层，不接触助记词或私钥。OKX Onchain API 负责发现资产、聚合余额、价格、Token 元数据和风险标记；Alchemy 或用户配置的 RPC 负责交易前链上余额校验、手续费、广播和状态查询。
 

@@ -140,6 +140,11 @@
     <string name="error_search_partial_sources">Some market data sources are temporarily unavailable. Other results are shown. Please try again.</string>
 
     <string name="general_settings_title">General</string>
+    <string name="general_settings_subtitle">Manage on-chain market cap, appearance, language, and network logs</string>
+    <string name="wallet_settings_title">Wallet Settings</string>
+    <string name="wallet_settings_subtitle">Manage wallets, backups, and security</string>
+    <string name="wallet_backup_choose_title">Choose wallet</string>
+    <string name="wallet_backup_choose_description">Choose the wallet to back up</string>
     <string name="show_onchain_market_cap">Show on-chain market cap</string>
     <string name="show_onchain_market_cap_description">Show market cap for on-chain tokens on the home screen and in floating windows</string>
     <string name="settings_subtitle">Manage language, appearance, and floating window features here.</string>
@@ -154,7 +159,7 @@
     <string name="language_chinese">简体中文</string>
     <string name="language_english">English</string>
     <string name="settings_third_party_api_title">Third-party API Settings</string>
-    <string name="settings_third_party_api_subtitle">Free on-chain market data settings.</string>
+    <string name="settings_third_party_api_subtitle">Manage on-chain providers, wallet networks, and API credentials</string>
     <string name="network_log_title">Network Log</string>
     <string name="network_log_settings_subtitle">Inspect HTTP and WSS request line logs in chronological order.</string>
     <string name="network_log_start">Start recording</string>
@@ -325,7 +330,7 @@
     <string name="overlay_settings_title">Overlay Settings</string>
     <string name="overlay_items_settings_title">Floating Pairs</string>
     <string name="overlay_items_settings_description">Choose pairs and adjust their global floating-window order</string>
-    <string name="overlay_settings_subtitle">Permissions, appearance, and items for the floating window.</string>
+    <string name="overlay_settings_subtitle">Manage clipboard CA lookup, floating pairs, and window appearance</string>
     <string name="overlay_settings_page_subtitle">This page only controls the floating window and does not change the main watchlist.</string>
     <string name="overlay_enable">Enable floating window</string>
     <string name="overlay_lock_drag">Lock dragging</string>

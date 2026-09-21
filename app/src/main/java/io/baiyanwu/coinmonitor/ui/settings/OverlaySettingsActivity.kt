@@ -18,6 +18,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import io.baiyanwu.coinmonitor.clipboard.ClipboardSettingsActivity
 import io.baiyanwu.coinmonitor.ui.CoinMonitorComposeActivity
 import io.baiyanwu.coinmonitor.ui.navigation.DetailPageTransitions
 import io.baiyanwu.coinmonitor.overlay.OverlayPermissionHelper
@@ -30,6 +31,7 @@ class OverlaySettingsActivity : CoinMonitorComposeActivity() {
             OverlaySettingsActivityContent(
                 container = container,
                 onBack = { finish() },
+                onNavigateClipboardSettings = { ClipboardSettingsActivity.start(this) },
                 onNavigateOverlayItems = { OverlayItemsSettingsActivity.start(this) }
             )
         }
@@ -54,6 +56,7 @@ class OverlaySettingsActivity : CoinMonitorComposeActivity() {
 private fun OverlaySettingsActivityContent(
     container: io.baiyanwu.coinmonitor.data.AppContainer,
     onBack: () -> Unit,
+    onNavigateClipboardSettings: () -> Unit,
     onNavigateOverlayItems: () -> Unit
 ) {
     val context = LocalContext.current
@@ -103,6 +106,7 @@ private fun OverlaySettingsActivityContent(
         overlayPermissionGranted = overlayPermissionGranted,
         notificationPermissionGranted = notificationPermissionGranted,
         onBack = onBack,
+        onNavigateClipboardSettings = onNavigateClipboardSettings,
         onNavigateOverlayItems = onNavigateOverlayItems,
         onRequestOverlayPermission = {
             overlayPermissionLauncher.launch(

@@ -37,12 +37,15 @@ import io.baiyanwu.coinmonitor.ui.home.HomeRoute
 import io.baiyanwu.coinmonitor.ui.kline.KlineRoute
 import io.baiyanwu.coinmonitor.ui.kline.chart.KlineChartHostView
 import io.baiyanwu.coinmonitor.ui.search.SearchMode
+import io.baiyanwu.coinmonitor.ui.settings.GeneralSettingsRoute
 import io.baiyanwu.coinmonitor.ui.settings.SettingsRoute
+import io.baiyanwu.coinmonitor.ui.settings.WalletSettingsRoute
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorComponentDefaults
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 import io.baiyanwu.coinmonitor.ui.wallet.WalletAddRoute
 import io.baiyanwu.coinmonitor.ui.wallet.WalletAssetDetailRoute
 import io.baiyanwu.coinmonitor.ui.wallet.WalletBackupRoute
+import io.baiyanwu.coinmonitor.ui.wallet.WalletBackupSelectionRoute
 import io.baiyanwu.coinmonitor.ui.wallet.WalletManageRoute
 import io.baiyanwu.coinmonitor.ui.wallet.WalletPage
 import io.baiyanwu.coinmonitor.ui.wallet.WalletReceiveRoute
@@ -65,6 +68,9 @@ private object Destinations {
     const val WALLET_BACKUP = "wallet/backup"
     const val WALLET_SECURITY = "wallet/security"
     const val SETTINGS = "settings"
+    const val SETTINGS_GENERAL = "settings/general"
+    const val SETTINGS_WALLET = "settings/wallet"
+    const val SETTINGS_WALLET_BACKUP_SELECT = "settings/wallet/backup-select"
 }
 
 private data class MainTab(
@@ -113,8 +119,21 @@ fun CoinMonitorNavHost(
         if (page == WalletPage.HOME) {
             rootNavController.popBackStack(Destinations.MAIN, inclusive = false)
         } else {
+            val currentRoute = rootNavController.currentBackStackEntry?.destination?.route
+            val replaceCurrentRoute = currentRoute in setOf(
+                Destinations.WALLET_ADD,
+                Destinations.WALLET_MANAGE,
+                Destinations.WALLET_ASSET_DETAIL,
+                Destinations.WALLET_RECEIVE,
+                Destinations.WALLET_SEND,
+                Destinations.WALLET_BACKUP,
+                Destinations.WALLET_SECURITY,
+                Destinations.SETTINGS_WALLET_BACKUP_SELECT
+            )
             rootNavController.navigate(walletRouteForPage(page)) {
-                popUpTo(Destinations.MAIN) { inclusive = false }
+                if (replaceCurrentRoute && currentRoute != null) {
+                    popUpTo(currentRoute) { inclusive = true }
+                }
                 launchSingleTop = true
             }
         }
@@ -146,9 +165,45 @@ fun CoinMonitorNavHost(
                 onOpenWalletNetworkSettings = onOpenWalletNetworkSettings,
                 onOpenWatchWallet = onOpenWatchWallet,
                 onOpenDappBrowser = onOpenDappBrowser,
-                onOpenNetworkLog = onOpenNetworkLog,
                 onOpenAbout = onOpenAbout,
-                onOpenWalletPage = openWalletPage
+                onOpenWalletPage = openWalletPage,
+                onOpenGeneralSettings = {
+                    rootNavController.navigate(Destinations.SETTINGS_GENERAL) { launchSingleTop = true }
+                },
+                onOpenWalletSettings = {
+                    rootNavController.navigate(Destinations.SETTINGS_WALLET) { launchSingleTop = true }
+                }
+            )
+        }
+        walletDetailComposable(Destinations.SETTINGS_GENERAL) {
+            GeneralSettingsRoute(
+                container = container,
+                onBack = finishWalletPage,
+                onNavigateNetworkLog = onOpenNetworkLog
+            )
+        }
+        walletDetailComposable(Destinations.SETTINGS_WALLET) {
+            WalletSettingsRoute(
+                container = container,
+                onBack = finishWalletPage,
+                onManageWallets = {
+                    rootNavController.navigate(Destinations.WALLET_MANAGE) { launchSingleTop = true }
+                },
+                onChooseBackupWallet = {
+                    rootNavController.navigate(Destinations.SETTINGS_WALLET_BACKUP_SELECT) {
+                        launchSingleTop = true
+                    }
+                },
+                onSecuritySettings = {
+                    rootNavController.navigate(Destinations.WALLET_SECURITY) { launchSingleTop = true }
+                }
+            )
+        }
+        walletDetailComposable(Destinations.SETTINGS_WALLET_BACKUP_SELECT) {
+            WalletBackupSelectionRoute(
+                container = container,
+                onBack = finishWalletPage,
+                onNavigateBackup = { openWalletPage(WalletPage.BACKUP) }
             )
         }
         walletDetailComposable(Destinations.WALLET_ADD) {
@@ -189,9 +244,10 @@ private fun MainShell(
     onOpenWalletNetworkSettings: () -> Unit,
     onOpenWatchWallet: () -> Unit,
     onOpenDappBrowser: (String) -> Unit,
-    onOpenNetworkLog: () -> Unit,
     onOpenAbout: () -> Unit,
-    onOpenWalletPage: (WalletPage) -> Unit
+    onOpenWalletPage: (WalletPage) -> Unit,
+    onOpenGeneralSettings: () -> Unit,
+    onOpenWalletSettings: () -> Unit
 ) {
     val mainNavController = rememberNavController()
     val tabs = remember {
@@ -273,12 +329,12 @@ private fun MainShell(
             }
             composable(Destinations.SETTINGS) {
                 SettingsRoute(
-                    container = container,
                     contentTopInset = innerPadding.calculateTopPadding(),
                     contentBottomInset = innerPadding.calculateBottomPadding(),
+                    onNavigateGeneralSettings = onOpenGeneralSettings,
+                    onNavigateWalletSettings = onOpenWalletSettings,
                     onNavigateOverlaySettings = onOpenOverlaySettings,
                     onNavigateThirdPartyApiSettings = onOpenThirdPartyApiSettings,
-                    onNavigateNetworkLog = onOpenNetworkLog,
                     onNavigateAbout = onOpenAbout
                 )
             }
