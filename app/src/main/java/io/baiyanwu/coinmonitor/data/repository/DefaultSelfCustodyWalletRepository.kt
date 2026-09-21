@@ -19,6 +19,7 @@ import io.baiyanwu.coinmonitor.domain.model.WalletRefreshFailures
 import io.baiyanwu.coinmonitor.domain.repository.SelfCustodyWalletRepository
 import io.baiyanwu.coinmonitor.domain.repository.OkxWalletCredentialsRepository
 import io.baiyanwu.coinmonitor.domain.repository.WalletNetworkSettingsRepository
+import io.baiyanwu.coinmonitor.domain.repository.WalletCustomTokenRepository
 import io.baiyanwu.coinmonitor.domain.repository.WalletTransferEstimate
 import io.baiyanwu.coinmonitor.domain.repository.WalletTransferRequest
 import kotlinx.coroutines.async
@@ -38,6 +39,7 @@ import java.util.UUID
 class DefaultSelfCustodyWalletRepository(
     context: Context,
     private val networkSettings: WalletNetworkSettingsRepository,
+    private val customTokens: WalletCustomTokenRepository,
     okxCredentials: OkxWalletCredentialsRepository,
     httpClient: OkHttpClient
 ) : SelfCustodyWalletRepository {
@@ -93,6 +95,10 @@ class DefaultSelfCustodyWalletRepository(
                 )
         } else {
             cachedAssets
+        }
+        assets = mergeCustomTokens(wallet, supported, assets)
+        if (assets.isNotEmpty() || preferences.contains(assetKey(wallet.id))) {
+            saveAssetCache(wallet.id, assets)
         }
 
         val localActivities = readLocalActivities(wallet.id).map { activity ->
@@ -265,6 +271,53 @@ class DefaultSelfCustodyWalletRepository(
                 .remove(indexedActivityUpdatedAtKey(walletId))
         }
         check(editor.commit()) { "钱包本地缓存清理失败。" }
+        customTokens.clear(walletIds)
+    }
+
+    private suspend fun mergeCustomTokens(
+        wallet: WalletProfile,
+        networks: List<WalletNetwork>,
+        indexedAssets: List<SelfCustodyAsset>
+    ): List<SelfCustodyAsset> = coroutineScope {
+        val existingById = indexedAssets.associateBy(SelfCustodyAsset::id)
+        val custom = customTokens.get(wallet.id).mapNotNull { token ->
+            val network = networks.firstOrNull { it.id == token.networkId && it.isEvm } ?: return@mapNotNull null
+            val address = wallet.addressFor(network) ?: return@mapNotNull null
+            val id = selfCustodyAssetId(network, token.contractAddress)
+            async {
+                val existing = existingById[id]
+                val url = networkSettings.get().rpcUrl(network)
+                val raw = url?.let { runCatching { rpc.evmTokenBalance(it, token.contractAddress, address).hexQuantity() }.getOrNull() }
+                if (raw == null) {
+                    existing?.copy(userAdded = true)
+                } else {
+                    val balance = BigDecimal(raw).movePointLeft(token.decimals).stripTrailingZeros()
+                    existing?.copy(
+                        rawBalance = raw.toString(),
+                        balance = balance,
+                        userAdded = true
+                    ) ?: SelfCustodyAsset(
+                        id = id,
+                        network = network,
+                        tokenAddress = token.contractAddress,
+                        name = token.symbol,
+                        symbol = token.symbol,
+                        decimals = token.decimals,
+                        rawBalance = raw.toString(),
+                        balance = balance,
+                        priceUsd = null,
+                        valueUsd = null,
+                        logoUrl = null,
+                        verified = true,
+                        isNative = false,
+                        transferable = true,
+                        userAdded = true
+                    )
+                }
+            }
+        }.awaitAll().filterNotNull()
+        (indexedAssets.filterNot { asset -> custom.any { it.id == asset.id } } + custom)
+            .distinctBy(SelfCustodyAsset::id)
     }
 
     private fun WalletNetwork.okxChainIndex(): String? = when {
@@ -452,7 +505,7 @@ class DefaultSelfCustodyWalletRepository(
         .sortedByDescending(WalletActivity::timestampMillis)
 
     private fun sortAssets(assets: List<SelfCustodyAsset>): List<SelfCustodyAsset> = assets
-        .filter { it.balance.signum() != 0 }
+        .filter { it.balance.signum() != 0 || it.userAdded }
         .sortedWith(
             compareByDescending<SelfCustodyAsset> { it.valueUsd ?: BigDecimal.valueOf(-1) }
                 .thenBy { it.network.displayName }
@@ -518,7 +571,8 @@ class DefaultSelfCustodyWalletRepository(
         val verified: Boolean,
         val isNative: Boolean,
         val balance: String? = null,
-        val transferable: Boolean = true
+        val transferable: Boolean = true,
+        val userAdded: Boolean = false
     ) {
         fun toDomain(): SelfCustodyAsset {
             val parsedBalance = balance?.toBigDecimalOrNull()
@@ -528,7 +582,7 @@ class DefaultSelfCustodyWalletRepository(
             return SelfCustodyAsset(
                 id, network, tokenAddress, name, symbol, decimals, rawBalance, parsedBalance.stripTrailingZeros(), price,
                 price?.multiply(parsedBalance)?.setScale(8, RoundingMode.HALF_UP)?.stripTrailingZeros(),
-                logoUrl, verified, isNative, transferable
+                logoUrl, verified, isNative, transferable, userAdded
             )
         }
 
@@ -536,7 +590,7 @@ class DefaultSelfCustodyWalletRepository(
             fun from(asset: SelfCustodyAsset) = CachedAsset(
                 asset.id, asset.network, asset.tokenAddress, asset.name, asset.symbol, asset.decimals,
                 asset.rawBalance, asset.priceUsd?.toPlainString(), asset.logoUrl, asset.verified, asset.isNative,
-                asset.balance.toPlainString(), asset.transferable
+                asset.balance.toPlainString(), asset.transferable, asset.userAdded
             )
         }
     }

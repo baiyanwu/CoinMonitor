@@ -16,6 +16,7 @@ import io.baiyanwu.coinmonitor.overlay.OverlayServiceController
 import io.baiyanwu.coinmonitor.ui.navigation.CoinMonitorNavHost
 import io.baiyanwu.coinmonitor.ui.kline.AiChatHistoryActivity
 import io.baiyanwu.coinmonitor.ui.kline.KlineIndicatorSettingsActivity
+import io.baiyanwu.coinmonitor.ui.browser.DappBrowserActivity
 import io.baiyanwu.coinmonitor.ui.search.SearchActivity
 import io.baiyanwu.coinmonitor.ui.settings.AboutActivity
 import io.baiyanwu.coinmonitor.ui.settings.NetworkLogActivity
@@ -60,6 +61,9 @@ class MainActivity : CoinMonitorComposeActivity() {
                     )
                 },
                 onOpenWatchWallet = { WalletWatchActivity.start(this@MainActivity) },
+                onOpenDappBrowser = { url ->
+                    DappBrowserActivity.start(this@MainActivity, url)
+                },
                 onOpenNetworkLog = { NetworkLogActivity.start(this@MainActivity) },
                 onOpenAbout = { AboutActivity.start(this@MainActivity) }
             )

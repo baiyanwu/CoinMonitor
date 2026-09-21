@@ -37,6 +37,12 @@
             android:screenOrientation="portrait" />
 
         <activity
+            android:name="io.baiyanwu.coinmonitor.ui.browser.DappBrowserActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
             android:name="io.baiyanwu.coinmonitor.ui.kline.AiChatHistoryActivity"
             android:exported="false"
             android:screenOrientation="portrait" />

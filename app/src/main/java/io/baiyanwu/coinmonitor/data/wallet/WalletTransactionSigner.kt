@@ -56,6 +56,41 @@ internal class WalletTransactionSigner {
         return "0x${output.encoded.toByteArray().toHex()}"
     }
 
+    fun signEvmContract(
+        transaction: EvmContractTransaction,
+        privateKey: ByteArray
+    ): String {
+        val builder = Ethereum.SigningInput.newBuilder().apply {
+            chainId = ByteString.copyFrom(transaction.chainId.unsignedBytes())
+            nonce = ByteString.copyFrom(transaction.nonce.unsignedBytes())
+            gasLimit = ByteString.copyFrom(transaction.gasLimit.unsignedBytes())
+            toAddress = transaction.to
+            this.privateKey = ByteString.copyFrom(privateKey)
+            if (transaction.maxFeePerGas != null) {
+                txMode = Ethereum.TransactionMode.Enveloped
+                maxFeePerGas = ByteString.copyFrom(transaction.maxFeePerGas.unsignedBytes())
+                maxInclusionFeePerGas = ByteString.copyFrom(
+                    requireNotNull(transaction.maxPriorityFeePerGas).unsignedBytes()
+                )
+            } else {
+                txMode = Ethereum.TransactionMode.Legacy
+                gasPrice = ByteString.copyFrom(requireNotNull(transaction.gasPrice).unsignedBytes())
+            }
+            this.transaction = Ethereum.Transaction.newBuilder()
+                .setContractGeneric(
+                    Ethereum.Transaction.ContractGeneric.newBuilder()
+                        .setAmount(ByteString.copyFrom(transaction.value.unsignedBytes()))
+                        .setData(ByteString.copyFrom(transaction.data.hexToBytes()))
+                )
+                .build()
+        }
+        val output = AnySigner.sign(builder.build(), CoinType.ETHEREUM, Ethereum.SigningOutput.parser())
+        require(output.error == Common.SigningError.OK) {
+            output.errorMessage.ifBlank { "EVM 合约交易签名失败。" }
+        }
+        return "0x${output.encoded.toByteArray().toHex()}"
+    }
+
     fun signSolana(
         recipient: String,
         tokenAddress: String?,
@@ -104,4 +139,20 @@ internal class WalletTransactionSigner {
     }
 
     private fun hexQuantityToBigInteger(value: String): BigInteger = BigInteger(value.removePrefix("0x").ifBlank { "0" }, 16)
+}
+
+internal data class EvmContractTransaction(
+    val chainId: BigInteger,
+    val from: String,
+    val to: String,
+    val value: BigInteger,
+    val data: String,
+    val nonce: BigInteger,
+    val gasLimit: BigInteger,
+    val gasPrice: BigInteger?,
+    val maxFeePerGas: BigInteger?,
+    val maxPriorityFeePerGas: BigInteger?
+) {
+    val maximumFee: BigInteger
+        get() = gasLimit * (maxFeePerGas ?: requireNotNull(gasPrice))
 }

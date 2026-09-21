@@ -29,6 +29,8 @@ jsoup = "1.18.3"
 coil = "3.0.4"
 walletCore = "4.8.3"
 zxing = "3.5.3"
+webkit = "1.12.1"
+trustWeb3Provider = "v4.9.4"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -68,6 +70,8 @@ coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref 
 coil-network-okhttp = { group = "io.coil-kt.coil3", name = "coil-network-okhttp", version.ref = "coil" }
 trustwallet-core = { group = "com.trustwallet", name = "wallet-core", version.ref = "walletCore" }
 zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" }
+androidx-webkit = { group = "androidx.webkit", name = "webkit", version.ref = "webkit" }
+trustwallet-web3-provider = { group = "com.github.trustwallet", name = "trust-web3-provider", version.ref = "trustWeb3Provider" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }

@@ -20,7 +20,7 @@ class MainNavigationEntryPolicyTest {
     }
 
     @Test
-    fun `wallet is a top level entry between home and settings`() {
+    fun `wallet and browser are top level entries between home and settings`() {
         val source = readSource(
             rootRelativePath = "app/src/main/java/io/baiyanwu/coinmonitor/ui/navigation/CoinMonitorNavHost.kt",
             moduleRelativePath = "src/main/java/io/baiyanwu/coinmonitor/ui/navigation/CoinMonitorNavHost.kt"
@@ -28,13 +28,21 @@ class MainNavigationEntryPolicyTest {
 
         val homeIndex = source.indexOf("MainTab(Destinations.HOME")
         val walletIndex = source.indexOf("MainTab(Destinations.WALLET")
+        val browserIndex = source.indexOf("MainTab(Destinations.BROWSER")
         val settingsIndex = source.indexOf("MainTab(Destinations.SETTINGS")
 
         assertTrue(homeIndex >= 0)
         assertTrue(walletIndex > homeIndex)
-        assertTrue(settingsIndex > walletIndex)
+        assertTrue(browserIndex > walletIndex)
+        assertTrue(settingsIndex > browserIndex)
         assertTrue(source.contains("composable(Destinations.WALLET)"))
+        assertTrue(source.contains("composable(Destinations.BROWSER)"))
         assertTrue(source.contains("WalletRoute("))
+        assertTrue(source.contains("DappDiscoveryRoute("))
+        assertTrue(source.contains("onOpenBrowser = onOpenDappBrowser"))
+        assertFalse(source.contains("DappBrowserRoute("))
+        assertFalse(source.contains("DappWebView("))
+        assertFalse(source.contains("remember(context) { DappWebView(context) }"))
         assertFalse(source.contains("WalletWatchRoute("))
     }
 
@@ -137,7 +145,7 @@ class MainNavigationEntryPolicyTest {
             moduleRelativePath = "src/main/java/io/baiyanwu/coinmonitor/ui/wallet/WalletRoute.kt"
         )
 
-        val unlockStart = walletSource.indexOf("private fun WalletUnlock(")
+        val unlockStart = walletSource.indexOf("internal fun WalletUnlockGate(")
         val unlockEnd = walletSource.indexOf("private fun FirstWalletSetup(")
 
         assertTrue(unlockStart >= 0)
@@ -148,6 +156,38 @@ class MainNavigationEntryPolicyTest {
         assertTrue(unlockSource.contains("onAuthenticationError = { showPasswordFallback = true }"))
         assertTrue(unlockSource.contains("if (!showPasswordFallback)"))
         assertTrue(unlockSource.contains("onClick = launchBiometric"))
+    }
+
+    @Test
+    fun `biometrics authorize signing but never wallet deletion backup or biometric disable`() {
+        val walletSource = readSource(
+            rootRelativePath = "app/src/main/java/io/baiyanwu/coinmonitor/ui/wallet/WalletRoute.kt",
+            moduleRelativePath = "src/main/java/io/baiyanwu/coinmonitor/ui/wallet/WalletRoute.kt"
+        )
+
+        val deleteSource = walletSource.substring(
+            walletSource.indexOf("private fun DeleteWalletDialog("),
+            walletSource.indexOf("private fun ReceiveScreen(")
+        )
+        val backupSource = walletSource.substring(
+            walletSource.indexOf("private fun BackupScreen("),
+            walletSource.indexOf("private enum class WalletBackupStep")
+        )
+        val securitySource = walletSource.substring(
+            walletSource.indexOf("private fun SecurityScreen("),
+            walletSource.indexOf("private fun PreventScreenCaptureEffect(")
+        )
+
+        assertTrue(walletSource.contains("authorizeAndSendWithDerivedKey"))
+        assertTrue(walletSource.contains("rememberWalletBiometricAuthorization("))
+        assertTrue(walletSource.contains("authorization.authenticate"))
+        assertTrue(walletSource.contains("authorization.revealPassword"))
+        assertTrue(walletSource.contains("if (authorization.showPassword)"))
+        assertFalse(deleteSource.contains("wallet_use_biometric"))
+        assertFalse(backupSource.contains("wallet_use_biometric"))
+        assertTrue(securitySource.contains("showDisableBiometric = true"))
+        assertTrue(securitySource.contains("viewModel.verifyPassword(password)"))
+        assertTrue(securitySource.indexOf("viewModel.verifyPassword(password)") < securitySource.lastIndexOf("biometricManager.clear()"))
     }
 
     @Test

@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AccountBalanceWallet
 import androidx.compose.material.icons.rounded.Home
+import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -48,12 +49,14 @@ import io.baiyanwu.coinmonitor.ui.wallet.WalletReceiveRoute
 import io.baiyanwu.coinmonitor.ui.wallet.WalletRoute
 import io.baiyanwu.coinmonitor.ui.wallet.WalletSecurityRoute
 import io.baiyanwu.coinmonitor.ui.wallet.WalletSendRoute
+import io.baiyanwu.coinmonitor.ui.browser.DappDiscoveryRoute
 
 private object Destinations {
     const val MAIN = "main"
     const val HOME = "home"
     const val KLINE = "kline"
     const val WALLET = "wallet"
+    const val BROWSER = "browser"
     const val WALLET_ADD = "wallet/add"
     const val WALLET_MANAGE = "wallet/manage"
     const val WALLET_ASSET_DETAIL = "wallet/asset-detail"
@@ -82,6 +85,7 @@ fun CoinMonitorNavHost(
     onOpenThirdPartyApiSettings: () -> Unit,
     onOpenWalletNetworkSettings: () -> Unit,
     onOpenWatchWallet: () -> Unit,
+    onOpenDappBrowser: (String) -> Unit,
     onOpenNetworkLog: () -> Unit,
     onOpenAbout: () -> Unit
 ) {
@@ -141,6 +145,7 @@ fun CoinMonitorNavHost(
                 onOpenThirdPartyApiSettings = onOpenThirdPartyApiSettings,
                 onOpenWalletNetworkSettings = onOpenWalletNetworkSettings,
                 onOpenWatchWallet = onOpenWatchWallet,
+                onOpenDappBrowser = onOpenDappBrowser,
                 onOpenNetworkLog = onOpenNetworkLog,
                 onOpenAbout = onOpenAbout,
                 onOpenWalletPage = openWalletPage
@@ -183,6 +188,7 @@ private fun MainShell(
     onOpenThirdPartyApiSettings: () -> Unit,
     onOpenWalletNetworkSettings: () -> Unit,
     onOpenWatchWallet: () -> Unit,
+    onOpenDappBrowser: (String) -> Unit,
     onOpenNetworkLog: () -> Unit,
     onOpenAbout: () -> Unit,
     onOpenWalletPage: (WalletPage) -> Unit
@@ -192,6 +198,7 @@ private fun MainShell(
         listOf(
             MainTab(Destinations.HOME, R.string.tab_home, Icons.Rounded.Home),
             MainTab(Destinations.WALLET, R.string.tab_wallet, Icons.Rounded.AccountBalanceWallet),
+            MainTab(Destinations.BROWSER, R.string.tab_browser, Icons.Rounded.Language),
             MainTab(Destinations.SETTINGS, R.string.tab_settings, Icons.Rounded.Settings)
         )
     }
@@ -284,6 +291,14 @@ private fun MainShell(
                     onOpenAssetSettings = onOpenThirdPartyApiSettings,
                     onOpenNetworkSettings = onOpenWalletNetworkSettings,
                     onOpenPage = onOpenWalletPage
+                )
+            }
+            composable(Destinations.BROWSER) {
+                DappDiscoveryRoute(
+                    container = container,
+                    contentTopInset = innerPadding.calculateTopPadding(),
+                    contentBottomInset = innerPadding.calculateBottomPadding(),
+                    onOpenBrowser = onOpenDappBrowser
                 )
             }
         }

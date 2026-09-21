@@ -71,7 +71,7 @@ data class WalletUiState(
     val visiblePortfolioAssets: List<SelfCustodyAsset> get() = portfolio?.assets.orEmpty().filter(::shouldShowAsset)
 
     private fun shouldShowAsset(asset: SelfCustodyAsset): Boolean =
-        (!hideAssetsBelowOneUsd || (asset.valueUsd != null && asset.valueUsd >= java.math.BigDecimal.ONE)) &&
+        (asset.userAdded || !hideAssetsBelowOneUsd || (asset.valueUsd != null && asset.valueUsd >= java.math.BigDecimal.ONE)) &&
             (includeUnverifiedAssets || asset.verified)
 }
 

@@ -79,7 +79,7 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 ### K-line
 
 - K 线页、图表、指标设置、搜索回填和 AI 聊天实现仍保留在工程中，但当前不再作为底部导航或首页卡片点击入口暴露
-- `NavHost` 中仍保留 `Destinations.KLINE` route，用于后续恢复入口时复用既有实现；底部导航按“首页 / 钱包 / 设置”展示三个一级页面
+- `NavHost` 中仍保留 `Destinations.KLINE` route，用于后续恢复入口时复用既有实现；底部导航按“首页 / 钱包 / 浏览 / 设置”展示四个一级页面
 - 图表内核当前基于仓库内 vendored 的 `TradingView Lightweight Charts Android wrapper` 源码模块
 - 第三方图表源码当前直接放在 `third_party/lightweightlibrary`，应用不再依赖外部 `aar`，方便直接调试 wrapper 和内嵌 JS core
 - K 线数据统一走 `MarketKlineRepository`，交易所继续使用 `Binance / Binance Alpha / OKX`，链上池使用 `GeckoTerminal`
@@ -196,6 +196,18 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 - 默认 EVM 网络元数据来自应用内种子与 `docs/wallet-evm-networks.json` 远程目录，使用 CAIP-2 风格 `eip155:<chainId>` 作为稳定标识；用户也可添加经 `eth_chainId` 验证的任意标准 EVM RPC。资产覆盖由 OKX 实时支持链决定，Alchemy Portfolio 标记不再控制资产可见性。
 - 原 `WalletWatchRoute` 由独立 `WalletWatchActivity` 承载；观察地址与自托管钱包复用 OKX 客户端实现和同一套加密凭证，但各自持有客户端实例，并保持独立模型、筛选与缓存。
 - 详细规则、构建凭证和验证边界见 [SELF_CUSTODY_WALLET.md](SELF_CUSTODY_WALLET.md)。
+
+## DApp Browser
+
+- `MainShell` 的浏览 destination 只渲染 `DappDiscoveryRoute`，MainActivity 不创建或持有 WebView。发现页由 `DappDiscoveryRepository` 读取 `res/raw/dapp_catalog_v1.json`，搜索历史通过 Room `dapp_search_history` 保存；点击目录条目或输入 HTTPS 地址后启动独立 `DappBrowserActivity`。
+- `DappBrowserActivity` 独占一个 `DappWebView` 与 `AndroidView` host，并在 Activity 销毁时统一释放。`DappBrowserRoute` 负责可编辑 HTTPS 地址栏、历史导航、加载进度和链图标菜单；返回键优先回退网页历史，没有网页历史时结束 Activity。这样浏览器渲染 surface、Provider 弹窗和网页生命周期不会进入 MainActivity 的 NavHost。
+- `DappWebView` 由 Activity 提前创建后再交给 Compose `AndroidView` 承载，因此自身必须显式使用 `MATCH_PARENT × MATCH_PARENT` 的原生布局参数，避免 Chromium 的布局 viewport 高度为 0，进而把依赖 `vh/dvh/svh/lvh` 的 DApp 底部弹层压缩掉。Provider document-start 注入仍在首次导航前完成。
+- AndroidX WebKit 通过 document-start script 与 web message listener 注入 Trust Web3 Provider `4.9.4`，不使用 `addJavascriptInterface`。浏览器对任意页面注册 Provider，但 WebView 仅允许 HTTPS 导航，原生消息入口只接受 HTTPS 主 frame，并按发起 origin 投递异步响应。最小 bootstrap 初始化 Trust Core/Ethereum Provider、建立原生回调、暴露标准 `window.ethereum`、Trust 兼容命名空间并发布 EIP-6963 Provider；EIP-6963 身份保持 CoinMonitor，图标在运行时从 Android 应用图标生成 PNG Data URI，并通过 Trust Provider 自带的 `setOverwriteMetamask(true)` 兼容旧版 MetaMask Connector，不注入 `window.metamask`、MetaMask 专属 API、`window.web3` 或页面 DOM/CSS 修补。内置目录只负责发现页展示，手输网址在导航前显示第三方风险提示。
+- Provider 暴露 EIP-1193 `window.ethereum` 和 EIP-6963 发现入口。`DappProviderProtocol` 只解析并路由 Trust Provider callback；交易预检/广播、消息签名、钱包控制分别收口在 `DappBrowserRepository`、`DappSigningRepository`、`DappWalletControlRepository`，原生确认 UI 独立放在 `DappApprovalDialogs`，避免协议、密码学、RPC 和 Compose 状态混在一个类中。交易与消息签名确认同时支持钱包密码和已启用的强生物识别；`rememberWalletBiometricAuthorization` 对每个新请求自动触发一次指纹，取消、失败或凭证失效后展开密码输入，也允许用户主动点击“输入密码”切换。生物识别只解包 Android Keystore 保护的派生密钥，ViewModel 使用后立即清零，再沿原执行器取得私钥并完成签名。统一授权规则是密码与生物识别默认同级；删除单个钱包、重置保险库、显示/备份钱包密钥以及停用生物识别仍强制使用钱包密码。
+- RPC 复用 `DappBrowserRepository -> WalletRpcClient` 与钱包的 `custom RPC > Alchemy RPC` 路由，只开放显式只读方法白名单。`eth_sendTransaction` 会校验活动地址、Chain ID、交易类型和 calldata，由 RPC 补齐 nonce、估算 Gas、获取费用并检查原生币余额；用户在原生弹窗输入钱包密码后，由 Wallet Core 签名 Legacy 或无 access list 的 EIP-1559 交易，再通过当前 RPC 广播并向网页返回交易哈希。
+- `signPersonalMessage / signMessage / signTypedMessage` 分别映射 `personal_sign`、原始 `eth_sign`、EIP-712 V3/V4。Typed Data 重新解析 `raw` JSON 并校验地址、Chain ID、`primaryType` 与验证合约；确认后使用 Wallet Core `EthereumMessageSigner` 或 secp256k1 原始摘要签名，只返回标准 `0x` 65 字节签名，不触发网络广播。私钥字节在调用完成后清零。
+- `wallet_addEthereumChain` 仅接受 HTTPS RPC，确认后由 `WalletNetworkSettingsRepository` 实际校验 RPC Chain ID 再保存和切换；`wallet_watchAsset` 将 ERC20/BEP20 元数据按钱包持久化，资产刷新通过 RPC 读取余额并合并为 `userAdded` 资产。EIP-712 V1、access list 和非白名单 RPC 仍返回 `4200`；用户拒绝任一原生确认返回 `4001`。
+- WebView 允许 HTTPS 主 frame 在内置地址栏中导航，禁止 HTTP、mixed content、文件和 content URI 访问；非 Web scheme 交给系统处理，TLS 错误沿用 WebView 默认拒绝行为。用户从链图标菜单选择已启用 EVM 网络后，ViewModel 更新 RPC 路由并向网页发送 EIP-1193 `chainChanged`。
 
 ### Upstream Docs And Endpoints
 

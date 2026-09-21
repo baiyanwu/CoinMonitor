@@ -59,12 +59,17 @@ class OnchainProviderPolicyTest {
             "app/schemas/io.baiyanwu.coinmonitor.data.local.CoinMonitorDatabase/11.json",
             "schemas/io.baiyanwu.coinmonitor.data.local.CoinMonitorDatabase/11.json"
         )
+        val schema12 = readSource(
+            "app/schemas/io.baiyanwu.coinmonitor.data.local.CoinMonitorDatabase/12.json",
+            "schemas/io.baiyanwu.coinmonitor.data.local.CoinMonitorDatabase/12.json"
+        )
 
-        assertTrue(databaseSource.contains("version = 11"))
+        assertTrue(databaseSource.contains("version = 12"))
         assertTrue(databaseSource.contains("Migration(7, 8)"))
         assertTrue(databaseSource.contains("Migration(8, 9)"))
         assertTrue(databaseSource.contains("Migration(9, 10)"))
         assertTrue(databaseSource.contains("Migration(10, 11)"))
+        assertTrue(databaseSource.contains("Migration(11, 12)"))
         assertTrue(databaseSource.contains("ADD COLUMN poolAddress TEXT"))
         assertTrue(databaseSource.contains("ADD COLUMN poolTokenSide TEXT"))
         assertTrue(databaseSource.contains("ADD COLUMN overlayOrder INTEGER"))
@@ -82,6 +87,8 @@ class OnchainProviderPolicyTest {
         assertTrue(schema10.contains("\"columnName\": \"marketCap\""))
         assertTrue(schema11.contains("\"version\": 11"))
         assertTrue(schema11.contains("\"columnName\": \"onchainDataProvider\""))
+        assertTrue(schema12.contains("\"version\": 12"))
+        assertTrue(schema12.contains("\"tableName\": \"dapp_search_history\""))
     }
 
     private fun readKotlinMainSources(): String {

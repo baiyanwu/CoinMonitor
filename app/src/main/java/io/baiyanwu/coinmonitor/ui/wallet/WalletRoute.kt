@@ -8,7 +8,6 @@ import android.graphics.Bitmap
 import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
-import androidx.biometric.BiometricPrompt
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -109,8 +108,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.fragment.app.FragmentActivity
-import androidx.core.content.ContextCompat
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
 import io.baiyanwu.coinmonitor.R
@@ -134,14 +131,16 @@ import io.baiyanwu.coinmonitor.ui.format.AssetAmountFormatter
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorComponentDefaults
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 import io.baiyanwu.coinmonitor.ui.wallet.components.MnemonicInput
+import io.baiyanwu.coinmonitor.ui.wallet.components.findFragmentActivity
 import io.baiyanwu.coinmonitor.ui.wallet.components.hasSupportedMnemonicWordCount
+import io.baiyanwu.coinmonitor.ui.wallet.components.promptWalletBiometric
+import io.baiyanwu.coinmonitor.ui.wallet.components.rememberWalletBiometricAuthorization
 import io.baiyanwu.coinmonitor.ui.walletwatch.formatWalletPrice
 import io.baiyanwu.coinmonitor.ui.walletwatch.formatWalletQuantity
 import io.baiyanwu.coinmonitor.ui.walletwatch.formatWalletValue
 import java.math.BigDecimal
 import java.text.DateFormat
 import java.util.Date
-import javax.crypto.Cipher
 import kotlin.random.Random
 import kotlinx.coroutines.launch
 
@@ -192,7 +191,7 @@ fun WalletRoute(
                     onCreate = viewModel::createFirstWallet,
                     onImport = viewModel::importFirstWallet
                 )
-                !state.vault.unlocked -> WalletUnlock(
+                !state.vault.unlocked -> WalletUnlockGate(
                     onUnlock = viewModel::unlock,
                     biometricManager = biometricManager,
                     onBiometricKey = viewModel::unlockWithDerivedKey
@@ -314,7 +313,7 @@ private fun WalletStandaloneRoute(
 
     Box(Modifier.fillMaxSize()) {
         if (!state.vault.unlocked) {
-            WalletUnlock(
+            WalletUnlockGate(
                 onUnlock = viewModel::unlock,
                 biometricManager = biometricManager,
                 onBiometricKey = viewModel::unlockWithDerivedKey
@@ -358,7 +357,7 @@ private fun SecureStorageUnavailable() {
 }
 
 @Composable
-private fun WalletUnlock(
+internal fun WalletUnlockGate(
     onUnlock: (String) -> Unit,
     biometricManager: WalletBiometricManager,
     onBiometricKey: (ByteArray) -> Unit
@@ -381,7 +380,7 @@ private fun WalletUnlock(
         } else {
             runCatching { biometricManager.prepareUnlockCipher() }
                 .onSuccess { cipher ->
-                    promptBiometric(
+                    promptWalletBiometric(
                         activity = hostActivity,
                         cipher = cipher,
                         title = biometricTitle,
@@ -1562,9 +1561,14 @@ private fun SendScreen(state: WalletUiState, viewModel: WalletViewModel, biometr
 @Composable
 private fun TransferConfirmation(send: WalletSendState, viewModel: WalletViewModel, biometricManager: WalletBiometricManager) {
     var password by remember { mutableStateOf("") }
-    val activity = LocalContext.current.findFragmentActivity()
     val asset = send.asset ?: return
     val estimate = send.estimate ?: return
+    val authorization = rememberWalletBiometricAuthorization(
+        requestKey = estimate,
+        biometricManager = biometricManager,
+        enabled = !send.broadcasting,
+        onAuthorized = viewModel::authorizeAndSendWithDerivedKey
+    )
     AlertDialog(
         onDismissRequest = viewModel::dismissConfirmation,
         title = { Text(stringResource(R.string.wallet_confirm_transfer)) },
@@ -1577,35 +1581,44 @@ private fun TransferConfirmation(send: WalletSendState, viewModel: WalletViewMod
                     stringResource(R.string.wallet_network_fee),
                     "${AssetAmountFormatter.networkFee(estimate.fee)} ${asset.network.symbol}"
                 )
-                SensitiveWalletField(
-                    value = password,
-                    onValueChange = { password = it },
-                    label = { Text(stringResource(R.string.wallet_password_reauthorize)) }
-                )
+                if (authorization.available) {
+                    OutlinedButton(
+                        onClick = authorization.authenticate,
+                        enabled = !send.broadcasting,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(stringResource(R.string.wallet_use_biometric))
+                    }
+                    TextButton(
+                        onClick = authorization.revealPassword,
+                        enabled = !send.broadcasting,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(stringResource(R.string.wallet_tap_to_enter_password))
+                    }
+                }
+                if (authorization.showPassword) {
+                    SensitiveWalletField(
+                        value = password,
+                        onValueChange = { password = it },
+                        label = { Text(stringResource(R.string.wallet_password_reauthorize)) }
+                    )
+                }
+                authorization.errorMessage?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                 send.errorMessage?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             }
         },
         confirmButton = {
-            TextButton(onClick = { viewModel.authorizeAndSend(password); password = "" }, enabled = password.isNotBlank() && !send.broadcasting) {
-                if (send.broadcasting) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-                else Text(stringResource(R.string.wallet_sign_and_send))
+            if (authorization.showPassword) {
+                TextButton(onClick = { viewModel.authorizeAndSend(password); password = "" }, enabled = password.isNotBlank() && !send.broadcasting) {
+                    if (send.broadcasting) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                    else Text(stringResource(R.string.wallet_sign_and_send))
+                }
             }
         },
         dismissButton = {
-            Row {
-                if (biometricManager.isEnabled() && activity != null) {
-                    TextButton(
-                        onClick = {
-                            runCatching { biometricManager.prepareUnlockCipher() }.onSuccess { cipher ->
-                                promptBiometric(activity, cipher, activity.getString(R.string.wallet_biometric_sign)) {
-                                    viewModel.authorizeAndSendWithDerivedKey(biometricManager.unwrapDerivedKey(it))
-                                }
-                            }
-                        },
-                        enabled = !send.broadcasting
-                    ) { Text(stringResource(R.string.wallet_use_biometric)) }
-                }
-                TextButton(onClick = viewModel::dismissConfirmation) { Text(stringResource(R.string.cancel)) }
+            TextButton(onClick = viewModel::dismissConfirmation, enabled = !send.broadcasting) {
+                Text(stringResource(R.string.cancel))
             }
         }
     )
@@ -1767,6 +1780,7 @@ internal fun randomBackupVerificationIndices(
 private fun SecurityScreen(state: WalletUiState, viewModel: WalletViewModel, biometricManager: WalletBiometricManager) {
     var showReset by remember { mutableStateOf(false) }
     var showEnableBiometric by remember { mutableStateOf(false) }
+    var showDisableBiometric by remember { mutableStateOf(false) }
     val activity = LocalContext.current.findFragmentActivity()
     DetailScreenScaffold(stringResource(R.string.wallet_security), viewModel::goHome) {
         Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -1779,7 +1793,10 @@ private fun SecurityScreen(state: WalletUiState, viewModel: WalletViewModel, bio
             OutlinedButton(onClick = viewModel::lock, modifier = Modifier.fillMaxWidth()) { Icon(Icons.Rounded.Lock, null); Text(stringResource(R.string.wallet_lock_now), Modifier.padding(start = 6.dp)) }
             if (biometricManager.canAuthenticate()) {
                 OutlinedButton(
-                    onClick = { if (biometricManager.isEnabled()) biometricManager.clear() else showEnableBiometric = true },
+                    onClick = {
+                        if (biometricManager.isEnabled()) showDisableBiometric = true
+                        else showEnableBiometric = true
+                    },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(stringResource(if (biometricManager.isEnabled()) R.string.wallet_biometric_disable else R.string.wallet_biometric_enable))
@@ -1802,7 +1819,12 @@ private fun SecurityScreen(state: WalletUiState, viewModel: WalletViewModel, bio
                                 key.fill(0)
                             } else runCatching { biometricManager.prepareEnableCipher() }
                                 .onSuccess { cipher ->
-                                    promptBiometric(activity, cipher, activity.getString(R.string.wallet_biometric_enable)) {
+                                    promptWalletBiometric(
+                                        activity = activity,
+                                        cipher = cipher,
+                                        title = activity.getString(R.string.wallet_biometric_enable),
+                                        negativeButtonText = activity.getString(R.string.cancel)
+                                    ) {
                                         try { biometricManager.finishEnable(it, key) } finally { key.fill(0) }
                                     }
                                 }
@@ -1815,6 +1837,47 @@ private fun SecurityScreen(state: WalletUiState, viewModel: WalletViewModel, bio
                 ) { Text(stringResource(R.string.wallet_biometric_enable)) }
             },
             dismissButton = { TextButton({ showEnableBiometric = false }) { Text(stringResource(R.string.cancel)) } }
+        )
+    }
+    if (showDisableBiometric) {
+        var password by remember { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { showDisableBiometric = false },
+            title = { Text(stringResource(R.string.wallet_biometric_disable)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(stringResource(R.string.wallet_biometric_disable_warning))
+                    SensitiveWalletField(
+                        password,
+                        { password = it },
+                        label = { Text(stringResource(R.string.wallet_password)) }
+                    )
+                    state.errorMessage?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.verifyPassword(password) { key ->
+                            try {
+                                biometricManager.clear()
+                                showDisableBiometric = false
+                            } finally {
+                                key.fill(0)
+                            }
+                        }
+                        password = ""
+                    },
+                    enabled = password.isNotBlank()
+                ) {
+                    Text(stringResource(R.string.wallet_biometric_disable))
+                }
+            },
+            dismissButton = {
+                TextButton({ showDisableBiometric = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
         )
     }
     if (showReset) {
@@ -1917,39 +1980,6 @@ private tailrec fun Context.findActivity(): Activity? = when (this) {
     is Activity -> this
     is android.content.ContextWrapper -> baseContext.findActivity()
     else -> null
-}
-
-private tailrec fun Context.findFragmentActivity(): FragmentActivity? = when (this) {
-    is FragmentActivity -> this
-    is android.content.ContextWrapper -> baseContext.findFragmentActivity()
-    else -> null
-}
-
-private fun promptBiometric(
-    activity: FragmentActivity,
-    cipher: Cipher,
-    title: String,
-    negativeButtonText: String = activity.getString(R.string.cancel),
-    confirmationRequired: Boolean = true,
-    onAuthenticationError: (Int) -> Unit = {},
-    onSuccess: (Cipher) -> Unit
-) {
-    val prompt = BiometricPrompt(activity, ContextCompat.getMainExecutor(activity), object : BiometricPrompt.AuthenticationCallback() {
-        override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
-            onAuthenticationError(errorCode)
-        }
-
-        override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
-            result.cryptoObject?.cipher?.let(onSuccess)
-        }
-    })
-    val info = BiometricPrompt.PromptInfo.Builder()
-        .setTitle(title)
-        .setAllowedAuthenticators(androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG)
-        .setNegativeButtonText(negativeButtonText)
-        .setConfirmationRequired(confirmationRequired)
-        .build()
-    prompt.authenticate(info, BiometricPrompt.CryptoObject(cipher))
 }
 
 private fun copyText(context: Context, value: String, message: String) {

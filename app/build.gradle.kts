@@ -150,6 +150,8 @@ dependencies {
     implementation(libs.coil.network.okhttp)
     implementation(libs.androidx.security.crypto)
     implementation(libs.trustwallet.core)
+    implementation(libs.trustwallet.web3.provider)
+    implementation(libs.androidx.webkit)
     implementation(libs.zxing.core)
     implementation(project(":lib"))
     implementation(project(":third_party:lightweightlibrary"))

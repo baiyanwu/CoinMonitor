@@ -27,8 +27,13 @@ import io.baiyanwu.coinmonitor.data.repository.DefaultOverlayRepository
 import io.baiyanwu.coinmonitor.data.repository.DefaultWalletPortfolioRepository
 import io.baiyanwu.coinmonitor.data.repository.DefaultWalletPortfolioCacheRepository
 import io.baiyanwu.coinmonitor.data.repository.DefaultWalletNetworkSettingsRepository
+import io.baiyanwu.coinmonitor.data.repository.DefaultWalletCustomTokenRepository
 import io.baiyanwu.coinmonitor.data.repository.DefaultWalletVaultRepository
 import io.baiyanwu.coinmonitor.data.repository.DefaultSelfCustodyWalletRepository
+import io.baiyanwu.coinmonitor.data.repository.DappBrowserRepository
+import io.baiyanwu.coinmonitor.data.repository.DappDiscoveryRepository
+import io.baiyanwu.coinmonitor.data.repository.DappSigningRepository
+import io.baiyanwu.coinmonitor.data.repository.DappWalletControlRepository
 import io.baiyanwu.coinmonitor.data.repository.DefaultWalletWatchPreferencesRepository
 import io.baiyanwu.coinmonitor.data.repository.DefaultWatchlistRepository
 import io.baiyanwu.coinmonitor.data.repository.InMemoryQuoteRepository
@@ -80,7 +85,8 @@ class AppContainer(context: Context) {
         ),
         CoinMonitorDatabase.MIGRATION_8_9,
         CoinMonitorDatabase.MIGRATION_9_10,
-        CoinMonitorDatabase.MIGRATION_10_11
+        CoinMonitorDatabase.MIGRATION_10_11,
+        CoinMonitorDatabase.MIGRATION_11_12
     ).build()
 
     val networkLogRepository: NetworkLogRepository = DefaultNetworkLogRepository()
@@ -154,6 +160,7 @@ class AppContainer(context: Context) {
         )
     )
     val walletVaultRepository = DefaultWalletVaultRepository(appContext)
+    val walletCustomTokenRepository = DefaultWalletCustomTokenRepository(appContext)
     val walletNetworkSettingsRepository = DefaultWalletNetworkSettingsRepository(
         context = appContext,
         httpClient = networkFactory.okHttpClient
@@ -161,8 +168,22 @@ class AppContainer(context: Context) {
     val selfCustodyWalletRepository = DefaultSelfCustodyWalletRepository(
         context = appContext,
         networkSettings = walletNetworkSettingsRepository,
+        customTokens = walletCustomTokenRepository,
         okxCredentials = okxWalletCredentialsRepository,
         httpClient = networkFactory.okHttpClient
+    )
+    val dappBrowserRepository = DappBrowserRepository(
+        networkSettings = walletNetworkSettingsRepository,
+        httpClient = networkFactory.okHttpClient
+    )
+    val dappDiscoveryRepository = DappDiscoveryRepository(
+        context = appContext,
+        historyDao = database.dappSearchHistoryDao()
+    )
+    val dappSigningRepository = DappSigningRepository()
+    val dappWalletControlRepository = DappWalletControlRepository(
+        networkSettings = walletNetworkSettingsRepository,
+        customTokens = walletCustomTokenRepository
     )
     val walletSessionLockObserver = WalletSessionLockObserver(walletVaultRepository).also {
         ProcessLifecycleOwner.get().lifecycle.addObserver(it)

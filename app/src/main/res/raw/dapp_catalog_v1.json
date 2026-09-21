@@ -1,0 +1,109 @@
+{
+  "version": 1,
+  "dapps": [
+    {
+      "id": "uniswap",
+      "name": "Uniswap",
+      "url": "https://app.uniswap.org/",
+      "domain": "app.uniswap.org",
+      "descriptionZh": "多链去中心化代币兑换与流动性协议",
+      "descriptionEn": "Multichain decentralized token swaps and liquidity",
+      "category": "SWAP",
+      "chainIds": [1, 56, 8453, 42161, 10, 137],
+      "iconLabel": "U",
+      "iconColor": "#FF007A",
+      "sortOrder": 10
+    },
+    {
+      "id": "pancakeswap",
+      "name": "PancakeSwap",
+      "url": "https://pancakeswap.finance/swap",
+      "domain": "pancakeswap.finance",
+      "descriptionZh": "以 BNB Chain 为主的多链去中心化交易所",
+      "descriptionEn": "Multichain decentralized exchange led by BNB Chain",
+      "category": "SWAP",
+      "chainIds": [56, 1, 8453, 42161],
+      "iconLabel": "P",
+      "iconColor": "#1FC7D4",
+      "sortOrder": 20
+    },
+    {
+      "id": "oneinch",
+      "name": "1inch",
+      "url": "https://1inch.com/swap",
+      "domain": "1inch.com",
+      "descriptionZh": "聚合多个流动性来源的去中心化兑换工具",
+      "descriptionEn": "DEX aggregator routing across liquidity sources",
+      "category": "SWAP",
+      "chainIds": [1, 56, 8453, 42161, 10, 137],
+      "iconLabel": "1",
+      "iconColor": "#1B314F",
+      "sortOrder": 30
+    },
+    {
+      "id": "aave",
+      "name": "Aave",
+      "url": "https://app.aave.com/",
+      "domain": "app.aave.com",
+      "descriptionZh": "支持存入、借出和管理链上资产的借贷协议",
+      "descriptionEn": "Decentralized lending and borrowing protocol",
+      "category": "LENDING",
+      "chainIds": [1, 8453, 42161, 10, 137],
+      "iconLabel": "A",
+      "iconColor": "#7B61FF",
+      "sortOrder": 40
+    },
+    {
+      "id": "venus",
+      "name": "Venus",
+      "url": "https://venus.io/",
+      "domain": "venus.io",
+      "descriptionZh": "面向 BNB Chain 等网络的去中心化借贷市场",
+      "descriptionEn": "Decentralized lending markets including BNB Chain",
+      "category": "LENDING",
+      "chainIds": [56, 1, 42161],
+      "iconLabel": "V",
+      "iconColor": "#F3BA2F",
+      "sortOrder": 50
+    },
+    {
+      "id": "across",
+      "name": "Across",
+      "url": "https://across.to/",
+      "domain": "across.to",
+      "descriptionZh": "在多个 EVM 网络之间跨链转移和兑换资产",
+      "descriptionEn": "Bridge and swap assets across EVM networks",
+      "category": "BRIDGE",
+      "chainIds": [1, 10, 42161, 8453, 137],
+      "iconLabel": "A",
+      "iconColor": "#168C7B",
+      "sortOrder": 60
+    },
+    {
+      "id": "opensea",
+      "name": "OpenSea",
+      "url": "https://opensea.io/",
+      "domain": "opensea.io",
+      "descriptionZh": "浏览、收藏和交易多链 NFT 与数字藏品",
+      "descriptionEn": "Explore, collect, and trade multichain NFTs",
+      "category": "NFT",
+      "chainIds": [1, 137, 42161, 8453],
+      "iconLabel": "O",
+      "iconColor": "#2081E2",
+      "sortOrder": 70
+    },
+    {
+      "id": "defillama",
+      "name": "DeFiLlama",
+      "url": "https://defillama.com/",
+      "domain": "defillama.com",
+      "descriptionZh": "查看 DeFi 协议、链和市场数据",
+      "descriptionEn": "Explore DeFi protocols, chains, and market data",
+      "category": "DATA",
+      "chainIds": [],
+      "iconLabel": "D",
+      "iconColor": "#2172E5",
+      "sortOrder": 80
+    }
+  ]
+}

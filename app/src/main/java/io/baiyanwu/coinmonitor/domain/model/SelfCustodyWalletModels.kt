@@ -185,7 +185,17 @@ data class SelfCustodyAsset(
     val logoUrl: String?,
     val verified: Boolean,
     val isNative: Boolean,
-    val transferable: Boolean = true
+    val transferable: Boolean = true,
+    val userAdded: Boolean = false
+)
+
+@Serializable
+data class WalletCustomToken(
+    val walletId: String,
+    val networkId: String,
+    val contractAddress: String,
+    val symbol: String,
+    val decimals: Int
 )
 
 enum class WalletActivityDirection { INCOMING, OUTGOING, SELF, UNKNOWN }

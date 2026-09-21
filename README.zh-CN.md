@@ -37,6 +37,7 @@
 - 单个资产进入独立详情页，提供收款、转账以及打开 Uniswap / OKX Bridge 的外部网页入口；OKX 资产与 Alchemy 活动均先显示按钱包隔离的本地快照再后台刷新，网页不获得本机私钥或签名能力
 - 首次默认启用 Ethereum、BNB Chain、Robinhood Chain 和 Solana；目录中的其他 EVM 网络或用户自行验证的标准 EVM RPC 可继续启用，不需要改变钱包模型
 - 原 OKX 观察地址从钱包页右上角菜单进入；它与自托管资产查询共用本机加密的 OKX 凭证，但地址、筛选、模型和缓存仍保持隔离
+- 底部“浏览”页改为本地 DApp 发现页，提供搜索历史、分类筛选和内置常用目录；选择 DApp 或输入 HTTPS 地址后进入独立的浏览器 Activity，WebView 不再嵌入 MainActivity。浏览器内任意 HTTPS 主页面都可通过 Trust Web3 Provider 发现 EIP-1193 / EIP-6963 钱包，并兼容只识别旧版 MetaMask Connector 的 DApp；手输网址会先显示第三方风险提示，连接按实际来源确认，交易、消息签名、添加网络和 Token 均继续走原生确认，并在启用生物识别时优先触发指纹
 
 ## 链上说明
 
@@ -86,7 +87,7 @@ cd CoinMonitor
 
 - 本项目仅用于技术交流与个人学习，不构成任何投资建议
 - `Binance`、`OKX` 等名称和接口归各自平台所有
-- 钱包支持签名并广播直接转账，并提供 Uniswap 与 OKX Bridge 外部网页快捷入口；App 本身不执行 Swap、订单、跨链桥、质押或外部网页签名，资产价格仅为估算值
+- 钱包支持签名并广播 App 内直接转账；可信 DApp 也可以在独立浏览器中请求交易或消息签名，但每次敏感操作都必须经过 App 原生确认。资产价格仅为估算值
 
 ## License
 

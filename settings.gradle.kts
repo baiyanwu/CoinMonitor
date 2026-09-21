@@ -18,6 +18,11 @@ dependencyResolutionManagement {
         google()
         mavenCentral()
         maven {
+            name = "JitPack"
+            url = uri("https://jitpack.io")
+            content { includeGroup("com.github.trustwallet") }
+        }
+        maven {
             name = "TrustWalletGitHubPackages"
             url = uri("https://maven.pkg.github.com/trustwallet/wallet-core")
             credentials {

@@ -6,6 +6,7 @@ import io.baiyanwu.coinmonitor.domain.model.WalletNetworkConfiguration
 import io.baiyanwu.coinmonitor.domain.model.WalletPortfolio
 import io.baiyanwu.coinmonitor.domain.model.WalletPrivateKeyType
 import io.baiyanwu.coinmonitor.domain.model.WalletProfile
+import io.baiyanwu.coinmonitor.domain.model.WalletCustomToken
 import java.math.BigDecimal
 import kotlinx.coroutines.flow.Flow
 
@@ -58,6 +59,13 @@ interface WalletNetworkSettingsRepository {
         rpcUrl: String
     ): WalletNetwork
     suspend fun removeCustomEvmNetwork(networkId: String)
+}
+
+interface WalletCustomTokenRepository {
+    fun get(walletId: String): List<WalletCustomToken>
+    suspend fun add(token: WalletCustomToken)
+    suspend fun remove(walletId: String, networkId: String, contractAddress: String)
+    suspend fun clear(walletIds: Collection<String>)
 }
 
 interface SelfCustodyWalletRepository {

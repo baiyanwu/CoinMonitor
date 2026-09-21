@@ -7,8 +7,8 @@
 - 助记词钱包使用一组 12 词 BIP39 助记词，派生首个 EVM 地址和首个 Solana 地址。
 - 原始私钥导入按密钥体系选择 `EVM` 或 `Solana`。EVM 私钥派生出的同一地址适用于全部已启用 EVM 网络；Solana 私钥只用于 Solana，不把 ETH、BNB Chain、Base 等 EVM 网络拆成重复钱包。
 - 支持多钱包创建、助记词/原始私钥导入、唯一命名、切换、备份、删除、收款与转账。
-- 支持 EVM 原生币与 ERC20、SOL 与 SPL Token。资产详情提供 Uniswap“兑换”和 OKX Bridge“跨链桥”的外部网页入口，但 App 不注入钱包、不执行合约调用，也不提供 WalletConnect/Web3 Provider；第一版仍不包含内置 Swap、内置跨链、授权管理、NFT、硬件钱包、多账户索引或手动 Token。
-- Trust Wallet Core 只负责密钥、地址与签名。OKX Onchain API 负责发现资产、聚合余额、价格、Token 元数据和风险标记；Alchemy 或用户配置的 RPC 负责交易前链上余额校验、手续费、广播和状态查询。
+- 支持 EVM 原生币与 ERC20、SOL 与 SPL Token。资产详情仍可通过系统浏览器打开 Uniswap“兑换”和 OKX Bridge“跨链桥”；底部“浏览”页提供本地 DApp 目录，选择条目或确认手输 HTTPS 地址后，在独立 Activity 的受限 WebView 中注入 EIP-1193 Provider。浏览器开放连接钱包、账户/Chain ID、网络切换、只读 RPC、标准 EVM 交易、`personal_sign`、原始 `eth_sign`、EIP-712 V3/V4，以及经原生确认的网络和 ERC20 Token 添加请求。
+- Trust Wallet Core 负责密钥、地址、App 内转账及 DApp 交易/消息的本地签名；Trust Web3 Provider 只负责浏览页的 JavaScript Provider 协议层，不接触助记词或私钥。OKX Onchain API 负责发现资产、聚合余额、价格、Token 元数据和风险标记；Alchemy 或用户配置的 RPC 负责交易前链上余额校验、手续费、广播和状态查询。
 
 ## 网络模式
 
@@ -46,9 +46,21 @@ OKX 失败时应用保留最后一次资产缓存，不会改用另一套聚合�
 
 ## 资产详情与活动
 
-点击资产行先进入对应资产详情，不再直接进入转账表单。详情页展示当前网络、余额、估值以及“收款 / 转账 / 兑换 / 跨链桥”四个入口：收款和转账使用 App 内现有流程；兑换仅对 Uniswap 已支持的 EVM 网络开放，并通过系统浏览器打开 `app.uniswap.org`；跨链桥通过系统浏览器打开 OKX Bridge。网页不会获得本机助记词、私钥或签名能力，返回 App 后仍需按钱包锁定策略重新验证。
+点击资产行先进入对应资产详情，不再直接进入转账表单。详情页展示当前网络、余额、估值以及“收款 / 转账 / 兑换 / 跨链桥”四个入口：收款和转账使用 App 内现有流程；兑换仅对 Uniswap 已支持的 EVM 网络开放，并通过系统浏览器打开 `app.uniswap.org`；跨链桥通过系统浏览器打开 OKX Bridge。这两个系统浏览器快捷入口不会获得本机助记词、私钥或签名能力；只有底部“浏览”页启动的独立 DApp 浏览器才提供受原生确认保护的 Web3 Provider。
 
 详情页交易历史与钱包“活动”页使用同一份 Alchemy + 本地交易数据，不额外混入 OKX 历史接口。EVM 按合约地址、Solana 按 Mint、原生币按网络和 Symbol 精确过滤，不用 Symbol 猜测同名 Token。活动列表与资产列表复用紧凑字号；资产/活动分页复用首页 ViewPager 样式，各自保留滚动位置。
+
+## DApp 浏览器
+
+底部“浏览”页是 Compose DApp 发现页，不再直接承载 WebView。发现页从随 APK 打包的版本化 JSON 读取常用 DApp，支持本地搜索、分类筛选和 Room 搜索历史；选择条目或输入 HTTPS 地址后启动独立 `DappBrowserActivity`。该 Activity 单独持有 `DappWebView`、地址栏、网页历史、链选择和 Provider 确认，不与 MainActivity 的 NavHost 或底部导航共享 WebView 生命周期。
+
+内置目录只负责推荐、分类、图标和默认打开地址，不参与钱包权限判定。浏览器内任意 HTTPS 主页面都能发现 Provider；EIP-6963 始终以 CoinMonitor 身份公布，钱包选择器图标从 Android 应用图标实时生成，并调用 Trust Provider 自带的 `setOverwriteMetamask(true)` 兼容只识别旧版 MetaMask Connector 的 DApp，但不注入 `window.metamask` 或伪造 MetaMask 专属 API。用户手动输入网址时先显示第三方网站风险提示，网页请求账户时再按实际 origin 展示连接确认。原生桥拒绝 iframe 与非 HTTPS 来源，Provider 响应也绑定发起请求的 origin，页面跳转后不会把旧请求结果投递给新站点。不使用 `addJavascriptInterface`，禁止 HTTP 导航、混合内容、文件访问与内容 URI 访问，也不会绕过 TLS 错误。只读 RPC 通过现有 `custom RPC > Alchemy RPC` 路由和统一 `OkHttpClient` 转发，并使用显式方法白名单。
+
+Uniswap 等 DApp 发出的 `eth_sendTransaction` 会进入原生确认流程：校验请求地址和当前 Chain ID，通过 RPC 获取 nonce、估算 Gas、读取费用与原生币余额，展示目标合约、发送金额和最大网络费，再用已启用的强生物识别或钱包密码重新验证；确认后由 Wallet Core 对 Legacy 或 EIP-1559（无 access list）交易签名，经当前 RPC 广播，并把交易哈希返回网页。
+
+链下签名走完全独立的路径：`personal_sign` 只接受有效 UTF-8，原始 `eth_sign` 明确显示不可读数据高风险提示；EIP-712 V3/V4 从 Provider 的 `raw` JSON 重新解析并校验活动地址、当前 Chain ID、`primaryType` 和 `verifyingContract`，不信任网页提供的预计算哈希。三类签名都展示独立原生确认页，通过已启用的强生物识别或钱包密码重新验证，由 Wallet Core 执行并只返回 65 字节签名，绝不调用广播 RPC。Permit2 属于这条 EIP-712 路径。
+
+`wallet_addEthereumChain` 只接受无凭证的 HTTPS RPC，经原生确认后必须实际请求并核对节点 Chain ID，验证成功才保存、启用并切换网络。`wallet_watchAsset` 当前接受 ERC20/BEP20 请求，经确认后按钱包和网络持久化；钱包刷新时会通过当前 RPC 读取该合约余额，即使余额为零也保留用户添加的 Token。EIP-712 V1、带 access list 的交易及非白名单 RPC 仍返回 Provider 错误。
 
 ## 本机安全
 
@@ -57,7 +69,7 @@ OKX 失败时应用保留最后一次资产缓存，不会改用另一套聚合�
 - 加密后的钱包载荷放在 `EncryptedSharedPreferences`，其主密钥由 Android Keystore 管理；安全存储不可用时拒绝创建钱包，不降级到明文。
 - 生物识别只包装密码派生密钥，Keystore key 要求每次使用强生物识别授权，并在生物特征变更后失效。
 - 助记词/私钥展示页启用 `FLAG_SECURE`，不提供默认复制按钮；签名结束后尽可能清零内存中的私钥字节。
-- App 离开前台立即锁定；前台连续五分钟无用户交互也锁定。锁定会清除解密后的钱包载荷和密钥，但保留当前导航位置以及公开的资产/活动快照；重新验证后恢复原资产详情页，内存快照缺失时先从本地缓存恢复。
+- App 在前台期间不会因页面切换或闲置自动锁定；只有连续进入后台满 30 分钟，或用户主动点击“立即锁定”时才锁定。进入浏览器或钱包功能时若保险库已经锁定，会先要求指纹或密码解锁。锁定会清除解密后的钱包载荷和密钥，但保留当前导航位置以及公开的资产/活动快照；重新验证后恢复原资产详情页，内存快照缺失时先从本地缓存恢复。
 - 钱包、网络凭证、生物识别包装数据和钱包缓存全部排除 Android 云备份与设备迁移。
 - 忘记钱包密码只能重置钱包保险库。重置不触及 OKX 观察地址、行情设置或其他 App 数据。
 

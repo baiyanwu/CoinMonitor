@@ -37,6 +37,7 @@
 - Open a dedicated asset detail page for receive, send, and external Uniswap / OKX Bridge shortcuts; wallet-scoped OKX asset and Alchemy activity snapshots render before background refresh, and external pages never receive local keys or signing access
 - Enable Ethereum, BNB Chain, Robinhood Chain, and Solana by default; additional catalog EVM networks or a user-verified custom EVM RPC can be enabled without changing the wallet model
 - Open the existing OKX-powered read-only watch-address workspace from the wallet menu; it shares encrypted OKX credentials with self-custody asset queries while keeping addresses, filters, models, and caches isolated
+- Use the bottom `Browser` tab as a local DApp discovery page with search history, category filters, and a bundled curated catalog. Selecting a DApp or entering an HTTPS URL opens a standalone browser Activity, so MainActivity no longer owns a WebView. Any HTTPS main page opened inside this browser can discover the Trust Web3 Provider EIP-1193 / EIP-6963 bridge, including DApps that only recognize the legacy MetaMask connector; manually entered sites show a third-party risk warning, while connection, transaction, message-signing, network-addition, and token-addition requests remain behind origin-aware native approval, preferring biometrics when enabled
 
 ## On-chain Notes
 
@@ -86,7 +87,7 @@ cd CoinMonitor
 
 - This project is for technical exploration and personal learning only and does not constitute investment advice.
 - `Binance`, `OKX`, and other platform names or APIs belong to their respective owners.
-- The wallet can sign and broadcast direct transfers and provides external shortcuts to Uniswap and OKX Bridge. The app itself does not execute swaps, orders, bridges, staking, or external-page signatures; prices are estimates and crypto assets are highly volatile.
+- The wallet can sign and broadcast direct in-app transfers. Trusted DApps may also request transactions or message signatures in the standalone browser, but every sensitive operation requires native app approval. Prices are estimates and crypto assets are highly volatile.
 
 ## License
 
