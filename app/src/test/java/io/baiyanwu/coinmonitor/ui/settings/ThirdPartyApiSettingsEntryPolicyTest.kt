@@ -53,8 +53,12 @@ class ThirdPartyApiSettingsEntryPolicyTest {
         val aiLabel = Regex("""\bAI\b""", RegexOption.IGNORE_CASE)
         assertFalse(aiLabel.containsMatchIn(chineseSubtitle))
         assertFalse(aiLabel.containsMatchIn(englishSubtitle))
-        assertTrue(chineseSubtitle.contains("免费链上行情"))
-        assertTrue(englishSubtitle.contains("Free on-chain market data"))
+        assertTrue(chineseSubtitle.contains("链上行情来源"))
+        assertTrue(chineseSubtitle.contains("钱包网络"))
+        assertTrue(chineseSubtitle.contains("API 凭证"))
+        assertTrue(englishSubtitle.contains("on-chain providers"))
+        assertTrue(englishSubtitle.contains("wallet networks"))
+        assertTrue(englishSubtitle.contains("API credentials"))
     }
 
     @Test

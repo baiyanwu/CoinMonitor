@@ -1,6 +1,6 @@
 # Changelog
 
-## 未发布
+## v1.0.13 (2026-09-28)
 
 - 底部导航新增“浏览”一级 DApp 发现页：常用目录随 APK 以版本化 JSON 打包，支持分类、本地搜索和 Room 搜索历史。点击目录条目或输入 HTTPS 地址后启动独立 `DappBrowserActivity`；MainActivity 不再创建、挂载或持有 WebView。独立 Activity 提供地址编辑、网页历史和 EVM 链切换，并通过 Trust Web3 Provider 4.9.4 为浏览器内任意 HTTPS 主页面注入 EIP-1193 / EIP-6963；EIP-6963 保持 CoinMonitor 身份，钱包选择器图标直接取自 Android 应用图标，同时通过 Provider 自带的 `setOverwriteMetamask(true)` 兼容只识别旧版 MetaMask Connector 的 DApp，不伪造 MetaMask 专属 API。手输网址先显示第三方风险提示，目录不再兼作 Provider 域名白名单。连接、标准 EVM 交易、`personal_sign`、原始 `eth_sign`、EIP-712 V3/V4（含 Permit2）、添加网络及 ERC20/BEP20 仍按实际 origin 走分层原生确认，旧页面的异步响应不会投递给跳转后的新 origin。交易与消息签名在启用强生物识别后优先自动触发一次指纹，失败或用户选择密码后才展示密码框；删除钱包、重置保险库、显示/备份密钥和停用生物识别仍强制密码确认。
 - 底部“钱包”升级为本地自托管热钱包：以 Trust Wallet Core 4.8.3 生成/导入密钥、派生 EVM 与 Solana 地址并签名交易；首次默认启用 Ethereum、BNB Chain、Robinhood Chain 与 Solana，Base、Arbitrum、Optimism、Polygon 等目录网络可继续启用，并可通过验证 Chain ID 的自定义 RPC 扩展标准 EVM 网络。
@@ -18,6 +18,7 @@
 - OKX 后台报价增加免费月额度保护：按 31 天窗口为轮询预留 80,000 次调用预算，单批最低约 34 秒、双批最低约 67 秒，并随 OKX 批次数自动延长周期，为搜索、手动刷新和其他用户操作保留额度。
 - 网络日志区分 HTTP 请求、响应、失败和 WSS 事件，分别统计请求数与失败数；URL、Header 和响应预览会脱敏 API Key、签名、Passphrase、鉴权信息与 Cookie，响应正文只在非 2xx 或 JSON 明确包含错误时保留受限预览。
 - Room 升级到 v11，为链上观察项持久化实际 Provider，历史数据默认归为 DexScreener；CI 增加 GitHub Packages 只读权限与 Wallet Core 凭证注入，并同步排除钱包保险库、网络凭证、生物识别包装数据和钱包缓存的云备份与设备迁移。
+- 修复 DApp 浏览器顶部返回、前进、刷新和关闭按钮在深色模式下未正确跟随主题色的问题。
 
 ## v1.0.12 (2026-09-10)
 

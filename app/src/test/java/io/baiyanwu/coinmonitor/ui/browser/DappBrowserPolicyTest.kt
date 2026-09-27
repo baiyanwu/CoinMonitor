@@ -54,6 +54,18 @@ class DappBrowserPolicyTest {
     }
 
     @Test
+    fun `browser toolbar buttons inherit a theme aware content color`() {
+        val route = readSource("app/src/main/java/io/baiyanwu/coinmonitor/ui/browser/DappBrowserRoute.kt")
+
+        // IconButton 的图标颜色来自 LocalContentColor，只有 Surface 会提供主题色，
+        // 否则会回落成 Color.Black，导致日夜间模式下返回/刷新/关闭等按钮不随主题变化。
+        val chromeSurface = route.indexOf("Surface(")
+        val toolbar = route.indexOf("BrowserToolbar(")
+        assertTrue(chromeSurface in 0 until toolbar)
+        assertTrue(route.contains("contentColor = MaterialTheme.colorScheme.onBackground"))
+    }
+
+    @Test
     fun `browser routes approved transactions and message signatures through separate executors`() {
         val source = readSource("app/src/main/java/io/baiyanwu/coinmonitor/ui/browser/DappBrowserViewModel.kt")
         val repository = readSource("app/src/main/java/io/baiyanwu/coinmonitor/data/repository/DappBrowserRepository.kt")
