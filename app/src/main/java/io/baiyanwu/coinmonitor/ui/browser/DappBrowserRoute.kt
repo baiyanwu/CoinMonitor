@@ -30,6 +30,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -97,59 +98,66 @@ fun DappBrowserRoute(
             .statusBarsPadding()
             .padding(top = 4.dp)
     ) {
-        Column(
+        // 顶部工具栏必须由 Surface 提供主题色 contentColor：IconButton 默认继承 LocalContentColor，
+        // 而它在没有 Surface 的层级里会回落成 Color.Black，导致日夜间模式下图标颜色不随主题变化。
+        Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .zIndex(1f)
-                .background(MaterialTheme.colorScheme.background)
+                .zIndex(1f),
+            color = MaterialTheme.colorScheme.background,
+            contentColor = MaterialTheme.colorScheme.onBackground
         ) {
-            BrowserToolbar(
-                address = address,
-                selectedNetwork = state.selectedNetwork,
-                networks = state.networks.enabledNetworks.filter(WalletNetwork::isEvm),
-                canGoForward = webView?.canGoForward() == true,
-                onAddressChange = { address = it },
-                onNavigate = { value ->
-                    DappAddressParser.normalizeUserWebAddress(value)?.let { normalized ->
-                        pendingThirdPartyAddress = normalized
-                        true
-                    } ?: false
-                },
-                onSelectNetwork = viewModel::selectNetwork,
-                onBack = {
-                    val browser = webView
-                    if (browser?.canGoBack() == true) browser.goBack() else onExit()
-                },
-                onForward = { webView?.goForward() },
-                onReload = { webView?.reload() },
-                onClose = onExit
-            )
-            if (progress < 100) {
-                if (progress <= 0) {
-                    LinearProgressIndicator(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(2.dp)
-                    )
-                } else {
-                    LinearProgressIndicator(
-                        progress = { progress / 100f },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(2.dp)
-                    )
+            Column(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                BrowserToolbar(
+                    address = address,
+                    selectedNetwork = state.selectedNetwork,
+                    networks = state.networks.enabledNetworks.filter(WalletNetwork::isEvm),
+                    canGoForward = webView?.canGoForward() == true,
+                    onAddressChange = { address = it },
+                    onNavigate = { value ->
+                        DappAddressParser.normalizeUserWebAddress(value)?.let { normalized ->
+                            pendingThirdPartyAddress = normalized
+                            true
+                        } ?: false
+                    },
+                    onSelectNetwork = viewModel::selectNetwork,
+                    onBack = {
+                        val browser = webView
+                        if (browser?.canGoBack() == true) browser.goBack() else onExit()
+                    },
+                    onForward = { webView?.goForward() },
+                    onReload = { webView?.reload() },
+                    onClose = onExit
+                )
+                if (progress < 100) {
+                    if (progress <= 0) {
+                        LinearProgressIndicator(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(2.dp)
+                        )
+                    } else {
+                        LinearProgressIndicator(
+                            progress = { progress / 100f },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(2.dp)
+                        )
+                    }
                 }
+                Text(
+                    text = if (providerAvailable) {
+                        stringResource(R.string.browser_connection_preview)
+                    } else {
+                        stringResource(R.string.browser_provider_unavailable)
+                    },
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                )
             }
-            Text(
-                text = if (providerAvailable) {
-                    stringResource(R.string.browser_connection_preview)
-                } else {
-                    stringResource(R.string.browser_provider_unavailable)
-                },
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-            )
         }
         Box(
             Modifier
