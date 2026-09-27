@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
+import androidx.compose.material.icons.rounded.ContentPasteSearch
 import androidx.compose.material.icons.rounded.Reorder
 import androidx.compose.material3.Button
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -57,6 +58,7 @@ fun OverlaySettingsRoute(
     overlayPermissionGranted: Boolean,
     notificationPermissionGranted: Boolean,
     onBack: () -> Unit,
+    onNavigateClipboardSettings: () -> Unit,
     onNavigateOverlayItems: () -> Unit,
     onRequestOverlayPermission: () -> Unit,
     onRequestNotificationPermission: () -> Unit,
@@ -74,6 +76,7 @@ fun OverlaySettingsRoute(
         overlayPermissionGranted = overlayPermissionGranted,
         notificationPermissionGranted = notificationPermissionGranted,
         onBack = onBack,
+        onNavigateClipboardSettings = onNavigateClipboardSettings,
         onNavigateOverlayItems = onNavigateOverlayItems,
         onRequestOverlayPermission = onRequestOverlayPermission,
         onRequestNotificationPermission = onRequestNotificationPermission,
@@ -122,6 +125,7 @@ private fun OverlaySettingsScreen(
     overlayPermissionGranted: Boolean,
     notificationPermissionGranted: Boolean,
     onBack: () -> Unit,
+    onNavigateClipboardSettings: () -> Unit,
     onNavigateOverlayItems: () -> Unit,
     onRequestOverlayPermission: () -> Unit,
     onRequestNotificationPermission: () -> Unit,
@@ -159,6 +163,10 @@ private fun OverlaySettingsScreen(
                 .padding(horizontal = 14.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            item {
+                ClipboardSettingsNavigationCard(onClick = onNavigateClipboardSettings)
+            }
+
             item {
                 OverlayItemsNavigationCard(onClick = onNavigateOverlayItems)
             }
@@ -241,7 +249,44 @@ private fun OverlaySettingsScreen(
 }
 
 @Composable
+private fun ClipboardSettingsNavigationCard(onClick: () -> Unit) {
+    OverlayNavigationCard(
+        icon = {
+            Icon(
+                imageVector = Icons.Rounded.ContentPasteSearch,
+                contentDescription = null,
+                tint = CoinMonitorThemeTokens.colors.accent
+            )
+        },
+        title = stringResource(R.string.clipboard_settings),
+        description = stringResource(R.string.clipboard_settings_description),
+        onClick = onClick
+    )
+}
+
+@Composable
 private fun OverlayItemsNavigationCard(onClick: () -> Unit) {
+    OverlayNavigationCard(
+        icon = {
+            Icon(
+                imageVector = Icons.Rounded.Reorder,
+                contentDescription = null,
+                tint = CoinMonitorThemeTokens.colors.accent
+            )
+        },
+        title = stringResource(R.string.overlay_items_settings_title),
+        description = stringResource(R.string.overlay_items_settings_description),
+        onClick = onClick
+    )
+}
+
+@Composable
+private fun OverlayNavigationCard(
+    icon: @Composable () -> Unit,
+    title: String,
+    description: String,
+    onClick: () -> Unit
+) {
     val colors = CoinMonitorThemeTokens.colors
     OverlaySettingsCard {
         Row(
@@ -252,22 +297,18 @@ private fun OverlayItemsNavigationCard(onClick: () -> Unit) {
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                imageVector = Icons.Rounded.Reorder,
-                contentDescription = null,
-                tint = colors.accent
-            )
+            icon()
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(
-                    text = stringResource(R.string.overlay_items_settings_title),
+                    text = title,
                     style = MaterialTheme.typography.titleMedium,
                     color = colors.primaryText
                 )
                 Text(
-                    text = stringResource(R.string.overlay_items_settings_description),
+                    text = description,
                     style = MaterialTheme.typography.bodySmall,
                     color = colors.secondaryText
                 )

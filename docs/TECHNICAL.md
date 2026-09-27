@@ -52,7 +52,7 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 - 页面顶部拆分为可点击、可左右滑动的“交易所 / 链上”两个模式；两个模式各自保存独立输入内容、加载状态和搜索结果
 - 左上角返回按钮只负责退出搜索页，输入框右侧“确认”只负责提交当前模式的搜索；键盘搜索动作与“确认”复用同一提交逻辑
 - 交易所模式并行搜索 `Binance Alpha / Binance Spot / Binance USDT-M Futures / OKX Spot / OKX USDT Swap`；等待五路来源全部结束后统一合并、排序并一次性展示结果。单个来源失败会短延迟重试一次，仍失败时保留其他来源结果并明确提示部分来源不可用；同一关键词重复提交不会重建整组请求
-- 链上模式通过 `DexScreener` 搜索代币，不再提供手动选链控件
+- 链上模式按用户在第三方 API 设置中保存的 `DexScreener / OKX DEX` 顺序搜索代币，不再提供手动选链控件
 - 链上搜索支持币名 / Symbol / 合约地址输入；合约地址会先识别为 `EVM` 或 `Solana` 地址，再从对应链族的返回结果中定位具体链
 - 链上结果按“`chainIndex + normalized token address`”做语义去重，同一条链上的同一代币不会因为存在多个池而重复展示
 - 链上结果主标题直接展示当前实际交易对，并同时展示链 Logo、DEX、美元流动性和合约地址缩写
@@ -63,7 +63,7 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 
 ### Settings
 
-- 设置页顶部新增“通用设置”分组，其中“显示链上市值”通过 Preferences DataStore 全局持久化；该状态由首页和前台悬浮服务共同观察，冷启动、Activity 重建与悬浮窗重建后保持一致，仅改变 `ONCHAIN_TOKEN` 的主数值展示
+- 设置首页依次提供“通用设置”“钱包设置”“悬浮窗设置”。“通用设置”收纳外观模式、语言、“显示链上市值”和网络日志；其中市值开关通过 Preferences DataStore 全局持久化，由首页和前台悬浮服务共同观察，冷启动、Activity 重建与悬浮窗重建后保持一致，仅改变 `ONCHAIN_TOKEN` 的主数值展示。“钱包设置”复用 Activity 级 `WalletViewModel` 与既有钱包功能页面；管理和安全直接进入，备份先在独立选择页切换目标钱包，再进入既有备份流程，钱包页右上角菜单仍直接作用于当前钱包
 - 设置页新增独立 `AboutActivity`，沿用统一 Compose Activity 宿主、主题、语言和详情页转场
 - “关于”页通过 `BuildConfig.VERSION_NAME / VERSION_CODE` 读取当前构建版本，版本信息不在字符串资源中重复维护
 - 页面集中展示项目用途、作者 `baiyanwu`、GitHub 源码仓库、Apache-2.0 许可、Issues 反馈入口及行情风险说明；外部链接统一交由系统 URI 处理器打开
@@ -79,7 +79,7 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 ### K-line
 
 - K 线页、图表、指标设置、搜索回填和 AI 聊天实现仍保留在工程中，但当前不再作为底部导航或首页卡片点击入口暴露
-- `NavHost` 中仍保留 `Destinations.KLINE` route，用于后续恢复入口时复用既有实现；底部导航按“首页 / 钱包 / 设置”展示三个一级页面
+- `NavHost` 中仍保留 `Destinations.KLINE` route，用于后续恢复入口时复用既有实现；底部导航按“首页 / 钱包 / 浏览 / 设置”展示四个一级页面
 - 图表内核当前基于仓库内 vendored 的 `TradingView Lightweight Charts Android wrapper` 源码模块
 - 第三方图表源码当前直接放在 `third_party/lightweightlibrary`，应用不再依赖外部 `aar`，方便直接调试 wrapper 和内嵌 JS core
 - K 线数据统一走 `MarketKlineRepository`，交易所继续使用 `Binance / Binance Alpha / OKX`，链上池使用 `GeckoTerminal`
@@ -108,7 +108,11 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 - “隐藏风险资产”默认开启；切换时同时更新风险资产可见性并重取对应 OKX 总值。“隐藏小于 1U”只影响当前列表显示，并将无价格或无法计算持仓价值的资产按小额资产处理。完整设计和接口契约见 [WALLET_WATCH.md](WALLET_WATCH.md)
 
 - 当前链上能力提供搜索、最新价格、24 小时涨跌、流动性、成交量与 K 线，不提供交易执行
-- 搜索与报价使用无需 API Key 的 `DexScreener`，K 线使用无需 API Key 的 `GeckoTerminal`
+- `OnchainProviderRouter` 是搜索、报价优先级、链身份适配和故障转移的唯一入口；它按用户保存的顺序生成已经绑定 Provider 的请求计划，默认仍为 `DexScreener -> OKX DEX`
+- 每个 `OnchainMarketProvider` 暴露自己的 `OnchainPollingStrategy`；调度器只执行 Router 生成的 Provider 批次，不在请求发出时重新选择来源。报价只把尚未返回的标的生成一次性备用批次，并通过标准链身份在 DexScreener chain id 与 OKX ChainIndex 之间转换，未知链无法安全映射时不会跨 Provider 请求
+- OKX 支持链从 `/api/v6/dex/market/supported/chain` 动态获取并缓存，不在客户端写死完整 Chain ID 列表；搜索使用 `/api/v6/dex/market/token/search`，持续报价使用 `/api/v6/dex/market/price-info`
+- 用户未配置 OKX 且可用 Provider 均无结果时，搜索页显示前往现有第三方 API 设置的提示；项目不打包开发者 API Key、Secret 或 Passphrase
+- K 线继续使用无需 API Key 的 `GeckoTerminal`；本次不为 OKX 回退标的提供 K 线
 - 链上搜索不再把本地注册表作为白名单：DexScreener 返回的非空 `chainId` 都会参与结果解析，且不再施加本地 80 条结果上限
 - 本地注册表继续为 17 条已知链提供精确 `chainIndex`、DexScreener 与 GeckoTerminal 网络映射；未知链直接持久化 DexScreener `chainId`，后续报价沿用该标识，K 线以同名 GeckoTerminal 网络作最佳努力请求
 - EVM 合约地址统一转为小写，Solana 与其他链地址保留原始大小写；未知网络会根据返回的代币地址形态区分 EVM 与其他链
@@ -153,7 +157,7 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 - 未锁定时，按下跑马灯会暂停动画，超过触摸阈值后只允许上下拖动，松手保存位置并继续滚动；锁定后窗口不可触摸但行情与动画继续运行
 - 通知栏支持临时隐藏 / 恢复显示，以及拖动开关
 - 只有在悬浮窗权限满足时，应用才会把悬浮窗正式标记为启用
-- 悬浮窗设置页顶部只保留“悬浮币对”入口；独立的 `OverlayItemsSettingsActivity` 和 `OverlayItemsSettingsViewModel` 承载选择、10 项上限与排序业务，避免外观设置页过长
+- 悬浮窗设置页顶部依次放置“剪贴板 CA 查询”和“悬浮币对”导航卡，两者共用图标、标题/小文案和右箭头结构；前者打开既有 `ClipboardSettingsActivity`，后者由独立的 `OverlayItemsSettingsActivity` 和 `OverlayItemsSettingsViewModel` 承载选择、10 项上限与排序业务，避免外观设置页过长
 - 悬浮币对页将已选币对和可添加币对分区：已选区显示全局序号、交易来源、市场类型、当前显示范围与专用拖动把手，可添加区继续按交易所/链上分组。拖动把手从按下起独占指针，拖动期间父级滚动停用；列表项使用稳定 ID 保存 Compose 节点身份，换位时同步更新相邻项坐标缓存，显示范围标记不改变行高，结束后一次性持久化
 - 悬浮币对页只观察一份 Room 关注列表快照，再按 `overlaySelected/overlayOrder` 原子拆分已选区和可添加区；非拖动状态直接渲染最新快照，本地副本仅在拖动期间存在，避免开关币对时上下分区不同步或晚一帧刷新
 - 悬浮窗顺序由 Room 中独立的可空 `overlayOrder` 决定，不再复用 `homePinned`、`homeOrder` 或 `homePinnedOrder`；首页排序只影响对应市场分页，悬浮排序可以跨市场调整且不回写首页字段
@@ -172,13 +176,38 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 - 当前底层默认实现中，`Binance Spot / Binance Alpha / Binance USDT-M Futures / OKX Spot / OKX USDT-M Futures` 优先走 `WSS`
 - 当前实时价格主链路已经改成 `WSS / REST -> InMemory QuoteRepository -> UI`，不再每次报价都直接写回 `watch_items`
 - `watch_items` 里的价格字段当前只承担启动恢复和低频快照持久化，默认在页面不再活跃时落一次，并在前台运行期间按低频兜底写回
-- 链上价格固定使用 `DexScreener REST`，按链分组且每批最多 30 个不同合约地址；默认“智能刷新”以 30 秒缓存窗口规划完整轮转，也可选择 `30 / 45 / 60 / 120 秒`固定轮转周期
-- 上述“每批 30 个”表示同一条链上的最多 30 个不同代币合并为一次 HTTP 请求，并非每个代币单独消耗一次请求；不同链分别形成批次，所有批次在完整周期内顺序分散，相邻请求至少间隔 1 秒
+- 链上价格先由 Router 按用户优先级和 Provider 能力绑定来源，再由各 Provider 的策略按链拆批：DexScreener 每批最多 30 个不同地址，OKX DEX 每批最多 100 个。新增 Provider 只需提供自己的批量上限、智能周期、最小请求间隔和退避策略
+- “智能刷新”由每个 Provider 独立计算周期；当批次数无法在默认周期和最小请求间隔内完成时，策略会自动拉长该 Provider 的轮转周期。固定模式同样不会突破 Provider 的安全下限
+- OKX `price-info` 单次最多查询 100 个代币，且属于 Premium API；免费订阅每月包含 100,000 次 Premium 调用。客户端以 31 天窗口给后台轮询分配 80,000 次预算，预留约 20% 给搜索、手动刷新和其他用户操作，因此 1 个 OKX 批次最低约 34 秒一轮，2 个批次最低约 67 秒一轮，并随批次数自动增长。额度依据见 [OKX Token Price Info](https://web3.okx.com/zh-hans/onchainos/dev-docs/market/market-token-price-info) 与 [OKX Market API Fee](https://web3.okx.com/fi/onchainos/dev-docs/market/market-api-fee)
 - 首页手动刷新复用同一条链上请求队列，30 秒内已成功刷新的批次不会重复发送；单批失败按 `5 / 10 / 20 / 30 秒`独立退避，其他批次继续轮转
 - DexScreener 客户端统一限制在每分钟最多 240 次请求，为公开接口限额保留余量；429 会优先遵守 `Retry-After`，否则执行带随机抖动的指数退避
 - 链上 K 线固定使用 `GeckoTerminal`，按已保存的池地址和目标代币方向查询，并在客户端限制为每分钟最多 8 次
 - 链上刷新设置页使用智能/固定分段按钮与固定周期选项，并展示当前请求批次数、批次间隔、轮转周期和失败重试批次数
-- HTTP / WSS 网络日志会脱敏 API Key、签名、Passphrase、鉴权头与 Cookie
+- HTTP / WSS 网络日志会脱敏 API Key、签名、Passphrase、鉴权头与 Cookie；钱包 Portfolio、逐链 RPC、活动、手续费、广播和状态查询复用同一带拦截器的 `OkHttpClient`
+
+## Self-custody Wallet
+
+- Wallet Core `4.8.3` 负责 BIP39、EVM/Solana 地址派生与交易签名；网络数据与广播不进入 Wallet Core。
+- `DefaultWalletVaultRepository` 管理加密的多钱包保险库；`DefaultWalletNetworkSettingsRepository` 独立管理 Alchemy Key、动态 EVM 目录、启用网络与逐链 RPC，二者都拒绝在 Android 安全存储不可用时降级。
+- `DefaultSelfCustodyWalletRepository` 执行 `custom RPC > Alchemy RPC` 的交易节点路由；OKX Onchain Balance/Token API 是资产、价格、元数据与风险标记索引层，Alchemy Transfers 只保留为活动历史索引。缓存按 wallet ID 隔离。
+- 钱包刷新按 EVM 地址与 Solana 地址分别查询当前启用网络，并与 OKX 实时支持链取交集。OKX 整体失败时保留最后缓存；部分地址体系或不支持网络只记录到对应资产失败集合。活动索引失败保持独立，不会把正常空资产误报为错误。
+- 自托管钱包首次默认启用 Ethereum、BNB Chain、Robinhood Chain 与 Solana；网络栏复用观察地址页的紧凑编辑样式。停用网络会从持久化的启用列表移除并停止后续拉取，恢复入口统一放在钱包网络设置中。
+- 自托管钱包复用观察地址的总资产卡、紧凑资产行与 `AssetAmountFormatter`。默认隐藏估值小于 1 美元和 OKX 标记的风险资产；缺少可靠 Token 精度的资产可展示但不可进入转账流程。
+- 默认 EVM 网络元数据来自应用内种子与 `docs/wallet-evm-networks.json` 远程目录，使用 CAIP-2 风格 `eip155:<chainId>` 作为稳定标识；用户也可添加经 `eth_chainId` 验证的任意标准 EVM RPC。资产覆盖由 OKX 实时支持链决定，Alchemy Portfolio 标记不再控制资产可见性。
+- 原 `WalletWatchRoute` 由独立 `WalletWatchActivity` 承载；观察地址与自托管钱包复用 OKX 客户端实现和同一套加密凭证，但各自持有客户端实例，并保持独立模型、筛选与缓存。
+- 详细规则、构建凭证和验证边界见 [SELF_CUSTODY_WALLET.md](SELF_CUSTODY_WALLET.md)。
+
+## DApp Browser
+
+- `MainShell` 的浏览 destination 只渲染 `DappDiscoveryRoute`，MainActivity 不创建或持有 WebView。发现页由 `DappDiscoveryRepository` 读取 `res/raw/dapp_catalog_v1.json`，搜索历史通过 Room `dapp_search_history` 保存；点击目录条目或输入 HTTPS 地址后启动独立 `DappBrowserActivity`。
+- `DappBrowserActivity` 独占一个 `DappWebView` 与 `AndroidView` host，并在 Activity 销毁时统一释放。`DappBrowserRoute` 负责可编辑 HTTPS 地址栏、历史导航、加载进度和链图标菜单；返回键优先回退网页历史，没有网页历史时结束 Activity。这样浏览器渲染 surface、Provider 弹窗和网页生命周期不会进入 MainActivity 的 NavHost。
+- `DappWebView` 由 Activity 提前创建后再交给 Compose `AndroidView` 承载，因此自身必须显式使用 `MATCH_PARENT × MATCH_PARENT` 的原生布局参数，避免 Chromium 的布局 viewport 高度为 0，进而把依赖 `vh/dvh/svh/lvh` 的 DApp 底部弹层压缩掉。Provider document-start 注入仍在首次导航前完成。
+- AndroidX WebKit 通过 document-start script 与 web message listener 注入 Trust Web3 Provider `4.9.4`，不使用 `addJavascriptInterface`。浏览器对任意页面注册 Provider，但 WebView 仅允许 HTTPS 导航，原生消息入口只接受 HTTPS 主 frame，并按发起 origin 投递异步响应。最小 bootstrap 初始化 Trust Core/Ethereum Provider、建立原生回调、暴露标准 `window.ethereum`、Trust 兼容命名空间并发布 EIP-6963 Provider；EIP-6963 身份保持 CoinMonitor，图标在运行时从 Android 应用图标生成 PNG Data URI，并通过 Trust Provider 自带的 `setOverwriteMetamask(true)` 兼容旧版 MetaMask Connector，不注入 `window.metamask`、MetaMask 专属 API、`window.web3` 或页面 DOM/CSS 修补。内置目录只负责发现页展示，手输网址在导航前显示第三方风险提示。
+- Provider 暴露 EIP-1193 `window.ethereum` 和 EIP-6963 发现入口。`DappProviderProtocol` 只解析并路由 Trust Provider callback；交易预检/广播、消息签名、钱包控制分别收口在 `DappBrowserRepository`、`DappSigningRepository`、`DappWalletControlRepository`，原生确认 UI 独立放在 `DappApprovalDialogs`，避免协议、密码学、RPC 和 Compose 状态混在一个类中。交易与消息签名确认同时支持钱包密码和已启用的强生物识别；`rememberWalletBiometricAuthorization` 对每个新请求自动触发一次指纹，取消、失败或凭证失效后展开密码输入，也允许用户主动点击“输入密码”切换。生物识别只解包 Android Keystore 保护的派生密钥，ViewModel 使用后立即清零，再沿原执行器取得私钥并完成签名。统一授权规则是密码与生物识别默认同级；删除单个钱包、重置保险库、显示/备份钱包密钥以及停用生物识别仍强制使用钱包密码。
+- RPC 复用 `DappBrowserRepository -> WalletRpcClient` 与钱包的 `custom RPC > Alchemy RPC` 路由，只开放显式只读方法白名单。`eth_sendTransaction` 会校验活动地址、Chain ID、交易类型和 calldata，由 RPC 补齐 nonce、估算 Gas、获取费用并检查原生币余额；用户在原生弹窗输入钱包密码后，由 Wallet Core 签名 Legacy 或无 access list 的 EIP-1559 交易，再通过当前 RPC 广播并向网页返回交易哈希。
+- `signPersonalMessage / signMessage / signTypedMessage` 分别映射 `personal_sign`、原始 `eth_sign`、EIP-712 V3/V4。Typed Data 重新解析 `raw` JSON 并校验地址、Chain ID、`primaryType` 与验证合约；确认后使用 Wallet Core `EthereumMessageSigner` 或 secp256k1 原始摘要签名，只返回标准 `0x` 65 字节签名，不触发网络广播。私钥字节在调用完成后清零。
+- `wallet_addEthereumChain` 仅接受 HTTPS RPC，确认后由 `WalletNetworkSettingsRepository` 实际校验 RPC Chain ID 再保存和切换；`wallet_watchAsset` 将 ERC20/BEP20 元数据按钱包持久化，资产刷新通过 RPC 读取余额并合并为 `userAdded` 资产。EIP-712 V1、access list 和非白名单 RPC 仍返回 `4200`；用户拒绝任一原生确认返回 `4001`。
+- WebView 允许 HTTPS 主 frame 在内置地址栏中导航，禁止 HTTP、mixed content、文件和 content URI 访问；非 Web scheme 交给系统处理，TLS 错误沿用 WebView 默认拒绝行为。用户从链图标菜单选择已启用 EVM 网络后，ViewModel 更新 RPC 路由并向网页发送 EIP-1193 `chainChanged`。
 
 ### Upstream Docs And Endpoints
 
@@ -235,7 +264,7 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 ## TODO
 
 - 增加”行情刷新方式”设置项，允许用户在 `智能 / 仅 WSS / 仅 API` 三种模式之间切换
-- `智能` 模式只为交易所行情选择 `WSS / API`；链上价格始终固定使用 DexScreener，不设置隐藏备用源
+- `智能` 模式只为交易所行情选择 `WSS / API`；链上调度使用 Provider 自己的 `OnchainPollingStrategy`。首选失败时 Router 为本轮未返回标的生成一次性备用批次，不修改观察项持久化来源
 - `仅 API` 模式继续复用现有轮询引擎和刷新间隔配置，作为弱网、代理环境和问题排查时的稳定兜底
 - 给 `REST` 快照刷新和 `WSS` 推送补统一时序保护，避免手动下拉刷新时旧快照短暂覆盖更晚到达的实时价格
 - 精简通知栏文案，去掉”每 3 秒刷新一次”这类频率提示，避免在 `WSS` 模式下继续显示过时的轮询描述
@@ -268,6 +297,7 @@ Release 自动流程：
 - 首页交易所和链上列表统一使用 Coil Compose 请求、解码并维护代币图标的内存与磁盘缓存；项目代码只提供代币图标、链图标和 Symbol 查询 URL 的回退顺序。非 Compose 原生悬浮窗继续使用 `CoinIconService` 位图缓存。
 - 首页实时价格读取下沉到单行价格子树；每个 item 只订阅自己的 quote flow，避免任意一个币价变化时唤醒整屏可见项。
 - 首页与两种悬浮窗的文本币价统一经过 `QuoteFormatter.formatPrice`；悬浮窗只在 `formatOverlayPrice` 外层补充合约标识，不另做数字格式化。小数部分连续前导 0 达到 3 个时使用 Unicode 下标计数压缩，例如 `0.0001234` 显示为 `0.0₃1234`。
+- 观察钱包与自托管钱包的法币、Token 数量、Token 价格和网络费统一通过 `AssetAmountFormatter` 的 `BigDecimal` 规则显示；行情 `QuoteFormatter` 保持独立，因为其输入精度和极小价格展示语义不同。
 - 首页列表项手势统一收口在自定义 `awaitEachGesture` 流程里：点击、拖动和长按菜单共用一套状态机，避免多套手势监听互相抢占。
 - 首页拖动入口为整卡长按，交互时序为 `350ms` 进入拖动、`900ms` 弹出快捷菜单。
 - 首页与搜索页共用 `MarketModeTabs`；首页用 `HorizontalPager` 承载两个分类页面，并为每页维护独立的 `LazyListState` 和拖动状态。
@@ -290,15 +320,16 @@ Release 自动流程：
 - 旧 `overlay_settings` 数据会先暂存并通过 `SharedPreferencesMigration` 一次性导入 DataStore；已经安装过旧 version 8 的开发包也会在 Room 打开前执行兼容导入。
 - 前台通知使用自定义 `RemoteViews` 内容布局，统一正文与操作按钮的对齐方式。
 - 数据库移除默认破坏性迁移，开启 Room schema 导出，为后续显式 migration 留出接口。
-- Room schema 为 `v10`，迁移路径：v4→v5（悬浮窗字体/吸附）→v6（旧链上字段）→v7（首页排序与置顶 + AI 聊天表）→v8（通用链上来源、固定池地址与代币方向 + 旧悬浮窗配置导出）→v9（悬浮币对独立全局顺序）→v10（观察项可空 `marketCap`）。
-- v7→v8 继续负责保留旧链上观察项 ID、迁移通用 `ONCHAIN` 来源、清理旧价格快照并把旧悬浮配置暂存给 DataStore；v8→v9 只增加可空 `overlayOrder`，v9→v10 只增加可空 `marketCap`，均不破坏已有观察列表与排序状态。
-- `androidTest` 使用 Room `MigrationTestHelper` 和仓库内导出的 v7/v8/v9/v10 schema，覆盖 v7→v8、v8→v9、v9→v10 与连续升级；测试数据库、偏好和 DataStore 目录全部隔离，不读写正式用户配置。
+- Room schema 为 `v11`，迁移路径：v4→v5（悬浮窗字体/吸附）→v6（旧链上字段）→v7（首页排序与置顶 + AI 聊天表）→v8（通用链上来源、固定池地址与代币方向 + 旧悬浮窗配置导出）→v9（悬浮币对独立全局顺序）→v10（观察项可空 `marketCap`）→v11（链上观察项 Provider 归属）。
+- v7→v8 继续负责保留旧链上观察项 ID、迁移通用 `ONCHAIN` 来源、清理旧价格快照并把旧悬浮配置暂存给 DataStore；v8→v9 只增加可空 `overlayOrder`，v9→v10 只增加可空 `marketCap`，v10→v11 增加非空 `onchainDataProvider` 并将历史项默认归为 `DEX_SCREENER`，均不破坏已有观察列表与排序状态。
+- `androidTest` 使用 Room `MigrationTestHelper` 和仓库内导出的 v7/v8/v9/v10/v11 schema，覆盖 v7→v8、v8→v9、v9→v10、v10→v11 与连续升级；测试数据库、偏好和 DataStore 目录全部隔离，不读写正式用户配置。
 - 为兼容已经运行过早期 version 8 的开发包，v8 schema 暂时保留空的 `overlay_settings` 表壳，但运行时已删除对应 DAO，迁移后也会清空旧行；这张表不再是悬浮窗配置的数据源。
 - 调试网络日志只在 Debug 构建输出，Release 默认关闭。
 - AI 聊天复用同一套带网络日志拦截器的 `OkHttpClient`，`K线 AI` 请求也会进入网络日志页。
-- HTTP 网络日志记录请求头与请求体预览；`Authorization` 会脱敏，响应体不主动展开，避免影响流式 AI 返回。
+- HTTP 网络日志将请求、响应和失败保存为带类型的内存事件；页面分别统计 HTTP 请求次数、失败次数、WSS 事件数和日志条数。一次成功 HTTP 请求通常对应两条日志但只计一次请求。记录最多保留 800 条，进程结束后清空。
+- HTTP 日志记录请求头与请求体预览；`Authorization` 和 URL 中的 API Key 会脱敏。响应体不记录正常业务数据，只通过 `peekBody` 记录非 2xx 或包含 `error` 的有限预览，因此不会消费流式响应。
 - 悬浮窗启停规则已统一，避免 UI 开关状态和真实运行状态不一致。
-- 搜索页的交易所模式和链上模式使用独立查询状态；链上模式不会混发交易所请求，交易所模式也不会触发 DexScreener。
+- 搜索页的交易所模式和链上模式使用独立查询状态；链上模式不会混发交易所请求，交易所模式也不会触发 DexScreener 或 OKX DEX Provider。
 - 链上搜索采用“代币作为结果、池子作为可切换属性”的模型：观察项 ID 与语义去重仍基于链和合约，池地址只决定报价与 K 线来源。
 - 首页列表和搜索结果页共用同一套交易所 badge 视觉：`Binance / Binance Alpha / OKX` 都按统一的强调色标签渲染，避免跨页面样式漂移。
 - 行情刷新拆成”全局协调器 + 可替换刷新引擎”两层结构；交易所保留 `WSS`，链上保持独立 REST 轮询。

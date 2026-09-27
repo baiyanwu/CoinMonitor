@@ -5,6 +5,11 @@ enum class PoolTokenSide(val apiValue: String) {
     QUOTE("quote")
 }
 
+enum class OnchainDataProvider {
+    DEX_SCREENER,
+    OKX_DEX
+}
+
 /**
  * 搜索页临时使用的池子候选信息。数据库只持久化 poolAddress 和 tokenSide，
  * 其余展示字段会在下一次搜索时由 DexScreener 重新提供。

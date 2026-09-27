@@ -13,6 +13,7 @@ import io.baiyanwu.coinmonitor.domain.model.ExchangeSource
 import io.baiyanwu.coinmonitor.domain.model.KlineInterval
 import io.baiyanwu.coinmonitor.domain.model.MarketType
 import io.baiyanwu.coinmonitor.domain.model.OnchainChainRegistry
+import io.baiyanwu.coinmonitor.domain.model.OnchainDataProvider
 import io.baiyanwu.coinmonitor.domain.model.PoolTokenSide
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
 import io.baiyanwu.coinmonitor.domain.model.inferOnchainChainFamily
@@ -43,6 +44,10 @@ class DefaultMarketKlineRepository(
         limit: Int
     ): List<CandleEntry> {
         return when {
+            item.marketType == MarketType.ONCHAIN_TOKEN &&
+                item.onchainDataProvider == OnchainDataProvider.OKX_DEX -> {
+                throw UnsupportedOperationException("OKX DEX 回退标的暂不提供 K 线")
+            }
             item.marketType == MarketType.ONCHAIN_TOKEN -> fetchOnchainCandles(item, interval, limit)
             item.marketType == MarketType.CEX_USDT_FUTURES &&
                 item.exchangeSource == ExchangeSource.BINANCE -> fetchBinanceFuturesCandles(item, interval, limit)

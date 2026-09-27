@@ -1,6 +1,7 @@
 package io.baiyanwu.coinmonitor.data.refresh
 
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
+import io.baiyanwu.coinmonitor.domain.model.OnchainRefreshMode
 
 /**
  * 全局行情刷新引擎的统一抽象。
@@ -28,8 +29,9 @@ data class QuoteRefreshConfig(
     val enabled: Boolean,
     val items: List<WatchItem>,
     val refreshIntervalMillis: Long,
-    val onchainRefreshIntervalMillis: Long = 30_000L,
-    val onchainRequestBatchCount: Int = 0
+    val onchainPollingPlan: OnchainPollingPlan = OnchainPollingPlan(),
+    val onchainRefreshMode: OnchainRefreshMode = OnchainRefreshMode.SMART,
+    val onchainFixedIntervalSeconds: Int = 30
 )
 
 data class OnchainRefreshRuntimeState(

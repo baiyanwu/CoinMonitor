@@ -6,13 +6,19 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
 import okhttp3.HttpUrl
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import java.time.Clock
 import java.time.Instant
 import java.time.format.DateTimeFormatter
@@ -25,7 +31,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
-internal object OkxWalletRequestSigner {
+internal object OkxOnchainRequestSigner {
     fun signature(secretKey: String, timestamp: String, method: String, requestPath: String, body: String = ""): String {
         val mac = Mac.getInstance("HmacSHA256")
         mac.init(SecretKeySpec(secretKey.toByteArray(Charsets.UTF_8), "HmacSHA256"))
@@ -39,9 +45,25 @@ internal data class OkxWalletTokenRow(
     val contractAddress: String,
     val symbol: String,
     val balance: String,
+    val rawBalance: String?,
     val tokenPrice: String?,
     val isRiskToken: Boolean
 )
+
+internal data class OkxWalletTokenMetadata(
+    val chainIndex: String,
+    val contractAddress: String,
+    val name: String,
+    val symbol: String,
+    val decimals: Int,
+    val logoUrl: String?,
+    val communityRecognized: Boolean
+) {
+    val id: String = okxTokenMetadataId(chainIndex, contractAddress)
+}
+
+internal fun okxTokenMetadataId(chainIndex: String, contractAddress: String): String =
+    "$chainIndex:${if (chainIndex == OKX_SOLANA_CHAIN_INDEX) contractAddress else contractAddress.lowercase()}"
 
 internal class OkxWalletApiException(val apiCode: String, override val message: String) : Exception(message)
 
@@ -55,6 +77,8 @@ internal class OkxWalletClient(
     @Volatile private var serverTimeOffsetMillis: Long? = null
     @Volatile private var supportedChainIndexes: Set<String>? = null
     private val supportedChainsMutex = Mutex()
+
+    fun isConfigured(): Boolean = credentialsProvider().isReady
 
     suspend fun getSupportedChainIndexes(): Set<String> {
         supportedChainIndexes?.let { return it }
@@ -87,13 +111,51 @@ internal class OkxWalletClient(
             val balance = item.string("balance") ?: return@mapNotNull null
             OkxWalletTokenRow(
                 chainIndex = chainIndex,
-                contractAddress = item.string("tokenContractAddress") ?: item.string("address").orEmpty(),
+                contractAddress = item.string("tokenContractAddress").orEmpty(),
                 symbol = item.string("symbol").orEmpty().ifBlank { "?" },
                 balance = balance,
+                rawBalance = item.string("rawBalance")?.takeIf(String::isNotBlank),
                 tokenPrice = item.string("tokenPrice")?.takeIf { it.isNotBlank() },
                 isRiskToken = item.boolean("isRiskToken") ?: false
             )
         }
+    }
+
+    suspend fun getTokenBasicInfo(tokens: Collection<Pair<String, String>>): Map<String, OkxWalletTokenMetadata> {
+        val requested = tokens
+            .filter { (_, contractAddress) -> contractAddress.isNotBlank() }
+            .distinctBy { (chainIndex, contractAddress) -> okxTokenMetadataId(chainIndex, contractAddress) }
+        if (requested.isEmpty()) return emptyMap()
+        return requested.chunked(MAX_TOKEN_INFO_BATCH).flatMap { batch ->
+            val payload = buildJsonArray {
+                batch.forEach { (chainIndex, contractAddress) ->
+                    add(buildJsonObject {
+                        put("chainIndex", chainIndex)
+                        put("tokenContractAddress", contractAddress)
+                    })
+                }
+            }.toString()
+            execute(baseUrl(TOKEN_BASIC_INFO_PATH).build(), method = "POST", body = payload)
+                .array("data")
+                .mapNotNull { element ->
+                    val item = element.asObject() ?: return@mapNotNull null
+                    val chainIndex = item.string("chainIndex") ?: return@mapNotNull null
+                    val contractAddress = item.string("tokenContractAddress") ?: return@mapNotNull null
+                    val decimals = item.string("decimal")?.toIntOrNull()
+                        ?: item["decimal"]?.jsonPrimitive?.intOrNull
+                        ?: return@mapNotNull null
+                    val tags = item["tagList"] as? JsonObject
+                    OkxWalletTokenMetadata(
+                        chainIndex = chainIndex,
+                        contractAddress = contractAddress,
+                        name = item.string("tokenName").orEmpty(),
+                        symbol = item.string("tokenSymbol").orEmpty(),
+                        decimals = decimals,
+                        logoUrl = item.string("tokenLogoUrl"),
+                        communityRecognized = tags?.boolean("communityRecognized") ?: false
+                    )
+                }
+        }.associateBy(OkxWalletTokenMetadata::id)
     }
 
     suspend fun getTotalValue(address: String, chains: List<String>, includeRisk: Boolean): String {
@@ -108,19 +170,23 @@ internal class OkxWalletClient(
             ?: throw OkxWalletApiException("INVALID_DATA", "OKX 未返回总资产估值。")
     }
 
-    private suspend fun execute(url: HttpUrl): JsonObject {
+    private suspend fun execute(url: HttpUrl, method: String = "GET", body: String = ""): JsonObject {
         val credentials = credentialsProvider()
-        if (!credentials.isReady) throw OkxWalletApiException("CREDENTIALS", "请先配置并启用 OKX 钱包资产 API。")
+        if (!credentials.isReady) throw OkxWalletApiException("CREDENTIALS", "请先配置并启用 OKX Onchain API。")
         val timestamp = DateTimeFormatter.ISO_INSTANT.format(
             Instant.ofEpochMilli(clock.millis() + getServerTimeOffsetMillis())
         )
         val requestPath = url.encodedPath + if (url.encodedQuery != null) "?${url.encodedQuery}" else ""
-        val request = Request.Builder().url(url).get()
+        val builder = Request.Builder().url(url)
             .header("OK-ACCESS-KEY", credentials.apiKey)
-            .header("OK-ACCESS-SIGN", OkxWalletRequestSigner.signature(credentials.secretKey, timestamp, "GET", requestPath))
+            .header("OK-ACCESS-SIGN", OkxOnchainRequestSigner.signature(credentials.secretKey, timestamp, method, requestPath, body))
             .header("OK-ACCESS-PASSPHRASE", credentials.passphrase)
             .header("OK-ACCESS-TIMESTAMP", timestamp)
-            .build()
+        val request = if (method == "POST") {
+            builder.post(body.toRequestBody(JSON_MEDIA_TYPE)).build()
+        } else {
+            builder.get().build()
+        }
         val response = httpClient.newCall(request).await()
         response.use {
             val body = it.body?.string().orEmpty()
@@ -161,9 +227,14 @@ internal class OkxWalletClient(
         const val ALL_BALANCES_PATH = "/api/v6/dex/balance/all-token-balances-by-address"
         const val TOTAL_VALUE_PATH = "/api/v6/dex/balance/total-value-by-address"
         const val SUPPORTED_CHAINS_PATH = "/api/v6/dex/balance/supported/chain"
+        const val TOKEN_BASIC_INFO_PATH = "/api/v6/dex/market/token/basic-info"
         const val OKX_SERVER_TIME_URL = "https://www.okx.com/api/v5/public/time"
+        const val MAX_TOKEN_INFO_BATCH = 20
+        val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
     }
 }
+
+private const val OKX_SOLANA_CHAIN_INDEX = "501"
 
 private suspend fun okhttp3.Call.await(): okhttp3.Response = suspendCancellableCoroutine { continuation ->
     continuation.invokeOnCancellation { cancel() }

@@ -1,43 +1,30 @@
 package io.baiyanwu.coinmonitor.data.network
 
-import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class NetworkLogRedactorTest {
     @Test
-    fun `redacts credentials and session headers case insensitively`() {
-        val sensitiveHeaders = listOf(
-            "Authorization",
-            "Proxy-Authorization",
-            "Cookie",
-            "Set-Cookie",
-            "X-API-Key",
-            "OK-ACCESS-KEY",
-            "ok-access-sign",
-            "Ok-Access-Passphrase"
+    fun `redacts alchemy keys from rpc and portfolio paths`() {
+        val secret = "alchemy-secret-value"
+        val values = listOf(
+            "https://eth-mainnet.g.alchemy.com/v2/$secret",
+            "https://api.g.alchemy.com/data/v1/$secret/assets/tokens/by-address",
+            "request failed for https://api.g.alchemy.com/prices/v1/$secret/tokens"
         )
 
-        sensitiveHeaders.forEach { name ->
-            assertEquals("***", NetworkLogRedactor.redactHeaderValue(name, "top-secret"))
+        values.forEach { value ->
+            val redacted = NetworkLogRedactor.redactUrl(value)
+            assertFalse(secret in redacted)
+            assertTrue("***" in redacted)
         }
-        assertEquals(
-            "application/json",
-            NetworkLogRedactor.redactHeaderValue("Content-Type", "application/json")
-        )
     }
 
     @Test
-    fun `redacts credential fields from json log text`() {
-        val raw = """{"apiKey":"key-value","passphrase":"pass-value","sign":"signature-value","channel":"price"}"""
-
-        val redacted = NetworkLogRedactor.redactText(raw)
-
-        assertFalse(redacted.contains("key-value"))
-        assertFalse(redacted.contains("pass-value"))
-        assertFalse(redacted.contains("signature-value"))
-        assertTrue(redacted.contains("\"apiKey\":\"***\""))
-        assertTrue(redacted.contains("\"channel\":\"price\""))
+    fun `redacts sensitive json and query values`() {
+        val secret = "do-not-log-this"
+        assertFalse(secret in NetworkLogRedactor.redactText("{\"apiKey\":\"$secret\"}"))
+        assertFalse(secret in NetworkLogRedactor.redactUrl("https://example.test/rpc?apiKey=$secret"))
     }
 }

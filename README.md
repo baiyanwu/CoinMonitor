@@ -24,27 +24,32 @@
 
 - Search `Binance Alpha`, Binance spot and USDT-M futures, plus OKX spot and USDT swaps in parallel, then merge, sort, and display one result set after all sources finish
 - Search on-chain tokens by name, symbol, or contract address without selecting a chain; every network returned by `DexScreener` is accepted without a local allowlist
-- Use the persistent `Show on-chain market cap` switch at the top of Settings to change every on-chain row across Home, the arranged overlay, and the marquee overlay between price and market cap; exchange quotes are unaffected
+- Open `General` from Settings to manage the persistent `Show on-chain market cap` switch together with appearance, language, and network logs; the switch changes every on-chain row across Home, the arranged overlay, and the marquee overlay between price and market cap, while exchange quotes are unaffected
+- Open `Wallet Settings` for wallet management, backup, and security; backup started from Settings first asks which wallet to use, while the original three entries remain available from the wallet page menu
 - Split the home watchlist into swipeable `Exchange / On-chain` pages with category-local ordering, compact quote rows, quick actions, live refresh, and search that opens in the active market mode
 - Open the corresponding external market page from a pair title; on-chain rows show `target / counter token` from the selected pool, provide a compact contract address with one-tap full-address copy, and keep the label synchronized when the pool or quote source changes
 - Pin selected items into either an arranged floating panel or a full-width, single-line marquee that scrolls tightly packed coin icons and latest prices, with a subtle dot between complete cycles
-- Choose the overlay type from a fixed-header settings flow; a dedicated Floating Pairs page handles selection and drag ordering across exchange and on-chain pairs, while arranged and marquee appearances keep independent opacity, font size, item count, position, and motion settings
+- Open Floating Window Settings directly below Wallet Settings; its first two entries are Clipboard CA Lookup and Floating Pairs. The dedicated Floating Pairs page handles selection and drag ordering across exchange and on-chain pairs, while arranged and marquee appearances keep independent opacity, font size, item count, position, and motion settings
 - Keep the arranged overlay's drag, adaptive layout, and edge docking behavior; it can stay as a docked price panel or collapse into a slim edge tab, with foreground-service persistence for both overlay types
 - Review the current build version, project purpose, author, source repository, Apache-2.0 license, feedback link, and usage notice from the in-app About page
 - Check GitHub's latest published Release once whenever the main screen is created, then prompt users to open the Release page when a newer version is available; no third-party update service is involved
 - Keep exchange quotes flowing through `WSS` first, while DexScreener prices use an independent smart or fixed refresh cycle with sequential request pacing
-- Open the middle `Wallet` tab to watch any EVM or Solana address in a dedicated read-only workspace, using the OKX Wallet API for non-zero token balances and USD valuation; credentials stay in Android encrypted storage
+- Use the middle `Wallet` tab as a local self-custody wallet for dynamically managed EVM networks and Solana: OKX Onchain aggregates assets, prices, metadata, and risk flags, while Alchemy or a per-chain custom RPC handles transaction preflight, broadcast, and status
+- Open a dedicated asset detail page for receive, send, and external Uniswap / OKX Bridge shortcuts; wallet-scoped OKX asset and Alchemy activity snapshots render before background refresh, and external pages never receive local keys or signing access
+- Enable Ethereum, BNB Chain, Robinhood Chain, and Solana by default; additional catalog EVM networks or a user-verified custom EVM RPC can be enabled without changing the wallet model
+- Open the existing OKX-powered read-only watch-address workspace from the wallet menu; it shares encrypted OKX credentials with self-custody asset queries while keeping addresses, filters, models, and caches isolated
+- Use the bottom `Browser` tab as a local DApp discovery page with search history, category filters, and a bundled curated catalog. Selecting a DApp or entering an HTTPS URL opens a standalone browser Activity, so MainActivity no longer owns a WebView. Any HTTPS main page opened inside this browser can discover the Trust Web3 Provider EIP-1193 / EIP-6963 bridge, including DApps that only recognize the legacy MetaMask connector; manually entered sites show a third-party risk warning, while connection, transaction, message-signing, network-addition, and token-addition requests remain behind origin-aware native approval, preferring biometrics when enabled
 
 ## On-chain Notes
 
-- On-chain search, latest price, 24h change, liquidity and volume come from `DexScreener`; candlesticks come from `GeckoTerminal`.
+- On-chain search and quotes use the user-selected `DexScreener / OKX DEX` priority. An empty result, request failure, or unconfigured provider automatically falls through to the next provider. Candlesticks remain on `GeckoTerminal` and are not provided for items discovered through OKX yet.
 - Results are deduplicated by network and token contract. Each token row shows the selected pair, chain logo, DEX, liquidity, and shortened contract address.
 - When multiple valid pools exist, users can expand the row and switch among the most liquid alternatives. The selected pool is then reused for both quote refreshes and candlesticks.
 - Home rows retain the selected pool's real pair label. Existing watch items missing the counter token are filled automatically after the next valid quote refresh and do not need to be re-added.
 - Market cap comes from the selected DexScreener pool and is accepted only when the tracked token is on the pool's base side. FDV is not used as a fallback, and missing data is rendered as `--`.
 - In market-cap mode, brief red/green flashes still follow real price movement. Repeated refreshes at the same price do not flash, and the value returns to its neutral color afterward.
 - Icons prefer the DexScreener token image, then fall back through known and online chain-icon candidates to the app's built-in placeholder; a cached chain fallback never bypasses a higher-priority token image request.
-- Both on-chain sources are public and require no API key. The app does not provide swap, order, or execution capabilities.
+- DexScreener and GeckoTerminal remain public and keyless. OKX is optional, uses only credentials entered by the user, and stores them in Android encrypted storage; the project ships no developer credential. The app signs and broadcasts direct transfers but does not execute swaps, bridges, orders, or external-page contract calls.
 
 ## Requirements
 
@@ -54,6 +59,13 @@
 - Android `targetSdk 35`
 
 ## Quick Start
+
+Wallet Core Android artifacts are distributed through GitHub Packages. Create a read-only classic personal access token with `read:packages`, then put the following untracked values in `local.properties`:
+
+```properties
+gpr.user=YOUR_GITHUB_USERNAME
+gpr.key=YOUR_READ_PACKAGES_TOKEN
+```
 
 ```bash
 git clone https://github.com/baiyanwu/CoinMonitor.git
@@ -68,13 +80,15 @@ cd CoinMonitor
 - Chinese README: [README.zh-CN.md](./README.zh-CN.md)
 - Technical implementation: [TECHNICAL.md](./docs/TECHNICAL.md)
 - Wallet watch implementation: [WALLET_WATCH.md](./docs/WALLET_WATCH.md)
+- Self-custody wallet implementation: [SELF_CUSTODY_WALLET.md](./docs/SELF_CUSTODY_WALLET.md)
+- Third-party notices: [THIRD_PARTY_NOTICES.md](./docs/THIRD_PARTY_NOTICES.md)
 - Contributing guide: [CONTRIBUTING.md](./docs/CONTRIBUTING.md)
 
 ## Disclaimer
 
 - This project is for technical exploration and personal learning only and does not constitute investment advice.
 - `Binance`, `OKX`, and other platform names or APIs belong to their respective owners.
-- The app does not provide trading execution. It only displays reference prices, and crypto assets are highly volatile.
+- The wallet can sign and broadcast direct in-app transfers. Trusted DApps may also request transactions or message signatures in the standalone browser, but every sensitive operation requires native app approval. Prices are estimates and crypto assets are highly volatile.
 
 ## License
 

@@ -1,0 +1,97 @@
+{
+  "schemaVersion": 1,
+  "networks": [
+    {
+      "id": "eip155:1",
+      "chainId": 1,
+      "alchemyNetwork": "eth-mainnet",
+      "alchemyRpcHost": "eth-mainnet.g.alchemy.com",
+      "symbol": "ETH",
+      "displayName": "Ethereum",
+      "explorerUrl": "https://etherscan.io",
+      "decimals": 18,
+      "isEvm": true,
+      "alchemyPortfolioSupported": true,
+      "alchemyTransfersSupported": true
+    },
+    {
+      "id": "eip155:8453",
+      "chainId": 8453,
+      "alchemyNetwork": "base-mainnet",
+      "alchemyRpcHost": "base-mainnet.g.alchemy.com",
+      "symbol": "ETH",
+      "displayName": "Base",
+      "explorerUrl": "https://basescan.org",
+      "decimals": 18,
+      "isEvm": true,
+      "alchemyPortfolioSupported": true,
+      "alchemyTransfersSupported": true
+    },
+    {
+      "id": "eip155:42161",
+      "chainId": 42161,
+      "alchemyNetwork": "arb-mainnet",
+      "alchemyRpcHost": "arb-mainnet.g.alchemy.com",
+      "symbol": "ETH",
+      "displayName": "Arbitrum",
+      "explorerUrl": "https://arbiscan.io",
+      "decimals": 18,
+      "isEvm": true,
+      "alchemyPortfolioSupported": true,
+      "alchemyTransfersSupported": true
+    },
+    {
+      "id": "eip155:10",
+      "chainId": 10,
+      "alchemyNetwork": "opt-mainnet",
+      "alchemyRpcHost": "opt-mainnet.g.alchemy.com",
+      "symbol": "ETH",
+      "displayName": "Optimism",
+      "explorerUrl": "https://optimistic.etherscan.io",
+      "decimals": 18,
+      "isEvm": true,
+      "alchemyPortfolioSupported": true,
+      "alchemyTransfersSupported": true
+    },
+    {
+      "id": "eip155:137",
+      "chainId": 137,
+      "alchemyNetwork": "polygon-mainnet",
+      "alchemyRpcHost": "polygon-mainnet.g.alchemy.com",
+      "symbol": "POL",
+      "displayName": "Polygon",
+      "explorerUrl": "https://polygonscan.com",
+      "decimals": 18,
+      "isEvm": true,
+      "alchemyNetworkAliases": ["matic-mainnet"],
+      "alchemyPortfolioSupported": true,
+      "alchemyTransfersSupported": true
+    },
+    {
+      "id": "eip155:56",
+      "chainId": 56,
+      "alchemyNetwork": "bnb-mainnet",
+      "alchemyRpcHost": "bnb-mainnet.g.alchemy.com",
+      "symbol": "BNB",
+      "displayName": "BNB Chain",
+      "explorerUrl": "https://bscscan.com",
+      "decimals": 18,
+      "isEvm": true,
+      "alchemyPortfolioSupported": true,
+      "alchemyTransfersSupported": true
+    },
+    {
+      "id": "eip155:4663",
+      "chainId": 4663,
+      "alchemyNetwork": "robinhood-mainnet",
+      "alchemyRpcHost": "robinhood-mainnet.g.alchemy.com",
+      "symbol": "ETH",
+      "displayName": "Robinhood Chain",
+      "explorerUrl": "https://robinhoodchain.blockscout.com",
+      "decimals": 18,
+      "isEvm": true,
+      "alchemyPortfolioSupported": false,
+      "alchemyTransfersSupported": false
+    }
+  ]
+}

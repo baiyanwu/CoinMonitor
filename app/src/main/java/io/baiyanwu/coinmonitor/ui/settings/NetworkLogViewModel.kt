@@ -7,6 +7,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import io.baiyanwu.coinmonitor.data.AppContainer
 import io.baiyanwu.coinmonitor.domain.model.NetworkLogEntry
+import io.baiyanwu.coinmonitor.domain.model.NetworkLogEventKind
 import io.baiyanwu.coinmonitor.domain.model.NetworkLogProtocol
 import io.baiyanwu.coinmonitor.domain.repository.NetworkLogRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,7 +23,10 @@ data class NetworkLogUiState(
     val recordingEnabled: Boolean = false,
     val httpEnabled: Boolean = true,
     val wssEnabled: Boolean = true,
-    val entries: List<NetworkLogEntry> = emptyList()
+    val entries: List<NetworkLogEntry> = emptyList(),
+    val httpRequestCount: Int = 0,
+    val httpFailureCount: Int = 0,
+    val wssEventCount: Int = 0
 )
 
 /**
@@ -47,7 +51,10 @@ class NetworkLogViewModel(
                     recordingEnabled = recordingSettings.recordingEnabled,
                     httpEnabled = recordingSettings.httpEnabled,
                     wssEnabled = recordingSettings.wssEnabled,
-                    entries = entries
+                    entries = entries,
+                    httpRequestCount = entries.count { it.kind == NetworkLogEventKind.HTTP_REQUEST },
+                    httpFailureCount = entries.count { it.kind == NetworkLogEventKind.HTTP_FAILURE },
+                    wssEventCount = entries.count { it.kind == NetworkLogEventKind.WSS_EVENT }
                 )
             }.collect { state ->
                 _uiState.value = state

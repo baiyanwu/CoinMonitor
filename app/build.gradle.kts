@@ -2,8 +2,8 @@ import java.util.Properties
 
 // 统一维护应用版本信息，避免版本展示与打包产物命名脱节。
 val appArtifactName = "coinmonitor"
-val appVersionCode = 12
-val appVersionName = "1.0.12"
+val appVersionCode = 13
+val appVersionName = "1.0.13"
 
 plugins {
     alias(libs.plugins.android.application)
@@ -125,7 +125,9 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.lifecycle.process)
     implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.biometric)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
@@ -147,6 +149,10 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.coil.network.okhttp)
     implementation(libs.androidx.security.crypto)
+    implementation(libs.trustwallet.core)
+    implementation(libs.trustwallet.web3.provider)
+    implementation(libs.androidx.webkit)
+    implementation(libs.zxing.core)
     implementation(project(":lib"))
     implementation(project(":third_party:lightweightlibrary"))
 

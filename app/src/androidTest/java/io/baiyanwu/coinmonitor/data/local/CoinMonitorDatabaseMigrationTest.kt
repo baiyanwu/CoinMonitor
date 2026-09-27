@@ -430,6 +430,30 @@ class CoinMonitorDatabaseMigrationTest {
         }
     }
 
+    @Test
+    fun migration11To12_addsDappSearchHistoryWithoutTouchingWalletData() {
+        migrationHelper.createDatabase(DAPP_HISTORY_DATABASE, 11).close()
+
+        val database = migrationHelper.runMigrationsAndValidate(
+            DAPP_HISTORY_DATABASE,
+            12,
+            true,
+            CoinMonitorDatabase.MIGRATION_11_12
+        )
+
+        database.query("PRAGMA table_info(dapp_search_history)").use { cursor ->
+            val nameColumn = cursor.getColumnIndexOrThrow("name")
+            val columns = buildSet {
+                while (cursor.moveToNext()) add(cursor.getString(nameColumn))
+            }
+            assertEquals(
+                setOf("normalizedQuery", "query", "searchedAt"),
+                columns
+            )
+        }
+        database.close()
+    }
+
     private fun assertMigratedOverlaySettings(settings: OverlaySettings) {
         assertTrue(settings.enabled)
         assertTrue(settings.locked)
@@ -460,7 +484,8 @@ class CoinMonitorDatabaseMigrationTest {
             MARKET_CAP_DATABASE,
             FULL_UPGRADE_DATABASE,
             PREOPEN_DATABASE,
-            ROOM_FALLBACK_DATABASE
+            ROOM_FALLBACK_DATABASE,
+            DAPP_HISTORY_DATABASE
         )
             .forEach(context::deleteDatabase)
         listOf(
@@ -523,6 +548,7 @@ class CoinMonitorDatabaseMigrationTest {
         const val FULL_UPGRADE_DATABASE = "coin-monitor-migration-full-upgrade"
         const val PREOPEN_DATABASE = "coin-monitor-migration-preopen"
         const val ROOM_FALLBACK_DATABASE = "coin-monitor-migration-room-fallback"
+        const val DAPP_HISTORY_DATABASE = "coin-monitor-migration-dapp-history"
         const val PRODUCTION_DATABASE_NAME = "coin_monitor.db"
         const val MIGRATION_STATE_PREFERENCES = "coin_monitor_migration_state"
         const val TEST_PREFERENCES_PREFIX = "migration_test_"

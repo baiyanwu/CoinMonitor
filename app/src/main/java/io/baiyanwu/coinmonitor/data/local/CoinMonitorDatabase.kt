@@ -6,6 +6,7 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import io.baiyanwu.coinmonitor.data.local.dao.AiChatDao
+import io.baiyanwu.coinmonitor.data.local.dao.DappSearchHistoryDao
 import io.baiyanwu.coinmonitor.data.local.dao.WatchItemDao
 
 @Database(
@@ -13,14 +14,16 @@ import io.baiyanwu.coinmonitor.data.local.dao.WatchItemDao
         WatchItemEntity::class,
         OverlaySettingsEntity::class,
         AiChatSessionEntity::class,
-        AiChatMessageEntity::class
+        AiChatMessageEntity::class,
+        DappSearchHistoryEntity::class
     ],
-    version = 10,
+    version = 12,
     exportSchema = true
 )
 abstract class CoinMonitorDatabase : RoomDatabase() {
     abstract fun watchItemDao(): WatchItemDao
     abstract fun aiChatDao(): AiChatDao
+    abstract fun dappSearchHistoryDao(): DappSearchHistoryDao
 
     companion object {
         val MIGRATION_4_5: Migration = object : Migration(4, 5) {
@@ -163,6 +166,28 @@ abstract class CoinMonitorDatabase : RoomDatabase() {
         val MIGRATION_9_10: Migration = object : Migration(9, 10) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL("ALTER TABLE watch_items ADD COLUMN marketCap REAL")
+            }
+        }
+
+        val MIGRATION_10_11: Migration = object : Migration(10, 11) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    "ALTER TABLE watch_items ADD COLUMN onchainDataProvider TEXT NOT NULL DEFAULT 'DEX_SCREENER'"
+                )
+            }
+        }
+
+        val MIGRATION_11_12: Migration = object : Migration(11, 12) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS dapp_search_history (
+                        normalizedQuery TEXT NOT NULL PRIMARY KEY,
+                        query TEXT NOT NULL,
+                        searchedAt INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
             }
         }
 

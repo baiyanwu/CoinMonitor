@@ -31,6 +31,8 @@ fun MarketModeTabs(
     selectedPage: Int,
     onSelectPage: (Int) -> Unit,
     prominentLabels: Boolean = false,
+    firstLabelRes: Int = R.string.search_mode_exchange,
+    secondLabelRes: Int = R.string.search_mode_onchain,
     modifier: Modifier = Modifier
 ) {
     val colors = CoinMonitorThemeTokens.colors
@@ -51,11 +53,7 @@ fun MarketModeTabs(
         Row(modifier = Modifier.fillMaxSize()) {
             repeat(MARKET_MODE_PAGE_COUNT) { index ->
                 val selected = index == resolvedPage
-                val labelRes = if (index == 0) {
-                    R.string.search_mode_exchange
-                } else {
-                    R.string.search_mode_onchain
-                }
+                val labelRes = if (index == 0) firstLabelRes else secondLabelRes
                 Box(
                     modifier = Modifier
                         .width(tabWidth)

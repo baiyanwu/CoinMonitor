@@ -25,7 +25,7 @@ class DefaultOkxWalletCredentialsRepository(context: Context) : OkxWalletCredent
     override fun isSecureStorageAvailable(): Boolean = secure.available
 
     override suspend fun save(credentials: OkxWalletCredentials) = withContext(Dispatchers.IO) {
-        require(credentials.isComplete || !credentials.enabled) { "启用 OKX 钱包资产 API 前请完整填写三项凭证。" }
+        require(credentials.isComplete || !credentials.enabled) { "启用 OKX Onchain API 前请完整填写三项凭证。" }
         requirePreferences().edit()
             .putBoolean(KEY_ENABLED, credentials.enabled)
             .putString(KEY_API_KEY, credentials.apiKey.trim())

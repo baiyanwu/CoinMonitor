@@ -9,6 +9,7 @@ data class WatchItem(
     val chainFamily: ChainFamily? = null,
     val chainIndex: String? = null,
     val tokenAddress: String? = null,
+    val onchainDataProvider: OnchainDataProvider = OnchainDataProvider.DEX_SCREENER,
     val poolAddress: String? = null,
     val poolTokenSide: PoolTokenSide? = null,
     val iconUrl: String? = null,

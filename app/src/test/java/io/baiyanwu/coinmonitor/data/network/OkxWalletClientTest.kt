@@ -11,6 +11,7 @@ import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
+import okio.Buffer
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -35,8 +36,13 @@ class OkxWalletClientTest {
         val path = "/api/v6/dex/balance/total-value-by-address?address=0xabc&chains=1&assetType=1&excludeRiskToken=true"
         assertEquals(
             "P7QbbMSfhEDHTSr8Vg9pXKVHs5RX3+Zmhz5Nb8K+xBw=",
-            OkxWalletRequestSigner.signature("secret", "2020-12-08T09:08:57.715Z", "GET", path)
+            OkxOnchainRequestSigner.signature("secret", "2020-12-08T09:08:57.715Z", "GET", path)
         )
+    }
+
+    @Test fun `metadata keys normalize EVM case but preserve Solana mint case`() {
+        assertEquals("1:0xabcdef", okxTokenMetadataId("1", "0xAbCdEf"))
+        assertEquals("501:AbCdEf", okxTokenMetadataId("501", "AbCdEf"))
     }
 
     @Test fun `request signs final encoded query and maps token fields`() = kotlinx.coroutines.runBlocking {
@@ -44,7 +50,7 @@ class OkxWalletClientTest {
         val client = OkxWalletClient(
             httpClient = OkHttpClient.Builder().addInterceptor(Interceptor { chain ->
                 captured = chain.request()
-                jsonResponse(chain.request(), """{"code":"0","data":[{"tokenAssets":[{"chainIndex":"501","tokenContractAddress":"mint/address","symbol":"SOL","balance":"1.25","tokenPrice":"150.5","isRiskToken":true}]}]}""")
+                jsonResponse(chain.request(), """{"code":"0","data":[{"tokenAssets":[{"chainIndex":"501","tokenContractAddress":"mint/address","symbol":"SOL","balance":"1.25","rawBalance":"1250000000","tokenPrice":"150.5","isRiskToken":true}]}]}""")
             }).build(),
             credentialsProvider = { OkxWalletCredentials(true, "key", "secret", "pass") },
             clock = Clock.fixed(Instant.parse("2020-12-08T09:08:57.715Z"), ZoneOffset.UTC)
@@ -55,9 +61,44 @@ class OkxWalletClientTest {
         assertTrue(request.url.encodedQuery!!.contains("address=a%2Fb&chains=501&excludeRiskToken=1"))
         assertEquals("key", request.header("OK-ACCESS-KEY"))
         val expectedPath = request.url.encodedPath + "?" + request.url.encodedQuery
-        assertEquals(OkxWalletRequestSigner.signature("secret", "2020-12-08T09:08:57.715Z", "GET", expectedPath), request.header("OK-ACCESS-SIGN"))
+        assertEquals(OkxOnchainRequestSigner.signature("secret", "2020-12-08T09:08:57.715Z", "GET", expectedPath), request.header("OK-ACCESS-SIGN"))
         assertEquals("mint/address", rows.single().contractAddress)
+        assertEquals("1250000000", rows.single().rawBalance)
         assertTrue(rows.single().isRiskToken)
+    }
+
+    @Test fun `token metadata request signs exact POST body and maps transfer fields`() = kotlinx.coroutines.runBlocking {
+        var captured: Request? = null
+        val client = OkxWalletClient(
+            httpClient = OkHttpClient.Builder().addInterceptor(Interceptor { chain ->
+                if (chain.request().url.encodedPath == "/api/v5/public/time") {
+                    jsonResponse(chain.request(), """{"code":"0","data":[{"ts":"1607418537715"}]}""")
+                } else {
+                    captured = chain.request()
+                    jsonResponse(chain.request(), """{"code":"0","data":[{
+                      "chainIndex":"501","tokenContractAddress":"MintAddress","tokenName":"Example Token",
+                      "tokenSymbol":"EX","tokenLogoUrl":"https://example.com/ex.png","decimal":"6",
+                      "tagList":{"communityRecognized":true}
+                    }]}""")
+                }
+            }).build(),
+            credentialsProvider = { OkxWalletCredentials(true, "key", "secret", "pass") },
+            clock = Clock.fixed(Instant.parse("2020-12-08T09:08:57.715Z"), ZoneOffset.UTC)
+        )
+
+        val metadata = client.getTokenBasicInfo(listOf("501" to "MintAddress")).values.single()
+        val request = requireNotNull(captured)
+        val body = Buffer().also { request.body!!.writeTo(it) }.readUtf8()
+        assertEquals("POST", request.method)
+        assertEquals(
+            OkxOnchainRequestSigner.signature(
+                "secret", "2020-12-08T09:08:57.715Z", "POST", request.url.encodedPath, body
+            ),
+            request.header("OK-ACCESS-SIGN")
+        )
+        assertEquals(6, metadata.decimals)
+        assertEquals("Example Token", metadata.name)
+        assertTrue(metadata.communityRecognized)
     }
 
     @Test fun `total request maps risk switch and token only asset type`() = kotlinx.coroutines.runBlocking {

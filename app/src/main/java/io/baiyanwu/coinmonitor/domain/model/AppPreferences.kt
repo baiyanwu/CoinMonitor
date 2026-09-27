@@ -35,6 +35,7 @@ data class AppPreferences(
     val customRefreshIntervalSeconds: Int = DEFAULT_CUSTOM_REFRESH_INTERVAL_SECONDS,
     val onchainRefreshMode: OnchainRefreshMode = OnchainRefreshMode.SMART,
     val onchainRefreshIntervalSeconds: Int = DEFAULT_ONCHAIN_REFRESH_INTERVAL_SECONDS,
+    val onchainProviderOrder: List<OnchainDataProvider> = DEFAULT_ONCHAIN_PROVIDER_ORDER,
     val showOnchainMarketCap: Boolean = false,
     val klineIndicatorSettings: KlineIndicatorSettings = KlineIndicatorSettings()
 ) {
@@ -67,12 +68,25 @@ data class AppPreferences(
         const val DEFAULT_ONCHAIN_REFRESH_INTERVAL_SECONDS = 30
         const val MIN_ONCHAIN_REFRESH_INTERVAL_SECONDS = 30
         const val MAX_ONCHAIN_REFRESH_INTERVAL_SECONDS = 120
+        val DEFAULT_ONCHAIN_PROVIDER_ORDER = listOf(
+            OnchainDataProvider.DEX_SCREENER,
+            OnchainDataProvider.OKX_DEX
+        )
 
         fun normalizeOnchainRefreshIntervalSeconds(value: Int): Int {
             return value.coerceIn(
                 MIN_ONCHAIN_REFRESH_INTERVAL_SECONDS,
                 MAX_ONCHAIN_REFRESH_INTERVAL_SECONDS
             )
+        }
+
+        fun normalizeOnchainProviderOrder(
+            providers: List<OnchainDataProvider>
+        ): List<OnchainDataProvider> {
+            return buildList {
+                providers.distinct().forEach(::add)
+                OnchainDataProvider.entries.filterNot(::contains).forEach(::add)
+            }
         }
 
         val ONCHAIN_FIXED_INTERVAL_OPTIONS_SECONDS = listOf(30, 45, 60, 120)

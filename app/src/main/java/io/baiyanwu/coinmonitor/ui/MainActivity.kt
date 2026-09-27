@@ -16,13 +16,16 @@ import io.baiyanwu.coinmonitor.overlay.OverlayServiceController
 import io.baiyanwu.coinmonitor.ui.navigation.CoinMonitorNavHost
 import io.baiyanwu.coinmonitor.ui.kline.AiChatHistoryActivity
 import io.baiyanwu.coinmonitor.ui.kline.KlineIndicatorSettingsActivity
+import io.baiyanwu.coinmonitor.ui.browser.DappBrowserActivity
 import io.baiyanwu.coinmonitor.ui.search.SearchActivity
 import io.baiyanwu.coinmonitor.ui.settings.AboutActivity
 import io.baiyanwu.coinmonitor.ui.settings.NetworkLogActivity
 import io.baiyanwu.coinmonitor.ui.settings.OverlayItemsSettingsActivity
 import io.baiyanwu.coinmonitor.ui.settings.OverlaySettingsActivity
 import io.baiyanwu.coinmonitor.ui.settings.ThirdPartyApiSettingsActivity
+import io.baiyanwu.coinmonitor.ui.settings.ThirdPartyApiSettingsSection
 import io.baiyanwu.coinmonitor.ui.update.AppUpdatePrompt
+import io.baiyanwu.coinmonitor.ui.walletwatch.WalletWatchActivity
 import kotlinx.coroutines.launch
 
 class MainActivity : CoinMonitorComposeActivity() {
@@ -51,6 +54,16 @@ class MainActivity : CoinMonitorComposeActivity() {
                 onOpenOverlayItems = { OverlayItemsSettingsActivity.start(this@MainActivity) },
                 onOpenOverlaySettings = { OverlaySettingsActivity.start(this@MainActivity) },
                 onOpenThirdPartyApiSettings = { ThirdPartyApiSettingsActivity.start(this@MainActivity) },
+                onOpenWalletNetworkSettings = {
+                    ThirdPartyApiSettingsActivity.start(
+                        this@MainActivity,
+                        ThirdPartyApiSettingsSection.WALLET_NETWORK
+                    )
+                },
+                onOpenWatchWallet = { WalletWatchActivity.start(this@MainActivity) },
+                onOpenDappBrowser = { url ->
+                    DappBrowserActivity.start(this@MainActivity, url)
+                },
                 onOpenNetworkLog = { NetworkLogActivity.start(this@MainActivity) },
                 onOpenAbout = { AboutActivity.start(this@MainActivity) }
             )

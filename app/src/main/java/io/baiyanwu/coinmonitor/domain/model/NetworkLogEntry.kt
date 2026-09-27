@@ -11,6 +11,13 @@ enum class NetworkLogProtocol {
     WSS
 }
 
+enum class NetworkLogEventKind {
+    HTTP_REQUEST,
+    HTTP_RESPONSE,
+    HTTP_FAILURE,
+    WSS_EVENT
+}
+
 /**
  * 网络日志录制配置。
  *
@@ -42,6 +49,7 @@ data class NetworkLogRecordingSettings(
 data class NetworkLogEntry(
     val id: Long,
     val protocol: NetworkLogProtocol,
+    val kind: NetworkLogEventKind,
     val line: String,
     val detail: String,
     val createdAt: Long

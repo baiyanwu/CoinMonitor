@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -20,16 +19,10 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
-import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -46,12 +39,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.baiyanwu.coinmonitor.R
@@ -60,9 +50,11 @@ import io.baiyanwu.coinmonitor.domain.model.ExchangeSource
 import io.baiyanwu.coinmonitor.domain.model.MarketType
 import io.baiyanwu.coinmonitor.domain.model.OnchainChainRegistry
 import io.baiyanwu.coinmonitor.domain.model.OnchainChainIconRegistry
+import io.baiyanwu.coinmonitor.domain.model.OnchainDataProvider
 import io.baiyanwu.coinmonitor.domain.model.OnchainPoolOption
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
 import io.baiyanwu.coinmonitor.ui.components.CoinSymbolIcon
+import io.baiyanwu.coinmonitor.ui.components.CompactSearchField
 import io.baiyanwu.coinmonitor.ui.components.MarketModeTabs
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 import kotlinx.coroutines.launch
@@ -86,6 +78,7 @@ fun SearchRoute(
     entryMode: SearchEntryMode = SearchEntryMode.HOME,
     initialSearchMode: SearchMode = SearchMode.EXCHANGE,
     onBack: () -> Unit,
+    onOpenThirdPartyApiSettings: () -> Unit = {},
     onSelectForKline: (String) -> Unit = {}
 ) {
     val viewModel: SearchViewModel = viewModel(factory = SearchViewModel.factory(container))
@@ -95,6 +88,7 @@ fun SearchRoute(
         entryMode = entryMode,
         initialSearchMode = initialSearchMode,
         onBack = onBack,
+        onOpenThirdPartyApiSettings = onOpenThirdPartyApiSettings,
         onQueryChange = viewModel::updateQuery,
         onClearQuery = viewModel::clearQuery,
         onSearch = viewModel::search,
@@ -113,6 +107,7 @@ private fun SearchScreen(
     entryMode: SearchEntryMode,
     initialSearchMode: SearchMode,
     onBack: () -> Unit,
+    onOpenThirdPartyApiSettings: () -> Unit,
     onQueryChange: (SearchMode, String) -> Unit,
     onClearQuery: (SearchMode) -> Unit,
     onSearch: (SearchMode) -> Unit,
@@ -210,7 +205,11 @@ private fun SearchScreen(
                     results = if (pageMode == SearchMode.EXCHANGE) exchangeResults else onchainResults,
                     onToggleItem = onToggleItem,
                     onSelectOnchainPool = onSelectOnchainPool,
-                    onSelectForKline = onSelectForKline
+                    onSelectForKline = onSelectForKline,
+                    showOkxSetupPrompt = pageMode == SearchMode.ONCHAIN &&
+                        pageState.hasSearched &&
+                        !state.okxOnchainCredentialsReady,
+                    onOpenThirdPartyApiSettings = onOpenThirdPartyApiSettings
                 )
             }
         }
@@ -226,16 +225,6 @@ private fun SearchHeader(
     onSearch: () -> Unit
 ) {
     val colors = CoinMonitorThemeTokens.colors
-    val searchTextStyle = MaterialTheme.typography.bodyMedium.copy(
-        color = colors.primaryText,
-        fontSize = 15.sp,
-        lineHeight = 18.sp
-    )
-    val placeholderTextStyle = MaterialTheme.typography.bodyMedium.copy(
-        color = colors.tertiaryText,
-        fontSize = 15.sp,
-        lineHeight = 18.sp
-    )
     val placeholderRes = if (searchMode == SearchMode.ONCHAIN) {
         R.string.search_input_hint_onchain
     } else {
@@ -250,82 +239,15 @@ private fun SearchHeader(
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Surface(
-            modifier = Modifier
-                .weight(1f)
-                .height(40.dp),
-            color = colors.cardBackground,
-            shape = RoundedCornerShape(18.dp)
-        ) {
-            BasicTextField(
-                value = pageState.query,
-                onValueChange = onQueryChange,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(40.dp),
-                textStyle = searchTextStyle,
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                keyboardActions = KeyboardActions(onSearch = { onSearch() }),
-                cursorBrush = SolidColor(colors.accent),
-                decorationBox = { innerTextField ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(start = 12.dp, end = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        if (pageState.loading) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(18.dp),
-                                color = colors.accent,
-                                strokeWidth = 2.dp
-                            )
-                        } else {
-                            Icon(
-                                imageVector = Icons.Rounded.Search,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp),
-                                tint = colors.accent
-                            )
-                        }
-
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .padding(start = 8.dp),
-                            contentAlignment = Alignment.CenterStart
-                        ) {
-                            if (pageState.query.isBlank()) {
-                                Text(
-                                    text = stringResource(placeholderRes),
-                                    color = colors.tertiaryText,
-                                    style = placeholderTextStyle,
-                                    maxLines = 1
-                                )
-                            }
-                            innerTextField()
-                        }
-
-                        if (pageState.query.isNotBlank()) {
-                            Box(
-                                modifier = Modifier
-                                    .size(24.dp)
-                                    .clickable(onClick = onClearQuery),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.Close,
-                                    contentDescription = stringResource(R.string.common_clear),
-                                    modifier = Modifier.size(16.dp),
-                                    tint = colors.secondaryText
-                                )
-                            }
-                        }
-                    }
-                }
-            )
-        }
+        CompactSearchField(
+            value = pageState.query,
+            onValueChange = onQueryChange,
+            placeholder = stringResource(placeholderRes),
+            onSearch = onSearch,
+            onClear = onClearQuery,
+            modifier = Modifier.weight(1f),
+            loading = pageState.loading
+        )
 
         Text(
             text = stringResource(R.string.common_confirm),
@@ -348,7 +270,9 @@ private fun SearchModePage(
     results: List<WatchItem>,
     onToggleItem: (WatchItem) -> Unit,
     onSelectOnchainPool: (WatchItem, OnchainPoolOption) -> Unit,
-    onSelectForKline: (WatchItem) -> Unit
+    onSelectForKline: (WatchItem) -> Unit,
+    showOkxSetupPrompt: Boolean,
+    onOpenThirdPartyApiSettings: () -> Unit
 ) {
     val colors = CoinMonitorThemeTokens.colors
 
@@ -387,11 +311,31 @@ private fun SearchModePage(
                             pageMode == SearchMode.ONCHAIN -> R.string.search_empty_initial_onchain
                             else -> R.string.search_empty_initial
                         }
-                        Text(
-                            text = stringResource(emptyTextRes),
-                            color = colors.secondaryText,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
+                        if (showOkxSetupPrompt) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.search_okx_fallback_prompt),
+                                    color = colors.secondaryText,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                                Text(
+                                    text = stringResource(R.string.search_okx_fallback_configure),
+                                    modifier = Modifier.clickable(onClick = onOpenThirdPartyApiSettings),
+                                    color = colors.accent,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        } else {
+                            Text(
+                                text = stringResource(emptyTextRes),
+                                color = colors.secondaryText,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
                     }
                 }
             }
@@ -617,7 +561,10 @@ private fun OnchainPoolMetadata(item: WatchItem, pool: OnchainPoolOption?) {
         listOf(chainName, formatDexName(option), liquidity)
             .filter(String::isNotBlank)
             .joinToString(" · ")
-    } ?: chainName
+    } ?: listOf(
+        chainName,
+        if (item.onchainDataProvider == OnchainDataProvider.OKX_DEX) "OKX DEX" else null
+    ).filterNotNull().filter(String::isNotBlank).joinToString(" · ")
 
     Row(
         horizontalArrangement = Arrangement.spacedBy(5.dp),

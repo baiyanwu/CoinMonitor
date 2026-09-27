@@ -17,6 +17,7 @@ import io.baiyanwu.coinmonitor.domain.model.onchainAddressesEqual
 import io.baiyanwu.coinmonitor.domain.repository.AppPreferencesRepository
 import io.baiyanwu.coinmonitor.domain.repository.MarketQuoteRepository
 import io.baiyanwu.coinmonitor.domain.repository.MarketSearchRepository
+import io.baiyanwu.coinmonitor.domain.repository.OkxWalletCredentialsRepository
 import io.baiyanwu.coinmonitor.domain.repository.WatchlistRepository
 import io.baiyanwu.coinmonitor.ui.AppConfigurationApplier
 import kotlinx.coroutines.CancellationException
@@ -44,6 +45,7 @@ data class SearchUiState(
     val searchMode: SearchMode = SearchMode.EXCHANGE,
     val exchangePage: SearchPageState = SearchPageState(),
     val onchainPage: SearchPageState = SearchPageState(),
+    val okxOnchainCredentialsReady: Boolean = false,
     val addedSemanticKeys: Set<String> = emptySet(),
     val existingIdsBySemanticKey: Map<String, String> = emptyMap()
 ) {
@@ -137,7 +139,8 @@ class SearchViewModel(
     private val appPreferencesRepository: AppPreferencesRepository,
     private val watchlistRepository: WatchlistRepository,
     private val marketSearchRepository: MarketSearchRepository,
-    private val marketQuoteRepository: MarketQuoteRepository
+    private val marketQuoteRepository: MarketQuoteRepository,
+    private val okxCredentialsRepository: OkxWalletCredentialsRepository
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(SearchUiState())
     val uiState: StateFlow<SearchUiState> = _uiState.asStateFlow()
@@ -161,6 +164,11 @@ class SearchViewModel(
                         )
                     )
                 }
+            }
+        }
+        viewModelScope.launch {
+            okxCredentialsRepository.observeCredentials().collect { credentials ->
+                _uiState.update { it.copy(okxOnchainCredentialsReady = credentials.isReady) }
             }
         }
     }
@@ -425,7 +433,8 @@ class SearchViewModel(
                     appPreferencesRepository = container.appPreferencesRepository,
                     watchlistRepository = container.watchlistRepository,
                     marketSearchRepository = container.marketSearchRepository,
-                    marketQuoteRepository = container.marketQuoteRepository
+                    marketQuoteRepository = container.marketQuoteRepository,
+                    okxCredentialsRepository = container.okxWalletCredentialsRepository
                 )
             }
         }

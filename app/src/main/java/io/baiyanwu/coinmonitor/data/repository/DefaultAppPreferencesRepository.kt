@@ -8,6 +8,7 @@ import io.baiyanwu.coinmonitor.domain.model.AppThemeMode
 import io.baiyanwu.coinmonitor.domain.model.KlineIndicator
 import io.baiyanwu.coinmonitor.domain.model.KlineIndicatorSettings
 import io.baiyanwu.coinmonitor.domain.model.OnchainRefreshMode
+import io.baiyanwu.coinmonitor.domain.model.OnchainDataProvider
 import io.baiyanwu.coinmonitor.domain.model.RefreshIntervalMode
 import io.baiyanwu.coinmonitor.domain.model.ThemeTemplateId
 import io.baiyanwu.coinmonitor.domain.repository.AppPreferencesRepository
@@ -114,6 +115,15 @@ class DefaultAppPreferencesRepository(context: Context) : AppPreferencesReposito
         }
     }
 
+    override suspend fun setOnchainProviderOrder(providers: List<OnchainDataProvider>) {
+        val normalized = AppPreferences.normalizeOnchainProviderOrder(providers)
+        withContext(Dispatchers.IO) {
+            sharedPreferences.edit()
+                .putString(KEY_ONCHAIN_PROVIDER_ORDER, normalized.joinToString(",") { it.name })
+                .apply()
+        }
+    }
+
     override suspend fun setShowOnchainMarketCap(show: Boolean) {
         withContext(Dispatchers.IO) {
             sharedPreferences.edit()
@@ -188,6 +198,15 @@ class DefaultAppPreferencesRepository(context: Context) : AppPreferencesReposito
             KEY_SHOW_ONCHAIN_MARKET_CAP,
             false
         )
+        val onchainProviderOrder = AppPreferences.normalizeOnchainProviderOrder(
+            sharedPreferences.getString(KEY_ONCHAIN_PROVIDER_ORDER, null)
+                ?.split(',')
+                ?.mapNotNull { stored ->
+                    runCatching { OnchainDataProvider.valueOf(stored) }.getOrNull()
+                }
+                .orEmpty()
+                .ifEmpty { AppPreferences.DEFAULT_ONCHAIN_PROVIDER_ORDER }
+        )
 
         return AppPreferences(
             themeMode = themeMode,
@@ -197,6 +216,7 @@ class DefaultAppPreferencesRepository(context: Context) : AppPreferencesReposito
             customRefreshIntervalSeconds = customRefreshIntervalSeconds,
             onchainRefreshMode = onchainRefreshMode,
             onchainRefreshIntervalSeconds = onchainRefreshIntervalSeconds,
+            onchainProviderOrder = onchainProviderOrder,
             showOnchainMarketCap = showOnchainMarketCap,
             klineIndicatorSettings = klineIndicatorSettings
         )
@@ -219,6 +239,7 @@ class DefaultAppPreferencesRepository(context: Context) : AppPreferencesReposito
         const val KEY_KLINE_INDICATOR_SETTINGS = "kline_indicator_settings"
         const val KEY_ONCHAIN_REFRESH_MODE = "onchain_refresh_mode"
         const val KEY_ONCHAIN_REFRESH_INTERVAL_SECONDS = "onchain_refresh_interval_seconds"
+        const val KEY_ONCHAIN_PROVIDER_ORDER = "onchain_provider_order"
         const val KEY_SHOW_ONCHAIN_MARKET_CAP = "show_onchain_market_cap"
     }
 }

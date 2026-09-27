@@ -13,6 +13,7 @@ data class WatchItemEntity(
     val chainFamily: String?,
     val chainIndex: String?,
     val tokenAddress: String?,
+    val onchainDataProvider: String = "DEX_SCREENER",
     val poolAddress: String?,
     val poolTokenSide: String?,
     val iconUrl: String?,

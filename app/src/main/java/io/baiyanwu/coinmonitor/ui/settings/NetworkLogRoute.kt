@@ -161,11 +161,26 @@ private fun NetworkLogScreen(
                         ),
                         style = MaterialTheme.typography.titleMedium
                     )
-                    Text(
-                        text = stringResource(R.string.network_log_count, state.entries.size),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = colors.secondaryText
-                    )
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            text = stringResource(
+                                R.string.network_log_count,
+                                state.httpRequestCount,
+                                state.httpFailureCount
+                            ),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = colors.secondaryText
+                        )
+                        Text(
+                            text = stringResource(
+                                R.string.network_log_entry_count,
+                                state.wssEventCount,
+                                state.entries.size
+                            ),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = colors.secondaryText
+                        )
+                    }
                 }
 
                 ProtocolSwitchRow(

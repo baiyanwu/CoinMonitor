@@ -1,3 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<full-backup-content />
-
+<full-backup-content>
+    <exclude domain="sharedpref" path="self_custody_wallet_vault_secure.xml" />
+    <exclude domain="sharedpref" path="wallet_network_settings_secure.xml" />
+    <exclude domain="sharedpref" path="self_custody_wallet_cache.xml" />
+    <exclude domain="sharedpref" path="self_custody_wallet_biometric.xml" />
+</full-backup-content>
