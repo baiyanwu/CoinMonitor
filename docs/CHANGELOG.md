@@ -1,5 +1,11 @@
 # Changelog
 
+## 未发布
+
+- 在钱包与浏览之间新增“热门”，内含共同热门、GMGN 热门、PumpFun 热门、OKX 热门的 indicator 分页。采用紧凑手机列表与筛选/详情面板，复用 Mac 的榜单模式、链/时间窗、合约交集、三分钟 NEW、排序与退避规则；离开页面或进入后台停止请求。
+- 热门页面先恢复匹配筛选的上次成功榜单再后台刷新，缓存跨页面重建和 App 重启保留，刷新中或失败时不清空已有列表；共同热门保留上次完整结果，并记住上次查看的标签。价格/市值切换按钮使用双向循环箭头，链 Logo 和聪明钱人数采用紧凑展示。
+- 第三方 API 设置新增加密存储的 GMGN API key，排除备份并脱敏网络日志；OKX 热门复用现有启用凭证，PumpFun 使用免 key 接口。
+
 ## v1.0.13 (2026-09-28)
 
 - 底部导航新增“浏览”一级 DApp 发现页：常用目录随 APK 以版本化 JSON 打包，支持分类、本地搜索和 Room 搜索历史。点击目录条目或输入 HTTPS 地址后启动独立 `DappBrowserActivity`；MainActivity 不再创建、挂载或持有 WebView。独立 Activity 提供地址编辑、网页历史和 EVM 链切换，并通过 Trust Web3 Provider 4.9.4 为浏览器内任意 HTTPS 主页面注入 EIP-1193 / EIP-6963；EIP-6963 保持 CoinMonitor 身份，钱包选择器图标直接取自 Android 应用图标，同时通过 Provider 自带的 `setOverwriteMetamask(true)` 兼容只识别旧版 MetaMask Connector 的 DApp，不伪造 MetaMask 专属 API。手输网址先显示第三方风险提示，目录不再兼作 Provider 域名白名单。连接、标准 EVM 交易、`personal_sign`、原始 `eth_sign`、EIP-712 V3/V4（含 Permit2）、添加网络及 ERC20/BEP20 仍按实际 origin 走分层原生确认，旧页面的异步响应不会投递给跳转后的新 origin。交易与消息签名在启用强生物识别后优先自动触发一次指纹，失败或用户选择密码后才展示密码框；删除钱包、重置保险库、显示/备份密钥和停用生物识别仍强制密码确认。

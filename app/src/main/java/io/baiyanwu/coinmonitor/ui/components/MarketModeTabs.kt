@@ -5,6 +5,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
@@ -19,12 +20,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import io.baiyanwu.coinmonitor.R
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
-
-private const val MARKET_MODE_PAGE_COUNT = 2
 
 @Composable
 fun MarketModeTabs(
@@ -33,55 +33,63 @@ fun MarketModeTabs(
     prominentLabels: Boolean = false,
     firstLabelRes: Int = R.string.search_mode_exchange,
     secondLabelRes: Int = R.string.search_mode_onchain,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    labelResources: List<Int> = listOf(firstLabelRes, secondLabelRes)
 ) {
+    require(labelResources.isNotEmpty())
     val colors = CoinMonitorThemeTokens.colors
-    val tabWidth = 96.dp
-    val indicatorWidth = 32.dp
-    val resolvedPage = selectedPage.coerceIn(0, MARKET_MODE_PAGE_COUNT - 1)
-    val indicatorOffset by animateDpAsState(
-        targetValue = if (resolvedPage == 0) 32.dp else 128.dp,
-        animationSpec = tween(durationMillis = 180),
-        label = "market-mode-indicator"
-    )
+    val pageCount = labelResources.size
+    val resolvedPage = selectedPage.coerceIn(0, pageCount - 1)
 
-    Box(
-        modifier = modifier
-            .width(tabWidth * MARKET_MODE_PAGE_COUNT)
-            .height(44.dp)
-    ) {
-        Row(modifier = Modifier.fillMaxSize()) {
-            repeat(MARKET_MODE_PAGE_COUNT) { index ->
-                val selected = index == resolvedPage
-                val labelRes = if (index == 0) firstLabelRes else secondLabelRes
-                Box(
-                    modifier = Modifier
-                        .width(tabWidth)
-                        .height(44.dp)
-                        .clickable { onSelectPage(index) },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = stringResource(labelRes),
-                        color = if (selected) colors.accent else colors.secondaryText,
-                        style = if (prominentLabels) {
-                            MaterialTheme.typography.titleMedium
-                        } else {
-                            MaterialTheme.typography.labelLarge
-                        },
-                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium
-                    )
-                }
-            }
-        }
+    BoxWithConstraints(modifier = modifier, contentAlignment = Alignment.Center) {
+        val tabWidth = minOf(96.dp, maxWidth / pageCount)
+        val indicatorWidth = minOf(32.dp, tabWidth)
+        val indicatorOffset by animateDpAsState(
+            targetValue = tabWidth * resolvedPage + (tabWidth - indicatorWidth) / 2,
+            animationSpec = tween(durationMillis = 180),
+            label = "market-mode-indicator"
+        )
 
         Box(
             modifier = Modifier
-                .align(Alignment.BottomStart)
-                .offset { IntOffset(indicatorOffset.roundToPx(), 0) }
-                .width(indicatorWidth)
-                .height(3.dp)
-                .background(colors.accent, RoundedCornerShape(2.dp))
-        )
+                .width(tabWidth * pageCount)
+                .height(44.dp)
+        ) {
+            Row(modifier = Modifier.fillMaxSize()) {
+                repeat(pageCount) { index ->
+                    val selected = index == resolvedPage
+                    val labelRes = labelResources[index]
+                    Box(
+                        modifier = Modifier
+                            .width(tabWidth)
+                            .height(44.dp)
+                            .clickable { onSelectPage(index) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = stringResource(labelRes),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            color = if (selected) colors.accent else colors.secondaryText,
+                            style = if (prominentLabels) {
+                                MaterialTheme.typography.titleMedium
+                            } else {
+                                MaterialTheme.typography.labelLarge
+                            },
+                            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium
+                        )
+                    }
+                }
+            }
+
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .offset { IntOffset(indicatorOffset.roundToPx(), 0) }
+                    .width(indicatorWidth)
+                    .height(3.dp)
+                    .background(colors.accent, RoundedCornerShape(2.dp))
+            )
+        }
     }
 }

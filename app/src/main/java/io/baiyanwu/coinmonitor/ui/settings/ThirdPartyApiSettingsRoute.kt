@@ -104,6 +104,9 @@ fun ThirdPartyApiSettingsRoute(
         onOkxPassphraseChange = viewModel::updateOkxWalletPassphrase,
         onSaveOkx = viewModel::saveOkxWalletCredentials,
         onClearOkx = viewModel::clearOkxWalletCredentials,
+        onGmgnApiKeyChange = viewModel::updateGmgnApiKey,
+        onSaveGmgn = viewModel::saveGmgnApiKey,
+        onClearGmgn = viewModel::clearGmgnApiKey,
         onAiEnabledChange = viewModel::setAiEnabled,
         onAiBaseUrlChange = viewModel::updateAiBaseUrl,
         onAiApiKeyChange = viewModel::updateAiApiKey,
@@ -137,6 +140,9 @@ private fun ThirdPartyApiSettingsScreen(
     onOkxPassphraseChange: (String) -> Unit,
     onSaveOkx: () -> Unit,
     onClearOkx: () -> Unit,
+    onGmgnApiKeyChange: (String) -> Unit,
+    onSaveGmgn: () -> Unit,
+    onClearGmgn: () -> Unit,
     onAiEnabledChange: (Boolean) -> Unit,
     onAiBaseUrlChange: (String) -> Unit,
     onAiApiKeyChange: (String) -> Unit,
@@ -342,6 +348,25 @@ private fun ThirdPartyApiSettingsScreen(
                         else stringResource(R.string.third_party_api_settings_save)
                     )
                 }
+                }
+            }
+
+            item {
+                ThirdPartySectionCard(title = stringResource(R.string.gmgn_settings_title)) {
+                    Text(stringResource(R.string.gmgn_settings_description), style = MaterialTheme.typography.bodySmall, color = colors.secondaryText)
+                    if (!state.gmgn.secureStorageAvailable) {
+                        Text(stringResource(R.string.okx_wallet_secure_storage_unavailable), color = MaterialTheme.colorScheme.error)
+                    }
+                    OutlinedTextField(
+                        value = state.gmgn.apiKey, onValueChange = onGmgnApiKeyChange,
+                        modifier = Modifier.fillMaxWidth(), label = { Text("API key") },
+                        singleLine = true, visualTransformation = PasswordVisualTransformation(),
+                        colors = CoinMonitorComponentDefaults.outlinedTextFieldColors()
+                    )
+                    FeedbackText(state.gmgn.savedFlag, state.gmgn.clearedFlag, state.gmgn.errorMessage)
+                    SaveClearButtons(
+                        onSave = onSaveGmgn, onClear = onClearGmgn
+                    )
                 }
             }
 

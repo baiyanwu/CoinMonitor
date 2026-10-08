@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tab_trending">热门</string>
+    <string name="trending_shared">共同热门</string>
+    <string name="trending_gmgn">GMGN热门</string>
+    <string name="trending_pump">PumpFun热门</string>
+    <string name="trending_okx">OKX热门</string>
+    <string name="trending_refresh">刷新</string>
+    <string name="trending_filters">筛选</string>
+    <string name="trending_all_chains">全部链</string>
+    <plurals name="trending_count">
+        <item quantity="other">%1$d 个</item>
+    </plurals>
+    <string name="trending_missing_keys">配置 %1$s 凭证</string>
+    <string name="trending_previous_result">显示上次结果</string>
+    <string name="trending_token">币种</string>
+    <string name="trending_market_cap">市值</string>
+    <string name="trending_price">价格</string>
+    <string name="trending_switch_to_price">切换为价格</string>
+    <string name="trending_switch_to_market_cap">切换为市值</string>
+    <string name="trending_liquidity">流动性</string>
+    <string name="trending_volume">成交额</string>
+    <string name="trending_change">涨跌幅</string>
+    <string name="trending_smart_money">聪明钱</string>
+    <string name="trending_loading">正在加载热门…</string>
+    <string name="trending_loading_cache">正在读取上次结果…</string>
+    <string name="trending_configure_hint">请先在第三方 API 设置中配置并启用凭证。</string>
+    <string name="trending_unavailable">当前来源暂时不可用。</string>
+    <string name="trending_no_overlap">所选来源暂无共同热门。</string>
+    <string name="trending_empty">当前筛选暂无热门代币。</string>
+    <string name="trending_updated">更新于 %1$s · USD</string>
+    <string name="trending_risk">风险</string>
+    <string name="trending_liquidity_short">流动性 %1$s</string>
+    <string name="trending_mode_trending">热门</string>
+    <string name="trending_mode_search">热搜</string>
+    <string name="trending_default_order">来源排序</string>
+    <string name="trending_rate_limit">限流，%1$d 秒后可刷新</string>
+    <string name="trending_auth_error">凭证无效或无权限，请检查 API 设置</string>
+    <string name="trending_quota_error">额度不足，请检查 API 设置</string>
+    <string name="trending_invalid_data">返回数据无法解析</string>
+    <string name="trending_network_error">请求失败，%1$d 秒后可重试</string>
+    <string name="trending_sources">共同热门来源（至少两个）</string>
+    <string name="trending_shared_hint">按链和合约地址求所选榜单的交集；数据和排序优先采用 GMGN、OKX、PumpFun。</string>
+    <string name="trending_pump_hint">Solana 热门榜，无需 API key，保留网站排序；该接口不提供时间范围或热搜榜。</string>
+    <string name="trending_auto_refresh">自动刷新</string>
+    <string name="trending_paused">已暂停</string>
+    <string name="trending_seconds">%1$d 秒</string>
+    <string name="trending_sort">列表排序</string>
+    <string name="trending_ascending">升序</string>
+    <string name="trending_descending">降序</string>
+    <string name="trending_display_value">右侧数值</string>
+    <string name="trending_api_settings">第三方 API 设置</string>
+    <string name="trending_copy_address">复制合约地址</string>
+    <string name="trending_open_source">在 %1$s 查看</string>
+    <string name="gmgn_settings_title">GMGN 热门 API</string>
+    <string name="gmgn_settings_description">用于 GMGN 热门、热搜和共同热门。API key 使用 Android Keystore 加密保存；无需私钥。PumpFun 不需要 key，OKX 热门复用上方凭证。</string>
+</resources>

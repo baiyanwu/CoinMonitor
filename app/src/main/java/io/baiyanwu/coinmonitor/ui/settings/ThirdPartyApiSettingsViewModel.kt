@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import io.baiyanwu.coinmonitor.data.AppContainer
+import io.baiyanwu.coinmonitor.data.repository.GmgnCredentialsRepository
 import io.baiyanwu.coinmonitor.data.refresh.GlobalQuoteRefreshCoordinator
 import io.baiyanwu.coinmonitor.domain.model.AppPreferences
 import io.baiyanwu.coinmonitor.domain.model.OnchainDataProvider
@@ -57,7 +58,16 @@ data class ThirdPartyApiSettingsUiState(
     val onchain: OnchainSettingsFormState = OnchainSettingsFormState(),
     val walletNetwork: WalletNetworkSettingsFormState = WalletNetworkSettingsFormState(),
     val okxWallet: OkxWalletSettingsFormState = OkxWalletSettingsFormState(),
-    val ai: AiSettingsFormState = AiSettingsFormState()
+    val ai: AiSettingsFormState = AiSettingsFormState(),
+    val gmgn: GmgnSettingsFormState = GmgnSettingsFormState()
+)
+
+data class GmgnSettingsFormState(
+    val apiKey: String = "",
+    val secureStorageAvailable: Boolean = true,
+    val savedFlag: Boolean = false,
+    val clearedFlag: Boolean = false,
+    val errorMessage: String? = null
 )
 
 data class WalletNetworkSettingsFormState(
@@ -97,10 +107,12 @@ class ThirdPartyApiSettingsViewModel(
     private val aiConfigRepository: AiConfigRepository,
     private val okxWalletCredentialsRepository: OkxWalletCredentialsRepository,
     private val walletNetworkSettingsRepository: WalletNetworkSettingsRepository,
-    private val quoteRefreshCoordinator: GlobalQuoteRefreshCoordinator
+    private val quoteRefreshCoordinator: GlobalQuoteRefreshCoordinator,
+    private val gmgnCredentialsRepository: GmgnCredentialsRepository
 ) : ViewModel() {
     private val onchainUiState = MutableStateFlow(OnchainSettingsFormState())
     private val aiUiState = MutableStateFlow(AiSettingsFormState())
+    private val gmgnUiState = MutableStateFlow(GmgnSettingsFormState())
     private val okxWalletUiState = MutableStateFlow(OkxWalletSettingsFormState())
     private val walletNetworkUiState = MutableStateFlow(WalletNetworkSettingsFormState())
     private val _uiState = MutableStateFlow(ThirdPartyApiSettingsUiState())
@@ -108,12 +120,13 @@ class ThirdPartyApiSettingsViewModel(
 
     init {
         viewModelScope.launch {
-            combine(onchainUiState, walletNetworkUiState, okxWalletUiState, aiUiState) { onchain, walletNetwork, okxWallet, ai ->
+            combine(onchainUiState, walletNetworkUiState, okxWalletUiState, aiUiState, gmgnUiState) { onchain, walletNetwork, okxWallet, ai, gmgn ->
                 ThirdPartyApiSettingsUiState(
                     onchain = onchain,
                     walletNetwork = walletNetwork,
                     okxWallet = okxWallet,
-                    ai = ai
+                    ai = ai,
+                    gmgn = gmgn
                 )
             }.collect { _uiState.value = it }
         }
@@ -157,6 +170,11 @@ class ThirdPartyApiSettingsViewModel(
         }
         refreshWalletNetworkCatalog(reportFailure = false)
         viewModelScope.launch {
+            gmgnCredentialsRepository.apiKey.collect { key ->
+                gmgnUiState.update { it.copy(apiKey = key, secureStorageAvailable = gmgnCredentialsRepository.secureStorageAvailable) }
+            }
+        }
+        viewModelScope.launch {
             okxWalletCredentialsRepository.observeCredentials().collect { value ->
                 okxWalletUiState.value = OkxWalletSettingsFormState(
                     enabled = value.enabled,
@@ -171,6 +189,27 @@ class ThirdPartyApiSettingsViewModel(
             aiConfigRepository.observeConfig().collect { config ->
                 aiUiState.value = config.toUiState(aiConfigRepository.isSecureStorageAvailable())
             }
+        }
+    }
+
+    fun updateGmgnApiKey(value: String) {
+        gmgnUiState.update { it.copy(apiKey = value, savedFlag = false, clearedFlag = false, errorMessage = null) }
+    }
+
+    fun saveGmgnApiKey() {
+        val key = gmgnUiState.value.apiKey
+        viewModelScope.launch {
+            runCatching { gmgnCredentialsRepository.save(key) }
+                .onSuccess { gmgnUiState.update { it.copy(savedFlag = true, clearedFlag = false, errorMessage = null) } }
+                .onFailure { gmgnUiState.update { it.copy(savedFlag = false, errorMessage = "无法保存 GMGN API key，请检查输入和安全存储。") } }
+        }
+    }
+
+    fun clearGmgnApiKey() {
+        viewModelScope.launch {
+            runCatching { gmgnCredentialsRepository.clear() }
+                .onSuccess { gmgnUiState.update { it.copy(apiKey = "", savedFlag = false, clearedFlag = true, errorMessage = null) } }
+                .onFailure { gmgnUiState.update { it.copy(errorMessage = "无法清除 GMGN API key。") } }
         }
     }
 
@@ -454,7 +493,8 @@ class ThirdPartyApiSettingsViewModel(
                     aiConfigRepository = container.aiConfigRepository,
                     okxWalletCredentialsRepository = container.okxWalletCredentialsRepository,
                     walletNetworkSettingsRepository = container.walletNetworkSettingsRepository,
-                    quoteRefreshCoordinator = container.globalQuoteRefreshCoordinator
+                    quoteRefreshCoordinator = container.globalQuoteRefreshCoordinator,
+                    gmgnCredentialsRepository = container.gmgnCredentialsRepository
                 )
             }
         }

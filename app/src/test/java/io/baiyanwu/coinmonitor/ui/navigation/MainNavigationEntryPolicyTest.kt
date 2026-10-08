@@ -20,7 +20,7 @@ class MainNavigationEntryPolicyTest {
     }
 
     @Test
-    fun `wallet and browser are top level entries between home and settings`() {
+    fun `wallet trending and browser are top level entries between home and settings`() {
         val source = readSource(
             rootRelativePath = "app/src/main/java/io/baiyanwu/coinmonitor/ui/navigation/CoinMonitorNavHost.kt",
             moduleRelativePath = "src/main/java/io/baiyanwu/coinmonitor/ui/navigation/CoinMonitorNavHost.kt"
@@ -28,14 +28,17 @@ class MainNavigationEntryPolicyTest {
 
         val homeIndex = source.indexOf("MainTab(Destinations.HOME")
         val walletIndex = source.indexOf("MainTab(Destinations.WALLET")
+        val trendingIndex = source.indexOf("MainTab(Destinations.TRENDING")
         val browserIndex = source.indexOf("MainTab(Destinations.BROWSER")
         val settingsIndex = source.indexOf("MainTab(Destinations.SETTINGS")
 
         assertTrue(homeIndex >= 0)
         assertTrue(walletIndex > homeIndex)
-        assertTrue(browserIndex > walletIndex)
+        assertTrue(trendingIndex > walletIndex)
+        assertTrue(browserIndex > trendingIndex)
         assertTrue(settingsIndex > browserIndex)
         assertTrue(source.contains("composable(Destinations.WALLET)"))
+        assertTrue(source.contains("composable(Destinations.TRENDING)"))
         assertTrue(source.contains("composable(Destinations.BROWSER)"))
         assertTrue(source.contains("WalletRoute("))
         assertTrue(source.contains("DappDiscoveryRoute("))

@@ -22,6 +22,9 @@
 
 ## Core Features
 
+- A Trending tab between Wallet and Browser offers indicator tabs for Shared, GMGN, PumpFun, and OKX rankings, compact phone rows, and expandable filters/details. GMGN keys use encrypted third-party API settings; OKX reuses existing credentials; PumpFun requires no key. [Trending notes](./docs/TRENDING.md)
+- Trending restores the last matching successful ranking across navigation and app restarts, refreshes in the background, and keeps existing rows during failures or rate limits. Shared rankings match chain and contract address across selected sources; requests stop when the page leaves the foreground.
+
 - Search `Binance Alpha`, Binance spot and USDT-M futures, plus OKX spot and USDT swaps in parallel, then merge, sort, and display one result set after all sources finish
 - Search on-chain tokens by name, symbol, or contract address without selecting a chain; every network returned by `DexScreener` is accepted without a local allowlist
 - Open `General` from Settings to manage the persistent `Show on-chain market cap` switch together with appearance, language, and network logs; the switch changes every on-chain row across Home, the arranged overlay, and the marquee overlay between price and market cap, while exchange quotes are unaffected

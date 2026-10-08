@@ -21,6 +21,10 @@ class NetworkFactory(
         .addInterceptor(NetworkLogInterceptor(networkLogRepository))
         .addInterceptor(
             HttpLoggingInterceptor().apply {
+                redactHeader("X-APIKEY")
+                redactHeader("OK-ACCESS-KEY")
+                redactHeader("OK-ACCESS-SIGN")
+                redactHeader("OK-ACCESS-PASSPHRASE")
                 level = if (BuildConfig.DEBUG) {
                     HttpLoggingInterceptor.Level.BODY
                 } else {

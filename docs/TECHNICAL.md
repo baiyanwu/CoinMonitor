@@ -79,7 +79,7 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 ### K-line
 
 - K 线页、图表、指标设置、搜索回填和 AI 聊天实现仍保留在工程中，但当前不再作为底部导航或首页卡片点击入口暴露
-- `NavHost` 中仍保留 `Destinations.KLINE` route，用于后续恢复入口时复用既有实现；底部导航按“首页 / 钱包 / 浏览 / 设置”展示四个一级页面
+- `NavHost` 中仍保留 `Destinations.KLINE` route，用于后续恢复入口时复用既有实现；底部导航按“首页 / 钱包 / 热门 / 浏览 / 设置”展示五个一级页面。“热门”使用按可见标签和前台生命周期加载的独立排行榜状态，详情见 [TRENDING.md](./TRENDING.md)。
 - 图表内核当前基于仓库内 vendored 的 `TradingView Lightweight Charts Android wrapper` 源码模块
 - 第三方图表源码当前直接放在 `third_party/lightweightlibrary`，应用不再依赖外部 `aar`，方便直接调试 wrapper 和内嵌 JS core
 - K 线数据统一走 `MarketKlineRepository`，交易所继续使用 `Binance / Binance Alpha / OKX`，链上池使用 `GeckoTerminal`
@@ -300,7 +300,9 @@ Release 自动流程：
 - 观察钱包与自托管钱包的法币、Token 数量、Token 价格和网络费统一通过 `AssetAmountFormatter` 的 `BigDecimal` 规则显示；行情 `QuoteFormatter` 保持独立，因为其输入精度和极小价格展示语义不同。
 - 首页列表项手势统一收口在自定义 `awaitEachGesture` 流程里：点击、拖动和长按菜单共用一套状态机，避免多套手势监听互相抢占。
 - 首页拖动入口为整卡长按，交互时序为 `350ms` 进入拖动、`900ms` 弹出快捷菜单。
-- 首页与搜索页共用 `MarketModeTabs`；首页用 `HorizontalPager` 承载两个分类页面，并为每页维护独立的 `LazyListState` 和拖动状态。
+- 首页、搜索页、钱包与热门页共用 `MarketModeTabs`，支持任意非空标签列表，单项宽度不超过 `96dp` 且随可用宽度收缩；热门页用四页 `HorizontalPager`，首页用两个分类页面，并为每页维护独立的 `LazyListState` 和拖动状态。
+- 热门的数据请求由 `TrendingViewModel` 按当前标签和 STARTED 生命周期管理，`TrendingClient` 负责三来源请求、解析与最小请求间隔；`TrendingRules` 负责链/合约身份、交集、排序与 NEW。它独立于首页和悬浮窗的实时报价订阅。
+- `AppContainer` 持有 `TrendingSnapshotCache`，后台预读 `files/market_trending/cache-v1.json`；按来源/链/榜单模式/时间窗保存最多 64 个成功快照，同时保存完整交集、NEW 时间和来源冷却。`TrendingPreferences` 单独保存标签和筛选偏好，GMGN key 由 `GmgnCredentialsRepository` 加密保存并排除备份，均不写入榜单缓存。详见 [TRENDING.md](./TRENDING.md)。
 - 首页右下角币对操作菜单使用重叠的触发按钮和关闭按钮承接展开动画；两层按钮固定使用同一 `16dp` 圆角，避免关闭按钮变为纯圆后露出底层按钮四角。图标和容器颜色继续随展开进度过渡。
 - 搜索页、悬浮窗设置页、悬浮币对设置页和关于页使用独立 `Activity`，避免和主 `NavHost` 的底部导航、转场动画、窗口 inset 相互耦合。
 - 应用更新检查绑定主界面组合生命周期，每次主界面创建只请求一次；请求取消会继续向上抛出 `CancellationException`，普通网络或解析失败才静默忽略。
