@@ -17,6 +17,7 @@ import io.baiyanwu.coinmonitor.ui.navigation.CoinMonitorNavHost
 import io.baiyanwu.coinmonitor.ui.kline.AiChatHistoryActivity
 import io.baiyanwu.coinmonitor.ui.kline.KlineIndicatorSettingsActivity
 import io.baiyanwu.coinmonitor.ui.browser.DappBrowserActivity
+import io.baiyanwu.coinmonitor.ui.browser.DappDiscoveryActivity
 import io.baiyanwu.coinmonitor.ui.search.SearchActivity
 import io.baiyanwu.coinmonitor.ui.settings.AboutActivity
 import io.baiyanwu.coinmonitor.ui.settings.NetworkLogActivity
@@ -64,6 +65,7 @@ class MainActivity : CoinMonitorComposeActivity() {
                 onOpenDappBrowser = { url ->
                     DappBrowserActivity.start(this@MainActivity, url)
                 },
+                onOpenDappDiscovery = { DappDiscoveryActivity.start(this@MainActivity) },
                 onOpenNetworkLog = { NetworkLogActivity.start(this@MainActivity) },
                 onOpenAbout = { AboutActivity.start(this@MainActivity) }
             )

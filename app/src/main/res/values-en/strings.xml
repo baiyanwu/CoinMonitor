@@ -2,6 +2,7 @@
     <string name="app_name">CoinMonitor</string>
 
     <string name="tab_home">Home</string>
+    <string name="tab_market">Markets</string>
     <string name="tab_wallet">Wallet</string>
     <string name="tab_browser">Browse</string>
     <string name="tab_kline">Kline</string>
@@ -528,6 +529,16 @@
     <string name="wallet_private_key_solana_description">For Solana only; it is not shared with EVM addresses.</string>
     <string name="wallet_refresh">Refresh</string>
     <string name="wallet_more">More</string>
+    <string name="wallet_dapp_browser">DApp Browser</string>
+    <string name="wallet_visible_estimate">Visible asset estimate</string>
+    <string name="wallet_home_summary">%1$d networks · %2$d assets</string>
+    <string name="wallet_unpriced_count">%1$d assets have no valuation</string>
+    <string name="wallet_hide_values">Hide asset amounts</string>
+    <string name="wallet_show_values">Show asset amounts</string>
+    <string name="wallet_updated_time">Updated at %1$s</string>
+    <string name="wallet_refreshing_previous">Refreshing · last update %1$s</string>
+    <string name="wallet_networks_all">All networks</string>
+    <string name="wallet_watch_entry_description">View on-chain assets at another address</string>
     <string name="wallet_manage">Manage wallets</string>
     <string name="wallet_backup">Back up wallet</string>
     <string name="wallet_security">Security</string>

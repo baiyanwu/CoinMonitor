@@ -22,7 +22,7 @@
 
 ## Core Features
 
-- A Trending tab between Wallet and Browser offers indicator tabs for Shared, GMGN, PumpFun, and OKX rankings, compact phone rows, and expandable filters/details. GMGN keys use encrypted third-party API settings; OKX reuses existing credentials; PumpFun requires no key. [Trending notes](./docs/TRENDING.md)
+- The compact rounded bottom navigation offers Markets, Trending, Wallet, and Settings. Trending provides indicator tabs for Shared, GMGN, PumpFun, and OKX rankings, compact phone rows, and expandable filters/details. GMGN keys use encrypted third-party API settings; OKX reuses existing credentials; PumpFun requires no key. [Trending notes](./docs/TRENDING.md)
 - Trending restores the last matching successful ranking across navigation and app restarts, refreshes in the background, and keeps existing rows during failures or rate limits. Shared rankings match chain and contract address across selected sources; requests stop when the page leaves the foreground.
 
 - Search `Binance Alpha`, Binance spot and USDT-M futures, plus OKX spot and USDT swaps in parallel, then merge, sort, and display one result set after all sources finish
@@ -41,7 +41,7 @@
 - Open a dedicated asset detail page for receive, send, and external Uniswap / OKX Bridge shortcuts; wallet-scoped OKX asset and Alchemy activity snapshots render before background refresh, and external pages never receive local keys or signing access
 - Enable Ethereum, BNB Chain, Robinhood Chain, and Solana by default; additional catalog EVM networks or a user-verified custom EVM RPC can be enabled without changing the wallet model
 - Open the existing OKX-powered read-only watch-address workspace from the wallet menu; it shares encrypted OKX credentials with self-custody asset queries while keeping addresses, filters, models, and caches isolated
-- Use the bottom `Browser` tab as a local DApp discovery page with search history, category filters, and a bundled curated catalog. Selecting a DApp or entering an HTTPS URL opens a standalone browser Activity, so MainActivity no longer owns a WebView. Any HTTPS main page opened inside this browser can discover the Trust Web3 Provider EIP-1193 / EIP-6963 bridge, including DApps that only recognize the legacy MetaMask connector; manually entered sites show a third-party risk warning, while connection, transaction, message-signing, network-addition, and token-addition requests remain behind origin-aware native approval, preferring biometrics when enabled
+- The wallet home uses the compact rounded blue-purple design with a wallet/address selector, visible asset estimate, amount visibility toggle, asset/activity pills, network picker, and watch-address shortcut. Wallet → More → DApp Browser opens a standalone discovery page with the existing catalog and search history; selecting a DApp or confirming an HTTPS address opens the existing browser Activity. Trending keeps its existing browser entry points. Any HTTPS main page opened inside this browser can discover the Trust Web3 Provider EIP-1193 / EIP-6963 bridge, including DApps that only recognize the legacy MetaMask connector; manually entered sites show a third-party risk warning, while connection, transaction, message-signing, network-addition, and token-addition requests remain behind origin-aware native approval, preferring biometrics when enabled
 
 ## On-chain Notes
 
@@ -82,6 +82,7 @@ cd CoinMonitor
 
 - Chinese README: [README.zh-CN.md](./README.zh-CN.md)
 - Technical implementation: [TECHNICAL.md](./docs/TECHNICAL.md)
+- Shared UI design and migration: [UI_DESIGN_SYSTEM.md](./docs/UI_DESIGN_SYSTEM.md)
 - Wallet watch implementation: [WALLET_WATCH.md](./docs/WALLET_WATCH.md)
 - Self-custody wallet implementation: [SELF_CUSTODY_WALLET.md](./docs/SELF_CUSTODY_WALLET.md)
 - Third-party notices: [THIRD_PARTY_NOTICES.md](./docs/THIRD_PARTY_NOTICES.md)

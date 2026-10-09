@@ -6,17 +6,7 @@ import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.AccountBalanceWallet
-import androidx.compose.material.icons.rounded.Home
-import androidx.compose.material.icons.rounded.LocalFireDepartment
-import androidx.compose.material.icons.rounded.Language
-import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material3.Icon
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -42,7 +32,9 @@ import io.baiyanwu.coinmonitor.ui.search.SearchMode
 import io.baiyanwu.coinmonitor.ui.settings.GeneralSettingsRoute
 import io.baiyanwu.coinmonitor.ui.settings.SettingsRoute
 import io.baiyanwu.coinmonitor.ui.settings.WalletSettingsRoute
-import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorComponentDefaults
+import io.baiyanwu.coinmonitor.ui.components.CoinMonitorBottomBar
+import io.baiyanwu.coinmonitor.ui.components.CoinMonitorBottomBarItem
+import io.baiyanwu.coinmonitor.ui.components.CoinMonitorIcons
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 import io.baiyanwu.coinmonitor.ui.wallet.WalletAddRoute
 import io.baiyanwu.coinmonitor.ui.wallet.WalletAssetDetailRoute
@@ -54,7 +46,6 @@ import io.baiyanwu.coinmonitor.ui.wallet.WalletReceiveRoute
 import io.baiyanwu.coinmonitor.ui.wallet.WalletRoute
 import io.baiyanwu.coinmonitor.ui.wallet.WalletSecurityRoute
 import io.baiyanwu.coinmonitor.ui.wallet.WalletSendRoute
-import io.baiyanwu.coinmonitor.ui.browser.DappDiscoveryRoute
 
 private object Destinations {
     const val MAIN = "main"
@@ -62,7 +53,6 @@ private object Destinations {
     const val KLINE = "kline"
     const val WALLET = "wallet"
     const val TRENDING = "trending"
-    const val BROWSER = "browser"
     const val WALLET_ADD = "wallet/add"
     const val WALLET_MANAGE = "wallet/manage"
     const val WALLET_ASSET_DETAIL = "wallet/asset-detail"
@@ -95,6 +85,7 @@ fun CoinMonitorNavHost(
     onOpenWalletNetworkSettings: () -> Unit,
     onOpenWatchWallet: () -> Unit,
     onOpenDappBrowser: (String) -> Unit,
+    onOpenDappDiscovery: () -> Unit,
     onOpenNetworkLog: () -> Unit,
     onOpenAbout: () -> Unit
 ) {
@@ -168,6 +159,7 @@ fun CoinMonitorNavHost(
                 onOpenWalletNetworkSettings = onOpenWalletNetworkSettings,
                 onOpenWatchWallet = onOpenWatchWallet,
                 onOpenDappBrowser = onOpenDappBrowser,
+                onOpenDappDiscovery = onOpenDappDiscovery,
                 onOpenAbout = onOpenAbout,
                 onOpenWalletPage = openWalletPage,
                 onOpenGeneralSettings = {
@@ -247,6 +239,7 @@ private fun MainShell(
     onOpenWalletNetworkSettings: () -> Unit,
     onOpenWatchWallet: () -> Unit,
     onOpenDappBrowser: (String) -> Unit,
+    onOpenDappDiscovery: () -> Unit,
     onOpenAbout: () -> Unit,
     onOpenWalletPage: (WalletPage) -> Unit,
     onOpenGeneralSettings: () -> Unit,
@@ -255,11 +248,10 @@ private fun MainShell(
     val mainNavController = rememberNavController()
     val tabs = remember {
         listOf(
-            MainTab(Destinations.HOME, R.string.tab_home, Icons.Rounded.Home),
-            MainTab(Destinations.WALLET, R.string.tab_wallet, Icons.Rounded.AccountBalanceWallet),
-            MainTab(Destinations.TRENDING, R.string.tab_trending, Icons.Rounded.LocalFireDepartment),
-            MainTab(Destinations.BROWSER, R.string.tab_browser, Icons.Rounded.Language),
-            MainTab(Destinations.SETTINGS, R.string.tab_settings, Icons.Rounded.Settings)
+            MainTab(Destinations.HOME, R.string.tab_market, CoinMonitorIcons.Market),
+            MainTab(Destinations.TRENDING, R.string.tab_trending, CoinMonitorIcons.Trending),
+            MainTab(Destinations.WALLET, R.string.tab_wallet, CoinMonitorIcons.Wallet),
+            MainTab(Destinations.SETTINGS, R.string.tab_settings, CoinMonitorIcons.Settings)
         )
     }
     val navBackStackEntry by mainNavController.currentBackStackEntryAsState()
@@ -277,27 +269,15 @@ private fun MainShell(
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        containerColor = colors.pageBackground,
+        containerColor = if (currentRoute == Destinations.WALLET) CoinMonitorThemeTokens.design.colors.pageBackground else colors.pageBackground,
         bottomBar = {
-            NavigationBar(
-                containerColor = colors.cardBackground,
-                contentColor = colors.secondaryText
-            ) {
-                tabs.forEach { tab ->
-                    NavigationBarItem(
-                        selected = currentRoute == tab.route,
-                        onClick = { navigateToTopLevel(tab.route) },
-                        colors = CoinMonitorComponentDefaults.navigationBarItemColors(),
-                        icon = {
-                            Icon(
-                                imageVector = tab.icon,
-                                contentDescription = stringResource(tab.labelRes)
-                            )
-                        },
-                        label = { Text(stringResource(tab.labelRes)) }
-                    )
-                }
-            }
+            CoinMonitorBottomBar(
+                items = tabs.map { tab ->
+                    CoinMonitorBottomBarItem(tab.route, stringResource(tab.labelRes), tab.icon)
+                },
+                selectedId = currentRoute,
+                onSelect = navigateToTopLevel
+            )
         }
     ) { innerPadding ->
         NavHost(
@@ -350,15 +330,8 @@ private fun MainShell(
                     onOpenWatchWallet = onOpenWatchWallet,
                     onOpenAssetSettings = onOpenThirdPartyApiSettings,
                     onOpenNetworkSettings = onOpenWalletNetworkSettings,
+                    onOpenDappDiscovery = onOpenDappDiscovery,
                     onOpenPage = onOpenWalletPage
-                )
-            }
-            composable(Destinations.BROWSER) {
-                DappDiscoveryRoute(
-                    container = container,
-                    contentTopInset = innerPadding.calculateTopPadding(),
-                    contentBottomInset = innerPadding.calculateBottomPadding(),
-                    onOpenBrowser = onOpenDappBrowser
                 )
             }
             composable(Destinations.TRENDING) {

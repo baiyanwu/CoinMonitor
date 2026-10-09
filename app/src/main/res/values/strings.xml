@@ -2,6 +2,7 @@
     <string name="app_name">CoinMonitor</string>
 
     <string name="tab_home">首页</string>
+    <string name="tab_market">行情</string>
     <string name="tab_wallet">钱包</string>
     <string name="tab_browser">浏览</string>
     <string name="tab_kline">K线</string>
@@ -528,6 +529,16 @@
     <string name="wallet_private_key_solana_description">仅用于 Solana 网络，不与 EVM 地址通用。</string>
     <string name="wallet_refresh">刷新</string>
     <string name="wallet_more">更多</string>
+    <string name="wallet_dapp_browser">DApp 浏览器</string>
+    <string name="wallet_visible_estimate">可见资产估值</string>
+    <string name="wallet_home_summary">%1$d 个网络 · %2$d 项资产</string>
+    <string name="wallet_unpriced_count">%1$d 项资产暂无估值</string>
+    <string name="wallet_hide_values">隐藏资产金额</string>
+    <string name="wallet_show_values">显示资产金额</string>
+    <string name="wallet_updated_time">更新于 %1$s</string>
+    <string name="wallet_refreshing_previous">刷新中 · 上次更新 %1$s</string>
+    <string name="wallet_networks_all">全部网络</string>
+    <string name="wallet_watch_entry_description">查询其他地址的链上资产</string>
     <string name="wallet_manage">钱包管理</string>
     <string name="wallet_backup">备份钱包</string>
     <string name="wallet_security">安全设置</string>
