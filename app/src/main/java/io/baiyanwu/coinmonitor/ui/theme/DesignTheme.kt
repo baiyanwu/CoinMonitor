@@ -72,6 +72,7 @@ fun CoinMonitorDesignTheme(content: @Composable () -> Unit) {
             colorScheme = colorScheme,
             typography = typography,
             shapes = Shapes(
+                extraSmall = design.shapes.menu,
                 small = design.shapes.pill,
                 medium = design.shapes.card,
                 large = design.shapes.card,

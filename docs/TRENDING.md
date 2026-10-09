@@ -2,9 +2,18 @@
 
 Android 底部导航顺序为“行情 / 热门 / 钱包 / 设置”，“热门”内含可点选、滑动切换的 indicator 标签：共同热门、GMGN 热门、PumpFun 热门、OKX 热门。业务参考 CoinMonitor-mac 的 Trending 客户端、筛选、交集和 NEW 规则。
 
-标签栏复用首页和钱包的 `MarketModeTabs`，高 44dp，指示条宽 32dp、高 3dp；使用钱包的 labelLarge 字号，四项宽度随手机可用宽度均分，单项最多 96dp。首页和钱包原有两项的尺寸保持一致。
+## 圆润蓝紫 UI（2026-10-09）
 
-手机列表默认左侧显示排名、图标、币种和地址缩写，币种图标右下角使用打包的链 Logo（复用 Mac 的九条链资源），列表不再重复显示链名；GMGN 和包含 GMGN 的共同热门在币名后显示紫色人形图标和聪明钱人数，下一行只展示地址缩写。右侧显示市值和所选时间窗涨跌；表头“市值/价格”后的双向循环箭头按钮统一切换当前列表所有行。各标签的选择独立保存。价格在列表和详情中复用公共 `QuoteFormatter.formatPrice`，例如 `0.0001234` 显示为 `$0.0₃1234`。表头下分割线采用低透明度主题色。
+- 页面局部使用 `CoinMonitorDesignTheme`，沿用浅色/深色/跟随系统偏好。顶部为小字号品牌/页面标题和小图标按钮；“共同 / GMGN / PumpFun / OKX”采用胶囊标签，保留点击与左右滑动。
+- 来源数量、链/时间窗筛选摘要、更新时间和刷新状态分开显示。独立来源使用自己的实际筛选；共同来源链或时间窗不同、或包含没有时间窗的 PumpFun 时显示“独立筛选”，不照抄设计图里的 Solana/24h 示例。共同榜单等待其他来源时不显示已成功更新或零交集；刷新失败后更新时间对应正在保留的完整共同快照。
+- 榜单收进圆角卡片：两位排名、28dp 币种图标、链徽标、真实来源色点、缩写 CA、市值/价格和涨跌/流动性。首行使用轻微蓝紫底色；行高以 52dp 为下限，允许长数值和大字体撑开。新增的复制图标保留 48dp 点击区域，复制完整 CA；点击其余行区域仍进入详情。
+- 聪明钱仍紧跟币种，NEW 和风险状态保留。来源色点只按代币实际 `links` 展示，不给所有币种写死三个来源。市值/价格循环切换仍在表头；极小价格继续复用 `QuoteFormatter`。
+- 筛选面板使用圆角分组和紧凑胶囊选项，来源为多选语义，其余筛选为单选语义；保持至少两个共同来源、原有排序/刷新间隔/凭证入口。详情面板统一字号和指标卡片，保留复制及独立浏览器入口。
+- 不修改 `TrendingViewModel`、客户端、榜单规则、缓存或凭证逻辑，也不添加新的网络来源或交易动作。基础规范见 [UI_DESIGN_SYSTEM.md](./UI_DESIGN_SYSTEM.md)。
+
+标签栏使用通用 `CoinMonitorSegmentedTabs`，四项随可用宽度均分；标签保留至少 48dp 点击高度，选中项使用胶囊底盘与小点，允许大字体自然撑开。钱包原有 `MarketModeTabs` 的实现和尺寸保持不变；首页已独立接入胶囊市场切换，保留原有分页行为。
+
+手机列表默认左侧显示排名、图标、币种和地址缩写，币种图标右下角使用打包的链 Logo（复用 Mac 的九条链资源），列表不再重复显示链名；GMGN 和包含 GMGN 的共同热门在币名后显示紫色人形图标和聪明钱人数，地址行同时保留 NEW/风险标记。右侧显示市值/价格及来源返回的涨跌幅或流动性；大字体或窄屏时数值改到下一行。表头“市值/价格”后的双向循环箭头按钮统一切换当前列表所有行。各标签的选择独立保存。价格在列表和详情中复用公共 `QuoteFormatter.formatPrice`，例如 `0.0001234` 显示为 `$0.0₃1234`。列表分割线使用淡主题边框色。
 
 PumpFun 原榜单不返回独立价格字段；使用同一记录的 USD 市值、`circulating_supply_str` 原始流通量和 `base_decimals` 计算单价，不假设固定十亿枚供应量。流通量或精度缺失、无效时价格显示 `--`。PumpFun 不提供涨跌时展示流动性，其他缺失数值也显示 `--`。点击币种查看完整合约地址、市值、价格、成交额、流动性、聪明钱及来源链接。复制地址仅由明确的复制按钮触发。
 
@@ -42,12 +51,16 @@ OKX 单链选择提供 Solana、BSC、Base、Ethereum、Arbitrum；全部链接�
 - `data/network/TrendingClient.kt`：公开 Pump 请求、GMGN 请求/封装解析、OKX 签名请求及限流。
 - `data/repository/TrendingPreferences.kt`、`TrendingSnapshotCache.kt`、`GmgnCredentialsRepository.kt`：标签/筛选偏好、成功榜单和完整交集缓存、GMGN 加密 key。排行榜缓存不包含凭证。
 - `ui/trending/TrendingViewModel.kt`：按可见标签加载、按查询缓存、来源级退避和共享基线。
-- `ui/trending/TrendingRoute.kt`、`TrendingSheets.kt`：手机列表、indicator 标签、筛选和详情。
+- `ui/trending/TrendingRoute.kt`、`TrendingSheets.kt`：页面、胶囊标签、筛选和详情；`TrendingTokenRow.kt`：紧凑业务列表行、来源色点和链徽标。
+- `ui/trending/TrendingPresentation.kt`：整理实际筛选和完整快照时间的展示信息；`TrendingPreviews.kt`：浅色、深色、大字体英文、缓存失败与凭证未配置的离线 Preview。
+- `ui/components/CoinMonitorPageTopBar.kt`、`CoinMonitorSegmentedTabs.kt`：不依赖数据仓库的通用顶部栏和胶囊标签。
 
 ## 代码验证
 
-单元测试入口包括 `TrendingClientTest`（请求参数、响应解析、限流及 PumpFun 价格计算）、`TrendingRulesTest`（身份、交集、排序、NEW 与刷新策略）、`TrendingSnapshotCacheTest`（持久化和失效）、`TrendingCachedStateTest` 与 `TrendingDisplayTest`（缓存展示与数值格式），导航入口由 `MainNavigationEntryPolicyTest` 覆盖。
+单元测试入口包括 `TrendingClientTest`（请求参数、响应解析、限流及 PumpFun 价格计算）、`TrendingRulesTest`（身份、交集、排序、NEW 与刷新策略）、`TrendingSnapshotCacheTest`（持久化和失效）、`TrendingCachedStateTest` 与 `TrendingDisplayTest`（缓存展示与数值格式）、`TrendingPresentationTest`（实际筛选摘要、PumpFun 无时间窗、完整缓存时间与来源未齐），导航入口由 `MainNavigationEntryPolicyTest` 覆盖。
 
 仓库验证命令：`./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleRelease`。这些检查验证代码与构建，不证明生产接口可用或实体机交互结果。
+
+本次 UI 改造在 2026-10-09 完成 `:app:testDebugUnitTest`（307 个测试全部通过）、`:app:lintDebug`（无错误，162 条警告）、`:app:assembleDebug`。Seeker 已安装版本为 Debug 1.0.13；新包与原安装包的签名一致，`adb install -r` 返回 `Success`，保留已有数据。自动安装过程未启动 App 或截图；随后用户反馈本轮热门页无明显问题，并确认提交。上述代码检查不代表生产接口验证。
 
 接口参考：[GMGN 官方客户端](https://github.com/GMGNAI/gmgn-skills/blob/main/src/client/OpenApiClient.ts)、[OKX 热门代币](https://web3.okx.com/zh-hans/onchainos/dev-docs/market/market-token-hot-token)。PumpFun 网站接口未提供公开的排名算法或限流承诺；本页不将该榜单称为纯热搜榜。

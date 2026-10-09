@@ -82,7 +82,7 @@ internal fun WalletSelectionCard(
 ) {
     val design = CoinMonitorThemeTokens.design
     Box {
-        CoinMonitorRoundedCard(Modifier.fillMaxWidth(), contentPadding = 0.dp) {
+        CoinMonitorRoundedCard(Modifier.fillMaxWidth(), contentPadding = PaddingValues(0.dp)) {
             CoinMonitorCompactListRow(
                 onClick = onSelect,
                 leading = {

@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.heightIn
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
@@ -26,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.tooling.preview.Preview
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorDesignTheme
@@ -36,7 +39,7 @@ import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 @Composable
 fun CoinMonitorRoundedCard(
     modifier: Modifier = Modifier,
-    contentPadding: androidx.compose.ui.unit.Dp = CoinMonitorThemeTokens.design.spacing.cardPadding,
+    contentPadding: PaddingValues? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
     val design = CoinMonitorThemeTokens.design
@@ -46,11 +49,14 @@ fun CoinMonitorRoundedCard(
         color = design.colors.surface,
         contentColor = design.colors.primaryText
     ) {
-        Column(Modifier.padding(contentPadding), content = content)
+        Column(
+            Modifier.padding(contentPadding ?: PaddingValues(design.spacing.cardPadding)),
+            content = content
+        )
     }
 }
 
-/** 列表行的布局插槽；不认识币种、钱包或数据加载。父容器决定卡片与分隔线。 */
+/** 可点击紧凑行适配器；复用通用列表布局，数据和业务操作由调用方提供。 */
 @Composable
 fun CoinMonitorCompactListRow(
     onClick: () -> Unit,
@@ -62,21 +68,17 @@ fun CoinMonitorCompactListRow(
     trailing: @Composable () -> Unit = {}
 ) {
     val design = CoinMonitorThemeTokens.design
-    Row(
-        modifier.fillMaxWidth()
-            .heightIn(min = design.sizes.listRowMinimumHeight)
-            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
-            .padding(horizontal = design.spacing.cardPadding, vertical = design.spacing.small),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(design.spacing.inline)
-    ) {
-        leading()
-        Column(Modifier.weight(1f)) {
-            headline()
-            supporting()
-        }
-        trailing()
-    }
+    CoinMonitorListRow(
+        leading = leading,
+        title = headline,
+        supporting = supporting,
+        trailing = {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(design.spacing.inline)) {
+                trailing()
+            }
+        },
+        modifier = modifier.clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+    )
 }
 
 /** 可用在模式、来源或筛选选项；调用方管理选中值与 selectableGroup。 */
@@ -86,7 +88,11 @@ fun CoinMonitorPillOption(
     selected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    leadingIcon: ImageVector? = null,
+    showSelectionMark: Boolean = false,
+    textStyle: TextStyle? = null,
+    role: Role = Role.RadioButton
 ) {
     val design = CoinMonitorThemeTokens.design
     val containerColor by animateColorAsState(
@@ -103,6 +109,11 @@ fun CoinMonitorPillOption(
         selected -> design.colors.selectedContent
         else -> design.colors.secondaryText
     }
+    val interaction = if (role == Role.Checkbox) {
+        Modifier.toggleable(value = selected, enabled = enabled, role = role, onValueChange = { onClick() })
+    } else {
+        Modifier.selectable(selected = selected, enabled = enabled, role = role, onClick = onClick)
+    }
     Box(
         modifier = modifier
             .defaultMinSize(
@@ -110,18 +121,77 @@ fun CoinMonitorPillOption(
                 minHeight = design.sizes.minimumTouchTarget
             )
             .clip(design.shapes.pill)
-            .selectable(selected = selected, enabled = enabled, role = Role.RadioButton, onClick = onClick),
+            .then(interaction),
         contentAlignment = Alignment.Center
     ) {
         Box(
             Modifier
                 .heightIn(min = design.sizes.pillMinimumHeight)
                 .background(containerColor, design.shapes.pill)
-                .padding(horizontal = design.spacing.cardPadding, vertical = design.spacing.small),
+                .padding(horizontal = design.spacing.inline, vertical = design.spacing.small),
             contentAlignment = Alignment.Center
         ) {
-            Text(label, color = contentColor, style = design.typography.label)
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(design.spacing.small),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                leadingIcon?.let { icon ->
+                    Icon(icon, null, Modifier.size(design.sizes.actionIcon), tint = contentColor)
+                }
+                Text(
+                    label,
+                    modifier = Modifier.weight(1f, fill = false),
+                    color = contentColor,
+                    style = textStyle ?: design.typography.label
+                )
+                if (showSelectionMark && selected) {
+                    Icon(CoinMonitorIcons.Check, null, Modifier.size(design.sizes.selectionMark), tint = contentColor)
+                }
+            }
         }
+    }
+}
+
+/** 通用导航行只接收展示参数与点击回调；字体放大时允许内容撑高。 */
+@Composable
+fun CoinMonitorNavigationRow(
+    title: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    subtitle: String? = null,
+    leadingIcon: ImageVector? = null
+) {
+    val design = CoinMonitorThemeTokens.design
+    Row(
+        modifier
+            .fillMaxWidth()
+            .heightIn(min = design.sizes.settingsRowMinimumHeight)
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = design.spacing.cardPadding, vertical = design.spacing.rowVertical),
+        horizontalArrangement = Arrangement.spacedBy(design.spacing.group),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        leadingIcon?.let { icon ->
+            Box(
+                Modifier.size(design.sizes.actionContainer)
+                    .background(design.colors.selectedContainer, design.shapes.pill),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, null, Modifier.size(design.sizes.actionIcon), tint = design.colors.accent)
+            }
+        }
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(design.spacing.tiny)) {
+            Text(title, style = design.typography.rowTitle, color = design.colors.primaryText)
+            if (!subtitle.isNullOrBlank()) {
+                Text(subtitle, style = design.typography.rowSubtitle, color = design.colors.secondaryText)
+            }
+        }
+        Icon(
+            CoinMonitorIcons.ChevronRight,
+            contentDescription = null,
+            modifier = Modifier.size(design.sizes.actionIcon),
+            tint = design.colors.tertiaryText
+        )
     }
 }
 

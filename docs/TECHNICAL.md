@@ -41,7 +41,9 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 - 首页现在只保留一套手动顺序源，不再区分名字排序、价格排序等模式
 - 首页支持整卡长按拖动排序，并支持置顶 / 取消置顶；置顶项固定排在普通项之前，拖动只调整当前市场分类及同一置顶分组内的相对顺序
 - 长按单个币对会弹出跟手快捷菜单，支持删除、置顶 / 取消置顶，以及加入或移出悬浮窗
-- 首页行情行采用紧凑密度：缩小主币对、价格、涨跌幅、来源标签和图标，并压缩行内间距与垂直内边距
+- 首页按圆润蓝紫稿局部接入新主题：顶部品牌/搜索/更多、胶囊市场切换、真实币种重点卡、连续白色圆角自选列表和悬浮盯盘配置状态条；币种图标 28dp，基础行最小 52dp，大字体或链上 CA 内容可自然撑开
+- 重点卡默认展示当前分类首项，点击行的非独立操作区域可切换关注；所有币种继续留在列表中排序，标题区域仍打开外部行情。原右下角操作 FAB 移至顶部“更多”，继续提供添加币对和悬浮币对配置
+- 首页走势图按实际时间绘制本会话可见行/重点卡收到的真实报价，每币最多 32 个样本；按币种独立发布，不让整页跟随每条报价重组，不增加历史行情请求或 Room 写入。不足两个点不生成曲线；实时图与原有 24h 涨跌幅分开标识
 - 首页币对标题通过系统 URI 处理器打开外部行情页：Binance / OKX 使用持久化的真实 instrument ID，Binance Alpha 回退到官方 Alpha 行情目录，链上优先打开当前固定池的 DexScreener 页面，旧数据缺少池地址时回退到合约搜索
 - 首页链上观察项在副信息行显示合约地址头尾缩写和复制按钮；复制操作写入完整纯文本 CA 并给出 Toast 反馈，交易所观察项不显示该入口
 - 首页价格继续保持实时显示，但实时价格更新已经从 Room 高频写回中拆出，改为走内存报价状态，降低大量 `WSS` 推送时的滚动抖动
@@ -63,11 +65,12 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 
 ### Settings
 
-- 设置首页依次提供“通用设置”“钱包设置”“悬浮窗设置”。“通用设置”收纳外观模式、语言、“显示链上市值”和网络日志；其中市值开关通过 Preferences DataStore 全局持久化，由首页和前台悬浮服务共同观察，冷启动、Activity 重建与悬浮窗重建后保持一致，仅改变 `ONCHAIN_TOKEN` 的主数值展示。“钱包设置”复用 Activity 级 `WalletViewModel` 与既有钱包功能页面；管理和安全直接进入，备份先在独立选择页切换目标钱包，再进入既有备份流程，钱包页右上角菜单仍直接作用于当前钱包
+- 设置首页接入圆润蓝紫主题，顶部提供“浅色 / 深色 / 跟随系统”快捷选择，下方按“偏好与安全 / 盯盘与数据 / 应用”展示通用设置、钱包设置、悬浮窗设置、第三方 API 与关于入口。快捷外观通过 `SettingsViewModel.setThemeMode` 写入既有偏好，与“通用设置”的外观选项同步。
+- “通用设置”继续收纳外观模式、语言、“显示链上市值”和网络日志；其中市值开关通过 `AppPreferencesRepository` 全局持久化，由首页和前台悬浮服务共同观察，冷启动、Activity 重建与悬浮窗重建后保持一致，仅改变 `ONCHAIN_TOKEN` 的主数值展示。“钱包设置”复用 Activity 级 `WalletViewModel` 与既有钱包功能页面；管理和安全直接进入，备份先在独立选择页切换目标钱包，再进入既有备份流程，钱包页右上角菜单仍直接作用于当前钱包。二级设置页的布局本次不变。
 - 设置页新增独立 `AboutActivity`，沿用统一 Compose Activity 宿主、主题、语言和详情页转场
 - “关于”页通过 `BuildConfig.VERSION_NAME / VERSION_CODE` 读取当前构建版本，版本信息不在字符串资源中重复维护
 - 页面集中展示项目用途、作者 `baiyanwu`、GitHub 源码仓库、Apache-2.0 许可、Issues 反馈入口及行情风险说明；外部链接统一交由系统 URI 处理器打开
-- 关于页和设置入口均提供简体中文与英文资源；设置入口只展示“关于”标题，不附加重复副标题
+- 关于页和设置入口均提供简体中文与英文资源；设置首页入口展示“关于 CoinMonitor”及版本、许可与开源信息摘要，仍进入原有关于页。
 
 ### App Update Check
 
@@ -192,7 +195,7 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 - `DefaultWalletVaultRepository` 管理加密的多钱包保险库；`DefaultWalletNetworkSettingsRepository` 独立管理 Alchemy Key、动态 EVM 目录、启用网络与逐链 RPC，二者都拒绝在 Android 安全存储不可用时降级。
 - `DefaultSelfCustodyWalletRepository` 执行 `custom RPC > Alchemy RPC` 的交易节点路由；OKX Onchain Balance/Token API 是资产、价格、元数据与风险标记索引层，Alchemy Transfers 只保留为活动历史索引。缓存按 wallet ID 隔离。
 - 钱包刷新按 EVM 地址与 Solana 地址分别查询当前启用网络，并与 OKX 实时支持链取交集。OKX 整体失败时保留最后缓存；部分地址体系或不支持网络只记录到对应资产失败集合。活动索引失败保持独立，不会把正常空资产误报为错误。
-- 自托管钱包首次默认启用 Ethereum、BNB Chain、Robinhood Chain 与 Solana；网络栏复用观察地址页的紧凑编辑样式。停用网络会从持久化的启用列表移除并停止后续拉取，恢复入口统一放在钱包网络设置中。
+- 自托管钱包首次默认启用 Ethereum、BNB Chain、Robinhood Chain 与 Solana；网络胶囊打开可滚动的选择/编辑面板。停用网络会从持久化的启用列表移除并停止后续拉取，恢复入口统一放在钱包网络设置中。
 - 自托管钱包复用观察地址的总资产卡、紧凑资产行与 `AssetAmountFormatter`。默认隐藏估值小于 1 美元和 OKX 标记的风险资产；缺少可靠 Token 精度的资产可展示但不可进入转账流程。
 - 默认 EVM 网络元数据来自应用内种子与 `docs/wallet-evm-networks.json` 远程目录，使用 CAIP-2 风格 `eip155:<chainId>` 作为稳定标识；用户也可添加经 `eth_chainId` 验证的任意标准 EVM RPC。资产覆盖由 OKX 实时支持链决定，Alchemy Portfolio 标记不再控制资产可见性。
 - 原 `WalletWatchRoute` 由独立 `WalletWatchActivity` 承载；观察地址与自托管钱包复用 OKX 客户端实现和同一套加密凭证，但各自持有客户端实例，并保持独立模型、筛选与缓存。
@@ -201,14 +204,18 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 ## UI Design System
 
 - `CoinMonitorThemeTokens.design` 集中提供圆润蓝紫设计的语义颜色、尺寸、间距、字号、形状和动效时间，并沿用现有外观模式。
-- `CoinMonitorDesignTheme` 支持组件/页面局部迁移，统一转换 Material 与既有语义颜色；现有全局主题和系统栏配置保持原样；底部导航和钱包主 Tab 局部接入新样式，其他功能页面继续逐页迁移。
-- `CoinMonitorIcons` 集中管理通用图标；`CoinMonitorRoundedCard`、`CoinMonitorPillOption`、`CoinMonitorSmallIconButton`、`CoinMonitorCompactListRow` 为不依赖仓库和 ViewModel 的基础控件。
+- `CoinMonitorDesignTheme` 支持组件/页面局部迁移，统一转换 Material 与既有语义颜色；全局主题默认映射、未接入页面的布局和系统栏配置保持原样。
+- `CoinMonitorIcons` 集中管理通用图标；`CoinMonitorRoundedCard`、`CoinMonitorPillOption`、`CoinMonitorSmallIconButton`、`CoinMonitorNavigationRow` 和 `CoinMonitorPageHeader` 为不依赖仓库和 ViewModel 的基础控件，底部导航与设置首页已接入。
 - `CoinMonitorBottomBar` 接入四个主 Tab，使用圆角底盘、胶囊选中态、小点和统一描边图标，保留导航状态恢复及现有主 `Scaffold` 安全区传递。
+- 热门页已局部接入新设计，复用 `CoinMonitorPageTopBar` 和 `CoinMonitorSegmentedTabs`；`TrendingPresentation` 只整理实际筛选与完整缓存时间，`TrendingTokenRow` 处理紧凑行、真实来源标记、完整 CA 复制及大字体布局，数据请求和缓存策略仍由既有 ViewModel/仓库负责。详见 [TRENDING.md](./TRENDING.md)。
+- 首页进一步使用 `CoinMonitorListRow` 和 `CoinMonitorSparkline`；`WatchItemCard` 改为纯手势容器，真实行情订阅、CA 复制与数值展示集中在 `HomeMarketComponents`。四个主 Tab 均已接入；钱包通过 `CoinMonitorCompactListRow` 适配器复用同一列表布局，独立详情与二级设置样式后续逐页处理。
 - 完整颜色表、调用方式、组件边界与后续接入约定见 [UI_DESIGN_SYSTEM.md](./UI_DESIGN_SYSTEM.md)。
+
+- 钱包主页局部启用新主题，`WalletHomeComponents` 通过纯展示参数/回调接入共享卡片、胶囊与列表；金额汇总和地址适配位于 `WalletHomeDisplay`，业务操作仍由既有 `WalletViewModel` 处理。
 
 ## DApp Browser
 
-- 底部“浏览”Tab 和 `MainShell` 的 `browser` destination 已移除；“钱包 → 更多 → DApp 浏览器”打开独立 `DappDiscoveryActivity`，其中复用 `DappDiscoveryRoute`，由 `DappDiscoveryRepository` 读取 `res/raw/dapp_catalog_v1.json`，搜索历史通过 Room `dapp_search_history` 保存。独立 `DappBrowserActivity` 与热门页面现有调用继续保留；MainActivity 不创建或持有 WebView。
+- 底部“浏览”Tab 和 `MainShell` 的 `browser` destination 已移除；“钱包 → 更多 → DApp 浏览器”通过独立 `DappDiscoveryActivity` 接入，复用 `DappDiscoveryRoute`，由 `DappDiscoveryRepository` 读取 `res/raw/dapp_catalog_v1.json`，搜索历史通过 Room `dapp_search_history` 保存。独立 `DappBrowserActivity` 与热门页面现有调用继续保留；MainActivity 不创建或持有 WebView。
 - `DappBrowserActivity` 独占一个 `DappWebView` 与 `AndroidView` host，并在 Activity 销毁时统一释放。`DappBrowserRoute` 负责可编辑 HTTPS 地址栏、历史导航、加载进度和链图标菜单；返回键优先回退网页历史，没有网页历史时结束 Activity。这样浏览器渲染 surface、Provider 弹窗和网页生命周期不会进入 MainActivity 的 NavHost。
 - `DappWebView` 由 Activity 提前创建后再交给 Compose `AndroidView` 承载，因此自身必须显式使用 `MATCH_PARENT × MATCH_PARENT` 的原生布局参数，避免 Chromium 的布局 viewport 高度为 0，进而把依赖 `vh/dvh/svh/lvh` 的 DApp 底部弹层压缩掉。Provider document-start 注入仍在首次导航前完成。
 - AndroidX WebKit 通过 document-start script 与 web message listener 注入 Trust Web3 Provider `4.9.4`，不使用 `addJavascriptInterface`。浏览器对任意页面注册 Provider，但 WebView 仅允许 HTTPS 导航，原生消息入口只接受 HTTPS 主 frame，并按发起 origin 投递异步响应。最小 bootstrap 初始化 Trust Core/Ethereum Provider、建立原生回调、暴露标准 `window.ethereum`、Trust 兼容命名空间并发布 EIP-6963 Provider；EIP-6963 身份保持 CoinMonitor，图标在运行时从 Android 应用图标生成 PNG Data URI，并通过 Trust Provider 自带的 `setOverwriteMetamask(true)` 兼容旧版 MetaMask Connector，不注入 `window.metamask`、MetaMask 专属 API、`window.web3` 或页面 DOM/CSS 修补。内置目录只负责发现页展示，手输网址在导航前显示第三方风险提示。

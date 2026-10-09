@@ -962,7 +962,7 @@ private fun WalletDashboard(
             }
         }
         Box(Modifier.padding(horizontal = design.spacing.pageHorizontal, vertical = design.spacing.inline)) {
-            CoinMonitorRoundedCard(Modifier.fillMaxWidth(), contentPadding = 0.dp) {
+            CoinMonitorRoundedCard(Modifier.fillMaxWidth(), contentPadding = PaddingValues(0.dp)) {
                 io.baiyanwu.coinmonitor.ui.components.CoinMonitorCompactListRow(
                     onClick = onOpenWatchWallet,
                     leading = { Icon(CoinMonitorIcons.Search, null, Modifier.size(design.sizes.coinIcon), tint = design.colors.accent) },

@@ -21,6 +21,16 @@ class DesignTokensTest {
     }
 
     @Test
+    fun `small financial values remain readable on cards and spotlight backgrounds`() {
+        listOf(designTokens(false).colors, designTokens(true).colors).forEach { colors ->
+            listOf(colors.surface, colors.surfaceMuted).forEach { background ->
+                assertTrue("positive value", contrast(colors.positive, background) >= 4.5)
+                assertTrue("negative value", contrast(colors.negative, background) >= 4.5)
+            }
+        }
+    }
+
+    @Test
     fun `local semantic bridge preserves independent financial and selection colors`() {
         listOf(designTokens(false).colors, designTokens(true).colors).forEach { design ->
             val legacy = design.toSemanticColors()

@@ -1,30 +1,23 @@
 package io.baiyanwu.coinmonitor.ui.trending
 
+import android.widget.Toast
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Refresh
-import androidx.compose.material.icons.rounded.Person
-import androidx.compose.material.icons.rounded.Language
-import androidx.compose.material.icons.rounded.Autorenew
-import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.pluralStringResource
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -38,9 +31,12 @@ import io.baiyanwu.coinmonitor.data.AppContainer
 import io.baiyanwu.coinmonitor.data.network.TrendingFailure
 import io.baiyanwu.coinmonitor.overlay.QuoteFormatter
 import io.baiyanwu.coinmonitor.domain.model.*
-import io.baiyanwu.coinmonitor.ui.components.CoinSymbolIcon
-import io.baiyanwu.coinmonitor.ui.components.MainTabTopBar
-import io.baiyanwu.coinmonitor.ui.components.MarketModeTabs
+import io.baiyanwu.coinmonitor.ui.components.CoinMonitorIcons
+import io.baiyanwu.coinmonitor.ui.components.CoinMonitorPageTopBar
+import io.baiyanwu.coinmonitor.ui.components.CoinMonitorSegmentedTab
+import io.baiyanwu.coinmonitor.ui.components.CoinMonitorSegmentedTabs
+import io.baiyanwu.coinmonitor.ui.components.CoinMonitorSmallIconButton
+import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorDesignTheme
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.launch
@@ -69,194 +65,247 @@ internal fun TrendingScreen(
     onOptions: (TrendingSource, TrendingOptions) -> Unit, onDisplay: (TrendingBoard, TrendingOptions) -> Unit,
     onRefresh: () -> Unit, onOpenApiSettings: () -> Unit, onOpenBrowser: (String) -> Unit
 ) {
-    val colors = CoinMonitorThemeTokens.colors
-    val pager = rememberPagerState(initialPage = state.board.ordinal, pageCount = { TrendingBoard.entries.size })
-    val scope = rememberCoroutineScope()
-    var showFilters by rememberSaveable { mutableStateOf(false) }
-    var token by remember { mutableStateOf<TrendingToken?>(null) }
-    LaunchedEffect(pager.settledPage) { onSelectBoard(TrendingBoard.entries[pager.settledPage]) }
-    Column(Modifier.fillMaxSize().background(colors.pageBackground).padding(top = contentTopInset, bottom = contentBottomInset)) {
-        MainTabTopBar {
-            Text(stringResource(R.string.tab_trending), style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold, color = colors.primaryText, modifier = Modifier.weight(1f))
-            IconButton(onClick = onRefresh, enabled = state.demand.any { source ->
-                source in state.ready && state.snapshots[source]?.loading != true &&
-                    (state.snapshots[source]?.retryAt ?: 0) <= state.now
-            }) { Icon(Icons.Rounded.Refresh, stringResource(R.string.trending_refresh), tint = colors.accent) }
-            IconButton(onClick = { showFilters = true }) { Icon(Icons.Rounded.Tune, stringResource(R.string.trending_filters), tint = colors.accent) }
+    CoinMonitorDesignTheme {
+        val design = CoinMonitorThemeTokens.design
+        val pager = rememberPagerState(initialPage = state.board.ordinal, pageCount = { TrendingBoard.entries.size })
+        val scope = rememberCoroutineScope()
+        val clipboard = LocalClipboardManager.current
+        val context = LocalContext.current
+        val copiedLabel = stringResource(R.string.trending_address_copied)
+        var showFilters by rememberSaveable { mutableStateOf(false) }
+        var token by remember { mutableStateOf<TrendingToken?>(null) }
+        LaunchedEffect(pager.settledPage) { onSelectBoard(TrendingBoard.entries[pager.settledPage]) }
+        Column(
+            Modifier.fillMaxSize().background(design.colors.pageBackground)
+                .padding(top = contentTopInset, bottom = contentBottomInset)
+        ) {
+            CoinMonitorPageTopBar(stringResource(R.string.tab_trending)) {
+                CoinMonitorSmallIconButton(
+                    CoinMonitorIcons.Refresh, stringResource(R.string.trending_refresh), onRefresh,
+                    enabled = !state.cacheRestoring && state.demand.any { source ->
+                        source in state.ready && state.snapshots[source]?.loading != true &&
+                            (state.snapshots[source]?.retryAt ?: 0) <= state.now
+                    }
+                )
+                CoinMonitorSmallIconButton(
+                    CoinMonitorIcons.Filters, stringResource(R.string.trending_filters), onClick = { showFilters = true }
+                )
+            }
+            CoinMonitorSegmentedTabs(
+                tabs = TrendingBoard.entries.map { CoinMonitorSegmentedTab(it.name, boardTabTitle(it)) },
+                selectedId = TrendingBoard.entries[pager.currentPage].name,
+                onSelect = { id -> scope.launch { pager.animateScrollToPage(TrendingBoard.valueOf(id).ordinal) } },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = design.spacing.pageHorizontal)
+            )
+            HorizontalPager(state = pager, modifier = Modifier.weight(1f)) { page ->
+                TrendingList(
+                    state, TrendingBoard.entries[page], onOpenApiSettings, onDisplay,
+                    onFilters = { showFilters = true }, onToken = { token = it },
+                    onCopyAddress = { address ->
+                        clipboard.setText(AnnotatedString(address))
+                        Toast.makeText(context, copiedLabel, Toast.LENGTH_SHORT).show()
+                    }
+                )
+            }
         }
-        MarketModeTabs(
-            selectedPage = pager.currentPage,
-            onSelectPage = { page -> scope.launch { pager.animateScrollToPage(page) } },
-            labelResources = listOf(R.string.trending_shared, R.string.trending_gmgn, R.string.trending_pump, R.string.trending_okx),
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp)
-        )
-        HorizontalPager(state = pager, modifier = Modifier.weight(1f)) { page ->
-            TrendingList(state, TrendingBoard.entries[page], onOpenApiSettings, onDisplay) { token = it }
+        if (showFilters) ModalBottomSheet(
+            onDismissRequest = { showFilters = false }, shape = design.shapes.bottomBar,
+            containerColor = design.colors.pageBackground, contentColor = design.colors.primaryText
+        ) {
+            TrendingFilters(state, onToggleSource, onOptions, onDisplay, onOpenApiSettings)
         }
+        token?.let { selected -> ModalBottomSheet(
+            onDismissRequest = { token = null }, shape = design.shapes.bottomBar,
+            containerColor = design.colors.pageBackground, contentColor = design.colors.primaryText
+        ) {
+            TrendingTokenDetails(selected, onOpenBrowser)
+        } }
     }
-    if (showFilters) ModalBottomSheet(onDismissRequest = { showFilters = false }, containerColor = colors.pageBackground) {
-        TrendingFilters(state, onToggleSource, onOptions, onDisplay, onOpenApiSettings)
-    }
-    token?.let { selected -> ModalBottomSheet(onDismissRequest = { token = null }, containerColor = colors.pageBackground) {
-        TrendingTokenDetails(selected, onOpenBrowser)
-    } }
 }
 
 @Composable
-private fun TrendingList(state: TrendingUiState, board: TrendingBoard, onOpenApiSettings: () -> Unit,
-    onDisplay: (TrendingBoard, TrendingOptions) -> Unit, onToken: (TrendingToken) -> Unit) {
-    val colors = CoinMonitorThemeTokens.colors
+private fun TrendingList(
+    state: TrendingUiState, board: TrendingBoard, onOpenApiSettings: () -> Unit,
+    onDisplay: (TrendingBoard, TrendingOptions) -> Unit, onFilters: () -> Unit,
+    onToken: (TrendingToken) -> Unit, onCopyAddress: (String) -> Unit
+) {
+    val design = CoinMonitorThemeTokens.design
     val rows = state.rows(board)
-    val demand = TrendingRules.demand(board, state.sources)
-    val loading = demand.any { state.snapshots[it]?.loading == true }
+    val summary = state.summary(board)
     val options = state.displayOptions(board)
-    val missing = demand.filter { it !in state.ready }
-    val failures = demand.filter { state.snapshots[it]?.failure != null && it in state.ready }
-    val ready = missing.isEmpty() && demand.all { state.snapshots[it]?.updatedAt != null }
     val newIds = state.newIds(board)
-    Column(Modifier.fillMaxSize()) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(if (board == TrendingBoard.SHARED) state.sources.joinToString(" ∩ ") { it.title }
-                else if (board == TrendingBoard.PUMP) "Solana · PumpFun" else {
-                    val source = demand.first(); val selection = state.options.getValue(source)
-                    "${selection.chain?.title ?: stringResource(R.string.trending_all_chains)} · ${selection.period} · ${modeTitle(selection.mode)}"
-                }, modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelMedium, color = colors.secondaryText,
-                maxLines = 1, overflow = TextOverflow.Ellipsis)
-            if (loading) CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp, color = colors.accent)
-            else Text(pluralStringResource(R.plurals.trending_count, rows.size, rows.size), style = MaterialTheme.typography.labelSmall, color = colors.secondaryText)
+    val ready = summary.missing.isEmpty() && summary.sources.all { state.snapshots[it]?.updatedAt != null }
+    Column(
+        Modifier.fillMaxSize().padding(horizontal = design.spacing.pageHorizontal, vertical = design.spacing.small),
+        verticalArrangement = Arrangement.spacedBy(design.spacing.small)
+    ) {
+        TrendingSourceSummary(summary, onFilters)
+        TrendingUpdateStatus(state, summary)
+        if (summary.missing.isNotEmpty()) TextButton(onClick = onOpenApiSettings, modifier = Modifier.fillMaxWidth()) {
+            Text(stringResource(R.string.trending_missing_keys, summary.missing.joinToString { it.title }))
         }
-        if (missing.isNotEmpty()) TextButton(onClick = onOpenApiSettings, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.trending_missing_keys, missing.joinToString { it.title }))
-        }
-        failures.forEach { source ->
+        summary.failures.forEach { source ->
             val snapshot = state.snapshots.getValue(source)
             val seconds = ((snapshot.retryAt - state.now).coerceAtLeast(0) + 999) / 1000
-            Text("${source.title} · ${failureTitle(snapshot.failure!!, seconds)}" +
-                if (snapshot.updatedAt != null) " · ${stringResource(R.string.trending_previous_result)}" else "",
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 3.dp),
-                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+            Text(
+                "${source.title} · ${failureTitle(snapshot.failure!!, seconds)}" +
+                    if (rows.isNotEmpty()) " · ${stringResource(R.string.trending_previous_result)}" else "",
+                Modifier.padding(horizontal = design.spacing.inline), style = design.typography.caption, color = design.colors.error
+            )
         }
-        Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(stringResource(R.string.trending_token), Modifier.weight(1f), style = MaterialTheme.typography.labelSmall, color = colors.secondaryText)
-            Text(stringResource(if (options.value == TrendingValue.MARKET_CAP) R.string.trending_market_cap else R.string.trending_price),
-                style = MaterialTheme.typography.labelSmall, color = colors.secondaryText)
-            IconButton(
-                onClick = { onDisplay(board, options.copy(value = if (options.value == TrendingValue.MARKET_CAP) TrendingValue.PRICE else TrendingValue.MARKET_CAP)) },
-                modifier = Modifier.size(32.dp)
+        Surface(
+            Modifier.fillMaxWidth().weight(1f), shape = design.shapes.card,
+            color = design.colors.surface, contentColor = design.colors.primaryText
+        ) {
+            Column {
+                Row(
+                    Modifier.fillMaxWidth().padding(start = design.spacing.cardPadding, end = design.spacing.small),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("#", Modifier.width(design.sizes.rankWidth), style = design.typography.caption, color = design.colors.secondaryText)
+                    Text(stringResource(R.string.trending_token), Modifier.weight(1f), style = design.typography.caption, color = design.colors.secondaryText)
+                    TextButton(onClick = { onDisplay(board, options.copy(value =
+                        if (options.value == TrendingValue.MARKET_CAP) TrendingValue.PRICE else TrendingValue.MARKET_CAP)) }) {
+                        Text(stringResource(if (options.value == TrendingValue.MARKET_CAP) R.string.trending_market_cap else R.string.trending_price), style = design.typography.caption)
+                        Spacer(Modifier.width(design.spacing.small))
+                        Icon(
+                            CoinMonitorIcons.Cycle,
+                            stringResource(if (options.value == TrendingValue.MARKET_CAP) R.string.trending_switch_to_price else R.string.trending_switch_to_market_cap),
+                            Modifier.size(design.sizes.inlineActionIcon)
+                        )
+                    }
+                }
+                if (rows.isEmpty()) {
+                    Box(Modifier.fillMaxWidth().weight(1f).padding(design.spacing.pageHorizontal), contentAlignment = Alignment.Center) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(design.spacing.inline)) {
+                            if (state.cacheRestoring || summary.loading) CircularProgressIndicator(
+                                Modifier.size(design.sizes.actionContainer), color = design.colors.accent, strokeWidth = 2.dp
+                            )
+                            Text(
+                                stringResource(when {
+                                    state.cacheRestoring -> R.string.trending_loading_cache
+                                    summary.loading -> R.string.trending_loading
+                                    summary.missing.isNotEmpty() -> R.string.trending_configure_hint
+                                    summary.failures.isNotEmpty() -> R.string.trending_unavailable
+                                    !ready -> R.string.trending_loading
+                                    board == TrendingBoard.SHARED -> R.string.trending_no_overlap
+                                    else -> R.string.trending_empty
+                                }), style = design.typography.rowSubtitle, color = design.colors.secondaryText, textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+                } else LazyColumn(
+                    Modifier.weight(1f), contentPadding = PaddingValues(horizontal = design.spacing.small, vertical = design.spacing.small)
+                ) {
+                    itemsIndexed(rows, key = { _, item -> item.id }) { index, item ->
+                        TrendingTokenRow(
+                            item, index + 1, item.id in newIds, options.value,
+                            showSmartMoney = TrendingSource.GMGN in summary.sources,
+                            onToken = onToken, onCopyAddress = onCopyAddress
+                        )
+                        if (index < rows.lastIndex) HorizontalDivider(
+                            Modifier.padding(horizontal = design.spacing.inline), color = design.colors.divider
+                        )
+                    }
+                }
+                HorizontalDivider(Modifier.padding(horizontal = design.spacing.cardPadding), color = design.colors.divider)
+                Text(
+                    if (summary.updatedAt == null) stringResource(R.string.trending_waiting_update)
+                    else if (board == TrendingBoard.SHARED) pluralStringResource(R.plurals.trending_shared_results, rows.size, rows.size, summary.sources.size)
+                    else pluralStringResource(R.plurals.trending_count, rows.size, rows.size),
+                    Modifier.padding(horizontal = design.spacing.cardPadding, vertical = design.spacing.inline),
+                    style = design.typography.caption, color = design.colors.secondaryText
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TrendingSourceSummary(summary: TrendingBoardSummary, onFilters: () -> Unit) {
+    val design = CoinMonitorThemeTokens.design
+    Surface(
+        onClick = onFilters, shape = design.shapes.card, color = design.colors.surface,
+        contentColor = design.colors.primaryText, modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            Modifier.heightIn(min = design.sizes.minimumTouchTarget).padding(horizontal = design.spacing.cardPadding),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(design.spacing.inline)
+        ) {
+            TrendingSourceDots(summary.sources.toSet(), prominent = true)
+            Text(
+                if (summary.sources.size == 1) summary.sources.first().title
+                else pluralStringResource(R.plurals.trending_source_count, summary.sources.size, summary.sources.size),
+                Modifier.weight(1f), style = design.typography.label
+            )
+            Row(
+                Modifier.widthIn(max = 180.dp).background(design.colors.selectedContainer, design.shapes.pill)
+                    .padding(horizontal = design.spacing.inline, vertical = design.spacing.small),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Rounded.Autorenew,
-                    contentDescription = stringResource(if (options.value == TrendingValue.MARKET_CAP) R.string.trending_switch_to_price else R.string.trending_switch_to_market_cap),
-                    modifier = Modifier.size(14.dp), tint = colors.accent)
+                Text(scopeTitle(summary), Modifier.weight(1f, fill = false), style = design.typography.caption, color = design.colors.selectedContent)
+                Icon(CoinMonitorIcons.Expand, stringResource(R.string.trending_filters), Modifier.size(design.sizes.inlineActionIcon), tint = design.colors.selectedContent)
             }
-        }
-        HorizontalDivider(color = colors.divider.copy(alpha = 0.35f))
-        if (rows.isEmpty()) {
-            Box(Modifier.weight(1f).fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
-                Text(stringResource(when {
-                    state.cacheRestoring -> R.string.trending_loading_cache
-                    loading -> R.string.trending_loading
-                    missing.isNotEmpty() -> R.string.trending_configure_hint
-                    failures.isNotEmpty() -> R.string.trending_unavailable
-                    !ready -> R.string.trending_loading
-                    board == TrendingBoard.SHARED -> R.string.trending_no_overlap
-                    else -> R.string.trending_empty
-                }), style = MaterialTheme.typography.bodyMedium, color = colors.secondaryText)
-            }
-        } else {
-            LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(bottom = 12.dp)) {
-                itemsIndexed(rows, key = { _, item -> item.id }) { index, item ->
-                    TrendingTokenRow(item, index + 1, item.id in newIds, options.value,
-                        showSmartMoney = TrendingSource.GMGN in demand, onToken = onToken)
-                    HorizontalDivider(Modifier.padding(horizontal = 16.dp), color = colors.divider.copy(alpha = 0.5f))
-                }
-            }
-        }
-        val times = demand.mapNotNull { state.snapshots[it]?.updatedAt }
-        if (times.isNotEmpty()) {
-            val pausedLabel = stringResource(R.string.trending_paused)
-            val refresh = demand.joinToString(" · ") { source ->
-                val selection = state.options.getValue(source)
-                val snapshot = state.snapshots[source]
-                if (!selection.autoRefresh) "${source.title} $pausedLabel"
-                else if (snapshot?.failure != null) source.title
-                else {
-                    val due = maxOf((snapshot?.updatedAt ?: state.now) + selection.refreshSeconds * 1000L, snapshot?.retryAt ?: 0)
-                    "${source.title} ${((due - state.now).coerceAtLeast(0) + 999) / 1000}s"
-                }
-            }
-            Text(stringResource(R.string.trending_updated,
-                java.text.DateFormat.getTimeInstance(java.text.DateFormat.MEDIUM).format(java.util.Date(times.min()))) + " · " + refresh,
-                Modifier.padding(horizontal = 16.dp, vertical = 5.dp), style = MaterialTheme.typography.labelSmall, color = colors.secondaryText,
-                maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
     }
 }
 
 @Composable
-private fun TrendingTokenRow(token: TrendingToken, rank: Int, isNew: Boolean, value: TrendingValue,
-    showSmartMoney: Boolean, onToken: (TrendingToken) -> Unit) {
-    val colors = CoinMonitorThemeTokens.colors
-    Row(Modifier.fillMaxWidth().clickable { onToken(token) }.padding(horizontal = 14.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(rank.toString(), Modifier.width(22.dp), style = MaterialTheme.typography.labelSmall, color = colors.secondaryText)
-        TrendingTokenIcon(token)
-        Column(Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(token.symbol, modifier = Modifier.weight(1f, fill = false), maxLines = 1, overflow = TextOverflow.Ellipsis,
-                    style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, color = colors.primaryText)
-                if (showSmartMoney) TrendingSmartMoney(token.smartMoney)
-                if (isNew) Text("NEW", style = MaterialTheme.typography.labelSmall, color = colors.accent)
-                if (token.risk) Text(stringResource(R.string.trending_risk), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
-            }
-            Text(token.address.take(4) + "…" + token.address.takeLast(4),
-                style = MaterialTheme.typography.labelSmall, color = colors.secondaryText,
-                maxLines = 1, overflow = TextOverflow.Ellipsis)
+private fun TrendingUpdateStatus(state: TrendingUiState, summary: TrendingBoardSummary) {
+    val design = CoinMonitorThemeTokens.design
+    val pausedLabel = stringResource(R.string.trending_paused)
+    val refresh = if (summary.updatedAt == null) "" else summary.sources.joinToString(" · ") { source ->
+        val options = state.options.getValue(source)
+        val snapshot = state.snapshots[source]
+        if (!options.autoRefresh) "${source.title} $pausedLabel"
+        else if (snapshot?.failure != null) source.title
+        else {
+            val due = maxOf((snapshot?.updatedAt ?: state.now) + options.refreshSeconds * 1000L, snapshot?.retryAt ?: 0)
+            "${source.title} ${((due - state.now).coerceAtLeast(0) + 999) / 1000}s"
         }
-        Column(horizontalAlignment = Alignment.End) {
-            Text(if (value == TrendingValue.MARKET_CAP) compactUsd(token.marketCap) else priceUsd(token.price),
-                style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Medium, color = colors.primaryText)
-            if (token.change != null) Text(String.format(Locale.US, "%+.2f%%", token.change),
-                style = MaterialTheme.typography.labelMedium, color = if (token.change >= 0) colors.positive else colors.negative)
-            else Text(stringResource(R.string.trending_liquidity_short, compactUsd(token.liquidity)),
-                style = MaterialTheme.typography.labelSmall, color = colors.secondaryText)
-        }
+    }
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = design.spacing.inline, vertical = design.spacing.tiny),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(design.spacing.small)
+    ) {
+        Text(
+            summary.updatedAt?.let {
+                stringResource(R.string.trending_updated, java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT).format(java.util.Date(it)))
+            } ?: stringResource(R.string.trending_waiting_update),
+            Modifier.weight(1f, fill = false), style = design.typography.caption, color = design.colors.secondaryText,
+            maxLines = 1, overflow = TextOverflow.Ellipsis
+        )
+        if (refresh.isNotEmpty()) Text(
+            refresh, Modifier.weight(1f), style = design.typography.caption, color = design.colors.secondaryText,
+            textAlign = TextAlign.End, maxLines = 1, overflow = TextOverflow.Ellipsis
+        )
+        if (summary.loading) CircularProgressIndicator(Modifier.size(design.sizes.inlineActionIcon), strokeWidth = 2.dp, color = design.colors.accent)
     }
 }
 
 @Composable
-private fun TrendingTokenIcon(token: TrendingToken) {
-    val colors = CoinMonitorThemeTokens.colors
-    val chainLogo = when (token.chainIndex) {
-        "501" -> R.drawable.trending_chain_sol
-        "56" -> R.drawable.trending_chain_bsc
-        "8453" -> R.drawable.trending_chain_base
-        "1" -> R.drawable.trending_chain_eth
-        "42161" -> R.drawable.trending_chain_arbitrum
-        "999" -> R.drawable.trending_chain_hyperevm
-        "4663" -> R.drawable.trending_chain_robinhood
-        "5042" -> R.drawable.trending_chain_arc
-        "988" -> R.drawable.trending_chain_stable
-        else -> null
+private fun scopeTitle(summary: TrendingBoardSummary): String {
+    val chain = when {
+        summary.mixedChains -> stringResource(R.string.trending_mixed_chains)
+        summary.chain != null -> summary.chain.title
+        else -> stringResource(R.string.trending_all_chains)
     }
-    Box(Modifier.size(32.dp)) {
-        CoinSymbolIcon(token.symbol, iconUrl = token.iconUrl, allowSymbolLookup = false,
-            size = 30.dp, modifier = Modifier.align(Alignment.Center))
-        val badge = Modifier.align(Alignment.BottomEnd).size(14.dp)
-            .background(colors.pageBackground, CircleShape).padding(1.dp).clip(CircleShape)
-        if (chainLogo != null) Image(painterResource(chainLogo), token.chainTitle, modifier = badge)
-        else Icon(Icons.Rounded.Language, token.chainTitle, modifier = badge, tint = colors.secondaryText)
+    val range = when {
+        summary.sources == listOf(TrendingSource.PUMP) -> TrendingSource.PUMP.title
+        summary.sources.size > 1 && (TrendingSource.PUMP in summary.sources || summary.mixedPeriods || summary.mode == null) ->
+            stringResource(R.string.trending_independent_filters)
+        summary.mode == TrendingMode.HOT_SEARCH -> listOfNotNull(summary.period, modeTitle(summary.mode)).joinToString(" · ")
+        else -> summary.period
     }
+    return listOfNotNull(chain, range).joinToString(" · ")
 }
 
 @Composable
-private fun TrendingSmartMoney(count: Double?) {
-    val color = CoinMonitorThemeTokens.colors.accent
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-        Icon(Icons.Rounded.Person, stringResource(R.string.trending_smart_money), modifier = Modifier.size(12.dp), tint = color)
-        Text(count?.takeIf(Double::isFinite)?.let { java.text.NumberFormat.getIntegerInstance(Locale.US).format(it) } ?: "--",
-            style = MaterialTheme.typography.labelSmall, color = color, fontWeight = FontWeight.SemiBold)
-    }
+private fun boardTabTitle(board: TrendingBoard): String = when (board) {
+    TrendingBoard.SHARED -> stringResource(R.string.trending_shared_short)
+    TrendingBoard.GMGN -> TrendingSource.GMGN.title
+    TrendingBoard.PUMP -> TrendingSource.PUMP.title
+    TrendingBoard.OKX -> TrendingSource.OKX.title
 }
 
 @Composable internal fun boardTitle(board: TrendingBoard): String = stringResource(when (board) {

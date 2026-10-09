@@ -29,7 +29,10 @@ data class CoinMonitorDesignColors(
     val error: Color,
     val onError: Color,
     val disabledContainer: Color,
-    val disabledContent: Color
+    val disabledContent: Color,
+    val sourceGmgn: Color,
+    val sourcePump: Color,
+    val sourceOkx: Color
 )
 
 internal val LightDesignColors = CoinMonitorDesignColors(
@@ -45,12 +48,15 @@ internal val LightDesignColors = CoinMonitorDesignColors(
     selectedContainer = Color(0xFFECEAF8),
     selectedContent = Color(0xFF6661A7),
     divider = Color(0xFFE5E7EF),
-    positive = Color(0xFF398D78),
-    negative = Color(0xFFBA6572),
+    positive = Color(0xFF2C7765),
+    negative = Color(0xFFA55160),
     error = Color(0xFFA83E56),
     onError = Color.White,
     disabledContainer = Color(0xFFEFF0F6),
-    disabledContent = Color(0xFF9298AA)
+    disabledContent = Color(0xFF9298AA),
+    sourceGmgn = Color(0xFF8E88F8),
+    sourcePump = Color(0xFF7297EF),
+    sourceOkx = Color(0xFF4AA58F)
 )
 
 internal val DarkDesignColors = CoinMonitorDesignColors(
@@ -71,7 +77,10 @@ internal val DarkDesignColors = CoinMonitorDesignColors(
     error = Color(0xFFF0A8B7),
     onError = Color(0xFF4B1728),
     disabledContainer = Color(0xFF2D3448),
-    disabledContent = Color(0xFF77819D)
+    disabledContent = Color(0xFF77819D),
+    sourceGmgn = Color(0xFFB8B3FF),
+    sourcePump = Color(0xFF91B2FF),
+    sourceOkx = Color(0xFF71BAA3)
 )
 
 object CoinMonitorDesignSpacing {
@@ -81,10 +90,14 @@ object CoinMonitorDesignSpacing {
     val group = 10.dp
     val pageHorizontal = 14.dp
     val cardPadding = 12.dp
+    val rowVertical = 6.dp
 }
 
 object CoinMonitorDesignSizes {
     val coinIcon = 28.dp
+    val cardCornerRadius = 20.dp
+    val featuredCoinIcon = 36.dp
+    val brandMark = 28.dp
     val actionIcon = 18.dp
     val actionContainer = 32.dp
     val minimumTouchTarget = 48.dp
@@ -97,12 +110,28 @@ object CoinMonitorDesignSizes {
     val tabIndicatorHeight = 28.dp
     val selectionDot = 3.dp
     val pickerMaximumHeight = 360.dp
+    val sparklineWidth = 52.dp
+    val sparklineHeight = 24.dp
+    val featuredSparklineHeight = 56.dp
+    val segmentedIndicatorMinimumHeight = 40.dp
+    val chainBadge = 12.dp
+    val sourceDot = 5.dp
+    val sourceSummaryDot = 8.dp
+    val rankWidth = 22.dp
+    val brandMarkInner = 20.dp
+    val brandCutout = 7.dp
+    val inlineActionIcon = 14.dp
+    val selectionMark = 12.dp
+    val dividerThickness = 0.5.dp
+    val headerMinimumHeight = 48.dp
 }
 
 object CoinMonitorDesignShapes {
-    val card = RoundedCornerShape(20.dp)
+    val card = RoundedCornerShape(CoinMonitorDesignSizes.cardCornerRadius)
+    val menu = RoundedCornerShape(14.dp)
     val bottomBar = RoundedCornerShape(28.dp)
     val pill = RoundedCornerShape(50)
+    val brandMark = RoundedCornerShape(7.dp)
 }
 
 object CoinMonitorDesignTypography {
@@ -110,6 +139,7 @@ object CoinMonitorDesignTypography {
     val rowTitle = TextStyle(fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold)
     val rowSubtitle = TextStyle(fontSize = 12.sp, lineHeight = 17.sp)
     val value = TextStyle(fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold)
+    val featuredValue = TextStyle(fontSize = 22.sp, lineHeight = 28.sp, fontWeight = FontWeight.SemiBold)
     val caption = TextStyle(fontSize = 11.sp, lineHeight = 16.sp)
     val label = TextStyle(fontSize = 13.sp, lineHeight = 18.sp, fontWeight = FontWeight.Medium)
     val tabLabel = TextStyle(fontSize = 11.sp, lineHeight = 16.sp, fontWeight = FontWeight.Medium)

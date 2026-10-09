@@ -11,30 +11,35 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.Role
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.ui.unit.dp
 import io.baiyanwu.coinmonitor.R
 import io.baiyanwu.coinmonitor.domain.model.*
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorComponentDefaults
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
+import io.baiyanwu.coinmonitor.ui.components.CoinMonitorPillOption
+import io.baiyanwu.coinmonitor.ui.components.CoinMonitorRoundedCard
 
 @Composable
 internal fun TrendingFilters(state: TrendingUiState, onToggleSource: (TrendingSource) -> Unit,
     onOptions: (TrendingSource, TrendingOptions) -> Unit, onDisplay: (TrendingBoard, TrendingOptions) -> Unit, onOpenApiSettings: () -> Unit) {
-    LazyColumn(Modifier.fillMaxWidth(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        item { Text(stringResource(R.string.trending_filters), style = MaterialTheme.typography.titleLarge) }
+    val design = CoinMonitorThemeTokens.design
+    LazyColumn(Modifier.fillMaxWidth(), contentPadding = PaddingValues(start = design.spacing.pageHorizontal, end = design.spacing.pageHorizontal, bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(design.spacing.group)) {
+        item { Text(stringResource(R.string.trending_filters), style = design.typography.pageTitle) }
         if (state.board == TrendingBoard.SHARED) {
-            item {
+            item { CoinMonitorRoundedCard(Modifier.fillMaxWidth()) {
                 FilterTitle(stringResource(R.string.trending_sources))
                 ChoiceRow(TrendingSource.entries.toList(), { it in state.sources }, { it.title }, onToggleSource,
-                    enabled = { it !in state.sources || state.sources.size > 2 })
+                    enabled = { it !in state.sources || state.sources.size > 2 }, role = Role.Checkbox)
                 Text(stringResource(R.string.trending_shared_hint), style = MaterialTheme.typography.bodySmall, color = CoinMonitorThemeTokens.colors.secondaryText)
-            }
+            } }
         }
         val demand = TrendingRules.demand(state.board, state.sources)
         demand.forEach { source ->
             val options = state.options.getValue(source)
-            item {
+            item { CoinMonitorRoundedCard(Modifier.fillMaxWidth()) {
                 FilterTitle(source.title)
                 if (source != TrendingSource.PUMP) {
                     ChoiceRow(TrendingMode.entries.toList(), { it == options.mode }, { modeTitle(it) }, { onOptions(source, options.copy(mode = it)) })
@@ -49,9 +54,9 @@ internal fun TrendingFilters(state: TrendingUiState, onToggleSource: (TrendingSo
                 }
                 ChoiceRow(TrendingOptions.refreshIntervals, { it == options.refreshSeconds }, { stringResource(R.string.trending_seconds, it) },
                     { onOptions(source, options.copy(refreshSeconds = it)) })
-            }
+            } }
         }
-        item {
+        item { CoinMonitorRoundedCard(Modifier.fillMaxWidth()) {
             val options = state.displayOptions(state.board)
             FilterTitle(stringResource(R.string.trending_sort))
             val fields = if (state.board == TrendingBoard.PUMP) listOf(TrendingSort.DEFAULT, TrendingSort.TOKEN, TrendingSort.MARKET_CAP, TrendingSort.LIQUIDITY)
@@ -64,7 +69,7 @@ internal fun TrendingFilters(state: TrendingUiState, onToggleSource: (TrendingSo
                 { stringResource(if (it == TrendingValue.MARKET_CAP) R.string.trending_market_cap else R.string.trending_price) },
                 { onDisplay(state.board, options.copy(value = it)) })
             TextButton(onClick = onOpenApiSettings) { Text(stringResource(R.string.trending_api_settings)) }
-        }
+        } }
     }
 }
 
@@ -72,18 +77,27 @@ internal fun TrendingFilters(state: TrendingUiState, onToggleSource: (TrendingSo
     Text(title, Modifier.padding(top = 8.dp), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
 }
 @Composable private fun <T> ChoiceRow(values: List<T>, selected: (T) -> Boolean, label: @Composable (T) -> String,
-    onSelect: (T) -> Unit, enabled: (T) -> Boolean = { true }) {
-    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        items(values) { value -> FilterChip(selected(value), { onSelect(value) }, label = { Text(label(value)) },
-            enabled = enabled(value), colors = CoinMonitorComponentDefaults.filterChipColors()) }
+    onSelect: (T) -> Unit, enabled: (T) -> Boolean = { true }, role: Role = Role.RadioButton) {
+    val design = CoinMonitorThemeTokens.design
+    LazyRow(
+        modifier = if (role == Role.RadioButton) Modifier.selectableGroup() else Modifier,
+        horizontalArrangement = Arrangement.spacedBy(design.spacing.small)
+    ) {
+        items(values) { value -> CoinMonitorPillOption(label(value), selected(value), { onSelect(value) },
+            enabled = enabled(value), role = role) }
     }
 }
 
 @Composable internal fun TrendingTokenDetails(token: TrendingToken, onOpenBrowser: (String) -> Unit) {
     val clipboard = LocalClipboardManager.current
-    LazyColumn(contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    val design = CoinMonitorThemeTokens.design
+    LazyColumn(contentPadding = PaddingValues(start = design.spacing.pageHorizontal, end = design.spacing.pageHorizontal, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(design.spacing.group)) {
         item {
-            Text(token.symbol, style = MaterialTheme.typography.headlineSmall)
+            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(design.spacing.inline)) {
+                TrendingTokenIcon(token)
+                Text(token.symbol, style = design.typography.pageTitle)
+                TrendingSourceDots(token.links.keys)
+            }
             Text(listOf(token.name, token.chainTitle).filter { it.isNotBlank() }.joinToString(" · "), style = MaterialTheme.typography.bodySmall)
         }
         item {
@@ -94,8 +108,11 @@ internal fun TrendingFilters(state: TrendingUiState, onToggleSource: (TrendingSo
             R.string.trending_liquidity to compactUsd(token.liquidity), R.string.trending_volume to compactUsd(token.volume),
             R.string.trending_change to (token.change?.let { java.lang.String.format(java.util.Locale.US, "%+.2f%%", it) } ?: "--"),
             R.string.trending_smart_money to (token.smartMoney?.toLong()?.toString() ?: "--"))
-        items(metrics) { (label, value) -> Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(stringResource(label), color = CoinMonitorThemeTokens.colors.secondaryText); Text(value)
+        item { CoinMonitorRoundedCard(Modifier.fillMaxWidth()) {
+            metrics.forEach { (label, value) -> Row(Modifier.fillMaxWidth().padding(vertical = design.spacing.small), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(stringResource(label), style = design.typography.rowSubtitle, color = design.colors.secondaryText)
+                Text(value, style = design.typography.value)
+            } }
         } }
         token.links.forEach { (source, url) -> item {
             OutlinedButton(onClick = { onOpenBrowser(url) }, Modifier.fillMaxWidth()) { Text(stringResource(R.string.trending_open_source, source.title)) }
