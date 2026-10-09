@@ -2,6 +2,19 @@
 <resources>
     <string name="tab_trending">Trending</string>
     <string name="trending_shared">Shared</string>
+    <string name="trending_shared_short">Shared</string>
+    <string name="trending_waiting_update">Awaiting first result</string>
+    <string name="trending_mixed_chains">Mixed chains</string>
+    <string name="trending_independent_filters">Per-source</string>
+    <string name="trending_address_copied">Contract address copied</string>
+    <plurals name="trending_source_count">
+        <item quantity="one">%1$d source</item>
+        <item quantity="other">%1$d sources</item>
+    </plurals>
+    <plurals name="trending_shared_results">
+        <item quantity="one">%1$d token across %2$d sources</item>
+        <item quantity="other">%1$d tokens across %2$d sources</item>
+    </plurals>
     <string name="trending_gmgn">GMGN</string>
     <string name="trending_pump">PumpFun</string>
     <string name="trending_okx">OKX</string>

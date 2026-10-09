@@ -2,6 +2,7 @@
     <string name="app_name">CoinMonitor</string>
 
     <string name="tab_home">首页</string>
+    <string name="tab_market">行情</string>
     <string name="tab_wallet">钱包</string>
     <string name="tab_browser">浏览</string>
     <string name="tab_kline">K线</string>

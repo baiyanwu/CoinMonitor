@@ -1,0 +1,121 @@
+# Android UI 通用设计与渐进接入
+
+更新时间：2026-10-09。设计依据为 `artwork/design/android-blue-purple-final/` 中的紧凑圆润蓝紫稿。
+
+## 当前范围与接入状态
+
+- 在现有 `ui/theme`、`ui/components` 中增加通用设计规范和基础控件，不新增 Gradle 模块或更换导航库。
+- 提供语义颜色、浅色/深色配色、尺寸、字号、形状、动效时间和统一图标入口。
+- 新样式首先用于底部导航，顺序固定为“行情 / 热门 / 钱包 / 设置”。行情仍对应既有 `home` 路由；随后已接入热门页，详见 [TRENDING.md](./TRENDING.md)。
+- 移除“浏览”Tab 和主导航中的 `browser` 发现页路由。保留发现页源码、独立 DApp 浏览器、Provider、目录和历史数据；热门页面现有的浏览器调用继续有效。
+- 当前内容布局改造仅限热门列表、筛选和详情；行情、钱包、设置内容布局保持原样。各页数据加载、业务操作和现有主题偏好不改。
+
+## 代码分层与调用约定
+
+| 层 | 位置与入口 | 职责 |
+| --- | --- | --- |
+| 设计规范 | `ui/theme/DesignTokens.kt`，`CoinMonitorThemeTokens.design` | 颜色、间距、尺寸、字号、形状和动效时间的唯一入口 |
+| 局部主题 | `ui/theme/DesignTheme.kt`，`CoinMonitorDesignTheme` | 为迁移组件或页面提供新 Material 配色、字号、形状与语义颜色 |
+| 图标 | `ui/components/CoinMonitorIcons.kt`，`CoinMonitorIcons` | 集中维护常用图标；四个 Tab 使用统一圆头线条 |
+| 基础控件 | `ui/components/CoinMonitorDesignComponents.kt` | 圆角卡片、胶囊选项、小图标按钮；只接收展示参数和操作回调 |
+| 底部导航 | `ui/components/CoinMonitorBottomBar.kt` | 根据条目和选中 ID 展示；实际导航由调用方处理 |
+| 页面顶部栏 | `ui/components/CoinMonitorPageTopBar.kt` | 小字号品牌/页面标题和操作插槽，不管理导航和安全区 |
+| 胶囊标签 | `ui/components/CoinMonitorSegmentedTabs.kt` | 受控选中 ID、标签文案和回调，选中胶囊及小点，不管理分页或数据 |
+| 业务组件 | 各功能目录及既有业务组件 | 数据订阅、数据转换、权限、钱包签名和业务操作 |
+
+现有 `CoinMonitorTheme` 根据用户的浅色/深色/跟随系统设置提供新设计规范，同时保留既有 `MaterialTheme` 和 `CoinMonitorThemeTokens.colors` 的默认映射。新组件使用 `CoinMonitorThemeTokens.design`，需要完整接入的局部区域使用 `CoinMonitorDesignTheme { ... }`。
+
+```kotlin
+CoinMonitorDesignTheme {
+    val design = CoinMonitorThemeTokens.design
+    CoinMonitorRoundedCard {
+        Text("展示内容", style = design.typography.rowTitle)
+    }
+}
+```
+
+只在正在迁移的组件或页面外包裹局部主题；不直接在整个主导航外启用。嵌套区域退出后恢复父级主题。浅色/深色配色由 App 已有主题偏好决定，不增加第二套持久化设置。
+
+基础控件不接受 `AppContainer`、Repository 或 ViewModel，不主动发请求、不读写钱包或剪贴板。列表行只负责布局；行情和钱包分别适配自己的数据，不强行共用 `WatchItem`。现有 `WatchItemCard` 仍属于行情业务组件。
+
+## 颜色规范
+
+颜色以含义命名，页面不散落 HEX、临时透明度或根据深色模式自行判断的颜色。
+
+| 含义 | 浅色 | 深色 |
+| --- | --- | --- |
+| 品牌锚点 `brand` | `#8E88F8` | `#8E88F8` |
+| 可读交互色 `accent` | `#6863AA` | `#B8B3FF` |
+| 页面背景 `pageBackground` | `#F5F6F9` | `#171B27` |
+| 卡片背景 `surface` | `#FFFFFF` | `#242A3B` |
+| 次级容器 `surfaceMuted` | `#EFF0F6` | `#2D3448` |
+| 主文字 `primaryText` | `#282C3E` | `#EBEDF7` |
+| 次文字 `secondaryText` | `#666D81` | `#B2B8CD` |
+| 辅助文字 `tertiaryText` | `#7C8297` | `#9099B3` |
+| 选中底色 `selectedContainer` | `#ECEAF8` | `#39354F` |
+| 选中文字/图标 `selectedContent` | `#6661A7` | `#C7C2FF` |
+| 分隔/边框 `divider` | `#E5E7EF` | `#3A4259` |
+| 涨/正向数值 `positive` | `#398D78` | `#71BAA3` |
+| 跌/负向数值 `negative` | `#BA6572` | `#DA929F` |
+| 错误提示 `error` | `#A83E56` | `#F0A8B7` |
+
+品牌色用于品牌和装饰；小字号交互文字使用更深的 `accent`。选中文字和次文字在设计稿基础上略微加深，保证 Tab 与胶囊标签的文字对比度。涨跌颜色独立于主题强调色，零值和缺失值使用中性颜色。深色配色为本轮代码配套，仍需后续实际视觉验收。
+
+来源标记同样集中在设计颜色中：`sourceGmgn` 为浅色 `#8E88F8` / 深色 `#B8B3FF`，`sourcePump` 为 `#7297EF` / `#91B2FF`，`sourceOkx` 为 `#4AA58F` / `#71BAA3`。色点表示来源身份，仍提供可访问的来源名称，不替代请求成功/失败状态。
+
+Material 和现有语义颜色均从同一份设计颜色转换；转换只在局部主题内生效。系统栏继续由现有 Activity 宿主管理，本轮不扩大为全 App 系统栏或悬浮窗的换肤。
+
+## 紧凑尺寸与交互
+
+| 项目 | 代码参考值 |
+| --- | --- |
+| 页面水平内边距 | 14dp |
+| 行内间距 / 分组间距 | 8dp / 10dp |
+| 币种图标 / 普通操作图标 | 28dp / 18dp |
+| 小按钮可见底盘 / 最小点击区域 | 32dp / 48dp |
+| 胶囊可见底盘最小高度 / 最小点击区域 | 32dp / 48dp |
+| 列表行、设置行最小高度 | 52dp |
+| 圆角卡片 / 底部导航圆角 | 20dp / 28dp |
+| 底部 Tab 最小内容高度 | 56dp，不包含外边距和系统安全区 |
+| 主行文字 / 次行文字 / Tab 标签 | 14sp / 12sp / 11sp |
+| 选中颜色过渡 / 按压反馈参考时间 | 160ms / 120ms |
+
+尺寸是基础规范，不是固定截图像素。使用最小高度和内容测量，允许系统字体放大和长文案撑开；不以裁剪文本强行锁住高度。视觉图标缩小不会同步缩小点击区域。
+
+Tab 使用胶囊底色、文字与底部小点表达选中，提供 `Role.Tab` 与选中语义；非文字图标提供描述，装饰图标不重复朗读。选择与禁用状态集中在控件内处理。基础控件不附带钱包授权等业务判断。
+
+底部导航集中处理其 `windowInsets`，调用方沿用主 `Scaffold` 的上下内边距传递。页面不再额外补一份底部系统间距。保留现有 `saveState / restoreState / launchSingleTop` 切换规则与独立详情页结构。
+
+## 后续页面接入约定
+
+以下内容本轮只约定边界，后续随页面实现，不提前编写未使用的通用框架：
+
+- **通用列表行**：图标、主/副文字、右侧值和操作区通过插槽提供；最小行高由规范控制，内容较多时可增长。热门页目前保留独立的 `TrendingTokenRow` 业务展示组件，未强行与钱包共用模型。
+- **页面容器**：统一顶部、底部和键盘安全区的所有权；主 Tab 和独立详情页分开，保留各自滚动位置。不要同时套两个处理同一系统间距的容器。
+- **数据状态**：首次加载无数据、空结果、已有内容后台刷新、已有内容刷新失败分别展示。刷新失败不清除旧数据；更新时间和错误提示只负责显示，不触发重复请求。
+- **弹层和反馈**：筛选面板、就近操作浮层、确认弹窗复用形状和颜色；原有长按/拖动业务语义保持不变。常态页面不引入持续发光、跳动或循环动画。
+- **数值展示**：钱包金额继续用 `AssetAmountFormatter` 的 `BigDecimal` 规则，行情继续用 `QuoteFormatter`；统一视觉对齐，不改变精度或把缺失值当成零。钱包和行情模型继续分离。
+- **钱包浏览器入口**：后续在“钱包 → 更多 → DApp 浏览器”接入，明确目录发现页或手输网址的入口形态，再复用既有独立 Activity 和原生审批流程。详见 `lib/TODO.md`。
+
+## 验证与验收
+
+- 基础控件和底部导航提供浅色/深色 Compose Preview；热门页另提供大字体英文、缓存失败和凭证未配置预览。预览只使用本地示例参数，不创建 ViewModel，不发请求。
+- 本轮运行导航相关回归、单元测试、静态检查与 Debug 构建；检查浏览 Tab 移除后其他路由和独立浏览器仍保留。
+- 编译、测试和构建结果不替代实体机视觉验收；本轮不主动启动 App、遍历页面或截图。
+
+### 基础层首次落地验证结果（2026-10-09）
+
+- `:app:testDebugUnitTest`：300 个测试通过，失败/错误/跳过均为 0；包含更新后的导航入口回归与新增的浅色/深色标签对比度、语义颜色映射检查。
+- `:app:lintDebug`：完成，无错误，报告仍有 204 条警告。五个新增通用 UI/主题源码文件没有报告问题。
+- `:app:assembleDebug`：完成，产物为 `app/build/outputs/apk/debug/coinmonitor-v1.0.13-debug.apk`。
+- 中文/英文新增导航资源及相关文档链接检查通过；`git diff --check` 通过。
+- 已提供浅色、深色与大字体底部 Tab Preview；本轮未运行实体机视觉或交互验收。
+
+### 热门页接入验证结果（2026-10-09）
+
+- `:app:testDebugUnitTest`：307 个测试全部通过，包含 7 个实际筛选/完整缓存时间的展示回归。
+- `:app:lintDebug`：完成，无错误，162 条警告；热门页和新增通用顶部栏/胶囊标签没有报告问题。
+- `:app:assembleDebug`：完成，APK 为 `app/build/outputs/apk/debug/coinmonitor-v1.0.13-debug.apk`。
+- 与 Seeker 已安装 Debug 1.0.13 的签名比对一致，覆盖安装返回 `Success`；未启动 App 或进行页面截图/交互验收。
+- 行情、钱包、设置页面源码及热门 ViewModel、客户端、规则、偏好和缓存源码与当前基线一致。
+- 用户已确认本轮热门页效果可接受；后续页面沿用本规范逐页接入，钱包 DApp 入口继续保留在 TODO 中。

@@ -22,7 +22,7 @@
 
 ## 核心功能
 
-- “钱包”和“浏览”之间新增“热门”，使用 indicator 标签切换共同热门、GMGN、PumpFun、OKX；手机列表保持紧凑，筛选和详情按需展开。GMGN key 在第三方 API 设置中加密保存，OKX 复用现有凭证，PumpFun 无需 key。[热门说明](./docs/TRENDING.md)
+- 底部导航采用紧凑圆润样式，顺序为“行情 / 热门 / 钱包 / 设置”。热门沿用通用蓝紫设计，使用胶囊标签切换共同热门、GMGN、PumpFun、OKX，提供圆角紧凑榜单、完整合约地址复制和统一样式的筛选/详情面板。GMGN key 在第三方 API 设置中加密保存，OKX 复用现有凭证，PumpFun 无需 key。[热门说明](./docs/TRENDING.md)
 - 热门榜单跨页面切换和 App 重启恢复匹配筛选的上次成功结果，再后台刷新；失败或限流时保留已有列表。共同热门按链与合约地址匹配所选来源，离开页面或进入后台停止请求。
 
 - 交易所搜索并行覆盖 `Binance Alpha`、`Binance` 现货与 USDT 合约、`OKX` 现货与 USDT 合约，等待全部来源结束后统一合并、排序并一次性展示
@@ -41,7 +41,7 @@
 - 单个资产进入独立详情页，提供收款、转账以及打开 Uniswap / OKX Bridge 的外部网页入口；OKX 资产与 Alchemy 活动均先显示按钱包隔离的本地快照再后台刷新，网页不获得本机私钥或签名能力
 - 首次默认启用 Ethereum、BNB Chain、Robinhood Chain 和 Solana；目录中的其他 EVM 网络或用户自行验证的标准 EVM RPC 可继续启用，不需要改变钱包模型
 - 原 OKX 观察地址从钱包页右上角菜单进入；它与自托管资产查询共用本机加密的 OKX 凭证，但地址、筛选、模型和缓存仍保持隔离
-- 底部“浏览”页改为本地 DApp 发现页，提供搜索历史、分类筛选和内置常用目录；选择 DApp 或输入 HTTPS 地址后进入独立的浏览器 Activity，WebView 不再嵌入 MainActivity。浏览器内任意 HTTPS 主页面都可通过 Trust Web3 Provider 发现 EIP-1193 / EIP-6963 钱包，并兼容只识别旧版 MetaMask Connector 的 DApp；手输网址会先显示第三方风险提示，连接按实际来源确认，交易、消息签名、添加网络和 Token 均继续走原生确认，并在启用生物识别时优先触发指纹
+- 底部“浏览”Tab 已移除，“钱包 → 更多 → DApp 浏览器”入口留待钱包改造接入。发现页源码、目录/搜索历史和独立浏览器 Activity 保留，热门现有浏览器入口继续有效。浏览器内任意 HTTPS 主页面都可通过 Trust Web3 Provider 发现 EIP-1193 / EIP-6963 钱包，并兼容只识别旧版 MetaMask Connector 的 DApp；手输网址会先显示第三方风险提示，连接按实际来源确认，交易、消息签名、添加网络和 Token 均继续走原生确认，并在启用生物识别时优先触发指纹
 
 ## 链上说明
 
@@ -81,6 +81,7 @@ cd CoinMonitor
 ## 文档
 
 - 技术实现说明：[TECHNICAL.md](./docs/TECHNICAL.md)
+- 通用 UI 设计与逐页接入：[UI_DESIGN_SYSTEM.md](./docs/UI_DESIGN_SYSTEM.md)
 - 观察地址说明：[WALLET_WATCH.md](./docs/WALLET_WATCH.md)
 - 自托管钱包说明：[SELF_CUSTODY_WALLET.md](./docs/SELF_CUSTODY_WALLET.md)
 - 第三方组件声明：[THIRD_PARTY_NOTICES.md](./docs/THIRD_PARTY_NOTICES.md)

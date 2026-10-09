@@ -2,6 +2,7 @@
     <string name="app_name">CoinMonitor</string>
 
     <string name="tab_home">Home</string>
+    <string name="tab_market">Markets</string>
     <string name="tab_wallet">Wallet</string>
     <string name="tab_browser">Browse</string>
     <string name="tab_kline">Kline</string>
