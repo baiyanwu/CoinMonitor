@@ -22,13 +22,14 @@
 
 ## Core Features
 
-- The compact rounded bottom navigation offers Markets, Trending, Wallet, and Settings. Trending provides indicator tabs for Shared, GMGN, PumpFun, and OKX rankings, compact phone rows, and expandable filters/details. GMGN keys use encrypted third-party API settings; OKX reuses existing credentials; PumpFun requires no key. [Trending notes](./docs/TRENDING.md)
+- The compact rounded bottom navigation offers Markets, Trending, Wallet, and Settings. Trending uses the shared blue-purple design with pill tabs for Shared, GMGN, PumpFun, and OKX rankings, rounded compact rows, contract-address copy buttons, and matching filters/details. GMGN keys use encrypted third-party API settings; OKX reuses existing credentials; PumpFun requires no key. [Trending notes](./docs/TRENDING.md)
 - Trending restores the last matching successful ranking across navigation and app restarts, refreshes in the background, and keeps existing rows during failures or rate limits. Shared rankings match chain and contract address across selected sources; requests stop when the page leaves the foreground.
 
 - Search `Binance Alpha`, Binance spot and USDT-M futures, plus OKX spot and USDT swaps in parallel, then merge, sort, and display one result set after all sources finish
 - Search on-chain tokens by name, symbol, or contract address without selecting a chain; every network returned by `DexScreener` is accepted without a local allowlist
 - Open `General` from Settings to manage the persistent `Show on-chain market cap` switch together with appearance, language, and network logs; the switch changes every on-chain row across Home, the arranged overlay, and the marquee overlay between price and market cap, while exchange quotes are unaffected
 - Open `Wallet Settings` for wallet management, backup, and security; backup started from Settings first asks which wallet to use, while the original three entries remain available from the wallet page menu
+- Settings uses compact rounded blue-purple cards grouped into Preferences & Security, Monitoring & Data, and Application, with Light / Dark / System shortcuts backed by the existing appearance preference. Detail pages retain their current behavior and layouts
 - Split the home watchlist into swipeable `Exchange / On-chain` pages with category-local ordering, compact quote rows, quick actions, live refresh, and search that opens in the active market mode
 - Home uses the rounded blue-purple design with a small header, pill market selector, a real-asset spotlight, a grouped watchlist, and overlay configuration status. Mini charts use up to 32 real quote samples from this home session; they are live trends rather than 24-hour history. The former floating action menu is available from the header's More button. [UI design notes](./docs/UI_DESIGN_SYSTEM.md)
 - Open the corresponding external market page from a pair title; on-chain rows show `target / counter token` from the selected pool, provide a compact contract address with one-tap full-address copy, and keep the label synchronized when the pool or quote source changes

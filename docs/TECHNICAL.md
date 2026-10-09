@@ -65,11 +65,12 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 
 ### Settings
 
-- 设置首页依次提供“通用设置”“钱包设置”“悬浮窗设置”。“通用设置”收纳外观模式、语言、“显示链上市值”和网络日志；其中市值开关通过 Preferences DataStore 全局持久化，由首页和前台悬浮服务共同观察，冷启动、Activity 重建与悬浮窗重建后保持一致，仅改变 `ONCHAIN_TOKEN` 的主数值展示。“钱包设置”复用 Activity 级 `WalletViewModel` 与既有钱包功能页面；管理和安全直接进入，备份先在独立选择页切换目标钱包，再进入既有备份流程，钱包页右上角菜单仍直接作用于当前钱包
+- 设置首页接入圆润蓝紫主题，顶部提供“浅色 / 深色 / 跟随系统”快捷选择，下方按“偏好与安全 / 盯盘与数据 / 应用”展示通用设置、钱包设置、悬浮窗设置、第三方 API 与关于入口。快捷外观通过 `SettingsViewModel.setThemeMode` 写入既有偏好，与“通用设置”的外观选项同步。
+- “通用设置”继续收纳外观模式、语言、“显示链上市值”和网络日志；其中市值开关通过 `AppPreferencesRepository` 全局持久化，由首页和前台悬浮服务共同观察，冷启动、Activity 重建与悬浮窗重建后保持一致，仅改变 `ONCHAIN_TOKEN` 的主数值展示。“钱包设置”复用 Activity 级 `WalletViewModel` 与既有钱包功能页面；管理和安全直接进入，备份先在独立选择页切换目标钱包，再进入既有备份流程，钱包页右上角菜单仍直接作用于当前钱包。二级设置页的布局本次不变。
 - 设置页新增独立 `AboutActivity`，沿用统一 Compose Activity 宿主、主题、语言和详情页转场
 - “关于”页通过 `BuildConfig.VERSION_NAME / VERSION_CODE` 读取当前构建版本，版本信息不在字符串资源中重复维护
 - 页面集中展示项目用途、作者 `baiyanwu`、GitHub 源码仓库、Apache-2.0 许可、Issues 反馈入口及行情风险说明；外部链接统一交由系统 URI 处理器打开
-- 关于页和设置入口均提供简体中文与英文资源；设置入口只展示“关于”标题，不附加重复副标题
+- 关于页和设置入口均提供简体中文与英文资源；设置首页入口展示“关于 CoinMonitor”及版本、许可与开源信息摘要，仍进入原有关于页。
 
 ### App Update Check
 
@@ -203,10 +204,11 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 ## UI Design System
 
 - `CoinMonitorThemeTokens.design` 集中提供圆润蓝紫设计的语义颜色、尺寸、间距、字号、形状和动效时间，并沿用现有外观模式。
-- `CoinMonitorDesignTheme` 支持组件/页面局部迁移，统一转换 Material 与既有语义颜色；现有全局主题、页面布局和系统栏配置保持原样。
-- `CoinMonitorIcons` 集中管理通用图标；`CoinMonitorRoundedCard`、`CoinMonitorPillOption`、`CoinMonitorSmallIconButton` 为不依赖仓库和 ViewModel 的基础控件。
+- `CoinMonitorDesignTheme` 支持组件/页面局部迁移，统一转换 Material 与既有语义颜色；全局主题默认映射、未接入页面的布局和系统栏配置保持原样。
+- `CoinMonitorIcons` 集中管理通用图标；`CoinMonitorRoundedCard`、`CoinMonitorPillOption`、`CoinMonitorSmallIconButton`、`CoinMonitorNavigationRow` 和 `CoinMonitorPageHeader` 为不依赖仓库和 ViewModel 的基础控件，底部导航与设置首页已接入。
 - `CoinMonitorBottomBar` 接入四个主 Tab，使用圆角底盘、胶囊选中态、小点和统一描边图标，保留导航状态恢复及现有主 `Scaffold` 安全区传递。
-- 首页进一步使用 `CoinMonitorListRow` 和 `CoinMonitorSparkline`；`WatchItemCard` 改为纯手势容器，真实行情订阅、CA 复制与数值展示集中在 `HomeMarketComponents`。其他主 Tab 尚待逐页接入。
+- 热门页已局部接入新设计，复用 `CoinMonitorPageTopBar` 和 `CoinMonitorSegmentedTabs`；`TrendingPresentation` 只整理实际筛选与完整缓存时间，`TrendingTokenRow` 处理紧凑行、真实来源标记、完整 CA 复制及大字体布局，数据请求和缓存策略仍由既有 ViewModel/仓库负责。详见 [TRENDING.md](./TRENDING.md)。
+- 首页进一步使用 `CoinMonitorListRow` 和 `CoinMonitorSparkline`；`WatchItemCard` 改为纯手势容器，真实行情订阅、CA 复制与数值展示集中在 `HomeMarketComponents`。首页、热门与设置首页均已接入，钱包与二级页面仍待后续处理。
 - 完整颜色表、调用方式、组件边界与后续接入约定见 [UI_DESIGN_SYSTEM.md](./UI_DESIGN_SYSTEM.md)。
 
 ## DApp Browser

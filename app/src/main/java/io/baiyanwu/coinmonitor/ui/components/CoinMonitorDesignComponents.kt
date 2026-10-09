@@ -3,17 +3,21 @@ package io.baiyanwu.coinmonitor.ui.components
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
@@ -24,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.tooling.preview.Preview
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorDesignTheme
@@ -34,6 +39,7 @@ import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 @Composable
 fun CoinMonitorRoundedCard(
     modifier: Modifier = Modifier,
+    contentPadding: PaddingValues? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
     val design = CoinMonitorThemeTokens.design
@@ -43,7 +49,10 @@ fun CoinMonitorRoundedCard(
         color = design.colors.surface,
         contentColor = design.colors.primaryText
     ) {
-        Column(Modifier.padding(design.spacing.cardPadding), content = content)
+        Column(
+            Modifier.padding(contentPadding ?: PaddingValues(design.spacing.cardPadding)),
+            content = content
+        )
     }
 }
 
@@ -54,7 +63,11 @@ fun CoinMonitorPillOption(
     selected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    leadingIcon: ImageVector? = null,
+    showSelectionMark: Boolean = false,
+    textStyle: TextStyle? = null,
+    role: Role = Role.RadioButton
 ) {
     val design = CoinMonitorThemeTokens.design
     val containerColor by animateColorAsState(
@@ -71,6 +84,11 @@ fun CoinMonitorPillOption(
         selected -> design.colors.selectedContent
         else -> design.colors.secondaryText
     }
+    val interaction = if (role == Role.Checkbox) {
+        Modifier.toggleable(value = selected, enabled = enabled, role = role, onValueChange = { onClick() })
+    } else {
+        Modifier.selectable(selected = selected, enabled = enabled, role = role, onClick = onClick)
+    }
     Box(
         modifier = modifier
             .defaultMinSize(
@@ -78,18 +96,77 @@ fun CoinMonitorPillOption(
                 minHeight = design.sizes.minimumTouchTarget
             )
             .clip(design.shapes.pill)
-            .selectable(selected = selected, enabled = enabled, role = Role.RadioButton, onClick = onClick),
+            .then(interaction),
         contentAlignment = Alignment.Center
     ) {
         Box(
             Modifier
                 .heightIn(min = design.sizes.pillMinimumHeight)
                 .background(containerColor, design.shapes.pill)
-                .padding(horizontal = design.spacing.cardPadding, vertical = design.spacing.small),
+                .padding(horizontal = design.spacing.inline, vertical = design.spacing.small),
             contentAlignment = Alignment.Center
         ) {
-            Text(label, color = contentColor, style = design.typography.label)
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(design.spacing.small),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                leadingIcon?.let { icon ->
+                    Icon(icon, null, Modifier.size(design.sizes.actionIcon), tint = contentColor)
+                }
+                Text(
+                    label,
+                    modifier = Modifier.weight(1f, fill = false),
+                    color = contentColor,
+                    style = textStyle ?: design.typography.label
+                )
+                if (showSelectionMark && selected) {
+                    Icon(CoinMonitorIcons.Check, null, Modifier.size(design.sizes.selectionMark), tint = contentColor)
+                }
+            }
         }
+    }
+}
+
+/** 通用导航行只接收展示参数与点击回调；字体放大时允许内容撑高。 */
+@Composable
+fun CoinMonitorNavigationRow(
+    title: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    subtitle: String? = null,
+    leadingIcon: ImageVector? = null
+) {
+    val design = CoinMonitorThemeTokens.design
+    Row(
+        modifier
+            .fillMaxWidth()
+            .heightIn(min = design.sizes.settingsRowMinimumHeight)
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = design.spacing.cardPadding, vertical = design.spacing.rowVertical),
+        horizontalArrangement = Arrangement.spacedBy(design.spacing.group),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        leadingIcon?.let { icon ->
+            Box(
+                Modifier.size(design.sizes.actionContainer)
+                    .background(design.colors.selectedContainer, design.shapes.pill),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, null, Modifier.size(design.sizes.actionIcon), tint = design.colors.accent)
+            }
+        }
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(design.spacing.tiny)) {
+            Text(title, style = design.typography.rowTitle, color = design.colors.primaryText)
+            if (!subtitle.isNullOrBlank()) {
+                Text(subtitle, style = design.typography.rowSubtitle, color = design.colors.secondaryText)
+            }
+        }
+        Icon(
+            CoinMonitorIcons.ChevronRight,
+            contentDescription = null,
+            modifier = Modifier.size(design.sizes.actionIcon),
+            tint = design.colors.tertiaryText
+        )
     }
 }
 
