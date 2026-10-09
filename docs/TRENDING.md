@@ -1,6 +1,6 @@
 # 热门
 
-Android 底部导航在“钱包”和“浏览”之间提供“热门”，内含可点选、滑动切换的 indicator 标签：共同热门、GMGN 热门、PumpFun 热门、OKX 热门。业务参考 CoinMonitor-mac 的 Trending 客户端、筛选、交集和 NEW 规则。
+Android 底部导航顺序为“行情 / 热门 / 钱包 / 设置”，“热门”内含可点选、滑动切换的 indicator 标签：共同热门、GMGN 热门、PumpFun 热门、OKX 热门。业务参考 CoinMonitor-mac 的 Trending 客户端、筛选、交集和 NEW 规则。
 
 标签栏复用首页和钱包的 `MarketModeTabs`，高 44dp，指示条宽 32dp、高 3dp；使用钱包的 labelLarge 字号，四项宽度随手机可用宽度均分，单项最多 96dp。首页和钱包原有两项的尺寸保持一致。
 

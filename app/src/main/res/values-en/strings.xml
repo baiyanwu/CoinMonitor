@@ -2,6 +2,7 @@
     <string name="app_name">CoinMonitor</string>
 
     <string name="tab_home">Home</string>
+    <string name="tab_market">Markets</string>
     <string name="tab_wallet">Wallet</string>
     <string name="tab_browser">Browse</string>
     <string name="tab_kline">Kline</string>
@@ -113,6 +114,17 @@
     <string name="home_overlay_enable_dialog_confirm">Enable</string>
     <string name="home_watchlist_title">Watchlist</string>
     <string name="home_watchlist_subtitle">Long press an item to add it to the floating window.</string>
+    <string name="home_self_selected">Watchlist</string>
+    <string name="home_my_watchlist">My Watchlist</string>
+    <string name="home_overlay_monitor">Overlay</string>
+    <string name="home_overlay_enabled">On</string>
+    <string name="home_overlay_disabled">Off</string>
+    <string name="home_configure">Configure</string>
+    <string name="home_live_trend">Live</string>
+    <string name="home_live_trend_description">Real quote samples received during this home session</string>
+    <string name="home_trend_waiting">Waiting for quote samples</string>
+    <string name="home_focus_asset">Focus on %1$s</string>
+    <string name="home_market_cap_label">Market cap</string>
 
     <string name="search_title">Search Pairs</string>
     <string name="search_subtitle">Switch between exchange and on-chain search, then filter on-chain results by EVM / SOL.</string>

@@ -1,115 +1,61 @@
 package io.baiyanwu.coinmonitor.ui.components
 
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
-import android.widget.Toast
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.OpenInNew
-import androidx.compose.material.icons.rounded.ContentCopy
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.BlendMode
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChangeIgnoreConsumed
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
-import androidx.compose.ui.platform.LocalUriHandler
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalViewConfiguration
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import kotlin.math.roundToInt
-import io.baiyanwu.coinmonitor.domain.model.ExchangeSource
-import io.baiyanwu.coinmonitor.domain.model.MarketType
-import io.baiyanwu.coinmonitor.domain.model.MarketPageUrlResolver
-import io.baiyanwu.coinmonitor.domain.model.OnchainChainIconRegistry
-import io.baiyanwu.coinmonitor.domain.model.WatchItem
-import io.baiyanwu.coinmonitor.domain.model.withQuote
-import io.baiyanwu.coinmonitor.domain.repository.QuoteRepository
-import io.baiyanwu.coinmonitor.overlay.QuoteFormatter
-import io.baiyanwu.coinmonitor.ui.resolveChangeColor
-import io.baiyanwu.coinmonitor.ui.resolveLivePriceColor
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
-import io.baiyanwu.coinmonitor.R
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.math.roundToInt
 
-private enum class WatchItemDragVisualState {
-    Idle,
-    Armed,
-    Dragging
-}
+private enum class WatchItemDragVisualState { Idle, Armed, Dragging }
 
+/** 首页行的手势容器；展示内容通过插槽传入，不订阅行情或处理业务操作。 */
 @Composable
 fun WatchItemCard(
-    item: WatchItem,
-    quoteRepository: QuoteRepository,
-    overlaySelected: Boolean,
-    showOnchainMarketCap: Boolean = false,
+    itemId: String,
     modifier: Modifier = Modifier,
     dragOffsetY: Float = 0f,
+    clickLabel: String? = null,
     onClick: () -> Unit = {},
     onLongPress: (anchorInRoot: IntOffset) -> Unit,
     onDragStart: () -> Unit = {},
     onDragBy: (Float) -> Unit = {},
     onDragEnd: () -> Unit = {},
-    onDragCancel: () -> Unit = {}
+    onDragCancel: () -> Unit = {},
+    content: @Composable () -> Unit
 ) {
     val colors = CoinMonitorThemeTokens.colors
-    val context = LocalContext.current
-    val uriHandler = LocalUriHandler.current
-    val marketPageUrl = remember(item) { MarketPageUrlResolver.resolve(item) }
-    val openMarketPageLabel = stringResource(R.string.home_open_market_page, item.symbol)
-    val tokenAddress = item.tokenAddress
-        ?.trim()
-        ?.takeIf { item.marketType == MarketType.ONCHAIN_TOKEN && it.isNotEmpty() }
-    val compactTokenAddress = remember(tokenAddress) {
-        tokenAddress?.let(::compactContractAddress)
-    }
-    val copyCaDescription = stringResource(R.string.home_copy_ca_description)
-    val caCopiedMessage = stringResource(R.string.home_ca_copied)
     val gestureAnchor = remember { WatchItemGestureAnchor() }
     val viewConfiguration = LocalViewConfiguration.current
     val dragLongPressTimeoutMillis = DRAG_LONG_PRESS_TIMEOUT_MILLIS
     val quickMenuLongPressTimeoutMillis = QUICK_MENU_LONG_PRESS_TIMEOUT_MILLIS
     val touchSlop = viewConfiguration.touchSlop
-    var dragVisualState by remember(item.id) { mutableStateOf(WatchItemDragVisualState.Idle) }
+    var dragVisualState by remember(itemId) { mutableStateOf(WatchItemDragVisualState.Idle) }
     val pressTintAlpha by animateFloatAsState(
         targetValue = when (dragVisualState) {
             WatchItemDragVisualState.Idle -> 0f
@@ -123,7 +69,11 @@ fun WatchItemCard(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .testTag("watch-item-${item.id}")
+            .testTag("watch-item-$itemId")
+            .semantics(mergeDescendants = true) {
+                role = Role.Button
+                onClick(label = clickLabel) { onClick(); true }
+            }
             .graphicsLayer {
                 translationY = dragOffsetY
             }
@@ -135,7 +85,7 @@ fun WatchItemCard(
                 )
             }
             .pointerInput(
-                item.id,
+                itemId,
                 onClick,
                 onLongPress,
                 onDragStart,
@@ -253,213 +203,8 @@ fun WatchItemCard(
                     )
                 }
             }
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            CoilCoinSymbolIcon(
-                symbol = item.baseSymbol,
-                iconUrl = item.iconUrl,
-                fallbackIconUrls = OnchainChainIconRegistry.resolveIconUrls(item.chainIndex),
-                size = 20.dp
-            )
-
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
-                Row(
-                    modifier = if (marketPageUrl != null) {
-                        Modifier.clickable(
-                            onClickLabel = openMarketPageLabel,
-                            role = Role.Button,
-                            onClick = { runCatching { uriHandler.openUri(marketPageUrl) } }
-                        )
-                    } else {
-                        Modifier
-                    },
-                    horizontalArrangement = Arrangement.spacedBy(3.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = item.symbol,
-                        style = MaterialTheme.typography.titleSmall.copy(
-                            fontSize = 13.sp,
-                            lineHeight = 17.sp
-                        ),
-                        color = colors.primaryText,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    if (marketPageUrl != null) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.OpenInNew,
-                            contentDescription = null,
-                            modifier = Modifier.size(13.dp),
-                            tint = colors.accent
-                        )
-                    }
-                }
-
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    if (tokenAddress != null && compactTokenAddress != null) {
-                        Text(
-                            text = compactTokenAddress,
-                            maxLines = 1,
-                            color = colors.secondaryText,
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontSize = 9.sp,
-                                lineHeight = 11.sp
-                            )
-                        )
-                        Icon(
-                            imageVector = Icons.Rounded.ContentCopy,
-                            contentDescription = copyCaDescription,
-                            modifier = Modifier
-                                .size(12.dp)
-                                .clickable(
-                                    onClickLabel = copyCaDescription,
-                                    role = Role.Button
-                                ) {
-                                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                    clipboard.setPrimaryClip(ClipData.newPlainText("Contract address", tokenAddress))
-                                    Toast.makeText(context, caCopiedMessage, Toast.LENGTH_SHORT).show()
-                                },
-                            tint = colors.accent
-                        )
-                    }
-                    ExchangeBadge(source = item.exchangeSource)
-                    if (item.marketType == MarketType.CEX_USDT_FUTURES) {
-                        MiniTag(
-                            text = stringResource(R.string.market_tag_usdt_futures),
-                            containerColor = colors.cardBackground,
-                            contentColor = colors.secondaryText
-                        )
-                    }
-                    if (item.homePinned) {
-                        MiniTag(
-                            text = stringResource(R.string.home_pinned_tag),
-                            containerColor = colors.accent.copy(alpha = 0.16f),
-                            contentColor = colors.accent
-                        )
-                    }
-                    if (overlaySelected) {
-                        MiniTag(
-                            text = stringResource(R.string.home_overlay_tag),
-                            containerColor = colors.heroBackground,
-                            contentColor = colors.secondaryText
-                        )
-                    }
-                }
-            }
-
-            Column(
-                horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
-                WatchItemLiveQuote(
-                    item = item,
-                    quoteRepository = quoteRepository,
-                    showOnchainMarketCap = showOnchainMarketCap
-                )
-            }
-        }
-    }
+    ) { content() }
 }
-
-@Composable
-private fun WatchItemLiveQuote(
-    item: WatchItem,
-    quoteRepository: QuoteRepository,
-    showOnchainMarketCap: Boolean
-) {
-    val colors = CoinMonitorThemeTokens.colors
-    val quoteFlow = remember(item.id, quoteRepository) {
-        quoteRepository.observeQuote(item.id)
-    }
-    val quoteState = quoteFlow
-        .collectAsStateWithLifecycle(initialValue = quoteRepository.getQuote(item.id))
-        .value
-    val resolvedItem = item.withQuote(quoteState)
-    val marketCapMode = showOnchainMarketCap &&
-        resolvedItem.marketType == MarketType.ONCHAIN_TOKEN
-    var lastObservedQuoteAt by remember(item.id) {
-        mutableStateOf(resolvedItem.lastUpdatedAt)
-    }
-    var marketCapFlashing by remember(item.id) { mutableStateOf(false) }
-
-    LaunchedEffect(resolvedItem.lastUpdatedAt, marketCapMode) {
-        val quoteChanged = lastObservedQuoteAt != resolvedItem.lastUpdatedAt
-        lastObservedQuoteAt = resolvedItem.lastUpdatedAt
-        marketCapFlashing = false
-        if (
-            marketCapMode &&
-            quoteChanged &&
-            resolvedItem.previousPrice != null &&
-            resolvedItem.lastPrice != null &&
-            resolvedItem.lastPrice != resolvedItem.previousPrice
-        ) {
-            marketCapFlashing = true
-            delay(MARKET_CAP_FLASH_HOLD_MILLIS)
-            marketCapFlashing = false
-        }
-    }
-
-    val marketCapColor by animateColorAsState(
-        targetValue = if (marketCapFlashing) {
-            resolvedItem.resolveLivePriceColor(colors, colors.primaryText)
-        } else {
-            colors.primaryText
-        },
-        animationSpec = tween(
-            durationMillis = if (marketCapFlashing) {
-                MARKET_CAP_FLASH_ENTER_MILLIS
-            } else {
-                MARKET_CAP_FLASH_EXIT_MILLIS
-            }
-        ),
-        label = "market-cap-flash"
-    )
-
-    Text(
-        text = QuoteFormatter.formatWatchValue(resolvedItem, showOnchainMarketCap),
-        style = MaterialTheme.typography.titleSmall.copy(
-            fontSize = 13.sp,
-            lineHeight = 17.sp
-        ),
-        color = if (marketCapMode) {
-            marketCapColor
-        } else {
-            resolvedItem.resolveLivePriceColor(
-                colors = colors,
-                defaultColor = colors.primaryText
-            )
-        },
-        fontWeight = FontWeight.SemiBold
-    )
-    Text(
-        text = QuoteFormatter.formatChange(resolvedItem.change24hPercent),
-        color = resolvedItem.resolveChangeColor(
-            colors = colors,
-            defaultColor = colors.secondaryText
-        ),
-        style = MaterialTheme.typography.bodySmall.copy(
-            fontSize = 10.sp,
-            lineHeight = 13.sp
-        ),
-        fontWeight = FontWeight.Medium
-    )
-}
-
-private const val MARKET_CAP_FLASH_ENTER_MILLIS = 80
-private const val MARKET_CAP_FLASH_HOLD_MILLIS = 260L
-private const val MARKET_CAP_FLASH_EXIT_MILLIS = 420
 
 private class WatchItemGestureAnchor {
     var cardRootOffset: IntOffset = IntOffset.Zero
@@ -478,50 +223,6 @@ private const val DRAG_LONG_PRESS_TIMEOUT_MILLIS = 350L
 
 // 第二阶段用于弹出快捷操作菜单，刻意比拖拽预备态更晚，避免想排序时太容易误触弹框。
 private const val QUICK_MENU_LONG_PRESS_TIMEOUT_MILLIS = 900L
-
-@Composable
-private fun ExchangeBadge(source: ExchangeSource) {
-    val colors = CoinMonitorThemeTokens.colors
-    val label = when (source) {
-        ExchangeSource.BINANCE -> stringResource(R.string.exchange_badge_binance)
-        ExchangeSource.BINANCE_ALPHA -> stringResource(R.string.exchange_badge_binance_alpha)
-        ExchangeSource.OKX -> stringResource(R.string.exchange_badge_okx)
-        ExchangeSource.ONCHAIN -> stringResource(R.string.exchange_badge_onchain)
-    }
-
-    MiniTag(
-        text = label,
-        containerColor = colors.cardBackground,
-        contentColor = colors.secondaryText
-    )
-}
-
-@Composable
-private fun MiniTag(
-    text: String,
-    containerColor: Color,
-    contentColor: Color
-) {
-    Surface(
-        shape = RoundedCornerShape(999.dp),
-        color = containerColor
-    ) {
-        Box(
-            modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = text,
-                color = contentColor,
-                style = MaterialTheme.typography.labelSmall.copy(
-                    fontSize = 9.sp,
-                    lineHeight = 11.sp
-                ),
-                fontWeight = FontWeight.SemiBold
-            )
-        }
-    }
-}
 
 internal fun compactContractAddress(address: String): String {
     val trimmed = address.trim()

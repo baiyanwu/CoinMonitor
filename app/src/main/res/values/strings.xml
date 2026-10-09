@@ -2,6 +2,7 @@
     <string name="app_name">CoinMonitor</string>
 
     <string name="tab_home">首页</string>
+    <string name="tab_market">行情</string>
     <string name="tab_wallet">钱包</string>
     <string name="tab_browser">浏览</string>
     <string name="tab_kline">K线</string>
@@ -113,6 +114,17 @@
     <string name="home_overlay_enable_dialog_confirm">开启</string>
     <string name="home_watchlist_title">观察列表</string>
     <string name="home_watchlist_subtitle">长按单个币对可快速加入悬浮窗</string>
+    <string name="home_self_selected">自选</string>
+    <string name="home_my_watchlist">我的自选</string>
+    <string name="home_overlay_monitor">悬浮盯盘</string>
+    <string name="home_overlay_enabled">已开启</string>
+    <string name="home_overlay_disabled">未开启</string>
+    <string name="home_configure">配置</string>
+    <string name="home_live_trend">实时</string>
+    <string name="home_live_trend_description">本次首页会话收到的真实报价走势</string>
+    <string name="home_trend_waiting">等待报价走势</string>
+    <string name="home_focus_asset">重点关注 %1$s</string>
+    <string name="home_market_cap_label">市值</string>
 
     <string name="search_title">搜索币对</string>
     <string name="search_subtitle">支持在交易所与链上搜索间切换，链上结果可按 EVM / SOL 筛选。</string>

@@ -65,7 +65,11 @@ fun CoinMonitorTheme(
         }
     }
 
-    CompositionLocalProvider(LocalCoinMonitorColors provides semanticColors) {
+    val design = remember(darkTheme) { designTokens(darkTheme) }
+    CompositionLocalProvider(
+        LocalCoinMonitorColors provides semanticColors,
+        LocalCoinMonitorDesign provides design
+    ) {
         MaterialTheme(
             colorScheme = colorScheme,
             typography = CoinMonitorTypography,
@@ -75,6 +79,11 @@ fun CoinMonitorTheme(
 }
 
 object CoinMonitorThemeTokens {
+    val design: CoinMonitorDesignTokens
+        @Composable
+        @ReadOnlyComposable
+        get() = LocalCoinMonitorDesign.current
+
     val colors: CoinMonitorColors
         @Composable
         @ReadOnlyComposable

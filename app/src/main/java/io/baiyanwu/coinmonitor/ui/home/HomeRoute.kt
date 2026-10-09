@@ -19,12 +19,13 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -51,6 +52,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -58,6 +60,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.IntOffset
@@ -76,12 +79,11 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import io.baiyanwu.coinmonitor.data.AppContainer
 import io.baiyanwu.coinmonitor.domain.model.MarketType
 import io.baiyanwu.coinmonitor.domain.repository.QuoteRepository
-import io.baiyanwu.coinmonitor.ui.components.MainTabTopBarHorizontalPadding
-import io.baiyanwu.coinmonitor.ui.components.MarketModeTabs
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
 import io.baiyanwu.coinmonitor.ui.components.WatchItemCard
 import io.baiyanwu.coinmonitor.ui.search.SearchMode
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorComponentDefaults
+import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorDesignTheme
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 import io.baiyanwu.coinmonitor.R
 import kotlinx.coroutines.CoroutineScope
@@ -145,21 +147,23 @@ fun HomeRoute(
         viewModel.consumeNotice()
     }
 
-    HomeScreen(
-        state = state,
-        contentTopInset = contentTopInset,
-        contentBottomInset = contentBottomInset,
-        onNavigateSearch = onNavigateSearch,
-        onNavigateOverlayItems = onNavigateOverlayItems,
-        onNavigateOverlaySettings = onNavigateOverlaySettings,
-        quoteRepository = container.quoteRepository,
-        onRemoveWatchItem = viewModel::removeWatchItem,
-        onToggleOverlay = viewModel::toggleOverlay,
-        onSetHomePinned = viewModel::setHomePinned,
-        onMoveHomeItem = viewModel::moveHomeItem,
-        onMovePinnedHomeItem = viewModel::movePinnedHomeItem,
-        onRefresh = viewModel::refreshNow
-    )
+    CoinMonitorDesignTheme {
+        HomeScreen(
+            state = state,
+            contentTopInset = contentTopInset,
+            contentBottomInset = contentBottomInset,
+            onNavigateSearch = onNavigateSearch,
+            onNavigateOverlayItems = onNavigateOverlayItems,
+            onNavigateOverlaySettings = onNavigateOverlaySettings,
+            quoteRepository = container.quoteRepository,
+            onRemoveWatchItem = viewModel::removeWatchItem,
+            onToggleOverlay = viewModel::toggleOverlay,
+            onSetHomePinned = viewModel::setHomePinned,
+            onMoveHomeItem = viewModel::moveHomeItem,
+            onMovePinnedHomeItem = viewModel::movePinnedHomeItem,
+            onRefresh = viewModel::refreshNow
+        )
+    }
 }
 
 @Composable
@@ -182,7 +186,11 @@ internal fun HomeScreen(
     var pairActionsExpanded by remember { mutableStateOf(false) }
     var showOverlayEnableDialog by remember { mutableStateOf(false) }
     var rootSize by remember { mutableStateOf(IntSize.Zero) }
+    var rootOrigin by remember { mutableStateOf(IntOffset.Zero) }
     val colors = CoinMonitorThemeTokens.colors
+    val history = remember { HomeQuoteHistory() }
+    val watchIds = remember(state.items) { state.items.map { it.id }.toSet() }
+    LaunchedEffect(watchIds) { history.retainOnly(watchIds) }
     val dismissInteractionSource = remember { MutableInteractionSource() }
     val pagerState = rememberPagerState(
         initialPage = 0,
@@ -210,25 +218,38 @@ internal fun HomeScreen(
             .background(colors.pageBackground)
             .padding(top = contentTopInset, bottom = contentBottomInset)
             .onSizeChanged { rootSize = it }
+            .onGloballyPositioned { coordinates ->
+                val position = coordinates.positionInRoot()
+                rootOrigin = IntOffset(position.x.toInt(), position.y.toInt())
+            }
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = MainTabTopBarHorizontalPadding, vertical = 4.dp)
-                    .height(44.dp)
-            ) {
-                MarketModeTabs(
-                    selectedPage = pagerState.currentPage,
-                    onSelectPage = { page ->
-                        pagerScope.launch {
-                            pagerState.animateScrollToPage(page)
+            HomeHeader(onSearch = { onNavigateSearch(HOME_MODES[pagerState.currentPage]) }) {
+                HomePairActionsMenu(
+                    expanded = pairActionsExpanded,
+                    onExpandedChange = { expanded ->
+                        quickMenuState = null
+                        pairActionsExpanded = expanded
+                    },
+                    onAddPair = {
+                        if (pairActionsExpanded) {
+                            pairActionsExpanded = false
+                            onNavigateSearch(HOME_MODES[pagerState.currentPage])
                         }
                     },
-                    prominentLabels = true,
-                    modifier = Modifier.align(Alignment.Center)
+                    onConfigureOverlayItems = {
+                        if (pairActionsExpanded) {
+                            pairActionsExpanded = false
+                            onNavigateOverlayItems()
+                        }
+                    }
                 )
+
             }
+            HomeModeSelector(
+                selectedPage = pagerState.currentPage,
+                onSelectPage = { page -> pagerScope.launch { pagerState.animateScrollToPage(page) } }
+            )
 
             HorizontalPager(
                 state = pagerState,
@@ -249,6 +270,7 @@ internal fun HomeScreen(
                         onchainListState
                     },
                     quoteRepository = quoteRepository,
+                    history = history,
                     showOnchainMarketCap = state.showOnchainMarketCap,
                     onNavigateSearch = { onNavigateSearch(mode) },
                     onDismissQuickMenu = { quickMenuState = null },
@@ -256,7 +278,7 @@ internal fun HomeScreen(
                         quickMenuState = if (quickMenuState?.itemId == item.id) {
                             null
                         } else {
-                            HomeQuickMenuState(itemId = item.id, anchorInRoot = anchorInRoot)
+                            HomeQuickMenuState(itemId = item.id, anchorInRoot = anchorInRoot - rootOrigin)
                         }
                     },
                     onMoveHomeItem = onMoveHomeItem,
@@ -264,29 +286,8 @@ internal fun HomeScreen(
                     onRefresh = onRefresh
                 )
             }
+            HomeOverlayStatus(enabled = state.overlayEnabled, onConfigure = onNavigateOverlaySettings)
         }
-
-        HomePairActionsMenu(
-            expanded = pairActionsExpanded,
-            onExpandedChange = { expanded ->
-                quickMenuState = null
-                pairActionsExpanded = expanded
-            },
-            onAddPair = {
-                if (pairActionsExpanded) {
-                    pairActionsExpanded = false
-                    onNavigateSearch(HOME_MODES[pagerState.currentPage])
-                }
-            },
-            onConfigureOverlayItems = {
-                if (pairActionsExpanded) {
-                    pairActionsExpanded = false
-                    onNavigateOverlayItems()
-                }
-            },
-            bottomInset = 0.dp,
-            modifier = Modifier.matchParentSize()
-        )
 
         quickMenuState?.let { menuState ->
             val menuItem = state.items.firstOrNull { it.id == menuState.itemId } ?: return@let
@@ -356,6 +357,7 @@ private fun HomeWatchlistPage(
     overlayIds: Set<String>,
     listState: LazyListState,
     quoteRepository: QuoteRepository,
+    history: HomeQuoteHistory,
     showOnchainMarketCap: Boolean = false,
     onNavigateSearch: () -> Unit,
     onDismissQuickMenu: () -> Unit,
@@ -366,6 +368,8 @@ private fun HomeWatchlistPage(
 ) {
     var displayItems by remember { mutableStateOf(items) }
     var dragState by remember { mutableStateOf<HomeDragState?>(null) }
+    var spotlightId by rememberSaveable(mode) { mutableStateOf<String?>(null) }
+    val design = CoinMonitorThemeTokens.design
     val colors = CoinMonitorThemeTokens.colors
     val scope = rememberCoroutineScope()
     val emptyHint = stringResource(
@@ -379,6 +383,7 @@ private fun HomeWatchlistPage(
     LaunchedEffect(items) {
         if (dragState == null) {
             displayItems = items
+            if (items.none { it.id == spotlightId }) spotlightId = items.firstOrNull()?.id
         }
     }
 
@@ -418,12 +423,23 @@ private fun HomeWatchlistPage(
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 state = listState,
-                contentPadding = PaddingValues(
-                    bottom = HomePairActionsContentPadding
-                ),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
+                contentPadding = PaddingValues(horizontal = design.spacing.pageHorizontal, vertical = design.spacing.group),
+                verticalArrangement = Arrangement.spacedBy(0.dp)
             ) {
-                items(displayItems, key = { it.id }) { item ->
+                val spotlight = displayItems.firstOrNull { it.id == spotlightId } ?: displayItems.firstOrNull()
+                spotlight?.let { focused ->
+                    item(key = "home-spotlight") {
+                        var anchor by remember { mutableStateOf(IntOffset.Zero) }
+                        Box(Modifier.onGloballyPositioned { coordinates ->
+                            val position = coordinates.positionInRoot()
+                            anchor = IntOffset((position.x + coordinates.size.width / 2).toInt(), (position.y + coordinates.size.height / 2).toInt())
+                        }) {
+                            HomeSpotlightCard(focused, quoteRepository, history, showOnchainMarketCap, onMore = { onLongPress(focused, anchor) })
+                        }
+                    }
+                }
+                item(key = "home-watchlist-header") { HomeWatchlistHeader(displayItems.size, onNavigateSearch) }
+                itemsIndexed(displayItems, key = { _, item -> item.id }) { index, item ->
                     val isDragging = dragState?.itemId == item.id
                     Box(
                         modifier = Modifier
@@ -431,17 +447,15 @@ private fun HomeWatchlistPage(
                             .zIndex(if (isDragging) 1f else 0f)
                     ) {
                         WatchItemCard(
-                            item = item,
+                            itemId = item.id,
+                            clickLabel = stringResource(R.string.home_focus_asset, item.symbol),
                             modifier = Modifier.fillMaxWidth(),
-                            quoteRepository = quoteRepository,
-                            showOnchainMarketCap = showOnchainMarketCap,
-                            overlaySelected = overlayIds.contains(item.id),
                             dragOffsetY = if (isDragging) {
                                 dragState?.dragOffsetY ?: 0f
                             } else {
                                 0f
                             },
-                            onClick = onDismissQuickMenu,
+                            onClick = { onDismissQuickMenu(); spotlightId = item.id },
                             onLongPress = { anchorInRoot ->
                                 onLongPress(item, anchorInRoot)
                             },
@@ -495,7 +509,13 @@ private fun HomeWatchlistPage(
                                 )
                                 dragState = null
                             }
-                        )
+                        ) {
+                            HomeAssetRow(
+                                item = item, quoteRepository = quoteRepository, history = history,
+                                showOnchainMarketCap = showOnchainMarketCap, overlaySelected = overlayIds.contains(item.id),
+                                first = index == 0, last = index == displayItems.lastIndex
+                            )
+                        }
                     }
                 }
             }
@@ -625,6 +645,7 @@ private fun HomeQuickActionItem(
                 }
             )
             .clickable(onClick = onClick)
+            .heightIn(min = CoinMonitorThemeTokens.design.sizes.minimumTouchTarget)
             .padding(horizontal = 8.dp, vertical = 6.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically

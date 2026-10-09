@@ -41,7 +41,9 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 - 首页现在只保留一套手动顺序源，不再区分名字排序、价格排序等模式
 - 首页支持整卡长按拖动排序，并支持置顶 / 取消置顶；置顶项固定排在普通项之前，拖动只调整当前市场分类及同一置顶分组内的相对顺序
 - 长按单个币对会弹出跟手快捷菜单，支持删除、置顶 / 取消置顶，以及加入或移出悬浮窗
-- 首页行情行采用紧凑密度：缩小主币对、价格、涨跌幅、来源标签和图标，并压缩行内间距与垂直内边距
+- 首页按圆润蓝紫稿局部接入新主题：顶部品牌/搜索/更多、胶囊市场切换、真实币种重点卡、连续白色圆角自选列表和悬浮盯盘配置状态条；币种图标 28dp，基础行最小 52dp，大字体或链上 CA 内容可自然撑开
+- 重点卡默认展示当前分类首项，点击行的非独立操作区域可切换关注；所有币种继续留在列表中排序，标题区域仍打开外部行情。原右下角操作 FAB 移至顶部“更多”，继续提供添加币对和悬浮币对配置
+- 首页走势图按实际时间绘制本会话可见行/重点卡收到的真实报价，每币最多 32 个样本；按币种独立发布，不让整页跟随每条报价重组，不增加历史行情请求或 Room 写入。不足两个点不生成曲线；实时图与原有 24h 涨跌幅分开标识
 - 首页币对标题通过系统 URI 处理器打开外部行情页：Binance / OKX 使用持久化的真实 instrument ID，Binance Alpha 回退到官方 Alpha 行情目录，链上优先打开当前固定池的 DexScreener 页面，旧数据缺少池地址时回退到合约搜索
 - 首页链上观察项在副信息行显示合约地址头尾缩写和复制按钮；复制操作写入完整纯文本 CA 并给出 Toast 反馈，交易所观察项不显示该入口
 - 首页价格继续保持实时显示，但实时价格更新已经从 Room 高频写回中拆出，改为走内存报价状态，降低大量 `WSS` 推送时的滚动抖动
@@ -79,7 +81,7 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 ### K-line
 
 - K 线页、图表、指标设置、搜索回填和 AI 聊天实现仍保留在工程中，但当前不再作为底部导航或首页卡片点击入口暴露
-- `NavHost` 中仍保留 `Destinations.KLINE` route，用于后续恢复入口时复用既有实现；底部导航按“首页 / 钱包 / 热门 / 浏览 / 设置”展示五个一级页面。“热门”使用按可见标签和前台生命周期加载的独立排行榜状态，详情见 [TRENDING.md](./TRENDING.md)。
+- `NavHost` 中仍保留 `Destinations.KLINE` route，用于后续恢复入口时复用既有实现；底部导航按“行情 / 热门 / 钱包 / 设置”展示四个一级页面，行情沿用 `home` route。“热门”使用按可见标签和前台生命周期加载的独立排行榜状态，详情见 [TRENDING.md](./TRENDING.md)。
 - 图表内核当前基于仓库内 vendored 的 `TradingView Lightweight Charts Android wrapper` 源码模块
 - 第三方图表源码当前直接放在 `third_party/lightweightlibrary`，应用不再依赖外部 `aar`，方便直接调试 wrapper 和内嵌 JS core
 - K 线数据统一走 `MarketKlineRepository`，交易所继续使用 `Binance / Binance Alpha / OKX`，链上池使用 `GeckoTerminal`
@@ -198,9 +200,18 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 - 原 `WalletWatchRoute` 由独立 `WalletWatchActivity` 承载；观察地址与自托管钱包复用 OKX 客户端实现和同一套加密凭证，但各自持有客户端实例，并保持独立模型、筛选与缓存。
 - 详细规则、构建凭证和验证边界见 [SELF_CUSTODY_WALLET.md](SELF_CUSTODY_WALLET.md)。
 
+## UI Design System
+
+- `CoinMonitorThemeTokens.design` 集中提供圆润蓝紫设计的语义颜色、尺寸、间距、字号、形状和动效时间，并沿用现有外观模式。
+- `CoinMonitorDesignTheme` 支持组件/页面局部迁移，统一转换 Material 与既有语义颜色；现有全局主题、页面布局和系统栏配置保持原样。
+- `CoinMonitorIcons` 集中管理通用图标；`CoinMonitorRoundedCard`、`CoinMonitorPillOption`、`CoinMonitorSmallIconButton` 为不依赖仓库和 ViewModel 的基础控件。
+- `CoinMonitorBottomBar` 接入四个主 Tab，使用圆角底盘、胶囊选中态、小点和统一描边图标，保留导航状态恢复及现有主 `Scaffold` 安全区传递。
+- 首页进一步使用 `CoinMonitorListRow` 和 `CoinMonitorSparkline`；`WatchItemCard` 改为纯手势容器，真实行情订阅、CA 复制与数值展示集中在 `HomeMarketComponents`。其他主 Tab 尚待逐页接入。
+- 完整颜色表、调用方式、组件边界与后续接入约定见 [UI_DESIGN_SYSTEM.md](./UI_DESIGN_SYSTEM.md)。
+
 ## DApp Browser
 
-- `MainShell` 的浏览 destination 只渲染 `DappDiscoveryRoute`，MainActivity 不创建或持有 WebView。发现页由 `DappDiscoveryRepository` 读取 `res/raw/dapp_catalog_v1.json`，搜索历史通过 Room `dapp_search_history` 保存；点击目录条目或输入 HTTPS 地址后启动独立 `DappBrowserActivity`。
+- 底部“浏览”Tab 和 `MainShell` 的 `browser` destination 已移除；钱包“更多”中的 DApp 入口为后续 TODO。发现页源码 `DappDiscoveryRoute` 保留，由 `DappDiscoveryRepository` 读取 `res/raw/dapp_catalog_v1.json`，搜索历史通过 Room `dapp_search_history` 保存。独立 `DappBrowserActivity` 与热门页面现有调用继续保留；MainActivity 不创建或持有 WebView。
 - `DappBrowserActivity` 独占一个 `DappWebView` 与 `AndroidView` host，并在 Activity 销毁时统一释放。`DappBrowserRoute` 负责可编辑 HTTPS 地址栏、历史导航、加载进度和链图标菜单；返回键优先回退网页历史，没有网页历史时结束 Activity。这样浏览器渲染 surface、Provider 弹窗和网页生命周期不会进入 MainActivity 的 NavHost。
 - `DappWebView` 由 Activity 提前创建后再交给 Compose `AndroidView` 承载，因此自身必须显式使用 `MATCH_PARENT × MATCH_PARENT` 的原生布局参数，避免 Chromium 的布局 viewport 高度为 0，进而把依赖 `vh/dvh/svh/lvh` 的 DApp 底部弹层压缩掉。Provider document-start 注入仍在首次导航前完成。
 - AndroidX WebKit 通过 document-start script 与 web message listener 注入 Trust Web3 Provider `4.9.4`，不使用 `addJavascriptInterface`。浏览器对任意页面注册 Provider，但 WebView 仅允许 HTTPS 导航，原生消息入口只接受 HTTPS 主 frame，并按发起 origin 投递异步响应。最小 bootstrap 初始化 Trust Core/Ethereum Provider、建立原生回调、暴露标准 `window.ethereum`、Trust 兼容命名空间并发布 EIP-6963 Provider；EIP-6963 身份保持 CoinMonitor，图标在运行时从 Android 应用图标生成 PNG Data URI，并通过 Trust Provider 自带的 `setOverwriteMetamask(true)` 兼容旧版 MetaMask Connector，不注入 `window.metamask`、MetaMask 专属 API、`window.web3` 或页面 DOM/CSS 修补。内置目录只负责发现页展示，手输网址在导航前显示第三方风险提示。
