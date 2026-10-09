@@ -1,6 +1,5 @@
 package io.baiyanwu.coinmonitor.domain.repository
 
-import io.baiyanwu.coinmonitor.domain.model.ArrangedEdgeDisplayMode
 import io.baiyanwu.coinmonitor.domain.model.MarqueeSpeed
 import io.baiyanwu.coinmonitor.domain.model.OverlayDisplayType
 import io.baiyanwu.coinmonitor.domain.model.OverlayLeadingDisplayMode
@@ -22,7 +21,7 @@ interface OverlayRepository {
     suspend fun setArrangedLeadingDisplayMode(mode: OverlayLeadingDisplayMode)
     suspend fun setArrangedFontScale(fontScale: Float)
     suspend fun setArrangedSnapToEdge(enabled: Boolean)
-    suspend fun setArrangedEdgeDisplayMode(mode: ArrangedEdgeDisplayMode)
+    suspend fun setArrangedSingleItemScroll(enabled: Boolean)
     suspend fun setArrangedEdgeTabOpacity(opacity: Float)
     suspend fun setArrangedEdgeAutoCollapseSeconds(seconds: Int)
     suspend fun setArrangedWindowPosition(x: Int, y: Int)

@@ -5,18 +5,13 @@ enum class OverlayLeadingDisplayMode {
     PAIR_NAME
 }
 
-enum class ArrangedEdgeDisplayMode {
-    DOCKED,
-    HIDDEN_TAB
-}
-
 data class ArrangedOverlaySettings(
     val opacity: Float = DEFAULT_OPACITY,
     val maxItems: Int = DEFAULT_MAX_ITEMS,
     val leadingDisplayMode: OverlayLeadingDisplayMode = OverlayLeadingDisplayMode.ICON,
     val fontScale: Float = DEFAULT_FONT_SCALE,
     val snapToEdge: Boolean = false,
-    val edgeDisplayMode: ArrangedEdgeDisplayMode = ArrangedEdgeDisplayMode.DOCKED,
+    val singleItemScroll: Boolean = false,
     val edgeTabOpacity: Float = DEFAULT_EDGE_TAB_OPACITY,
     val edgeAutoCollapseSeconds: Int = DEFAULT_EDGE_AUTO_COLLAPSE_SECONDS,
     val windowX: Int? = null,
@@ -33,8 +28,13 @@ data class ArrangedOverlaySettings(
         const val DEFAULT_EDGE_TAB_OPACITY: Float = 0.45f
         const val MIN_EDGE_TAB_OPACITY: Float = 0.15f
         const val MAX_EDGE_TAB_OPACITY: Float = 1f
-        const val DEFAULT_EDGE_AUTO_COLLAPSE_SECONDS: Int = 3
-        const val MIN_EDGE_AUTO_COLLAPSE_SECONDS: Int = 1
-        const val MAX_EDGE_AUTO_COLLAPSE_SECONDS: Int = 5
+        const val DEFAULT_EDGE_AUTO_COLLAPSE_SECONDS: Int = 0
+        const val MIN_EDGE_AUTO_COLLAPSE_SECONDS: Int = 0
+        const val MAX_EDGE_AUTO_COLLAPSE_SECONDS: Int = 10
+
+        fun normalizeEdgeAutoCollapseSeconds(seconds: Int): Int = seconds.coerceIn(
+            MIN_EDGE_AUTO_COLLAPSE_SECONDS,
+            MAX_EDGE_AUTO_COLLAPSE_SECONDS
+        )
     }
 }

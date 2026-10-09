@@ -25,7 +25,6 @@ import android.widget.TextView
 import androidx.compose.ui.graphics.toArgb
 import io.baiyanwu.coinmonitor.R
 import io.baiyanwu.coinmonitor.domain.model.OnchainChainIconRegistry
-import io.baiyanwu.coinmonitor.domain.model.ArrangedEdgeDisplayMode
 import io.baiyanwu.coinmonitor.domain.model.ArrangedOverlaySettings
 import io.baiyanwu.coinmonitor.domain.model.OverlayLeadingDisplayMode
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
@@ -72,7 +71,7 @@ internal class ArrangedOverlayWindowController(
     private var sidebarTickerHolder: SidebarTickerHolder? = null
     private var edgeTabView: FrameLayout? = null
     private var edgeTabIndicatorView: View? = null
-    private var isHiddenEdgeTabExpanded: Boolean = false
+    private var isHiddenEdgeTabExpanded: Boolean = true
     private var hiddenEdgeTransitionState: HiddenEdgeTransitionState =
         HiddenEdgeTransitionState.IDLE
     private var hiddenEdgeAnimationGeneration: Int = 0
@@ -99,13 +98,12 @@ internal class ArrangedOverlayWindowController(
             }
             val settings = latestSettings ?: return
             val items = latestItems
-            val stillUsesHiddenEdgeMode = settings.snapToEdge &&
-                settings.edgeDisplayMode == ArrangedEdgeDisplayMode.HIDDEN_TAB &&
+            val stillUsesHiddenEdgeMode = OverlayEdgePresentationPolicy.usesHiddenTab(settings) &&
                 items.take(settings.maxItems).isNotEmpty()
             if (stillUsesHiddenEdgeMode) {
                 animateHiddenEdgeCollapse()
             } else {
-                isHiddenEdgeTabExpanded = false
+                isHiddenEdgeTabExpanded = true
             }
         }
     }
@@ -150,18 +148,16 @@ internal class ArrangedOverlayWindowController(
         }
 
         val limitedItems = items.take(settings.maxItems)
-        val usesHiddenEdgeMode = settings.snapToEdge &&
-            settings.edgeDisplayMode == ArrangedEdgeDisplayMode.HIDDEN_TAB &&
+        val usesHiddenEdgeMode = OverlayEdgePresentationPolicy.usesHiddenTab(settings) &&
             limitedItems.isNotEmpty()
         if (!usesHiddenEdgeMode) {
-            isHiddenEdgeTabExpanded = false
+            isHiddenEdgeTabExpanded = true
             cancelHiddenEdgeAutoCollapse()
             cancelHiddenEdgeTransition()
         } else if (!isHiddenEdgeTabExpanded) {
             cancelHiddenEdgeAutoCollapse()
         } else if (
             hiddenEdgeTransitionState == HiddenEdgeTransitionState.IDLE &&
-            scheduledHiddenEdgeAutoCollapseSeconds != null &&
             scheduledHiddenEdgeAutoCollapseSeconds !=
             OverlayEdgeAutoCollapsePolicy.normalizeSeconds(
                 settings.edgeAutoCollapseSeconds
@@ -217,7 +213,7 @@ internal class ArrangedOverlayWindowController(
         applyResolvedPosition(
             view = root,
             params = params,
-            sidebarMode = presentation != OverlayEdgePresentation.STANDARD
+            snapToEdge = settings.snapToEdge
         )
 
         if (root.parent == null) {
@@ -251,7 +247,7 @@ internal class ArrangedOverlayWindowController(
         sidebarTickerHolder = null
         edgeTabView = null
         edgeTabIndicatorView = null
-        isHiddenEdgeTabExpanded = false
+        isHiddenEdgeTabExpanded = true
         hiddenEdgeTransitionState = HiddenEdgeTransitionState.IDLE
         latestItems = emptyList()
         latestSettings = null
@@ -350,7 +346,7 @@ internal class ArrangedOverlayWindowController(
             return
         }
 
-        if (presentation == OverlayEdgePresentation.DOCKED_CAROUSEL) {
+        if (presentation == OverlayEdgePresentation.SINGLE_ITEM_CAROUSEL) {
             renderSidebarState(root, items, metrics)
             return
         }
@@ -985,6 +981,9 @@ internal class ArrangedOverlayWindowController(
                 val params = layoutParams ?: return false
                 when (event.actionMasked) {
                     MotionEvent.ACTION_DOWN -> {
+                        if (hiddenEdgeMode && isHiddenEdgeTabExpanded) {
+                            cancelHiddenEdgeAutoCollapse()
+                        }
                         isDragging = true
                         hasDragged = false
                         downRawX = event.rawX
@@ -1022,6 +1021,7 @@ internal class ArrangedOverlayWindowController(
                         if (!hasDragged && !locked) {
                             view.performClick()
                             consumePendingUpdate()
+                            if (hiddenEdgeMode) scheduleHiddenEdgeAutoCollapse()
                             return true
                         }
                         if (!locked) {
@@ -1029,6 +1029,7 @@ internal class ArrangedOverlayWindowController(
                         }
                         if (hiddenEdgeMode) {
                             renderLatestTouchState(items, locked, settings)
+                            scheduleHiddenEdgeAutoCollapse()
                             return true
                         }
                         consumePendingUpdate()
@@ -1042,9 +1043,11 @@ internal class ArrangedOverlayWindowController(
                         }
                         if (hiddenEdgeMode && hasDragged) {
                             renderLatestTouchState(items, locked, settings)
+                            scheduleHiddenEdgeAutoCollapse()
                             return true
                         }
                         consumePendingUpdate()
+                        if (hiddenEdgeMode) scheduleHiddenEdgeAutoCollapse()
                         return true
                     }
                 }
@@ -1096,6 +1099,7 @@ internal class ArrangedOverlayWindowController(
 
     private fun animateHiddenEdgeCollapse() {
         val root = rootView ?: return
+        cancelHiddenEdgeAutoCollapse()
         if (!ValueAnimator.areAnimatorsEnabled()) {
             completeHiddenEdgeCollapse()
             return
@@ -1157,9 +1161,17 @@ internal class ArrangedOverlayWindowController(
 
     private fun scheduleHiddenEdgeAutoCollapse() {
         val root = rootView ?: return
+        val settings = latestSettings ?: return
+        if (
+            !OverlayEdgePresentationPolicy.usesHiddenTab(settings) ||
+            !isHiddenEdgeTabExpanded ||
+            latestItems.take(settings.maxItems).isEmpty()
+        ) {
+            cancelHiddenEdgeAutoCollapse()
+            return
+        }
         val seconds = OverlayEdgeAutoCollapsePolicy.normalizeSeconds(
-            latestSettings?.edgeAutoCollapseSeconds
-                ?: ArrangedOverlaySettings.DEFAULT_EDGE_AUTO_COLLAPSE_SECONDS
+            settings.edgeAutoCollapseSeconds
         )
         scheduledHiddenEdgeAutoCollapseSeconds = seconds
         root.removeCallbacks(hiddenEdgeAutoCollapseRunnable)
@@ -1182,13 +1194,15 @@ internal class ArrangedOverlayWindowController(
         applyResolvedPosition(
             view = view,
             params = params,
-            sidebarMode = settings.snapToEdge
+            snapToEdge = settings.snapToEdge
         )
         if (view.parent != null) {
             windowManager.updateViewLayout(view, params)
         }
+        val x = params.x
+        val y = params.y
         scope.launch {
-            overlayRepository.setArrangedWindowPosition(params.x, params.y)
+            overlayRepository.setArrangedWindowPosition(x, y)
         }
     }
 
@@ -1209,33 +1223,17 @@ internal class ArrangedOverlayWindowController(
     private fun applyResolvedPosition(
         view: View,
         params: WindowManager.LayoutParams,
-        sidebarMode: Boolean
+        snapToEdge: Boolean
     ) {
         measureOverlay(view)
         val bounds = resolveScreenBounds(view)
         params.y = params.y.coerceIn(0, bounds.maxY)
-        params.x = if (sidebarMode) {
-            resolveSnappedX(
-                currentX = params.x,
-                overlayWidth = view.measuredWidth,
-                screenWidth = bounds.screenWidth
-            )
-        } else {
-            params.x.coerceIn(0, bounds.maxX)
-        }
-    }
-
-    private fun resolveSnappedX(
-        currentX: Int,
-        overlayWidth: Int,
-        screenWidth: Int
-    ): Int {
-        val centerX = currentX + overlayWidth / 2
-        return if (centerX <= screenWidth / 2) {
-            0
-        } else {
-            max(0, screenWidth - overlayWidth)
-        }
+        params.x = OverlayEdgePositionPolicy.resolveX(
+            currentX = params.x,
+            overlayWidth = view.measuredWidth,
+            screenWidth = bounds.screenWidth,
+            snapToEdge = snapToEdge
+        )
     }
 
     private fun resolveScreenBounds(view: View): ScreenBounds {
@@ -1450,7 +1448,7 @@ internal class ArrangedOverlayWindowController(
                     minimumValue = ArrangedOverlaySettings.MIN_FONT_SCALE,
                     maximumValue = ArrangedOverlaySettings.MAX_FONT_SCALE
                 )
-                val sidebarMode = presentation == OverlayEdgePresentation.DOCKED_CAROUSEL
+                val sidebarMode = presentation == OverlayEdgePresentation.SINGLE_ITEM_CAROUSEL
                 val edgeTabMode = presentation == OverlayEdgePresentation.HIDDEN_TAB
 
                 fun scaledDp(baseDp: Int): Int {

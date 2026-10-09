@@ -10,7 +10,6 @@ import androidx.room.withTransaction
 import io.baiyanwu.coinmonitor.R
 import io.baiyanwu.coinmonitor.data.local.CoinMonitorDatabase
 import io.baiyanwu.coinmonitor.data.local.toDomain
-import io.baiyanwu.coinmonitor.domain.model.ArrangedEdgeDisplayMode
 import io.baiyanwu.coinmonitor.domain.model.ArrangedOverlaySettings
 import io.baiyanwu.coinmonitor.domain.model.MarqueeOverlaySettings
 import io.baiyanwu.coinmonitor.domain.model.MarqueeSpeed
@@ -151,8 +150,8 @@ class DefaultOverlayRepository(
         updateSettings { it.copy(arranged = it.arranged.copy(snapToEdge = enabled)) }
     }
 
-    override suspend fun setArrangedEdgeDisplayMode(mode: ArrangedEdgeDisplayMode) {
-        updateSettings { it.copy(arranged = it.arranged.copy(edgeDisplayMode = mode)) }
+    override suspend fun setArrangedSingleItemScroll(enabled: Boolean) {
+        updateSettings { it.copy(arranged = it.arranged.copy(singleItemScroll = enabled)) }
     }
 
     override suspend fun setArrangedEdgeTabOpacity(opacity: Float) {
@@ -172,10 +171,8 @@ class DefaultOverlayRepository(
         updateSettings {
             it.copy(
                 arranged = it.arranged.copy(
-                    edgeAutoCollapseSeconds = seconds.coerceIn(
-                        minimumValue = ArrangedOverlaySettings.MIN_EDGE_AUTO_COLLAPSE_SECONDS,
-                        maximumValue = ArrangedOverlaySettings.MAX_EDGE_AUTO_COLLAPSE_SECONDS
-                    )
+                    edgeAutoCollapseSeconds =
+                        ArrangedOverlaySettings.normalizeEdgeAutoCollapseSeconds(seconds)
                 )
             )
         }
@@ -238,6 +235,7 @@ class DefaultOverlayRepository(
 
 internal fun Preferences.toOverlaySettings(): OverlaySettings {
     val arrangedWindowY = this[OverlayPreferenceKeys.windowY]
+    val snapToEdge = this[OverlayPreferenceKeys.snapToEdge] ?: false
     val migrateLegacyMinimumOpacity =
         (this[OverlayPreferenceKeys.opacityRangeVersion] ?: 0) < CURRENT_OPACITY_RANGE_VERSION
     return OverlaySettings(
@@ -268,10 +266,9 @@ internal fun Preferences.toOverlaySettings(): OverlaySettings {
                 minimumValue = ArrangedOverlaySettings.MIN_FONT_SCALE,
                 maximumValue = ArrangedOverlaySettings.MAX_FONT_SCALE
             ),
-            snapToEdge = this[OverlayPreferenceKeys.snapToEdge] ?: false,
-            edgeDisplayMode = arrangedEdgeDisplayMode(
-                this[OverlayPreferenceKeys.edgeDisplayMode]
-            ),
+            snapToEdge = snapToEdge,
+            // Preserve the effective layout of older versions on the first read.
+            singleItemScroll = this[OverlayPreferenceKeys.singleItemScroll] ?: snapToEdge,
             edgeTabOpacity = (
                 this[OverlayPreferenceKeys.edgeTabOpacity]
                     ?: ArrangedOverlaySettings.DEFAULT_EDGE_TAB_OPACITY
@@ -279,12 +276,13 @@ internal fun Preferences.toOverlaySettings(): OverlaySettings {
                 minimumValue = ArrangedOverlaySettings.MIN_EDGE_TAB_OPACITY,
                 maximumValue = ArrangedOverlaySettings.MAX_EDGE_TAB_OPACITY
             ),
-            edgeAutoCollapseSeconds = (
-                this[OverlayPreferenceKeys.edgeAutoCollapseSeconds]
-                    ?: ArrangedOverlaySettings.DEFAULT_EDGE_AUTO_COLLAPSE_SECONDS
-                ).coerceIn(
-                minimumValue = ArrangedOverlaySettings.MIN_EDGE_AUTO_COLLAPSE_SECONDS,
-                maximumValue = ArrangedOverlaySettings.MAX_EDGE_AUTO_COLLAPSE_SECONDS
+            edgeAutoCollapseSeconds = ArrangedOverlaySettings.normalizeEdgeAutoCollapseSeconds(
+                this[OverlayPreferenceKeys.edgeHideDelaySeconds]
+                    ?: if (this[OverlayPreferenceKeys.edgeDisplayMode] == "HIDDEN_TAB") {
+                        (this[OverlayPreferenceKeys.edgeAutoCollapseSeconds] ?: 3).coerceIn(1, 5)
+                    } else {
+                        ArrangedOverlaySettings.DEFAULT_EDGE_AUTO_COLLAPSE_SECONDS
+                    }
             ),
             windowX = this[OverlayPreferenceKeys.windowX],
             windowY = arrangedWindowY
@@ -316,7 +314,7 @@ internal fun Preferences.toOverlaySettings(): OverlaySettings {
     )
 }
 
-private fun MutablePreferences.writeSettings(settings: OverlaySettings) {
+internal fun MutablePreferences.writeSettings(settings: OverlaySettings) {
     this[OverlayPreferenceKeys.enabled] = settings.enabled
     this[OverlayPreferenceKeys.locked] = settings.locked
     this[OverlayPreferenceKeys.displayType] = settings.displayType.name
@@ -326,10 +324,12 @@ private fun MutablePreferences.writeSettings(settings: OverlaySettings) {
     this[OverlayPreferenceKeys.leadingDisplayMode] = settings.arranged.leadingDisplayMode.name
     this[OverlayPreferenceKeys.fontScale] = settings.arranged.fontScale
     this[OverlayPreferenceKeys.snapToEdge] = settings.arranged.snapToEdge
-    this[OverlayPreferenceKeys.edgeDisplayMode] = settings.arranged.edgeDisplayMode.name
+    this[OverlayPreferenceKeys.singleItemScroll] = settings.arranged.singleItemScroll
+    remove(OverlayPreferenceKeys.edgeDisplayMode)
     this[OverlayPreferenceKeys.edgeTabOpacity] = settings.arranged.edgeTabOpacity
-    this[OverlayPreferenceKeys.edgeAutoCollapseSeconds] =
+    this[OverlayPreferenceKeys.edgeHideDelaySeconds] =
         settings.arranged.edgeAutoCollapseSeconds
+    remove(OverlayPreferenceKeys.edgeAutoCollapseSeconds)
     settings.arranged.windowX?.let { this[OverlayPreferenceKeys.windowX] = it }
         ?: remove(OverlayPreferenceKeys.windowX)
     settings.arranged.windowY?.let { this[OverlayPreferenceKeys.windowY] = it }
@@ -340,15 +340,6 @@ private fun MutablePreferences.writeSettings(settings: OverlaySettings) {
     this[OverlayPreferenceKeys.marqueeSpeed] = settings.marquee.speed.name
     settings.marquee.windowY?.let { this[OverlayPreferenceKeys.marqueeWindowY] = it }
         ?: remove(OverlayPreferenceKeys.marqueeWindowY)
-}
-
-private fun arrangedEdgeDisplayMode(value: String?): ArrangedEdgeDisplayMode {
-    return when (value) {
-        ArrangedEdgeDisplayMode.HIDDEN_TAB.name -> ArrangedEdgeDisplayMode.HIDDEN_TAB
-        ArrangedEdgeDisplayMode.DOCKED.name, LEGACY_EDGE_TICKER_VALUE ->
-            ArrangedEdgeDisplayMode.DOCKED
-        else -> ArrangedEdgeDisplayMode.DOCKED
-    }
 }
 
 private inline fun <reified T : Enum<T>> enumValueOrDefault(value: String?, default: T): T {
@@ -372,6 +363,5 @@ private fun normalizedOverlayOpacity(
     return migratedOpacity.coerceIn(0f, maximumOpacity)
 }
 
-private const val LEGACY_EDGE_TICKER_VALUE = "TICKER"
 private const val LEGACY_MIN_OVERLAY_OPACITY = 0.16f
 private const val CURRENT_OPACITY_RANGE_VERSION = 1
