@@ -90,10 +90,12 @@ object CoinMonitorDesignSpacing {
     val group = 10.dp
     val pageHorizontal = 14.dp
     val cardPadding = 12.dp
+    val rowVertical = 6.dp
 }
 
 object CoinMonitorDesignSizes {
     val coinIcon = 28.dp
+    val brandMark = 28.dp
     val actionIcon = 18.dp
     val actionContainer = 32.dp
     val minimumTouchTarget = 48.dp
@@ -110,9 +112,12 @@ object CoinMonitorDesignSizes {
     val sourceDot = 5.dp
     val sourceSummaryDot = 8.dp
     val rankWidth = 22.dp
-    val brandMark = 20.dp
+    val brandMarkInner = 20.dp
     val brandCutout = 7.dp
     val inlineActionIcon = 14.dp
+    val selectionMark = 12.dp
+    val dividerThickness = 0.5.dp
+    val headerMinimumHeight = 48.dp
 }
 
 object CoinMonitorDesignShapes {

@@ -42,7 +42,7 @@ fun CoinMonitorPageTopBar(
         ) {
             Box(Modifier.size(design.sizes.coinIcon), contentAlignment = Alignment.Center) {
                 Box(
-                    Modifier.size(design.sizes.brandMark).rotate(45f)
+                    Modifier.size(design.sizes.brandMarkInner).rotate(45f)
                         .background(Brush.linearGradient(listOf(design.colors.brand, design.colors.accent)), design.shapes.brandMark),
                     contentAlignment = Alignment.Center
                 ) {
