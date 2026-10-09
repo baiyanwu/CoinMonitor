@@ -1,0 +1,130 @@
+{
+  "title": "CoinMonitor Android 圆润蓝紫最终设计 · 紧凑版",
+  "date": "2026-10-09",
+  "status": "final-design-reference",
+  "scope": "four-main-tabs",
+  "mockData": true,
+  "implementation": "design-assets-only",
+  "navigation": [
+    "行情",
+    "热门",
+    "钱包",
+    "设置"
+  ],
+  "style": {
+    "direction": "圆润、克制、适合长期查看金融信息",
+    "largePageTitles": false,
+    "brandAccent": "#8E88F8",
+    "background": "#F5F6F9",
+    "surface": "#FFFFFF",
+    "selectedFill": "#ECEAF8",
+    "text": "#282C3E",
+    "secondaryText": "#7C8297",
+    "roundedSurfaceDp": [
+      18,
+      22
+    ],
+    "iconStyle": "圆头线条，统一波形、热门、钱包、齿轮图标",
+    "density": "compact",
+    "sizingTargets": {
+      "status": "设计尺寸参考目标，非实际 App 组件测量",
+      "coinIconDp": [
+        26,
+        28
+      ],
+      "listRowHeightDp": [
+        48,
+        52
+      ],
+      "settingsRowHeightDp": [
+        50,
+        54
+      ],
+      "primaryTextSp": [
+        13,
+        14
+      ],
+      "secondaryTextSp": [
+        11,
+        12
+      ],
+      "pageHorizontalInsetDp": 14,
+      "groupGapDp": [
+        8,
+        10
+      ],
+      "bottomDockHeightDp": 56,
+      "touchTargetMinimumDp": 48
+    }
+  },
+  "secondaryEntries": {
+    "DApp浏览器": "钱包 → 更多 → DApp浏览器",
+    "观察地址": "钱包 → 观察地址 / 更多",
+    "网络设置": "钱包 → 更多 → 网络设置",
+    "剪贴板CA": "设置 → 悬浮窗设置",
+    "币种图表": "行情 → 币种详情"
+  },
+  "settingsGroups": {
+    "偏好与安全": [
+      "通用设置",
+      "钱包设置"
+    ],
+    "盯盘与数据": [
+      "悬浮窗设置",
+      "第三方 API"
+    ],
+    "应用": [
+      "关于 CoinMonitor"
+    ]
+  },
+  "interactionIntent": [
+    "长按币种后显示就近的圆角操作浮层",
+    "筛选使用圆角底部面板",
+    "排序通过轻微抬起和占位提示反馈",
+    "常态页面保持低视觉刺激"
+  ],
+  "assets": [
+    {
+      "tab": "行情",
+      "file": "01-market.png",
+      "width": 853,
+      "height": 1844,
+      "visibleRows": 8,
+      "sha256": "c2a94f64d6cc4d237e732f8c13076d4979033bd48976f0122e229837420d8421"
+    },
+    {
+      "tab": "热门",
+      "file": "02-trending.png",
+      "width": 853,
+      "height": 1844,
+      "visibleRows": 10,
+      "sha256": "fe449c26d07e4950cfda77151e3ff001a64b9b800197e35bd7167c3148a6cb0e"
+    },
+    {
+      "tab": "钱包",
+      "file": "03-wallet.png",
+      "width": 853,
+      "height": 1844,
+      "visibleRows": 7,
+      "sha256": "1cf0dc52f45fba19a9e7ae78d5a81a21ddd5836d0e3b298bb7faf353dff048ab"
+    },
+    {
+      "tab": "设置",
+      "file": "04-settings.png",
+      "width": 853,
+      "height": 1844,
+      "visibleRows": 5,
+      "sha256": "765d24723cf2592cacfbd519d1a6c0305196cf2776d8cebfcfb1de45f9a4e9f8"
+    }
+  ],
+  "revision": "2026-10-09-compact",
+  "sampleWalletValues": [
+    "4455.00",
+    "3600.00",
+    "2940.52",
+    "960.00",
+    "200.00",
+    "126.80",
+    "198.20"
+  ]
+}

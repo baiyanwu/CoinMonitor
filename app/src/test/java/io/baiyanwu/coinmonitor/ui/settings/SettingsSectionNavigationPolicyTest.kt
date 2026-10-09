@@ -8,7 +8,7 @@ import org.junit.Test
 
 class SettingsSectionNavigationPolicyTest {
     @Test
-    fun `general preferences live on the general settings detail page`() {
+    fun `general detail keeps advanced preferences while home reuses appearance preferences`() {
         val settingsSource = readSource(
             "app/src/main/java/io/baiyanwu/coinmonitor/ui/settings/SettingsRoute.kt",
             "src/main/java/io/baiyanwu/coinmonitor/ui/settings/SettingsRoute.kt"
@@ -25,6 +25,11 @@ class SettingsSectionNavigationPolicyTest {
         assertFalse(settingsSource.contains("R.string.language_title"))
         assertFalse(settingsSource.contains("R.string.network_log_title"))
         assertFalse(settingsSource.contains("R.string.clipboard_settings"))
+        assertTrue(settingsSource.contains("SettingsViewModel.factory(container)"))
+        assertTrue(settingsSource.contains("themeMode = state.preferences.themeMode"))
+        assertTrue(settingsSource.contains("onThemeModeChange = model::setThemeMode"))
+        assertTrue(settingsSource.contains("R.string.settings_appearance_title"))
+        assertTrue(settingsSource.contains("CoinMonitorDesignTheme {"))
         assertTrue(detailsSource.contains("fun GeneralSettingsRoute("))
         assertTrue(detailsSource.contains("R.string.show_onchain_market_cap"))
         assertTrue(detailsSource.contains("R.string.appearance_title"))
