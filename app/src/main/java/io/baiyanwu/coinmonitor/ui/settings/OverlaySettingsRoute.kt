@@ -49,6 +49,7 @@ import io.baiyanwu.coinmonitor.ui.settings.overlay.arranged.ArrangedOverlaySetti
 import io.baiyanwu.coinmonitor.ui.settings.overlay.marquee.MarqueeOverlaySettingsSection
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorComponentDefaults
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
+import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorDesignTheme
 import kotlinx.coroutines.launch
 
 @Composable
@@ -70,6 +71,7 @@ fun OverlaySettingsRoute(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
 
+    CoinMonitorDesignTheme {
     OverlaySettingsScreen(
         state = state,
         overlayPermissionGranted = overlayPermissionGranted,
@@ -116,6 +118,7 @@ fun OverlaySettingsRoute(
         onMarqueeFontScaleChange = viewModel::setMarqueeFontScale,
         onMarqueeSpeedChange = viewModel::setMarqueeSpeed
     )
+    }
 }
 
 @Composable

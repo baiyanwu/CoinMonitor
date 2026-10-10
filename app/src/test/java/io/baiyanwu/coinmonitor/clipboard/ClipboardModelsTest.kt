@@ -122,7 +122,7 @@ class ClipboardModelsTest {
 
     @Test fun panelMeasureUsesAvailableAndroidWindowInsteadOfDesktopFrame() {
         assertEquals(
-            ClipboardPanelMeasure(width = 210, maxHeight = 416),
+            ClipboardPanelMeasure(width = 210, maxHeight = 720),
             clipboardPanelMeasure(
                 availableWidth = 344,
                 availableHeight = 784,
@@ -132,7 +132,7 @@ class ClipboardModelsTest {
             )
         )
         assertEquals(
-            ClipboardPanelMeasure(width = 210, maxHeight = 520),
+            ClipboardPanelMeasure(width = 210, maxHeight = 900),
             clipboardPanelMeasure(
                 availableWidth = 1000,
                 availableHeight = 900,
@@ -142,7 +142,7 @@ class ClipboardModelsTest {
             )
         )
         assertEquals(
-            ClipboardPanelMeasure(width = 204, maxHeight = 416),
+            ClipboardPanelMeasure(width = 210, maxHeight = 720),
             clipboardPanelMeasure(
                 availableWidth = 304,
                 availableHeight = 784,

@@ -31,6 +31,11 @@ import io.baiyanwu.coinmonitor.R
 import io.baiyanwu.coinmonitor.ui.CoinMonitorComposeActivity
 import io.baiyanwu.coinmonitor.ui.navigation.DetailPageTransitions
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
+import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorDesignTheme
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.material.icons.rounded.ChevronRight
 import java.util.UUID
 
 class ClipboardSettingsActivity : CoinMonitorComposeActivity() {
@@ -58,7 +63,7 @@ class ClipboardSettingsActivity : CoinMonitorComposeActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ClipboardSettingsScreen(store: ClipboardSettingsStore, onBack: () -> Unit) {
+private fun ClipboardSettingsScreen(store: ClipboardSettingsStore, onBack: () -> Unit) = CoinMonitorDesignTheme {
     val colors = CoinMonitorThemeTokens.colors
     val settings by store.settings.collectAsState()
     var editing by remember { mutableStateOf<ClipboardDestination?>(null) }
@@ -109,6 +114,14 @@ private fun ClipboardSettingsScreen(store: ClipboardSettingsStore, onBack: () ->
                     current.copy(destinations = current.destinations.filterNot { it.id == site.id })
                 } }
             )
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(12.dp)) {
+                    var question by remember(settings.aiQuestion) { mutableStateOf(settings.aiQuestion.orEmpty()) }
+                    OutlinedTextField(value = question, onValueChange = { question = it }, label = { Text(stringResource(R.string.clipboard_ai_question)) }, modifier = Modifier.fillMaxWidth())
+                    TextButton(onClick = { store.update { it.copy(aiQuestion = question) } }) { Text(stringResource(R.string.clipboard_save)) }
+                    TextButton(onClick = { store.update { it.copy(aiQuestion = null) } }) { Text(stringResource(R.string.clipboard_ai_restore)) }
+                }
+            }
             Spacer(Modifier.height(12.dp))
         }
     }
@@ -255,21 +268,23 @@ private fun ClipboardDestinationRow(
     Card(modifier.fillMaxWidth().graphicsLayer { translationY = dragOffsetY }) {
         Column(Modifier.padding(horizontal = 12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(position.toString(), Modifier.width(24.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(site.name, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-                TextButton(
-                    onClick = onEdit,
-                    modifier = Modifier.height(36.dp),
-                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)
-                ) { Text(stringResource(R.string.clipboard_edit), style = MaterialTheme.typography.labelMedium) }
-                TextButton(
-                    onClick = onDelete,
-                    modifier = Modifier.height(36.dp),
-                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)
-                ) { Text(stringResource(R.string.clipboard_delete), style = MaterialTheme.typography.labelMedium) }
+                ClipboardSiteIcon(site.id, iconUrl = site.iconUrl)
+                Spacer(Modifier.width(8.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(site.name, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text(stringResource(R.string.clipboard_site_network_count, (site.chainValues.keys + site.chainTemplates.keys).size), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                IconButton(onClick = onEdit) { Icon(Icons.Rounded.ChevronRight, stringResource(R.string.clipboard_edit), Modifier.size(18.dp)) }
+                var menu by remember { mutableStateOf(false) }
+                Box {
+                    IconButton(onClick = { menu = true }) { Icon(Icons.Rounded.MoreVert, stringResource(R.string.clipboard_more), Modifier.size(18.dp)) }
+                    DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                        DropdownMenuItem(text = { Text(stringResource(R.string.clipboard_delete)) }, onClick = { menu = false; onDelete() })
+                    }
+                }
                 Switch(checked = site.enabled, onCheckedChange = onEnabledChange)
                 Box(
-                    modifier = Modifier.size(40.dp)
+                    modifier = Modifier.size(48.dp)
                         .semantics { contentDescription = dragDescription }
                         .pointerInput(site.id) {
                             awaitEachGesture {
@@ -316,25 +331,74 @@ private suspend fun AwaitPointerEventScope.awaitClipboardDragDown(): PointerInpu
 
 @Composable
 private fun ClipboardDestinationEditor(site: ClipboardDestination, onDismiss: () -> Unit, onSave: (ClipboardDestination) -> Unit) {
-    var name by remember { mutableStateOf(site.name) }
-    var template by remember { mutableStateOf(site.template) }
-    var mapping by remember { mutableStateOf(site.chainValues.entries.joinToString("\n") { "${it.key}=${it.value}" }) }
-    var templates by remember { mutableStateOf(site.chainTemplates.entries.joinToString("\n") { "${it.key}=${it.value}" }) }
-    val candidate = runCatching { site.copy(name = name.trim(), template = template.trim(),
-        chainValues = clipboardMapping(mapping), chainTemplates = clipboardMapping(templates)) }.getOrNull()
-    val valid = candidate != null && validClipboardDestination(candidate)
+    val sample = "0x0000000000000000000000000000000000000001"
+    var source by remember { mutableStateOf(site.sourceUrl ?: site.template.ifBlank { site.chainTemplates.values.firstOrNull().orEmpty() }
+        .replace("{ca}", sample).replace("{chain}", site.chainValues.values.firstOrNull() ?: "ethereum")) }
+    var draft by remember { mutableStateOf(site.copy(sourceUrl = site.sourceUrl ?: source.takeIf { safeClipboardUrl(it) != null })) }
+    var valid by remember { mutableStateOf(validClipboardDestination(site)) }
+    var nameEdited by remember { mutableStateOf(site.name.isNotBlank()) }
+    var outcome by remember { mutableStateOf<ClipboardWebsiteRecognition.Outcome?>(null) }
+    var customNetwork by remember { mutableStateOf("") }
+    val recognize: (String?) -> Unit = { selected ->
+        val result = ClipboardWebsiteRecognition.recognize(source, draft.copy(name = if (nameEdited) draft.name else ""), selected)
+        outcome = result
+        if (result is ClipboardWebsiteRecognition.Outcome.Recognized) { draft = result.result.destination; valid = true }
+        else valid = false
+    }
     AlertDialog(onDismissRequest = onDismiss, title = { Text(stringResource(R.string.clipboard_edit_site)) }, text = {
-        Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text(stringResource(R.string.clipboard_site_name)) }, singleLine = true)
-            OutlinedTextField(value = template, onValueChange = { template = it }, label = { Text(stringResource(R.string.clipboard_site_template)) })
-            Text(stringResource(R.string.clipboard_template_hint), style = MaterialTheme.typography.bodySmall)
-            OutlinedTextField(value = mapping, onValueChange = { mapping = it }, label = { Text(stringResource(R.string.clipboard_chain_mapping)) })
-            OutlinedTextField(value = templates, onValueChange = { templates = it }, label = { Text(stringResource(R.string.clipboard_chain_templates)) })
-            Text(stringResource(R.string.clipboard_mapping_hint), style = MaterialTheme.typography.bodySmall)
-            if (!valid) Text(stringResource(R.string.clipboard_invalid_site), color = MaterialTheme.colorScheme.error)
+        Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            OutlinedTextField(value = source, onValueChange = { source = it; valid = false; outcome = null }, label = { Text(stringResource(R.string.clipboard_site_source_link)) }, modifier = Modifier.fillMaxWidth())
+            FilledTonalButton(onClick = { recognize(null) }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.clipboard_site_recognize)) }
+            when (val result = outcome) {
+                ClipboardWebsiteRecognition.Outcome.Invalid -> Text(stringResource(R.string.clipboard_site_invalid_link), color = MaterialTheme.colorScheme.error)
+                ClipboardWebsiteRecognition.Outcome.NoAddress -> Text(stringResource(R.string.clipboard_site_no_address), color = MaterialTheme.colorScheme.error)
+                is ClipboardWebsiteRecognition.Outcome.Ambiguous -> {
+                    Text(stringResource(R.string.clipboard_site_choose_address))
+                    result.addresses.forEach { address -> TextButton(onClick = { recognize(address) }) { Text(shortClipboardAddress(address)) } }
+                }
+                else -> Unit
+            }
+            if (valid) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    ClipboardSiteIcon(draft.id, iconUrl = draft.iconUrl)
+                    Spacer(Modifier.width(8.dp))
+                    OutlinedTextField(value = draft.name, onValueChange = { draft = draft.copy(name = it); nameEdited = true }, label = { Text(stringResource(R.string.clipboard_site_name)) }, singleLine = true)
+                }
+                val perChain = draft.template.isBlank() && (draft.chainTemplates.isNotEmpty() || draft.removedNetworkRules.isNotEmpty())
+                if (draft.template.contains("{chain}") || perChain) {
+                    Text(stringResource(R.string.clipboard_site_network_rules), style = MaterialTheme.typography.titleSmall)
+                    val rows = if (perChain) draft.chainTemplates else draft.chainValues
+                    rows.forEach { (chain, mapped) ->
+                        Column {
+                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                Text(chain, Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+                                TextButton(onClick = { draft = if (perChain) draft.copy(chainTemplates = draft.chainTemplates - chain, removedNetworkRules = draft.removedNetworkRules + chain) else draft.copy(chainValues = draft.chainValues - chain, removedNetworkRules = draft.removedNetworkRules + chain) }) { Text(stringResource(R.string.clipboard_delete)) }
+                            }
+                            OutlinedTextField(value = if (perChain) mapped.replace("{ca}", ClipboardAddressParser.extract(source).firstOrNull() ?: sample) else mapped,
+                                onValueChange = { value ->
+                                    if (perChain) {
+                                        val ca = ClipboardAddressParser.extract(value).singleOrNull()
+                                        draft = draft.copy(chainTemplates = draft.chainTemplates + (chain to if (ca != null) value.replace(ca, "{ca}") else value), removedNetworkRules = draft.removedNetworkRules - chain)
+                                    } else draft = draft.copy(chainValues = draft.chainValues + (chain to value), removedNetworkRules = draft.removedNetworkRules - chain)
+                                }, label = { Text(stringResource(if (perChain) R.string.clipboard_site_source_link else R.string.clipboard_site_route_name)) }, modifier = Modifier.fillMaxWidth())
+                        }
+                    }
+                    OutlinedTextField(value = customNetwork, onValueChange = { customNetwork = it }, label = { Text(stringResource(R.string.clipboard_site_new_network)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    TextButton(enabled = customNetwork.trim().matches(Regex("[a-z0-9_-]+")) && customNetwork.trim() !in rows,
+                        onClick = {
+                            val key = customNetwork.trim()
+                            draft = if (perChain) draft.copy(chainTemplates = draft.chainTemplates + (key to ""), removedNetworkRules = draft.removedNetworkRules - key) else draft.copy(chainValues = draft.chainValues + (key to key), removedNetworkRules = draft.removedNetworkRules - key)
+                            customNetwork = ""
+                        }) { Text(stringResource(R.string.clipboard_site_add_network)) }
+                }
+                Text(stringResource(R.string.clipboard_site_preview), style = MaterialTheme.typography.titleSmall)
+                Text((if (draft.template.isNotBlank()) draft.template else draft.chainTemplates.values.firstOrNull().orEmpty())
+                    .replace("{ca}", ClipboardAddressParser.extract(source).firstOrNull() ?: sample)
+                    .replace("{chain}", draft.chainValues.values.firstOrNull().orEmpty()), style = MaterialTheme.typography.bodySmall)
+            }
         }
     }, confirmButton = {
-        TextButton(enabled = valid, onClick = { candidate?.let(onSave) }) { Text(stringResource(R.string.clipboard_save)) }
+        TextButton(enabled = valid && validClipboardDestination(draft), onClick = { onSave(draft.copy(name = draft.name.trim())) }) { Text(stringResource(R.string.clipboard_save)) }
     }, dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.clipboard_cancel)) } })
 }
 
@@ -353,5 +417,5 @@ internal fun validClipboardDestination(site: ClipboardDestination): Boolean {
     fun validTemplate(value: String): Boolean = safeClipboardUrl(value.replace("{ca}", "sample").replace("{chain}", "ethereum")) != null
     return site.name.isNotBlank() && site.chainValues.values.all { it.matches(Regex("[A-Za-z0-9_-]+")) } &&
         site.chainTemplates.values.all(::validTemplate) &&
-        (if (site.template.isNotBlank()) validTemplate(site.template) else site.id == "dex" || site.chainTemplates.isNotEmpty())
+        (if (site.template.isNotBlank()) validTemplate(site.template) else site.id == "dex" || site.chainTemplates.isNotEmpty() || site.removedNetworkRules.isNotEmpty() && safeClipboardUrl(site.sourceUrl) != null)
 }

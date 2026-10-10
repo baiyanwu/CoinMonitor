@@ -38,7 +38,7 @@ import io.baiyanwu.coinmonitor.overlay.PriceTextSizer
 import io.baiyanwu.coinmonitor.overlay.QuoteFormatter
 import io.baiyanwu.coinmonitor.ui.AppConfigurationApplier
 import io.baiyanwu.coinmonitor.ui.resolveLivePriceColor
-import io.baiyanwu.coinmonitor.ui.theme.resolveCoinMonitorColors
+import io.baiyanwu.coinmonitor.ui.theme.resolveOverlayDesignColors
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlin.math.abs
@@ -110,7 +110,7 @@ internal class ArrangedOverlayWindowController(
     private val iconBitmapCache = LinkedHashMap<String, Bitmap>()
 
     private val overlayColors
-        get() = resolveCoinMonitorColors(context, appPreferencesRepository.getPreferences())
+        get() = resolveOverlayDesignColors(context, appPreferencesRepository.getPreferences())
 
     private val localizedContext: Context
         get() = AppConfigurationApplier.wrapContext(context, appPreferencesRepository.getPreferences())
@@ -525,7 +525,7 @@ internal class ArrangedOverlayWindowController(
             val priceText = QuoteFormatter.formatOverlayValue(item, showOnchainMarketCap)
             measureTextWidth(
                 text = priceText,
-                textSizeSp = PriceTextSizer.resolveTextSizeSp(priceText) * metrics.fontScale
+                textSizeSp = maxOf(13f, PriceTextSizer.resolveTextSizeSp(priceText)) * metrics.fontScale
             )
         } ?: 0
         return maxWidth + metrics.priceWidthExtraPx
@@ -867,7 +867,7 @@ internal class ArrangedOverlayWindowController(
         applyValueColor(holder.priceView, item)
         holder.priceView.setTextSize(
             TypedValue.COMPLEX_UNIT_SP,
-            PriceTextSizer.resolveTextSizeSp(priceText) * metrics.fontScale
+            maxOf(13f, PriceTextSizer.resolveTextSizeSp(priceText)) * metrics.fontScale
         )
         holder.priceView.layoutParams = LinearLayout.LayoutParams(
             priceWidth,
@@ -1462,11 +1462,11 @@ internal class ArrangedOverlayWindowController(
                         when {
                             edgeTabMode -> 0
                             sidebarMode -> 6
-                            else -> 4
+                            else -> 8
                         }
                     ),
-                    verticalPaddingPx = scaledDp(if (edgeTabMode) 0 else 4),
-                    rowVerticalPaddingPx = scaledDp(1),
+                    verticalPaddingPx = scaledDp(if (edgeTabMode) 0 else 6),
+                    rowVerticalPaddingPx = scaledDp(3),
                     leadingSpacingPx = scaledDp(4),
                     leadingWidthExtraPx = scaledDp(1),
                     priceWidthExtraPx = scaledDp(2),
@@ -1475,20 +1475,20 @@ internal class ArrangedOverlayWindowController(
                     cornerRadiusPx = scaledDp(
                         when {
                             edgeTabMode -> 8
-                            sidebarMode -> 12
-                            else -> 10
+                            sidebarMode -> 18
+                            else -> 20
                         }
                     ),
-                    iconSizePx = scaledDp(11),
+                    iconSizePx = scaledDp(16),
                     sidebarWidthPx = max(scaledDp(92), (92 * context.resources.displayMetrics.density).roundToInt()),
                     edgeTabTouchWidthPx = scaledDp(24),
                     edgeTabTouchHeightPx = scaledDp(48),
                     edgeTabIndicatorWidthPx = scaledDp(5),
                     edgeTabIndicatorHeightPx = scaledDp(36),
-                    leadingTextSizeSp = 9.5f * fontScale,
-                    sidebarTextSizeSp = 10f * fontScale,
+                    leadingTextSizeSp = 13f * fontScale,
+                    sidebarTextSizeSp = 13f * fontScale,
                     emptyTextSizeSp = 11f * fontScale,
-                    footerTextSizeSp = 8f * fontScale
+                    footerTextSizeSp = 11f * fontScale
                 )
             }
         }

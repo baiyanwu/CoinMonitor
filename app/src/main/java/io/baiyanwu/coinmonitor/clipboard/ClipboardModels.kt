@@ -13,7 +13,9 @@ import java.util.Locale
 data class ClipboardSettings(
     val enabled: Boolean = true,
     val addToFloating: Boolean = false,
-    val destinations: List<ClipboardDestination> = clipboardDestinations()
+    val destinations: List<ClipboardDestination> = clipboardDestinations(),
+    val valueMode: String = "price",
+    val aiQuestion: String? = null
 )
 
 @Serializable
@@ -23,7 +25,10 @@ data class ClipboardDestination(
     val template: String,
     val enabled: Boolean = true,
     val chainValues: Map<String, String> = emptyMap(),
-    val chainTemplates: Map<String, String> = emptyMap()
+    val chainTemplates: Map<String, String> = emptyMap(),
+    val removedNetworkRules: Set<String> = emptySet(),
+    val sourceUrl: String? = null,
+    val iconUrl: String? = null
 ) {
     fun url(match: ClipboardMatch): String? {
         if (id == "dex" && template.isBlank()) {
@@ -31,7 +36,7 @@ data class ClipboardDestination(
         }
         val chain = match.chain.dexScreenerId
         val source = if (template.isBlank()) chainTemplates[chain] ?: return null else template
-        val chainValue = if (chainValues.isEmpty()) chain else chainValues[chain]
+        val chainValue = chainValues[chain]
         if (source.contains("{chain}") && chainValue == null) return null
         return safeClipboardUrl(source.replace("{ca}", encode(match.selection.tokenAddress))
             .replace("{chain}", encode(chainValue.orEmpty())))
@@ -67,7 +72,8 @@ private fun encode(value: String): String = URLEncoder.encode(value, "UTF-8").re
 object ClipboardAddressParser {
     private val pattern = Regex("(?<![A-Za-z0-9])(?:0x[0-9a-fA-F]{40}|[1-9A-HJ-NP-Za-km-z]{32,44})(?![A-Za-z0-9])")
     fun extract(text: String): List<String> = pattern.findAll(text.take(32_768))
-        .map { it.value }.distinctBy { if (it.startsWith("0x")) it.lowercase() else it }.take(10).toList()
+        .map { it.value }.filter { WalletAddressParser.classify(it) != null }
+        .distinctBy { if (it.startsWith("0x")) it.lowercase() else it }.take(10).toList()
 }
 
 data class ClipboardMatch(val chain: OnchainChain, val selection: SelectedDexPair) {

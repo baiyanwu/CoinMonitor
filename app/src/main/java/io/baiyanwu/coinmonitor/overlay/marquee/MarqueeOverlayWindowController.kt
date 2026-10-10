@@ -36,7 +36,7 @@ import io.baiyanwu.coinmonitor.overlay.QuoteFormatter
 import io.baiyanwu.coinmonitor.ui.AppConfigurationApplier
 import io.baiyanwu.coinmonitor.ui.resolveLivePriceColor
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorColors
-import io.baiyanwu.coinmonitor.ui.theme.resolveCoinMonitorColors
+import io.baiyanwu.coinmonitor.ui.theme.resolveOverlayDesignColors
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlin.math.abs
@@ -89,7 +89,7 @@ internal class MarqueeOverlayWindowController(
             ) {
                 return cachedColors
             }
-            return resolveCoinMonitorColors(context, preferences).also { colors ->
+            return resolveOverlayDesignColors(context, preferences).also { colors ->
                 cachedColorPreferences = preferences
                 cachedColorUiMode = uiMode
                 cachedOverlayColors = colors
@@ -802,7 +802,7 @@ internal class MarqueeOverlayWindowController(
                 val iconSizePx = scaledDp(16)
                 return MarqueeMetrics(
                     fontScale = fontScale,
-                    heightPx = scaledDp(32),
+                    heightPx = scaledDp(36),
                     iconSizePx = iconSizePx,
                     iconSlotWidthPx = MarqueeSpacingPolicy.iconSlotWidthPx(
                         iconSizePx = iconSizePx,
@@ -815,7 +815,7 @@ internal class MarqueeOverlayWindowController(
                     ),
                     cycleSeparatorDotSizePx = scaledDp(3),
                     fallbackStrokePx = scaledDp(1),
-                    textSizeSp = 10f * fontScale
+                    textSizeSp = 13f * fontScale
                 )
             }
         }

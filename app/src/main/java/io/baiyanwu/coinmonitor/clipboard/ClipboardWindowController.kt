@@ -58,7 +58,12 @@ class ClipboardWindowController(
         val localized = AppConfigurationApplier.wrapContext(context, container.appPreferencesRepository.getPreferences())
         val scope = CoroutineScope(serviceScope.coroutineContext + SupervisorJob(serviceScope.coroutineContext[Job]))
         session = scope
-        val state = ClipboardPanelState(container.clipboardRepository, scope)
+        val state = ClipboardPanelState(container.clipboardRepository, scope, object : ClipboardWalletDataSource {
+            override fun isConfigured() = container.okxWalletCredentialsRepository.getCredentials().isReady
+            override suspend fun load(address: String) = withContext(Dispatchers.IO) {
+                container.walletPortfolioRepository.load(address, includeRiskInTotal = false)
+            }
+        })
         val coordinates = IntArray(2).also(anchor::getLocationOnScreen)
         val anchorBounds = Rect(coordinates[0], coordinates[1], coordinates[0] + anchor.width, coordinates[1] + anchor.height)
         var read = false
@@ -152,6 +157,15 @@ class ClipboardWindowController(
                                         Toast.makeText(localized, R.string.clipboard_open_failed, Toast.LENGTH_SHORT).show()
                                     }
                                 }
+                            }, onCopy = { address ->
+                                context.getSystemService(ClipboardManager::class.java)
+                                    .setPrimaryClip(android.content.ClipData.newPlainText("address", address))
+                            }, onValueModeChange = { mode ->
+                                container.clipboardSettingsStore.update { it.copy(valueMode = mode) }
+                            }, onWalletSettings = {
+                                hide()
+                                context.startActivity(Intent(context, io.baiyanwu.coinmonitor.ui.settings.ThirdPartyApiSettingsActivity::class.java)
+                                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                             }, onSettings = {
                                 hide()
                                 ClipboardSettingsActivity.start(context)
