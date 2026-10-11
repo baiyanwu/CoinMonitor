@@ -46,6 +46,7 @@ import io.baiyanwu.coinmonitor.data.AppContainer
 import io.baiyanwu.coinmonitor.domain.model.AppLanguage
 import io.baiyanwu.coinmonitor.domain.model.AppThemeMode
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorComponentDefaults
+import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorDesignColorTheme
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 import io.baiyanwu.coinmonitor.ui.wallet.WalletPage
 import io.baiyanwu.coinmonitor.ui.wallet.activityWalletViewModel
@@ -238,9 +239,9 @@ private fun SettingsDetailScaffold(
     title: String,
     onBack: () -> Unit,
     content: androidx.compose.foundation.lazy.LazyListScope.() -> Unit
-) {
+) = CoinMonitorDesignColorTheme {
     Scaffold(
-        containerColor = CoinMonitorThemeTokens.colors.pageBackground,
+        containerColor = CoinMonitorThemeTokens.design.colors.pageBackground,
         contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0),
         topBar = {
             CenterAlignedTopAppBar(
@@ -251,7 +252,7 @@ private fun SettingsDetailScaffold(
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = CoinMonitorThemeTokens.colors.pageBackground
+                    containerColor = CoinMonitorThemeTokens.design.colors.pageBackground
                 )
             )
         }
@@ -259,7 +260,7 @@ private fun SettingsDetailScaffold(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .background(CoinMonitorThemeTokens.colors.pageBackground)
+                .background(CoinMonitorThemeTokens.design.colors.pageBackground)
                 .padding(innerPadding),
             contentPadding = PaddingValues(14.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),

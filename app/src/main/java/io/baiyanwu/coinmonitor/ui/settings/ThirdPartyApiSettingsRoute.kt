@@ -65,6 +65,7 @@ import io.baiyanwu.coinmonitor.domain.model.WalletNetwork
 import io.baiyanwu.coinmonitor.domain.model.WalletProviderMode
 import io.baiyanwu.coinmonitor.domain.model.modeFor
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorComponentDefaults
+import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorDesignColorTheme
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 
 private const val SHOW_AI_SETTINGS_ENTRY = false
@@ -104,6 +105,9 @@ fun ThirdPartyApiSettingsRoute(
         onOkxPassphraseChange = viewModel::updateOkxWalletPassphrase,
         onSaveOkx = viewModel::saveOkxWalletCredentials,
         onClearOkx = viewModel::clearOkxWalletCredentials,
+        onGmgnApiKeyChange = viewModel::updateGmgnApiKey,
+        onSaveGmgn = viewModel::saveGmgnApiKey,
+        onClearGmgn = viewModel::clearGmgnApiKey,
         onAiEnabledChange = viewModel::setAiEnabled,
         onAiBaseUrlChange = viewModel::updateAiBaseUrl,
         onAiApiKeyChange = viewModel::updateAiApiKey,
@@ -137,6 +141,9 @@ private fun ThirdPartyApiSettingsScreen(
     onOkxPassphraseChange: (String) -> Unit,
     onSaveOkx: () -> Unit,
     onClearOkx: () -> Unit,
+    onGmgnApiKeyChange: (String) -> Unit,
+    onSaveGmgn: () -> Unit,
+    onClearGmgn: () -> Unit,
     onAiEnabledChange: (Boolean) -> Unit,
     onAiBaseUrlChange: (String) -> Unit,
     onAiApiKeyChange: (String) -> Unit,
@@ -144,20 +151,19 @@ private fun ThirdPartyApiSettingsScreen(
     onAiSystemPromptChange: (String) -> Unit,
     onSaveAi: () -> Unit,
     onClearAi: () -> Unit
-) {
+) = CoinMonitorDesignColorTheme {
     val colors = CoinMonitorThemeTokens.colors
-    val uriHandler = LocalUriHandler.current
     var showAiValidationError by rememberSaveable { mutableStateOf(false) }
     var showOkxValidationError by rememberSaveable { mutableStateOf(false) }
     var showWalletNetworkManager by rememberSaveable { mutableStateOf(false) }
     var showAddCustomEvm by rememberSaveable { mutableStateOf(false) }
     var customRpcNetworkId by rememberSaveable { mutableStateOf<String?>(null) }
     val listState = rememberLazyListState(
-        initialFirstVisibleItemIndex = if (initialSection == ThirdPartyApiSettingsSection.WALLET_NETWORK) 2 else 0
+        initialFirstVisibleItemIndex = if (initialSection == ThirdPartyApiSettingsSection.WALLET_NETWORK) 3 else 0
     )
 
     Scaffold(
-        containerColor = colors.pageBackground,
+        containerColor = CoinMonitorThemeTokens.design.colors.pageBackground,
         topBar = {
             ThirdPartyApiTopBar(onBack = onBack)
         }
@@ -165,7 +171,7 @@ private fun ThirdPartyApiSettingsScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .background(colors.pageBackground)
+                .background(CoinMonitorThemeTokens.design.colors.pageBackground)
                 .padding(innerPadding),
             state = listState,
             contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
@@ -258,12 +264,7 @@ private fun ThirdPartyApiSettingsScreen(
                     visualTransformation = PasswordVisualTransformation(),
                     singleLine = true
                 )
-                Text(
-                    text = stringResource(R.string.okx_wallet_developer_portal),
-                    modifier = Modifier.clickable { uriHandler.openUri("https://web3.okx.com/onchainos/dev-portal") },
-                    style = MaterialTheme.typography.labelLarge,
-                    color = colors.accent
-                )
+                ApplyApiKeyButton("https://web3.okx.com/onchainos/dev-portal")
                 if (showOkxValidationError) ValidationText(R.string.okx_wallet_credentials_incomplete)
                 FeedbackText(
                     savedFlag = state.okxWallet.savedFlag,
@@ -285,7 +286,27 @@ private fun ThirdPartyApiSettingsScreen(
             }
 
             item {
-                ThirdPartySectionCard(title = stringResource(R.string.wallet_network_settings_title)) {
+                ThirdPartySectionCard(title = stringResource(R.string.gmgn_settings_title)) {
+                    Text(stringResource(R.string.gmgn_settings_description), style = MaterialTheme.typography.bodySmall, color = colors.secondaryText)
+                    if (!state.gmgn.secureStorageAvailable) {
+                        Text(stringResource(R.string.okx_wallet_secure_storage_unavailable), color = MaterialTheme.colorScheme.error)
+                    }
+                    OutlinedTextField(
+                        value = state.gmgn.apiKey, onValueChange = onGmgnApiKeyChange,
+                        modifier = Modifier.fillMaxWidth(), label = { Text("API key") },
+                        singleLine = true, visualTransformation = PasswordVisualTransformation(),
+                        colors = CoinMonitorComponentDefaults.outlinedTextFieldColors()
+                    )
+                    ApplyApiKeyButton("https://gmgn.ai/ai")
+                    FeedbackText(state.gmgn.savedFlag, state.gmgn.clearedFlag, state.gmgn.errorMessage)
+                    SaveClearButtons(
+                        onSave = onSaveGmgn, onClear = onClearGmgn
+                    )
+                }
+            }
+
+            item {
+                ThirdPartySectionCard(title = stringResource(R.string.third_party_api_settings_alchemy_title)) {
                 Text(
                     text = stringResource(R.string.wallet_network_settings_description),
                     style = MaterialTheme.typography.bodySmall,
@@ -306,6 +327,7 @@ private fun ThirdPartyApiSettingsScreen(
                     visualTransformation = PasswordVisualTransformation(),
                     singleLine = true
                 )
+                ApplyApiKeyButton("https://dashboard.alchemy.com/")
                 Text(
                     text = stringResource(
                         R.string.wallet_network_enabled_count,
@@ -797,6 +819,17 @@ private fun DexPollingIntervalSetting(
 }
 
 @Composable
+private fun ApplyApiKeyButton(url: String) {
+    val uriHandler = LocalUriHandler.current
+    OutlinedButton(
+        onClick = { uriHandler.openUri(url) },
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text(stringResource(R.string.third_party_api_settings_apply_key))
+    }
+}
+
+@Composable
 private fun ThirdPartySectionCard(
     title: String,
     content: @Composable ColumnScope.() -> Unit
@@ -891,10 +924,9 @@ private fun SaveClearButtons(
 private fun ThirdPartyApiTopBar(
     onBack: () -> Unit
 ) {
-    val colors = CoinMonitorThemeTokens.colors
     CenterAlignedTopAppBar(
         colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-            containerColor = colors.pageBackground
+            containerColor = CoinMonitorThemeTokens.design.colors.pageBackground
         ),
         title = {
             Text(text = stringResource(R.string.third_party_api_settings_title))

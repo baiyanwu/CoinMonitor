@@ -17,6 +17,7 @@ internal object NetworkLogRedactor {
         "cookie",
         "set-cookie",
         "x-api-key",
+        "x-apikey",
         "ok-access-key",
         "ok-access-sign",
         "ok-access-passphrase"

@@ -1,11 +1,10 @@
 package io.baiyanwu.coinmonitor.overlay.arranged
 
-import io.baiyanwu.coinmonitor.domain.model.ArrangedEdgeDisplayMode
 import io.baiyanwu.coinmonitor.domain.model.ArrangedOverlaySettings
 
 enum class OverlayEdgePresentation {
     STANDARD,
-    DOCKED_CAROUSEL,
+    SINGLE_ITEM_CAROUSEL,
     HIDDEN_TAB
 }
 
@@ -15,20 +14,18 @@ object OverlayEdgePresentationPolicy {
         hasItems: Boolean,
         hiddenTabExpanded: Boolean
     ): OverlayEdgePresentation {
-        if (!settings.snapToEdge || !hasItems) {
+        if (!hasItems) {
             return OverlayEdgePresentation.STANDARD
         }
-        return when (settings.edgeDisplayMode) {
-            ArrangedEdgeDisplayMode.DOCKED -> OverlayEdgePresentation.DOCKED_CAROUSEL
-            ArrangedEdgeDisplayMode.HIDDEN_TAB -> {
-                if (hiddenTabExpanded) {
-                    OverlayEdgePresentation.DOCKED_CAROUSEL
-                } else {
-                    OverlayEdgePresentation.HIDDEN_TAB
-                }
-            }
+        return when {
+            usesHiddenTab(settings) && !hiddenTabExpanded -> OverlayEdgePresentation.HIDDEN_TAB
+            settings.singleItemScroll -> OverlayEdgePresentation.SINGLE_ITEM_CAROUSEL
+            else -> OverlayEdgePresentation.STANDARD
         }
     }
+
+    fun usesHiddenTab(settings: ArrangedOverlaySettings): Boolean =
+        settings.snapToEdge && settings.edgeAutoCollapseSeconds > 0
 }
 
 object OverlayEdgeMotionPolicy {
@@ -45,12 +42,22 @@ object OverlayEdgeMotionPolicy {
     }
 }
 
+object OverlayEdgePositionPolicy {
+    fun resolveX(
+        currentX: Int,
+        overlayWidth: Int,
+        screenWidth: Int,
+        snapToEdge: Boolean
+    ): Int {
+        val maxX = (screenWidth - overlayWidth).coerceAtLeast(0)
+        if (!snapToEdge) return currentX.coerceIn(0, maxX)
+        return if (currentX + overlayWidth / 2 <= screenWidth / 2) 0 else maxX
+    }
+}
+
 object OverlayEdgeAutoCollapsePolicy {
     fun normalizeSeconds(seconds: Int): Int {
-        return seconds.coerceIn(
-            minimumValue = ArrangedOverlaySettings.MIN_EDGE_AUTO_COLLAPSE_SECONDS,
-            maximumValue = ArrangedOverlaySettings.MAX_EDGE_AUTO_COLLAPSE_SECONDS
-        )
+        return ArrangedOverlaySettings.normalizeEdgeAutoCollapseSeconds(seconds)
     }
 
     fun resolveDelayMillis(seconds: Int): Long {

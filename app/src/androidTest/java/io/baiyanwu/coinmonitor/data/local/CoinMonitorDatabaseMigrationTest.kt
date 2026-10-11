@@ -13,7 +13,6 @@ import io.baiyanwu.coinmonitor.data.repository.createOverlayPreferencesDataStore
 import io.baiyanwu.coinmonitor.data.repository.migrateLegacyOverlaySettings
 import io.baiyanwu.coinmonitor.data.repository.migrateLegacyOverlaySettingsBeforeRoomOpen
 import io.baiyanwu.coinmonitor.data.repository.toOverlaySettings
-import io.baiyanwu.coinmonitor.domain.model.ArrangedEdgeDisplayMode
 import io.baiyanwu.coinmonitor.domain.model.ArrangedOverlaySettings
 import io.baiyanwu.coinmonitor.domain.model.MarqueeOverlaySettings
 import io.baiyanwu.coinmonitor.domain.model.OverlayLeadingDisplayMode
@@ -464,7 +463,8 @@ class CoinMonitorDatabaseMigrationTest {
         assertTrue(settings.arranged.snapToEdge)
         assertEquals(123, settings.arranged.windowX)
         assertEquals(456, settings.arranged.windowY)
-        assertEquals(ArrangedEdgeDisplayMode.DOCKED, settings.arranged.edgeDisplayMode)
+        assertEquals(settings.arranged.snapToEdge, settings.arranged.singleItemScroll)
+        assertEquals(0, settings.arranged.edgeAutoCollapseSeconds)
         assertEquals(
             ArrangedOverlaySettings.DEFAULT_EDGE_TAB_OPACITY,
             settings.arranged.edgeTabOpacity

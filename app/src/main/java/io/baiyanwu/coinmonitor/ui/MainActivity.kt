@@ -17,10 +17,10 @@ import io.baiyanwu.coinmonitor.ui.navigation.CoinMonitorNavHost
 import io.baiyanwu.coinmonitor.ui.kline.AiChatHistoryActivity
 import io.baiyanwu.coinmonitor.ui.kline.KlineIndicatorSettingsActivity
 import io.baiyanwu.coinmonitor.ui.browser.DappBrowserActivity
+import io.baiyanwu.coinmonitor.ui.browser.DappDiscoveryActivity
 import io.baiyanwu.coinmonitor.ui.search.SearchActivity
 import io.baiyanwu.coinmonitor.ui.settings.AboutActivity
 import io.baiyanwu.coinmonitor.ui.settings.NetworkLogActivity
-import io.baiyanwu.coinmonitor.ui.settings.OverlayItemsSettingsActivity
 import io.baiyanwu.coinmonitor.ui.settings.OverlaySettingsActivity
 import io.baiyanwu.coinmonitor.ui.settings.ThirdPartyApiSettingsActivity
 import io.baiyanwu.coinmonitor.ui.settings.ThirdPartyApiSettingsSection
@@ -51,7 +51,6 @@ class MainActivity : CoinMonitorComposeActivity() {
                 onOpenKlineSearch = { SearchActivity.startForKline(this@MainActivity) },
                 onOpenKlineHistory = { AiChatHistoryActivity.start(this@MainActivity) },
                 onOpenKlineIndicatorSettings = { KlineIndicatorSettingsActivity.start(this@MainActivity) },
-                onOpenOverlayItems = { OverlayItemsSettingsActivity.start(this@MainActivity) },
                 onOpenOverlaySettings = { OverlaySettingsActivity.start(this@MainActivity) },
                 onOpenThirdPartyApiSettings = { ThirdPartyApiSettingsActivity.start(this@MainActivity) },
                 onOpenWalletNetworkSettings = {
@@ -64,6 +63,7 @@ class MainActivity : CoinMonitorComposeActivity() {
                 onOpenDappBrowser = { url ->
                     DappBrowserActivity.start(this@MainActivity, url)
                 },
+                onOpenDappDiscovery = { DappDiscoveryActivity.start(this@MainActivity) },
                 onOpenNetworkLog = { NetworkLogActivity.start(this@MainActivity) },
                 onOpenAbout = { AboutActivity.start(this@MainActivity) }
             )

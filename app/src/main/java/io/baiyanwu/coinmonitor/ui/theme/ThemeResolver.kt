@@ -31,3 +31,7 @@ fun resolveCoinMonitorColors(
     }
     return palette.toSemanticColors()
 }
+
+/** Native overlay windows read the same design palette as migrated Compose pages. */
+fun resolveOverlayDesignColors(context: Context, preferences: AppPreferences): CoinMonitorColors =
+    designTokens(resolveDarkTheme(context, preferences.themeMode)).colors.toSemanticColors()

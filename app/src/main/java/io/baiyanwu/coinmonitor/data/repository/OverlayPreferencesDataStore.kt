@@ -29,6 +29,8 @@ internal object OverlayPreferencesContract {
     const val FONT_SCALE = "font_scale"
     const val SNAP_TO_EDGE = "snap_to_edge"
     const val EDGE_DISPLAY_MODE = "edge_display_mode"
+    const val SINGLE_ITEM_SCROLL = "single_item_scroll"
+    const val EDGE_HIDE_DELAY_SECONDS = "edge_hide_delay_seconds"
     const val EDGE_TAB_OPACITY = "edge_tab_opacity"
     const val EDGE_AUTO_COLLAPSE_SECONDS = "edge_auto_collapse_seconds"
     const val WINDOW_X = "window_x"
@@ -51,6 +53,8 @@ internal object OverlayPreferenceKeys {
     val fontScale = floatPreferencesKey(OverlayPreferencesContract.FONT_SCALE)
     val snapToEdge = booleanPreferencesKey(OverlayPreferencesContract.SNAP_TO_EDGE)
     val edgeDisplayMode = stringPreferencesKey(OverlayPreferencesContract.EDGE_DISPLAY_MODE)
+    val singleItemScroll = booleanPreferencesKey(OverlayPreferencesContract.SINGLE_ITEM_SCROLL)
+    val edgeHideDelaySeconds = intPreferencesKey(OverlayPreferencesContract.EDGE_HIDE_DELAY_SECONDS)
     val edgeTabOpacity = floatPreferencesKey(OverlayPreferencesContract.EDGE_TAB_OPACITY)
     val edgeAutoCollapseSeconds = intPreferencesKey(
         OverlayPreferencesContract.EDGE_AUTO_COLLAPSE_SECONDS

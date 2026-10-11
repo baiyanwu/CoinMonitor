@@ -7,6 +7,8 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import io.baiyanwu.coinmonitor.data.AppContainer
 import io.baiyanwu.coinmonitor.domain.model.WalletAddressParser
+import io.baiyanwu.coinmonitor.domain.model.trackedAddressKey
+import io.baiyanwu.coinmonitor.domain.model.OkxWalletChainRegistry
 import io.baiyanwu.coinmonitor.domain.model.WalletAsset
 import io.baiyanwu.coinmonitor.domain.model.WalletPortfolioSnapshot
 import io.baiyanwu.coinmonitor.domain.model.WalletTotalResult
@@ -41,9 +43,11 @@ class WalletWatchViewModel(
     private val credentialsRepository: OkxWalletCredentialsRepository,
     private val portfolioRepository: WalletPortfolioRepository,
     private val portfolioCacheRepository: WalletPortfolioCacheRepository,
-    private val preferencesRepository: WalletWatchPreferencesRepository
+    private val preferencesRepository: WalletWatchPreferencesRepository,
+    private val requestedAddress: String? = null,
+    private val requestedChain: String? = null
 ) : ViewModel() {
-    private val initialAddress = preferencesRepository.getLastAddress().orEmpty()
+    private val initialAddress = requestedAddress ?: preferencesRepository.getLastAddress().orEmpty()
     private val initialCredentialsReady = credentialsRepository.getCredentials().isReady
     private val _uiState = MutableStateFlow(WalletWatchUiState(
         credentialsReady = initialCredentialsReady,
@@ -57,6 +61,7 @@ class WalletWatchViewModel(
     ))
     val uiState: StateFlow<WalletWatchUiState> = _uiState.asStateFlow()
     private var loadJob: Job? = null
+    private var pendingChain: String? = requestedChain
 
     init {
         viewModelScope.launch {
@@ -101,21 +106,27 @@ class WalletWatchViewModel(
             }
             runCatching { portfolioRepository.load(address, includeRiskAssets) }
                 .onSuccess { snapshot ->
-                    val hiddenChains = preferencesRepository.getHiddenChainIndexes(snapshot.address)
+                    val entryChain = pendingChain?.takeIf { requestedAddress != null && trackedAddressKey(requestedAddress) == trackedAddressKey(snapshot.address) }
+                    val prior = _uiState.value
+                    val sameAddress = prior.snapshot?.address?.let(::trackedAddressKey) == trackedAddressKey(snapshot.address)
+                    val visibleSelection = if (sameAddress) prior.selectedChainIndex else null
+                    val hiddenChains = preferencesRepository.getHiddenChainIndexes(snapshot.address) - setOfNotNull(entryChain, visibleSelection)
                     _uiState.update { current ->
-                        val keepCurrentChain = current.snapshot?.address == snapshot.address &&
+                        val keepCurrentChain = sameAddress &&
                             current.selectedChainIndex !in hiddenChains &&
-                            snapshot.assets.any { it.chainIndex == current.selectedChainIndex }
+                            current.selectedChainIndex in OkxWalletChainRegistry.indexesFor(snapshot.addressKind)
                         current.copy(
                             snapshot = snapshot,
                             hiddenAssetIds = preferencesRepository.getHiddenAssetIds(snapshot.address),
                             hiddenChainIndexes = hiddenChains,
-                            selectedChainIndex = if (keepCurrentChain) current.selectedChainIndex
+                            selectedChainIndex = if (entryChain != null) entryChain
+                            else if (keepCurrentChain) current.selectedChainIndex
                             else defaultWalletChainIndex(snapshot.assets.filter { it.chainIndex !in hiddenChains }),
                             isInitialLoading = false,
                             isRefreshing = false
                         )
                     }
+                    pendingChain = null
                     viewModelScope.launch { portfolioCacheRepository.save(snapshot, includeRiskAssets) }
                 }
                 .onFailure { error ->
@@ -129,7 +140,7 @@ class WalletWatchViewModel(
         viewModelScope.launch {
             val cached = portfolioCacheRepository.load(address)
             if (cached != null && _uiState.value.snapshot == null && _uiState.value.address.trim() == address) {
-                val hiddenChains = preferencesRepository.getHiddenChainIndexes(address)
+                val hiddenChains = preferencesRepository.getHiddenChainIndexes(address) - setOfNotNull(pendingChain)
                 _uiState.update {
                     it.copy(
                         snapshot = cached.snapshot,
@@ -137,7 +148,7 @@ class WalletWatchViewModel(
                         hideAssetsBelowOneUsd = preferencesRepository.getHideSmallAssets(address),
                         hiddenAssetIds = preferencesRepository.getHiddenAssetIds(address),
                         hiddenChainIndexes = hiddenChains,
-                        selectedChainIndex = defaultWalletChainIndex(
+                        selectedChainIndex = pendingChain ?: defaultWalletChainIndex(
                             cached.snapshot.assets.filter { asset ->
                                 asset.chainIndex !in hiddenChains
                             }
@@ -206,7 +217,7 @@ class WalletWatchViewModel(
     }
 
     fun selectChain(chainIndex: String) {
-        if (_uiState.value.snapshot?.assets?.any { it.chainIndex == chainIndex } == true) {
+        if (_uiState.value.snapshot?.let { chainIndex in OkxWalletChainRegistry.indexesFor(it.addressKind) } == true) {
             _uiState.update { it.copy(selectedChainIndex = chainIndex) }
         }
     }
@@ -222,13 +233,13 @@ class WalletWatchViewModel(
     }
 
     companion object {
-        fun factory(container: AppContainer): ViewModelProvider.Factory = viewModelFactory {
+        fun factory(container: AppContainer, address: String? = null, chain: String? = null): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 WalletWatchViewModel(
                     container.okxWalletCredentialsRepository,
                     container.walletPortfolioRepository,
                     container.walletPortfolioCacheRepository,
-                    container.walletWatchPreferencesRepository
+                    container.walletWatchPreferencesRepository, address, chain
                 )
             }
         }

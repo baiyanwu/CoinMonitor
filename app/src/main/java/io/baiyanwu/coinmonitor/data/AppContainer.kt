@@ -106,6 +106,7 @@ class AppContainer(context: Context) {
         networkFactory.geckoTerminalApi
     )
     val clipboardSettingsStore = io.baiyanwu.coinmonitor.clipboard.ClipboardSettingsStore(appContext)
+    val addressTrackingStore = io.baiyanwu.coinmonitor.data.repository.AddressTrackingStore(appContext)
     val clipboardRepository = io.baiyanwu.coinmonitor.clipboard.ClipboardRepository(dexScreenerClient, geckoTerminalClient)
     val appPreferencesRepository: AppPreferencesRepository = DefaultAppPreferencesRepository(
         context = appContext
@@ -133,6 +134,14 @@ class AppContainer(context: Context) {
     )
 
     val okxWalletCredentialsRepository = DefaultOkxWalletCredentialsRepository(appContext)
+    val gmgnCredentialsRepository = io.baiyanwu.coinmonitor.data.repository.GmgnCredentialsRepository(appContext)
+    val trendingPreferences = io.baiyanwu.coinmonitor.data.repository.TrendingPreferences(appContext)
+    val trendingSnapshotCache = io.baiyanwu.coinmonitor.data.repository.TrendingSnapshotCache(
+        java.io.File(appContext.filesDir, "market_trending/cache-v1.json"), appScope
+    )
+    val trendingClient = io.baiyanwu.coinmonitor.data.network.TrendingClient(
+        networkFactory.okHttpClient.newBuilder().callTimeout(20, TimeUnit.SECONDS).build()
+    )
     private val okxDexMarketClient = io.baiyanwu.coinmonitor.data.network.OkxDexMarketClient(
         httpClient = networkFactory.okHttpClient,
         credentialsProvider = okxWalletCredentialsRepository::getCredentials

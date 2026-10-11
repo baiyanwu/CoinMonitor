@@ -1,7 +1,6 @@
 package io.baiyanwu.coinmonitor.data.repository
 
 import androidx.datastore.preferences.core.mutablePreferencesOf
-import io.baiyanwu.coinmonitor.domain.model.ArrangedEdgeDisplayMode
 import io.baiyanwu.coinmonitor.domain.model.ArrangedOverlaySettings
 import io.baiyanwu.coinmonitor.domain.model.MarqueeOverlaySettings
 import io.baiyanwu.coinmonitor.domain.model.MarqueeSpeed
@@ -32,9 +31,9 @@ class OverlayPreferencesMapperTest {
             OverlayPreferenceKeys.leadingDisplayMode to OverlayLeadingDisplayMode.PAIR_NAME.name,
             OverlayPreferenceKeys.fontScale to 1.2f,
             OverlayPreferenceKeys.snapToEdge to true,
-            OverlayPreferenceKeys.edgeDisplayMode to ArrangedEdgeDisplayMode.HIDDEN_TAB.name,
+            OverlayPreferenceKeys.singleItemScroll to false,
             OverlayPreferenceKeys.edgeTabOpacity to 0.65f,
-            OverlayPreferenceKeys.edgeAutoCollapseSeconds to 4,
+            OverlayPreferenceKeys.edgeHideDelaySeconds to 5,
             OverlayPreferenceKeys.windowX to 120,
             OverlayPreferenceKeys.windowY to 360,
             OverlayPreferenceKeys.marqueeOpacity to 0.6f,
@@ -52,9 +51,9 @@ class OverlayPreferencesMapperTest {
         assertEquals(OverlayLeadingDisplayMode.PAIR_NAME, settings.arranged.leadingDisplayMode)
         assertEquals(1.2f, settings.arranged.fontScale)
         assertEquals(true, settings.arranged.snapToEdge)
-        assertEquals(ArrangedEdgeDisplayMode.HIDDEN_TAB, settings.arranged.edgeDisplayMode)
+        assertFalse(settings.arranged.singleItemScroll)
         assertEquals(0.65f, settings.arranged.edgeTabOpacity)
-        assertEquals(4, settings.arranged.edgeAutoCollapseSeconds)
+        assertEquals(5, settings.arranged.edgeAutoCollapseSeconds)
         assertEquals(120, settings.arranged.windowX)
         assertEquals(360, settings.arranged.windowY)
         assertEquals(0.6f, settings.marquee.opacity)
@@ -75,7 +74,7 @@ class OverlayPreferencesMapperTest {
             OverlayPreferenceKeys.fontScale to 10f,
             OverlayPreferenceKeys.edgeDisplayMode to "UNKNOWN",
             OverlayPreferenceKeys.edgeTabOpacity to 0f,
-            OverlayPreferenceKeys.edgeAutoCollapseSeconds to 99,
+            OverlayPreferenceKeys.edgeHideDelaySeconds to 99,
             OverlayPreferenceKeys.marqueeOpacity to 2f,
             OverlayPreferenceKeys.marqueeMaxItems to 0,
             OverlayPreferenceKeys.marqueeFontScale to -1f,
@@ -88,7 +87,7 @@ class OverlayPreferencesMapperTest {
         assertEquals(OverlaySettings.MAX_SELECTABLE_ITEMS, settings.arranged.maxItems)
         assertEquals(OverlayLeadingDisplayMode.ICON, settings.arranged.leadingDisplayMode)
         assertEquals(ArrangedOverlaySettings.MAX_FONT_SCALE, settings.arranged.fontScale)
-        assertEquals(ArrangedEdgeDisplayMode.DOCKED, settings.arranged.edgeDisplayMode)
+        assertFalse(settings.arranged.singleItemScroll)
         assertEquals(ArrangedOverlaySettings.MIN_EDGE_TAB_OPACITY, settings.arranged.edgeTabOpacity)
         assertEquals(
             ArrangedOverlaySettings.MAX_EDGE_AUTO_COLLAPSE_SECONDS,
@@ -104,15 +103,83 @@ class OverlayPreferencesMapperTest {
     }
 
     @Test
-    fun `legacy edge ticker value maps to arranged docked mode and seeds marquee y`() {
+    fun `legacy edge ticker keeps carousel without hiding and seeds marquee y`() {
         val settings = mutablePreferencesOf(
             OverlayPreferenceKeys.edgeDisplayMode to "TICKER",
+            OverlayPreferenceKeys.snapToEdge to true,
             OverlayPreferenceKeys.windowY to 420
         ).toOverlaySettings()
 
-        assertEquals(ArrangedEdgeDisplayMode.DOCKED, settings.arranged.edgeDisplayMode)
+        assertEquals(true, settings.arranged.singleItemScroll)
+        assertEquals(0, settings.arranged.edgeAutoCollapseSeconds)
         assertEquals(420, settings.arranged.windowY)
         assertEquals(420, settings.marquee.windowY)
+    }
+
+    @Test
+    fun `legacy modes migrate their effective layout and hidden delay`() {
+        for (snap in listOf(false, true)) {
+            for (mode in listOf("DOCKED", "TICKER", "HIDDEN_TAB", "UNKNOWN")) {
+                val settings = mutablePreferencesOf(
+                    OverlayPreferenceKeys.snapToEdge to snap,
+                    OverlayPreferenceKeys.edgeDisplayMode to mode,
+                    OverlayPreferenceKeys.edgeAutoCollapseSeconds to 4
+                ).toOverlaySettings()
+                assertEquals(snap, settings.arranged.snapToEdge)
+                assertEquals(snap, settings.arranged.singleItemScroll)
+                assertEquals(
+                    if (mode == "HIDDEN_TAB") 4 else 0,
+                    settings.arranged.edgeAutoCollapseSeconds
+                )
+            }
+        }
+        val legacyHidden = mutablePreferencesOf(
+            OverlayPreferenceKeys.edgeDisplayMode to "HIDDEN_TAB"
+        ).toOverlaySettings()
+        assertEquals(3, legacyHidden.arranged.edgeAutoCollapseSeconds)
+    }
+
+    @Test
+    fun `explicit new choices override legacy hidden carousel values`() {
+        val settings = mutablePreferencesOf(
+            OverlayPreferenceKeys.snapToEdge to true,
+            OverlayPreferenceKeys.edgeDisplayMode to "HIDDEN_TAB",
+            OverlayPreferenceKeys.singleItemScroll to false,
+            OverlayPreferenceKeys.edgeHideDelaySeconds to 0,
+            OverlayPreferenceKeys.edgeAutoCollapseSeconds to 3
+        ).toOverlaySettings()
+        assertFalse(settings.arranged.singleItemScroll)
+        assertEquals(0, settings.arranged.edgeAutoCollapseSeconds)
+    }
+
+    @Test
+    fun `saving independent choices survives reload and later snap changes`() {
+        for (snap in listOf(false, true)) {
+            for (scroll in listOf(false, true)) {
+                for (seconds in 0..10) {
+                    val preferences = mutablePreferencesOf(
+                        OverlayPreferenceKeys.edgeDisplayMode to "HIDDEN_TAB"
+                    )
+                    val settings = OverlaySettings(
+                        arranged = ArrangedOverlaySettings(
+                            snapToEdge = snap,
+                            singleItemScroll = scroll,
+                            edgeAutoCollapseSeconds = seconds
+                        )
+                    )
+                    preferences.writeSettings(settings)
+                    assertEquals(settings, preferences.toOverlaySettings())
+                    assertNull(preferences[OverlayPreferenceKeys.edgeDisplayMode])
+                    assertNull(preferences[OverlayPreferenceKeys.edgeAutoCollapseSeconds])
+
+                    preferences[OverlayPreferenceKeys.snapToEdge] = !snap
+                    val changed = preferences.toOverlaySettings().arranged
+                    assertEquals(!snap, changed.snapToEdge)
+                    assertEquals(scroll, changed.singleItemScroll)
+                    assertEquals(seconds, changed.edgeAutoCollapseSeconds)
+                }
+            }
+        }
     }
 
     @Test

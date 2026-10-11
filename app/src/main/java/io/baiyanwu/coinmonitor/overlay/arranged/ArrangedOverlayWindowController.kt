@@ -2,8 +2,6 @@ package io.baiyanwu.coinmonitor.overlay.arranged
 
 import android.animation.ValueAnimator
 import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.Outline
 import android.graphics.Paint
 import android.graphics.PixelFormat
 import android.graphics.Typeface
@@ -13,33 +11,28 @@ import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
-import android.view.ViewOutlineProvider
 import android.view.ViewConfiguration
 import android.view.WindowManager
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.view.animation.PathInterpolator
 import android.widget.FrameLayout
-import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.compose.ui.graphics.toArgb
 import io.baiyanwu.coinmonitor.R
-import io.baiyanwu.coinmonitor.domain.model.OnchainChainIconRegistry
-import io.baiyanwu.coinmonitor.domain.model.ArrangedEdgeDisplayMode
 import io.baiyanwu.coinmonitor.domain.model.ArrangedOverlaySettings
 import io.baiyanwu.coinmonitor.domain.model.OverlayLeadingDisplayMode
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
 import io.baiyanwu.coinmonitor.domain.repository.AppPreferencesRepository
 import io.baiyanwu.coinmonitor.domain.repository.OverlayRepository
 import io.baiyanwu.coinmonitor.overlay.ArrangedOverlayWindowHost
-import io.baiyanwu.coinmonitor.overlay.CoinIconService
+import io.baiyanwu.coinmonitor.overlay.OverlayCoinIconView
 import io.baiyanwu.coinmonitor.overlay.OverlayPermissionHelper
 import io.baiyanwu.coinmonitor.overlay.MarketCapFlashPolicy
-import io.baiyanwu.coinmonitor.overlay.PriceTextSizer
 import io.baiyanwu.coinmonitor.overlay.QuoteFormatter
 import io.baiyanwu.coinmonitor.ui.AppConfigurationApplier
 import io.baiyanwu.coinmonitor.ui.resolveLivePriceColor
-import io.baiyanwu.coinmonitor.ui.theme.resolveCoinMonitorColors
+import io.baiyanwu.coinmonitor.ui.theme.resolveOverlayDesignColors
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlin.math.abs
@@ -54,7 +47,6 @@ internal class ArrangedOverlayWindowController(
     private val onTap: (View) -> Unit = {}
 ) : ArrangedOverlayWindowHost {
     private val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
-    private val coinIconService = CoinIconService.get(context)
 
     private var rootView: LinearLayout? = null
     private var layoutParams: WindowManager.LayoutParams? = null
@@ -72,7 +64,7 @@ internal class ArrangedOverlayWindowController(
     private var sidebarTickerHolder: SidebarTickerHolder? = null
     private var edgeTabView: FrameLayout? = null
     private var edgeTabIndicatorView: View? = null
-    private var isHiddenEdgeTabExpanded: Boolean = false
+    private var isHiddenEdgeTabExpanded: Boolean = true
     private var hiddenEdgeTransitionState: HiddenEdgeTransitionState =
         HiddenEdgeTransitionState.IDLE
     private var hiddenEdgeAnimationGeneration: Int = 0
@@ -99,20 +91,18 @@ internal class ArrangedOverlayWindowController(
             }
             val settings = latestSettings ?: return
             val items = latestItems
-            val stillUsesHiddenEdgeMode = settings.snapToEdge &&
-                settings.edgeDisplayMode == ArrangedEdgeDisplayMode.HIDDEN_TAB &&
+            val stillUsesHiddenEdgeMode = OverlayEdgePresentationPolicy.usesHiddenTab(settings) &&
                 items.take(settings.maxItems).isNotEmpty()
             if (stillUsesHiddenEdgeMode) {
                 animateHiddenEdgeCollapse()
             } else {
-                isHiddenEdgeTabExpanded = false
+                isHiddenEdgeTabExpanded = true
             }
         }
     }
-    private val iconBitmapCache = LinkedHashMap<String, Bitmap>()
 
     private val overlayColors
-        get() = resolveCoinMonitorColors(context, appPreferencesRepository.getPreferences())
+        get() = resolveOverlayDesignColors(context, appPreferencesRepository.getPreferences())
 
     private val localizedContext: Context
         get() = AppConfigurationApplier.wrapContext(context, appPreferencesRepository.getPreferences())
@@ -150,18 +140,16 @@ internal class ArrangedOverlayWindowController(
         }
 
         val limitedItems = items.take(settings.maxItems)
-        val usesHiddenEdgeMode = settings.snapToEdge &&
-            settings.edgeDisplayMode == ArrangedEdgeDisplayMode.HIDDEN_TAB &&
+        val usesHiddenEdgeMode = OverlayEdgePresentationPolicy.usesHiddenTab(settings) &&
             limitedItems.isNotEmpty()
         if (!usesHiddenEdgeMode) {
-            isHiddenEdgeTabExpanded = false
+            isHiddenEdgeTabExpanded = true
             cancelHiddenEdgeAutoCollapse()
             cancelHiddenEdgeTransition()
         } else if (!isHiddenEdgeTabExpanded) {
             cancelHiddenEdgeAutoCollapse()
         } else if (
             hiddenEdgeTransitionState == HiddenEdgeTransitionState.IDLE &&
-            scheduledHiddenEdgeAutoCollapseSeconds != null &&
             scheduledHiddenEdgeAutoCollapseSeconds !=
             OverlayEdgeAutoCollapsePolicy.normalizeSeconds(
                 settings.edgeAutoCollapseSeconds
@@ -217,7 +205,7 @@ internal class ArrangedOverlayWindowController(
         applyResolvedPosition(
             view = root,
             params = params,
-            sidebarMode = presentation != OverlayEdgePresentation.STANDARD
+            snapToEdge = settings.snapToEdge
         )
 
         if (root.parent == null) {
@@ -251,13 +239,12 @@ internal class ArrangedOverlayWindowController(
         sidebarTickerHolder = null
         edgeTabView = null
         edgeTabIndicatorView = null
-        isHiddenEdgeTabExpanded = false
+        isHiddenEdgeTabExpanded = true
         hiddenEdgeTransitionState = HiddenEdgeTransitionState.IDLE
         latestItems = emptyList()
         latestSettings = null
         cancelMarketCapFlashAnimations()
         lastMarketCapRenderAtById.clear()
-        iconBitmapCache.clear()
         rootView = null
         layoutParams = null
     }
@@ -350,7 +337,7 @@ internal class ArrangedOverlayWindowController(
             return
         }
 
-        if (presentation == OverlayEdgePresentation.DOCKED_CAROUSEL) {
+        if (presentation == OverlayEdgePresentation.SINGLE_ITEM_CAROUSEL) {
             renderSidebarState(root, items, metrics)
             return
         }
@@ -454,55 +441,18 @@ internal class ArrangedOverlayWindowController(
         }
     }
 
-    private fun buildIconView(
-        item: WatchItem,
-        width: Int,
-        metrics: OverlayMetrics
-    ): View {
-        val iconView = ImageView(context).apply {
-            scaleType = ImageView.ScaleType.FIT_CENTER
-            layoutParams = FrameLayout.LayoutParams(metrics.iconSizePx, metrics.iconSizePx).apply {
-                gravity = Gravity.CENTER_VERTICAL
-            }
-            background = buildDefaultBitcoinDrawable(metrics)
-            clipToOutline = true
-            outlineProvider = object : ViewOutlineProvider() {
-                override fun getOutline(view: View, outline: Outline) {
-                    outline.setOval(0, 0, view.width, view.height)
-                }
-            }
-            setImageDrawable(buildDefaultBitcoinDrawable(metrics))
+    private fun buildIconView(item: WatchItem, width: Int, metrics: OverlayMetrics): View {
+        val iconView = OverlayCoinIconView(context, scope).apply {
+            layoutParams = FrameLayout.LayoutParams(metrics.iconSizePx, metrics.iconSizePx, Gravity.CENTER_VERTICAL)
+            bind(item, metrics.iconSizePx, overlayColors)
         }
-
-        scope.launch {
-            val bitmap = coinIconService.loadBitmap(
-                symbol = item.baseSymbol,
-                preferredIconUrl = item.iconUrl,
-                fallbackIconUrls = OnchainChainIconRegistry.resolveIconUrls(item.chainIndex),
-                grayscaleFallback = item.chainIndex != null
-            )
-            if (bitmap != null) {
-                iconView.setImageBitmap(bitmap)
-            } else {
-                iconView.setImageDrawable(buildDefaultBitcoinDrawable(metrics))
-            }
-        }
-
         return FrameLayout(context).apply {
-            layoutParams = LinearLayout.LayoutParams(width, metrics.iconSizePx).also {
-                it.marginEnd = metrics.leadingSpacingPx
-            }
+            layoutParams = LinearLayout.LayoutParams(width, metrics.iconSizePx).also { it.marginEnd = metrics.leadingSpacingPx }
             addView(iconView)
         }
     }
 
-    private fun buildDefaultBitcoinDrawable(metrics: OverlayMetrics): GradientDrawable {
-        return GradientDrawable().apply {
-            shape = GradientDrawable.OVAL
-            setColor(overlayColors.overlayFallbackBackground.toArgb())
-            setStroke(metrics.fallbackStrokePx, overlayColors.overlayFallbackBorder.toArgb())
-        }
-    }
+
 
     private fun measureLeadingColumnWidth(
         items: List<WatchItem>,
@@ -529,7 +479,7 @@ internal class ArrangedOverlayWindowController(
             val priceText = QuoteFormatter.formatOverlayValue(item, showOnchainMarketCap)
             measureTextWidth(
                 text = priceText,
-                textSizeSp = PriceTextSizer.resolveTextSizeSp(priceText) * metrics.fontScale
+                textSizeSp = 11f * metrics.fontScale
             )
         } ?: 0
         return maxWidth + metrics.priceWidthExtraPx
@@ -683,19 +633,8 @@ internal class ArrangedOverlayWindowController(
                 it.marginEnd = metrics.leadingSpacingPx
             }
         }
-        val iconView = ImageView(context).apply {
-            scaleType = ImageView.ScaleType.FIT_CENTER
-            layoutParams = FrameLayout.LayoutParams(metrics.iconSizePx, metrics.iconSizePx).apply {
-                gravity = Gravity.CENTER_VERTICAL
-            }
-            background = buildDefaultBitcoinDrawable(metrics)
-            clipToOutline = true
-            outlineProvider = object : ViewOutlineProvider() {
-                override fun getOutline(view: View, outline: Outline) {
-                    outline.setOval(0, 0, view.width, view.height)
-                }
-            }
-            setImageDrawable(buildDefaultBitcoinDrawable(metrics))
+        val iconView = OverlayCoinIconView(context, scope).apply {
+            layoutParams = FrameLayout.LayoutParams(metrics.iconSizePx, metrics.iconSizePx, Gravity.CENTER_VERTICAL)
         }
         val priceView = TextView(context).apply {
             maxLines = 1
@@ -724,39 +663,7 @@ internal class ArrangedOverlayWindowController(
             ViewGroup.LayoutParams.WRAP_CONTENT,
             ViewGroup.LayoutParams.WRAP_CONTENT
         )
-        val iconSignature = listOf(
-            item.id,
-            item.iconUrl,
-            item.chainIndex,
-            item.baseSymbol,
-            metrics.iconSizePx,
-            overlayColors.overlayFallbackBorder.toArgb()
-        ).joinToString("|")
-        if (sidebarItemView.iconSignature != iconSignature) {
-            sidebarItemView.iconSignature = iconSignature
-            val cachedBitmap = iconBitmapCache[iconSignature]
-            if (cachedBitmap != null) {
-                sidebarItemView.iconView.setImageBitmap(cachedBitmap)
-            } else {
-                sidebarItemView.iconView.setImageDrawable(buildDefaultBitcoinDrawable(metrics))
-                scope.launch {
-                    val bitmap = coinIconService.loadBitmap(
-                        symbol = item.baseSymbol,
-                        preferredIconUrl = item.iconUrl,
-                        fallbackIconUrls = OnchainChainIconRegistry.resolveIconUrls(item.chainIndex),
-                        grayscaleFallback = item.chainIndex != null
-                    )
-                    if (bitmap != null) {
-                        iconBitmapCache[iconSignature] = bitmap
-                        if (sidebarItemView.iconSignature == iconSignature) {
-                            sidebarItemView.iconView.setImageBitmap(bitmap)
-                        }
-                    } else if (sidebarItemView.iconSignature == iconSignature) {
-                        sidebarItemView.iconView.setImageDrawable(buildDefaultBitcoinDrawable(metrics))
-                    }
-                }
-            }
-        }
+        sidebarItemView.iconView.bind(item, metrics.iconSizePx, overlayColors)
     }
 
     private fun measureSidebarTickerWidth(
@@ -871,7 +778,7 @@ internal class ArrangedOverlayWindowController(
         applyValueColor(holder.priceView, item)
         holder.priceView.setTextSize(
             TypedValue.COMPLEX_UNIT_SP,
-            PriceTextSizer.resolveTextSizeSp(priceText) * metrics.fontScale
+            11f * metrics.fontScale
         )
         holder.priceView.layoutParams = LinearLayout.LayoutParams(
             priceWidth,
@@ -985,6 +892,9 @@ internal class ArrangedOverlayWindowController(
                 val params = layoutParams ?: return false
                 when (event.actionMasked) {
                     MotionEvent.ACTION_DOWN -> {
+                        if (hiddenEdgeMode && isHiddenEdgeTabExpanded) {
+                            cancelHiddenEdgeAutoCollapse()
+                        }
                         isDragging = true
                         hasDragged = false
                         downRawX = event.rawX
@@ -1022,6 +932,7 @@ internal class ArrangedOverlayWindowController(
                         if (!hasDragged && !locked) {
                             view.performClick()
                             consumePendingUpdate()
+                            if (hiddenEdgeMode) scheduleHiddenEdgeAutoCollapse()
                             return true
                         }
                         if (!locked) {
@@ -1029,6 +940,7 @@ internal class ArrangedOverlayWindowController(
                         }
                         if (hiddenEdgeMode) {
                             renderLatestTouchState(items, locked, settings)
+                            scheduleHiddenEdgeAutoCollapse()
                             return true
                         }
                         consumePendingUpdate()
@@ -1042,9 +954,11 @@ internal class ArrangedOverlayWindowController(
                         }
                         if (hiddenEdgeMode && hasDragged) {
                             renderLatestTouchState(items, locked, settings)
+                            scheduleHiddenEdgeAutoCollapse()
                             return true
                         }
                         consumePendingUpdate()
+                        if (hiddenEdgeMode) scheduleHiddenEdgeAutoCollapse()
                         return true
                     }
                 }
@@ -1096,6 +1010,7 @@ internal class ArrangedOverlayWindowController(
 
     private fun animateHiddenEdgeCollapse() {
         val root = rootView ?: return
+        cancelHiddenEdgeAutoCollapse()
         if (!ValueAnimator.areAnimatorsEnabled()) {
             completeHiddenEdgeCollapse()
             return
@@ -1157,9 +1072,17 @@ internal class ArrangedOverlayWindowController(
 
     private fun scheduleHiddenEdgeAutoCollapse() {
         val root = rootView ?: return
+        val settings = latestSettings ?: return
+        if (
+            !OverlayEdgePresentationPolicy.usesHiddenTab(settings) ||
+            !isHiddenEdgeTabExpanded ||
+            latestItems.take(settings.maxItems).isEmpty()
+        ) {
+            cancelHiddenEdgeAutoCollapse()
+            return
+        }
         val seconds = OverlayEdgeAutoCollapsePolicy.normalizeSeconds(
-            latestSettings?.edgeAutoCollapseSeconds
-                ?: ArrangedOverlaySettings.DEFAULT_EDGE_AUTO_COLLAPSE_SECONDS
+            settings.edgeAutoCollapseSeconds
         )
         scheduledHiddenEdgeAutoCollapseSeconds = seconds
         root.removeCallbacks(hiddenEdgeAutoCollapseRunnable)
@@ -1182,13 +1105,15 @@ internal class ArrangedOverlayWindowController(
         applyResolvedPosition(
             view = view,
             params = params,
-            sidebarMode = settings.snapToEdge
+            snapToEdge = settings.snapToEdge
         )
         if (view.parent != null) {
             windowManager.updateViewLayout(view, params)
         }
+        val x = params.x
+        val y = params.y
         scope.launch {
-            overlayRepository.setArrangedWindowPosition(params.x, params.y)
+            overlayRepository.setArrangedWindowPosition(x, y)
         }
     }
 
@@ -1209,33 +1134,17 @@ internal class ArrangedOverlayWindowController(
     private fun applyResolvedPosition(
         view: View,
         params: WindowManager.LayoutParams,
-        sidebarMode: Boolean
+        snapToEdge: Boolean
     ) {
         measureOverlay(view)
         val bounds = resolveScreenBounds(view)
         params.y = params.y.coerceIn(0, bounds.maxY)
-        params.x = if (sidebarMode) {
-            resolveSnappedX(
-                currentX = params.x,
-                overlayWidth = view.measuredWidth,
-                screenWidth = bounds.screenWidth
-            )
-        } else {
-            params.x.coerceIn(0, bounds.maxX)
-        }
-    }
-
-    private fun resolveSnappedX(
-        currentX: Int,
-        overlayWidth: Int,
-        screenWidth: Int
-    ): Int {
-        val centerX = currentX + overlayWidth / 2
-        return if (centerX <= screenWidth / 2) {
-            0
-        } else {
-            max(0, screenWidth - overlayWidth)
-        }
+        params.x = OverlayEdgePositionPolicy.resolveX(
+            currentX = params.x,
+            overlayWidth = view.measuredWidth,
+            screenWidth = bounds.screenWidth,
+            snapToEdge = snapToEdge
+        )
     }
 
     private fun resolveScreenBounds(view: View): ScreenBounds {
@@ -1291,9 +1200,8 @@ internal class ArrangedOverlayWindowController(
 
     private data class SidebarItemView(
         val root: LinearLayout,
-        val iconView: ImageView,
-        val priceView: TextView,
-        var iconSignature: String? = null
+        val iconView: OverlayCoinIconView,
+        val priceView: TextView
     )
 
     private inner class SidebarTickerHolder(
@@ -1450,7 +1358,7 @@ internal class ArrangedOverlayWindowController(
                     minimumValue = ArrangedOverlaySettings.MIN_FONT_SCALE,
                     maximumValue = ArrangedOverlaySettings.MAX_FONT_SCALE
                 )
-                val sidebarMode = presentation == OverlayEdgePresentation.DOCKED_CAROUSEL
+                val sidebarMode = presentation == OverlayEdgePresentation.SINGLE_ITEM_CAROUSEL
                 val edgeTabMode = presentation == OverlayEdgePresentation.HIDDEN_TAB
 
                 fun scaledDp(baseDp: Int): Int {
@@ -1463,12 +1371,12 @@ internal class ArrangedOverlayWindowController(
                     horizontalPaddingPx = scaledDp(
                         when {
                             edgeTabMode -> 0
-                            sidebarMode -> 6
-                            else -> 4
+                            sidebarMode -> 4
+                            else -> 6
                         }
                     ),
                     verticalPaddingPx = scaledDp(if (edgeTabMode) 0 else 4),
-                    rowVerticalPaddingPx = scaledDp(1),
+                    rowVerticalPaddingPx = scaledDp(2),
                     leadingSpacingPx = scaledDp(4),
                     leadingWidthExtraPx = scaledDp(1),
                     priceWidthExtraPx = scaledDp(2),
@@ -1478,19 +1386,19 @@ internal class ArrangedOverlayWindowController(
                         when {
                             edgeTabMode -> 8
                             sidebarMode -> 12
-                            else -> 10
+                            else -> 14
                         }
                     ),
-                    iconSizePx = scaledDp(11),
+                    iconSizePx = scaledDp(12),
                     sidebarWidthPx = max(scaledDp(92), (92 * context.resources.displayMetrics.density).roundToInt()),
                     edgeTabTouchWidthPx = scaledDp(24),
                     edgeTabTouchHeightPx = scaledDp(48),
                     edgeTabIndicatorWidthPx = scaledDp(5),
                     edgeTabIndicatorHeightPx = scaledDp(36),
-                    leadingTextSizeSp = 9.5f * fontScale,
-                    sidebarTextSizeSp = 10f * fontScale,
+                    leadingTextSizeSp = 11f * fontScale,
+                    sidebarTextSizeSp = 11f * fontScale,
                     emptyTextSizeSp = 11f * fontScale,
-                    footerTextSizeSp = 8f * fontScale
+                    footerTextSizeSp = 9f * fontScale
                 )
             }
         }

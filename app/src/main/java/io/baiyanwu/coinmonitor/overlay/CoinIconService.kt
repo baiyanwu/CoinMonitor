@@ -1,12 +1,6 @@
 package io.baiyanwu.coinmonitor.overlay
 
 import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.graphics.Canvas
-import android.graphics.ColorMatrix
-import android.graphics.ColorMatrixColorFilter
-import android.graphics.Paint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -14,156 +8,25 @@ import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
-import java.io.File
-import java.io.FileOutputStream
 import java.net.URLEncoder
-import java.security.MessageDigest
 import java.util.concurrent.ConcurrentHashMap
 
-class CoinIconService private constructor(private val context: Context) {
+/** 只解析交易所币种符号对应的图片 URL；图片下载、解码和缓存由 Coil 负责。 */
+class CoinIconService private constructor() {
     private val httpClient = OkHttpClient()
-    private val cacheMutex = Mutex()
-    private val memoryCache = ConcurrentHashMap<String, Bitmap>()
     private val resolvedIconUrls = ConcurrentHashMap<String, String>()
     private val unresolvedIconSymbols = ConcurrentHashMap.newKeySet<String>()
-    private val ttlMillis = 7L * 24L * 60L * 60L * 1000L
-    private val iconDir: File by lazy {
-        File(context.cacheDir, "coin_icons").apply {
-            if (!exists()) mkdirs()
-        }
-    }
-
-    suspend fun loadBitmap(
-        symbol: String,
-        preferredIconUrl: String? = null,
-        fallbackIconUrl: String? = null,
-        fallbackIconUrls: List<String> = emptyList(),
-        grayscaleFallback: Boolean = false,
-        allowSymbolLookup: Boolean = true
-    ): Bitmap? = withContext(Dispatchers.IO) {
-        val normalized = symbol.uppercase()
-        val directRequests = buildDirectIconRequests(
-            preferredIconUrl = preferredIconUrl,
-            fallbackIconUrl = fallbackIconUrl,
-            fallbackIconUrls = fallbackIconUrls,
-            grayscaleFallback = grayscaleFallback
-        )
-        // 只能快捷命中最高优先级候选。若代币图标尚未缓存而链图标已有缓存，
-        // 扫描全部缓存会跳过代币图标下载，导致悬浮窗长期显示链图标。
-        directRequests.firstOrNull()?.let { request ->
-            loadCachedBitmap(request.cacheKey)?.let { return@withContext it }
-        }
-
-        cacheMutex.withLock {
-            firstAvailableIconInOrder(
-                candidates = directRequests,
-                cached = { request -> loadCachedBitmap(request.cacheKey) },
-                fetch = { request ->
-                    val bitmap = downloadBitmap(request.url) ?: return@firstAvailableIconInOrder null
-                    val finalBitmap = if (request.grayscale) bitmap.toGrayscale() else bitmap
-                    saveToDisk(request.cacheKey, finalBitmap)
-                    memoryCache[request.cacheKey] = finalBitmap
-                    finalBitmap
-                }
-            )?.let { return@withContext it }
-
-            if (!allowSymbolLookup) return@withContext null
-            memoryCache[normalized]?.let { return@withContext it }
-            loadFromDisk(normalized)?.let { bitmap ->
-                memoryCache[normalized] = bitmap
-                return@withContext bitmap
-            }
-            val remoteUrl = fetchIconUrl(normalized) ?: return@withContext null
-            val bitmap = downloadBitmap(remoteUrl) ?: return@withContext null
-            saveToDisk(normalized, bitmap)
-            memoryCache[normalized] = bitmap
-            bitmap
-        }
-    }
-
-    fun peekBitmap(
-        symbol: String,
-        preferredIconUrl: String? = null,
-        fallbackIconUrl: String? = null,
-        fallbackIconUrls: List<String> = emptyList(),
-        grayscaleFallback: Boolean = false,
-        allowSymbolLookup: Boolean = true
-    ): Bitmap? {
-        val normalized = symbol.uppercase()
-        val directRequests = buildDirectIconRequests(
-            preferredIconUrl = preferredIconUrl,
-            fallbackIconUrl = fallbackIconUrl,
-            fallbackIconUrls = fallbackIconUrls,
-            grayscaleFallback = grayscaleFallback
-        )
-        directRequests.forEach { request ->
-            loadCachedBitmap(request.cacheKey)?.let { return it }
-        }
-        if (!allowSymbolLookup) return null
-        memoryCache[normalized]?.let { return it }
-        return loadFromDisk(normalized)?.also { memoryCache[normalized] = it }
-    }
+    private val resolutionLocks = ConcurrentHashMap<String, Mutex>()
 
     suspend fun resolveIconUrl(symbol: String): String? = withContext(Dispatchers.IO) {
         val normalized = symbol.uppercase()
-        resolvedIconUrls[normalized]?.let { return@withContext it }
-        if (unresolvedIconSymbols.contains(normalized)) return@withContext null
-        val resolved = fetchIconUrl(normalized)
-        if (resolved == null) unresolvedIconSymbols += normalized else resolvedIconUrls[normalized] = resolved
-        resolved
-    }
-
-    private fun loadCachedBitmap(cacheKey: String): Bitmap? {
-        memoryCache[cacheKey]?.let { return it }
-        return loadFromDisk(cacheKey)?.also { memoryCache[cacheKey] = it }
-    }
-
-    private fun loadFromDisk(symbol: String): Bitmap? {
-        val file = File(iconDir, "$symbol.png")
-        if (!file.exists()) return null
-        if (System.currentTimeMillis() - file.lastModified() > ttlMillis) {
-            file.delete()
-            return null
+        resolutionLocks.getOrPut(normalized) { Mutex() }.withLock {
+            resolvedIconUrls[normalized]?.let { return@withLock it }
+            if (unresolvedIconSymbols.contains(normalized)) return@withLock null
+            val resolved = fetchIconUrl(normalized)
+            if (resolved == null) unresolvedIconSymbols += normalized else resolvedIconUrls[normalized] = resolved
+            resolved
         }
-        return BitmapFactory.decodeFile(file.absolutePath)
-    }
-
-    private fun saveToDisk(symbol: String, bitmap: Bitmap) {
-        val file = File(iconDir, "$symbol.png")
-        FileOutputStream(file).use { output ->
-            bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)
-        }
-    }
-
-    private fun buildDirectIconRequests(
-        preferredIconUrl: String?,
-        fallbackIconUrl: String?,
-        fallbackIconUrls: List<String>,
-        grayscaleFallback: Boolean
-    ): List<IconRequest> {
-        val requests = mutableListOf<IconRequest>()
-        preferredIconUrl?.takeIf { it.isNotBlank() }?.let { url ->
-            requests += IconRequest(
-                cacheKey = "icon_${buildHash(url)}",
-                url = url,
-                grayscale = false
-            )
-        }
-        buildList {
-            fallbackIconUrl?.let(::add)
-            addAll(fallbackIconUrls)
-        }.filter(String::isNotBlank).forEach { url ->
-            requests += IconRequest(
-                cacheKey = if (grayscaleFallback) {
-                    "chain_gray_${buildHash(url)}"
-                } else {
-                    "chain_${buildHash(url)}"
-                },
-                url = url,
-                grayscale = grayscaleFallback
-            )
-        }
-        return requests.distinctBy { it.cacheKey }
     }
 
     private fun fetchIconUrl(symbol: String): String? {
@@ -199,68 +62,11 @@ class CoinIconService private constructor(private val context: Context) {
         }
     }
 
-    private fun downloadBitmap(url: String): Bitmap? {
-        return try {
-            val request = Request.Builder().url(url).build()
-            httpClient.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) return null
-                val bytes = response.body?.bytes() ?: return null
-                BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-            }
-        } catch (_: Exception) {
-            null
-        }
-    }
-
-    /**
-     * 灰阶化在下载后、缓存前完成一次，避免列表滚动和悬浮窗刷新时重复做像素处理。
-     */
-    private fun Bitmap.toGrayscale(): Bitmap {
-        val output = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(output)
-        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            colorFilter = ColorMatrixColorFilter(
-                ColorMatrix().apply { setSaturation(0f) }
-            )
-        }
-        canvas.drawBitmap(this, 0f, 0f, paint)
-        return output
-    }
-
-    private fun buildHash(value: String): String {
-        val digest = MessageDigest.getInstance("SHA-256").digest(value.toByteArray())
-        return digest.joinToString(separator = "") { byte -> "%02x".format(byte) }
-    }
-
-    private data class IconRequest(
-        val cacheKey: String,
-        val url: String,
-        val grayscale: Boolean
-    )
-
     companion object {
-        @Volatile
-        private var instance: CoinIconService? = null
+        @Volatile private var instance: CoinIconService? = null
 
-        fun get(context: Context): CoinIconService {
-            return instance ?: synchronized(this) {
-                instance ?: CoinIconService(context.applicationContext).also { instance = it }
-            }
+        fun get(@Suppress("UNUSED_PARAMETER") context: Context): CoinIconService = instance ?: synchronized(this) {
+            instance ?: CoinIconService().also { instance = it }
         }
     }
-}
-
-/**
- * 严格按候选优先级逐项执行“读缓存 -> 获取”，避免低优先级缓存抢占高优先级远端图标。
- */
-internal fun <Candidate, Value> firstAvailableIconInOrder(
-    candidates: List<Candidate>,
-    cached: (Candidate) -> Value?,
-    fetch: (Candidate) -> Value?
-): Value? {
-    candidates.forEach { candidate ->
-        cached(candidate)?.let { return it }
-        fetch(candidate)?.let { return it }
-    }
-    return null
 }

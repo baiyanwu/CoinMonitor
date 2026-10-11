@@ -3,8 +3,6 @@ package io.baiyanwu.coinmonitor.overlay.marquee
 import android.animation.ObjectAnimator
 import android.animation.ValueAnimator
 import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.Outline
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.util.TypedValue
@@ -13,30 +11,27 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
 import android.view.ViewGroup
-import android.view.ViewOutlineProvider
 import android.view.WindowManager
 import android.view.animation.LinearInterpolator
 import android.widget.FrameLayout
-import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.compose.ui.graphics.toArgb
 import io.baiyanwu.coinmonitor.R
 import io.baiyanwu.coinmonitor.domain.model.AppPreferences
 import io.baiyanwu.coinmonitor.domain.model.MarqueeOverlaySettings
-import io.baiyanwu.coinmonitor.domain.model.OnchainChainIconRegistry
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
 import io.baiyanwu.coinmonitor.domain.repository.AppPreferencesRepository
 import io.baiyanwu.coinmonitor.domain.repository.OverlayRepository
-import io.baiyanwu.coinmonitor.overlay.CoinIconService
 import io.baiyanwu.coinmonitor.overlay.MarqueeOverlayWindowHost
 import io.baiyanwu.coinmonitor.overlay.MarketCapFlashPolicy
+import io.baiyanwu.coinmonitor.overlay.OverlayCoinIconView
 import io.baiyanwu.coinmonitor.overlay.OverlayPermissionHelper
 import io.baiyanwu.coinmonitor.overlay.QuoteFormatter
 import io.baiyanwu.coinmonitor.ui.AppConfigurationApplier
 import io.baiyanwu.coinmonitor.ui.resolveLivePriceColor
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorColors
-import io.baiyanwu.coinmonitor.ui.theme.resolveCoinMonitorColors
+import io.baiyanwu.coinmonitor.ui.theme.resolveOverlayDesignColors
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlin.math.abs
@@ -51,7 +46,6 @@ internal class MarqueeOverlayWindowController(
     private val onTap: (View) -> Unit = {}
 ) : MarqueeOverlayWindowHost {
     private val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
-    private val coinIconService = CoinIconService.get(context)
 
     private var rootView: FrameLayout? = null
     private var trackView: LinearLayout? = null
@@ -70,9 +64,6 @@ internal class MarqueeOverlayWindowController(
     private val holdersById = LinkedHashMap<String, MutableList<MarqueeItemHolder>>()
     private val priceWidthsById = LinkedHashMap<String, Int>()
     private val quotePresentationsById = LinkedHashMap<String, MarqueeQuotePresentation>()
-    private val iconBitmapCache = LinkedHashMap<String, Bitmap>()
-    private val pendingIconLoads = mutableSetOf<String>()
-    private val completedIconLoads = mutableSetOf<String>()
     private var showOnchainMarketCap: Boolean = false
     private val lastMarketCapRenderAtById = mutableMapOf<String, Long?>()
     private val marketCapFlashAnimatorsById = mutableMapOf<String, ValueAnimator>()
@@ -89,7 +80,7 @@ internal class MarqueeOverlayWindowController(
             ) {
                 return cachedColors
             }
-            return resolveCoinMonitorColors(context, preferences).also { colors ->
+            return resolveOverlayDesignColors(context, preferences).also { colors ->
                 cachedColorPreferences = preferences
                 cachedColorUiMode = uiMode
                 cachedOverlayColors = colors
@@ -198,9 +189,6 @@ internal class MarqueeOverlayWindowController(
         holdersById.clear()
         priceWidthsById.clear()
         quotePresentationsById.clear()
-        iconBitmapCache.clear()
-        pendingIconLoads.clear()
-        completedIconLoads.clear()
         cancelMarketCapFlashAnimations()
         lastMarketCapRenderAtById.clear()
         rootView = null
@@ -431,18 +419,8 @@ internal class MarqueeOverlayWindowController(
                 ViewGroup.LayoutParams.MATCH_PARENT
             )
         }
-        val icon = ImageView(context).apply {
-            scaleType = ImageView.ScaleType.FIT_CENTER
-            layoutParams = FrameLayout.LayoutParams(metrics.iconSizePx, metrics.iconSizePx).apply {
-                gravity = Gravity.CENTER
-            }
-            clipToOutline = true
-            outlineProvider = object : ViewOutlineProvider() {
-                override fun getOutline(view: View, outline: Outline) {
-                    outline.setOval(0, 0, view.width, view.height)
-                }
-            }
-            setImageDrawable(buildDefaultIconDrawable(metrics, colors))
+        val icon = OverlayCoinIconView(context, scope).apply {
+            layoutParams = FrameLayout.LayoutParams(metrics.iconSizePx, metrics.iconSizePx, Gravity.CENTER)
         }
         val price = marqueeTextView(metrics, Gravity.START).apply {
             layoutParams = LinearLayout.LayoutParams(
@@ -574,67 +552,12 @@ internal class MarqueeOverlayWindowController(
     }
 
     private fun bindItemIcons(
-        holders: List<MarqueeItemHolder>,
-        item: WatchItem,
-        metrics: MarqueeMetrics,
-        colors: CoinMonitorColors
+        holders: List<MarqueeItemHolder>, item: WatchItem, metrics: MarqueeMetrics, colors: CoinMonitorColors
     ) {
-        if (holders.isEmpty()) return
-        val iconSignature = listOf(
-            item.id,
-            item.iconUrl,
-            item.chainIndex,
-            item.baseSymbol,
-            metrics.iconSizePx,
-            colors.overlayFallbackBackground.toArgb(),
-            colors.overlayFallbackBorder.toArgb()
-        ).joinToString("|")
-        val holdersNeedingUpdate = holders.filter { holder ->
-            holder.iconSignature != iconSignature
-        }
-        if (holdersNeedingUpdate.isEmpty()) return
-        holdersNeedingUpdate.forEach { holder ->
-            holder.iconSignature = iconSignature
-            holder.icon.setImageDrawable(buildDefaultIconDrawable(metrics, colors))
-        }
-        iconBitmapCache[iconSignature]?.let { bitmap ->
-            holdersNeedingUpdate.forEach { holder -> holder.icon.setImageBitmap(bitmap) }
-            return
-        }
-        if (iconSignature in completedIconLoads || !pendingIconLoads.add(iconSignature)) return
-
-        scope.launch {
-            val bitmap = coinIconService.loadBitmap(
-                symbol = item.baseSymbol,
-                preferredIconUrl = item.iconUrl,
-                fallbackIconUrls = OnchainChainIconRegistry.resolveIconUrls(item.chainIndex),
-                grayscaleFallback = item.chainIndex != null
-            )
-            pendingIconLoads.remove(iconSignature)
-            completedIconLoads.add(iconSignature)
-            if (bitmap != null) iconBitmapCache[iconSignature] = bitmap
-            holdersById[item.id].orEmpty().forEach { holder ->
-                if (holder.iconSignature == iconSignature) {
-                    if (bitmap != null) {
-                        holder.icon.setImageBitmap(bitmap)
-                    } else {
-                        holder.icon.setImageDrawable(buildDefaultIconDrawable(metrics, colors))
-                    }
-                }
-            }
-        }
+        holders.forEach { it.icon.bind(item, metrics.iconSizePx, colors) }
     }
 
-    private fun buildDefaultIconDrawable(
-        metrics: MarqueeMetrics,
-        colors: CoinMonitorColors
-    ): GradientDrawable {
-        return GradientDrawable().apply {
-            shape = GradientDrawable.OVAL
-            setColor(colors.overlayFallbackBackground.toArgb())
-            setStroke(metrics.fallbackStrokePx, colors.overlayFallbackBorder.toArgb())
-        }
-    }
+
 
     private fun startAnimator(
         track: LinearLayout,
@@ -761,9 +684,8 @@ internal class MarqueeOverlayWindowController(
 
     private data class MarqueeItemHolder(
         val root: LinearLayout,
-        val icon: ImageView,
-        val price: TextView,
-        var iconSignature: String? = null
+        val icon: OverlayCoinIconView,
+        val price: TextView
     )
 
     private data class MarqueeTouchConfig(
@@ -799,10 +721,10 @@ internal class MarqueeOverlayWindowController(
                 )
                 fun scaledDp(value: Int): Int = (value * density * fontScale).roundToInt()
                 val itemSpacingPx = scaledDp(4)
-                val iconSizePx = scaledDp(16)
+                val iconSizePx = scaledDp(12)
                 return MarqueeMetrics(
                     fontScale = fontScale,
-                    heightPx = scaledDp(32),
+                    heightPx = scaledDp(28),
                     iconSizePx = iconSizePx,
                     iconSlotWidthPx = MarqueeSpacingPolicy.iconSlotWidthPx(
                         iconSizePx = iconSizePx,
@@ -815,7 +737,7 @@ internal class MarqueeOverlayWindowController(
                     ),
                     cycleSeparatorDotSizePx = scaledDp(3),
                     fallbackStrokePx = scaledDp(1),
-                    textSizeSp = 10f * fontScale
+                    textSizeSp = 11f * fontScale
                 )
             }
         }

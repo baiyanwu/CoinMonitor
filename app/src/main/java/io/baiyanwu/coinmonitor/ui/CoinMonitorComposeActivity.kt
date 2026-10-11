@@ -26,6 +26,7 @@ abstract class CoinMonitorComposeActivity : AppCompatActivity() {
     }
 
     protected fun setCoinMonitorContent(
+        useDesignPageBackground: Boolean = false,
         content: @Composable (AppContainer) -> Unit
     ) {
         WindowCompat.setDecorFitsSystemWindows(window, true)
@@ -45,8 +46,13 @@ abstract class CoinMonitorComposeActivity : AppCompatActivity() {
                 themeTemplate = preferences.themeTemplate
             ) {
                 val colors = CoinMonitorThemeTokens.colors
+                val pageBackground = if (useDesignPageBackground) {
+                    CoinMonitorThemeTokens.design.colors.pageBackground
+                } else {
+                    colors.pageBackground
+                }
                 SideEffect {
-                    window.statusBarColor = colors.pageBackground.toArgb()
+                    window.statusBarColor = pageBackground.toArgb()
                     window.navigationBarColor = colors.cardBackground.toArgb()
                     WindowInsetsControllerCompat(window, window.decorView).apply {
                         isAppearanceLightStatusBars = !isDarkTheme

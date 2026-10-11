@@ -2,6 +2,7 @@
     <string name="app_name">CoinMonitor</string>
 
     <string name="tab_home">首页</string>
+    <string name="tab_market">行情</string>
     <string name="tab_wallet">钱包</string>
     <string name="tab_browser">浏览</string>
     <string name="tab_kline">K线</string>
@@ -97,8 +98,6 @@
     <string name="home_empty_onchain_hint">先添加一个链上代币开始监控</string>
     <string name="home_add_pair">添加币对</string>
     <string name="home_open_search">搜索币对</string>
-    <string name="home_pair_actions">币对操作</string>
-    <string name="home_pair_actions_close">关闭币对操作菜单</string>
     <string name="home_open_market_page">打开 %1$s 的外部行情页</string>
     <string name="home_copy_ca_description">复制完整 CA</string>
     <string name="home_ca_copied">CA 已复制</string>
@@ -113,6 +112,14 @@
     <string name="home_overlay_enable_dialog_confirm">开启</string>
     <string name="home_watchlist_title">观察列表</string>
     <string name="home_watchlist_subtitle">长按单个币对可快速加入悬浮窗</string>
+    <string name="home_self_selected">自选</string>
+    <string name="home_overlay_monitor">悬浮盯盘</string>
+    <string name="home_overlay_enabled">已开启</string>
+    <string name="home_overlay_disabled">未开启</string>
+    <string name="home_configure">配置</string>
+    <string name="home_live_trend">实时</string>
+    <string name="home_live_trend_description">本次首页会话收到的真实报价走势</string>
+    <string name="home_trend_waiting">等待报价走势</string>
 
     <string name="search_title">搜索币对</string>
     <string name="search_subtitle">支持在交易所与链上搜索间切换，链上结果可按 EVM / SOL 筛选。</string>
@@ -140,14 +147,17 @@
     <string name="error_search_partial_sources">部分行情来源暂时不可用，已展示其余结果，请重试</string>
 
     <string name="general_settings_title">通用设置</string>
-    <string name="general_settings_subtitle">管理链上市值、外观模式、语言和网络日志</string>
+    <string name="general_settings_subtitle">语言、行情显示与网络日志</string>
     <string name="wallet_settings_title">钱包设置</string>
-    <string name="wallet_settings_subtitle">管理钱包、备份和安全选项</string>
+    <string name="wallet_settings_subtitle">钱包管理、备份与安全</string>
     <string name="wallet_backup_choose_title">选择钱包</string>
     <string name="wallet_backup_choose_description">选择要备份的钱包</string>
     <string name="show_onchain_market_cap">显示链上市值</string>
     <string name="show_onchain_market_cap_description">开启后，主页和悬浮窗中的链上币将显示市值</string>
     <string name="settings_subtitle">统一管理语言、主题外观，以及悬浮窗相关能力。</string>
+    <string name="settings_group_preferences_security">偏好与安全</string>
+    <string name="settings_group_monitoring_data">盯盘与数据</string>
+    <string name="settings_group_application">应用</string>
     <string name="appearance_title">外观模式</string>
     <string name="appearance_subtitle">支持跟随系统，也可以固定为白天或夜间模式。</string>
     <string name="theme_system">跟随系统</string>
@@ -158,8 +168,8 @@
     <string name="language_system">跟随系统</string>
     <string name="language_chinese">简体中文</string>
     <string name="language_english">English</string>
-    <string name="settings_third_party_api_title">第三方 API 设置</string>
-    <string name="settings_third_party_api_subtitle">管理链上行情来源、钱包网络与 API 凭证</string>
+    <string name="settings_third_party_api_title">第三方 API</string>
+    <string name="settings_third_party_api_subtitle">数据来源与授权</string>
     <string name="network_log_title">网络日志</string>
     <string name="network_log_settings_subtitle">按时间顺序查看 HTTP 与 WSS 请求行日志</string>
     <string name="network_log_start">开始记录</string>
@@ -175,7 +185,8 @@
     <string name="network_log_copy">复制日志</string>
     <string name="network_log_copied">已复制日志内容</string>
 
-    <string name="about_settings_title">关于</string>
+    <string name="about_settings_title">关于 CoinMonitor</string>
+    <string name="settings_about_subtitle">版本、许可与开源信息</string>
     <string name="about_title">关于</string>
     <string name="about_version_format">版本 %1$s（%2$d）</string>
     <string name="about_intro">轻量级 Android 加密资产行情监控工具</string>
@@ -198,6 +209,8 @@
     <string name="app_update_later">稍后</string>
     <string name="app_update_open_release">前往更新</string>
 
+    <string name="third_party_api_settings_apply_key">去申请Key</string>
+    <string name="third_party_api_settings_alchemy_title">Alchemy key</string>
     <string name="third_party_api_settings_title">第三方 API 设置</string>
     <string name="third_party_api_settings_section_onchain">免费链上行情</string>
     <string name="third_party_api_settings_section_ai">AI / OpenAI Compatible</string>
@@ -330,7 +343,7 @@
     <string name="overlay_settings_title">悬浮窗设置</string>
     <string name="overlay_items_settings_title">悬浮币对</string>
     <string name="overlay_items_settings_description">选择币对并调整悬浮窗中的全局显示顺序</string>
-    <string name="overlay_settings_subtitle">管理剪贴板 CA 查询、悬浮币对和悬浮窗样式</string>
+    <string name="overlay_settings_subtitle">排列、跑马灯与剪贴板 CA</string>
     <string name="overlay_settings_page_subtitle">这一页只负责悬浮窗权限、样式和展示币对，不影响首页观察列表。</string>
     <string name="overlay_enable">启用悬浮窗</string>
     <string name="overlay_lock_drag">锁定拖动</string>
@@ -355,17 +368,16 @@
     <string name="overlay_transparent">更透明</string>
     <string name="overlay_visible">更明显</string>
     <string name="overlay_snap_to_edge">吸附靠边</string>
-    <string name="overlay_snap_to_edge_hint">开启后会自动吸附到屏幕左侧或右侧。</string>
-    <string name="overlay_edge_display_docked">仅吸附靠边</string>
-    <string name="overlay_edge_display_docked_hint">吸附后继续显示并轮播币种和价格。</string>
-    <string name="overlay_edge_display_hidden_tab">彻底隐藏</string>
-    <string name="overlay_edge_display_hidden_tab_hint">吸附后只保留边缘唤出条，点击可展开靠边价格面板，%1$d 秒后自动收回。</string>
-    <string name="overlay_edge_tab_opacity_format">吸附条透明度 %1$d%%</string>
+    <string name="overlay_snap_to_edge_hint">开启后拖动松手会自动吸附到屏幕左侧或右侧，不改变显示布局。</string>
+    <string name="overlay_single_item_scroll">单 item 横向滚动</string>
+    <string name="overlay_single_item_scroll_hint">开启后每次显示一项并横向轮播；关闭后竖向依次排列。可独立于靠边吸附使用。</string>
+    <string name="overlay_edge_hide_delay_format">隐藏成横条：%1$s</string>
+    <string name="overlay_edge_hide_never">永不（0 秒）</string>
+    <string name="overlay_edge_hide_seconds">%1$d 秒</string>
+    <string name="overlay_edge_display_hidden_tab_hint">%1$d 秒后收起为透明边缘条，点击恢复当前的横向轮播或竖向排列。</string>
+    <string name="overlay_edge_tab_opacity_format">隐藏条透明度 %1$d%%</string>
     <string name="overlay_edge_tab_opacity_min">15%</string>
     <string name="overlay_edge_tab_opacity_max">100%</string>
-    <string name="overlay_edge_auto_collapse_delay_format">自动收回时间 %1$d 秒</string>
-    <string name="overlay_edge_auto_collapse_delay_min">1 秒</string>
-    <string name="overlay_edge_auto_collapse_delay_max">5 秒</string>
     <string name="overlay_edge_tab_expand">展开悬浮价格</string>
     <string name="overlay_edge_docked_auto_collapse">悬浮价格已展开，%1$d 秒后自动收起</string>
     <string name="overlay_rotation_hint">当选择数量超过 5 个时，悬浮窗会自动切成每批 5 个轮播显示。</string>
@@ -454,7 +466,6 @@
     <string name="okx_wallet_api_key">API Key</string>
     <string name="okx_wallet_secret_key">Secret Key</string>
     <string name="okx_wallet_passphrase">Passphrase</string>
-    <string name="okx_wallet_developer_portal">打开 OKX Developer Portal</string>
     <string name="okx_wallet_credentials_incomplete">启用 OKX Onchain API 前，请完整填写 API Key、Secret Key 和 Passphrase。</string>
     <string name="okx_wallet_secure_storage_unavailable">当前设备不支持安全存储，无法保存或使用 OKX 凭证。</string>
     <string name="back">返回</string>
@@ -529,6 +540,15 @@
     <string name="wallet_private_key_solana_description">仅用于 Solana 网络，不与 EVM 地址通用。</string>
     <string name="wallet_refresh">刷新</string>
     <string name="wallet_more">更多</string>
+    <string name="wallet_dapp_browser">DApp 浏览器</string>
+    <string name="wallet_visible_estimate">可见资产估值</string>
+    <string name="wallet_home_summary">%1$d 个网络 · %2$d 项资产</string>
+    <string name="wallet_unpriced_count">%1$d 项资产暂无估值</string>
+    <string name="wallet_hide_values">隐藏资产金额</string>
+    <string name="wallet_show_values">显示资产金额</string>
+    <string name="wallet_updated_time">更新于 %1$s</string>
+    <string name="wallet_refreshing_previous">刷新中 · 上次更新 %1$s</string>
+    <string name="wallet_networks_all">全部网络</string>
     <string name="wallet_manage">钱包管理</string>
     <string name="wallet_backup">备份钱包</string>
     <string name="wallet_security">安全设置</string>
@@ -624,4 +644,19 @@
     <string name="wallet_biometric_enable">启用生物识别</string>
     <string name="wallet_biometric_disable">停用生物识别</string>
     <string name="wallet_biometric_disable_warning">停用生物识别必须验证钱包密码。停用后，签名和钱包解锁将只能使用密码，直到再次启用。</string>
+    <string name="home_tokens">代币</string>
+    <string name="home_address_tracking">地址追踪</string>
+    <string name="home_empty_tokens_hint">添加交易所交易对或链上代币到自选列表</string>
+    <string name="address_track">追踪地址</string>
+    <string name="address_tracked">已加入地址追踪</string>
+    <string name="address_tracking_empty">从剪切板或 FoMo 解析结果追踪地址，也可在这里手动添加</string>
+    <string name="address_add">添加地址</string>
+    <string name="address_input">钱包地址</string>
+    <string name="address_remove">取消追踪</string>
+    <string name="address_expand">展开各链</string>
+    <string name="address_collapse">收起各链</string>
+    <string name="address_refresh">刷新估值</string>
+    <string name="address_estimate_pending">尚未查询</string>
+    <string name="address_refresh_failed">部分地址刷新失败，已保留上次估值。</string>
+    <string name="address_updated">更新于 %1$s</string>
 </resources>

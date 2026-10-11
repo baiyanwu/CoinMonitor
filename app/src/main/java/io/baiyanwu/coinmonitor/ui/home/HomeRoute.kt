@@ -14,16 +14,15 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
@@ -51,6 +50,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -58,6 +58,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.IntOffset
@@ -74,17 +75,16 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.baiyanwu.coinmonitor.data.AppContainer
-import io.baiyanwu.coinmonitor.domain.model.MarketType
 import io.baiyanwu.coinmonitor.domain.repository.QuoteRepository
-import io.baiyanwu.coinmonitor.ui.components.MainTabTopBarHorizontalPadding
-import io.baiyanwu.coinmonitor.ui.components.MarketModeTabs
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
 import io.baiyanwu.coinmonitor.ui.components.WatchItemCard
 import io.baiyanwu.coinmonitor.ui.search.SearchMode
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorComponentDefaults
+import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorDesignTheme
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 import io.baiyanwu.coinmonitor.R
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 private data class HomeQuickMenuState(
@@ -99,15 +99,7 @@ private data class HomeDragState(
     val didReorder: Boolean = false
 )
 
-private val HOME_MODES = listOf(SearchMode.EXCHANGE, SearchMode.ONCHAIN)
-
-internal fun filterHomeWatchItems(
-    items: List<WatchItem>,
-    mode: SearchMode
-): List<WatchItem> = when (mode) {
-    SearchMode.EXCHANGE -> items.filter { it.marketType != MarketType.ONCHAIN_TOKEN }
-    SearchMode.ONCHAIN -> items.filter { it.marketType == MarketType.ONCHAIN_TOKEN }
-}
+private val HOME_PAGES = listOf("tokens", "addresses")
 
 @Composable
 fun HomeRoute(
@@ -115,7 +107,6 @@ fun HomeRoute(
     contentTopInset: Dp = 0.dp,
     contentBottomInset: Dp = 0.dp,
     onNavigateSearch: (SearchMode) -> Unit,
-    onNavigateOverlayItems: () -> Unit,
     onNavigateOverlaySettings: () -> Unit
 ) {
     val viewModel: HomeViewModel = viewModel(factory = HomeViewModel.factory(container))
@@ -145,21 +136,23 @@ fun HomeRoute(
         viewModel.consumeNotice()
     }
 
-    HomeScreen(
-        state = state,
-        contentTopInset = contentTopInset,
-        contentBottomInset = contentBottomInset,
-        onNavigateSearch = onNavigateSearch,
-        onNavigateOverlayItems = onNavigateOverlayItems,
-        onNavigateOverlaySettings = onNavigateOverlaySettings,
-        quoteRepository = container.quoteRepository,
-        onRemoveWatchItem = viewModel::removeWatchItem,
-        onToggleOverlay = viewModel::toggleOverlay,
-        onSetHomePinned = viewModel::setHomePinned,
-        onMoveHomeItem = viewModel::moveHomeItem,
-        onMovePinnedHomeItem = viewModel::movePinnedHomeItem,
-        onRefresh = viewModel::refreshNow
-    )
+    CoinMonitorDesignTheme {
+        HomeScreen(
+            state = state,
+            contentTopInset = contentTopInset,
+            contentBottomInset = contentBottomInset,
+            onNavigateSearch = onNavigateSearch,
+            onNavigateOverlaySettings = onNavigateOverlaySettings,
+            quoteRepository = container.quoteRepository,
+            onRemoveWatchItem = viewModel::removeWatchItem,
+            onToggleOverlay = viewModel::toggleOverlay,
+            onSetHomePinned = viewModel::setHomePinned,
+            onMoveHomeItem = viewModel::moveHomeItem,
+            onMovePinnedHomeItem = viewModel::movePinnedHomeItem,
+            addressTrackingContent = { showAdd, dismiss -> AddressTrackingRoute(container, showAdd, dismiss) },
+            onRefresh = viewModel::refreshNow
+        )
+    }
 }
 
 @Composable
@@ -168,7 +161,6 @@ internal fun HomeScreen(
     contentTopInset: Dp,
     contentBottomInset: Dp,
     onNavigateSearch: (SearchMode) -> Unit,
-    onNavigateOverlayItems: () -> Unit,
     onNavigateOverlaySettings: () -> Unit,
     quoteRepository: QuoteRepository,
     onRemoveWatchItem: (String) -> Unit,
@@ -176,32 +168,37 @@ internal fun HomeScreen(
     onSetHomePinned: (String, Boolean) -> Unit,
     onMoveHomeItem: (String, String?) -> Unit,
     onMovePinnedHomeItem: (String, String?) -> Unit,
-    onRefresh: () -> Unit
+    onRefresh: () -> Unit,
+    addressTrackingContent: @Composable (Boolean, () -> Unit) -> Unit = { _, _ -> }
 ) {
     var quickMenuState by remember { mutableStateOf<HomeQuickMenuState?>(null) }
-    var pairActionsExpanded by remember { mutableStateOf(false) }
+    var showAddAddress by rememberSaveable { mutableStateOf(false) }
     var showOverlayEnableDialog by remember { mutableStateOf(false) }
     var rootSize by remember { mutableStateOf(IntSize.Zero) }
+    var rootOrigin by remember { mutableStateOf(IntOffset.Zero) }
     val colors = CoinMonitorThemeTokens.colors
     val dismissInteractionSource = remember { MutableInteractionSource() }
     val pagerState = rememberPagerState(
         initialPage = 0,
-        pageCount = HOME_MODES::size
+        pageCount = HOME_PAGES::size
     )
     val exchangeListState = rememberLazyListState()
-    val onchainListState = rememberLazyListState()
     val pagerScope = rememberCoroutineScope()
-    val pageItems = remember(state.items) {
-        HOME_MODES.map { mode -> filterHomeWatchItems(state.items, mode) }
-    }
+    var selectedPage by rememberSaveable { mutableStateOf(pagerState.settledPage) }
+    var clickTarget by remember { mutableStateOf<Int?>(null) }
+    var pageSwitchJob by remember { mutableStateOf<Job?>(null) }
+    var switchRequest by remember { mutableStateOf(0L) }
+    val design = CoinMonitorThemeTokens.design
     val overlayEnableDialogTitle = stringResource(R.string.home_overlay_enable_dialog_title)
     val overlayEnableDialogMessage = stringResource(R.string.home_overlay_enable_dialog_message)
     val overlayEnableDialogDismiss = stringResource(R.string.common_cancel)
     val overlayEnableDialogConfirm = stringResource(R.string.home_overlay_enable_dialog_confirm)
 
-    LaunchedEffect(pagerState.currentPage) {
-        quickMenuState = null
-        pairActionsExpanded = false
+    LaunchedEffect(pagerState.settledPage, pagerState.isScrollInProgress, clickTarget) {
+        if (pagerState.isScrollInProgress) {
+            quickMenuState = null
+        }
+        if (clickTarget == null && !pagerState.isScrollInProgress) selectedPage = pagerState.settledPage
     }
 
     Box(
@@ -210,53 +207,65 @@ internal fun HomeScreen(
             .background(colors.pageBackground)
             .padding(top = contentTopInset, bottom = contentBottomInset)
             .onSizeChanged { rootSize = it }
+            .onGloballyPositioned { coordinates ->
+                val position = coordinates.positionInRoot()
+                rootOrigin = IntOffset(position.x.toInt(), position.y.toInt())
+            }
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = MainTabTopBarHorizontalPadding, vertical = 4.dp)
-                    .height(44.dp)
-            ) {
-                MarketModeTabs(
-                    selectedPage = pagerState.currentPage,
-                    onSelectPage = { page ->
-                        pagerScope.launch {
-                            pagerState.animateScrollToPage(page)
+            HomeHeader(
+                addingAddress = selectedPage == 1,
+                onAdd = { if (selectedPage == 1) showAddAddress = true else onNavigateSearch(SearchMode.EXCHANGE) }
+            )
+            HomeModeSelector(
+                selectedPage = pagerState.currentPage,
+                indicatorPosition = { pagerState.currentPage + pagerState.currentPageOffsetFraction },
+                onSelectPage = { page ->
+                    val request = ++switchRequest
+                    pageSwitchJob?.cancel()
+                    quickMenuState = null
+                    clickTarget = page
+                    selectedPage = page
+                    pageSwitchJob = pagerScope.launch {
+                        try {
+                            pagerState.animateScrollToPage(
+                                page,
+                                animationSpec = tween(design.motion.pageSwitchDurationMillis, easing = FastOutSlowInEasing)
+                            )
+                        } finally {
+                            if (switchRequest == request) clickTarget = null
                         }
-                    },
-                    prominentLabels = true,
-                    modifier = Modifier.align(Alignment.Center)
-                )
-            }
+                    }
+                }
+            )
 
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f),
+                beyondViewportPageCount = 1,
+                key = { HOME_PAGES[it] }
             ) {
-                val mode = HOME_MODES[it]
+                if (it == 1) {
+                    if (pagerState.settledPage == 1) addressTrackingContent(showAddAddress) { showAddAddress = false }
+                    return@HorizontalPager
+                }
                 HomeWatchlistPage(
-                    mode = mode,
                     isLoaded = state.isLoaded,
                     isRefreshing = state.isRefreshing,
-                    items = pageItems[it],
+                    items = state.items,
                     overlayIds = state.overlayIds,
-                    listState = if (mode == SearchMode.EXCHANGE) {
-                        exchangeListState
-                    } else {
-                        onchainListState
-                    },
+                    listState = exchangeListState,
                     quoteRepository = quoteRepository,
                     showOnchainMarketCap = state.showOnchainMarketCap,
-                    onNavigateSearch = { onNavigateSearch(mode) },
+                    onNavigateSearch = { onNavigateSearch(SearchMode.EXCHANGE) },
                     onDismissQuickMenu = { quickMenuState = null },
                     onLongPress = { item, anchorInRoot ->
                         quickMenuState = if (quickMenuState?.itemId == item.id) {
                             null
                         } else {
-                            HomeQuickMenuState(itemId = item.id, anchorInRoot = anchorInRoot)
+                            HomeQuickMenuState(itemId = item.id, anchorInRoot = anchorInRoot - rootOrigin)
                         }
                     },
                     onMoveHomeItem = onMoveHomeItem,
@@ -264,29 +273,8 @@ internal fun HomeScreen(
                     onRefresh = onRefresh
                 )
             }
+            HomeOverlayStatus(enabled = state.overlayEnabled, onConfigure = onNavigateOverlaySettings)
         }
-
-        HomePairActionsMenu(
-            expanded = pairActionsExpanded,
-            onExpandedChange = { expanded ->
-                quickMenuState = null
-                pairActionsExpanded = expanded
-            },
-            onAddPair = {
-                if (pairActionsExpanded) {
-                    pairActionsExpanded = false
-                    onNavigateSearch(HOME_MODES[pagerState.currentPage])
-                }
-            },
-            onConfigureOverlayItems = {
-                if (pairActionsExpanded) {
-                    pairActionsExpanded = false
-                    onNavigateOverlayItems()
-                }
-            },
-            bottomInset = 0.dp,
-            modifier = Modifier.matchParentSize()
-        )
 
         quickMenuState?.let { menuState ->
             val menuItem = state.items.firstOrNull { it.id == menuState.itemId } ?: return@let
@@ -349,7 +337,6 @@ internal fun HomeScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun HomeWatchlistPage(
-    mode: SearchMode,
     isLoaded: Boolean,
     isRefreshing: Boolean,
     items: List<WatchItem>,
@@ -368,13 +355,7 @@ private fun HomeWatchlistPage(
     var dragState by remember { mutableStateOf<HomeDragState?>(null) }
     val colors = CoinMonitorThemeTokens.colors
     val scope = rememberCoroutineScope()
-    val emptyHint = stringResource(
-        if (mode == SearchMode.EXCHANGE) {
-            R.string.home_empty_exchange_hint
-        } else {
-            R.string.home_empty_onchain_hint
-        }
-    )
+    val emptyHint = stringResource(R.string.home_empty_tokens_hint)
 
     LaunchedEffect(items) {
         if (dragState == null) {
@@ -415,15 +396,8 @@ private fun HomeWatchlistPage(
                 }
             }
         } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                state = listState,
-                contentPadding = PaddingValues(
-                    bottom = HomePairActionsContentPadding
-                ),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
-                items(displayItems, key = { it.id }) { item ->
+            HomeWatchlistContainer(state = listState) {
+                items(displayItems, key = { it.id }, contentType = { "home-watch-row" }) { item ->
                     val isDragging = dragState?.itemId == item.id
                     Box(
                         modifier = Modifier
@@ -431,17 +405,13 @@ private fun HomeWatchlistPage(
                             .zIndex(if (isDragging) 1f else 0f)
                     ) {
                         WatchItemCard(
-                            item = item,
+                            itemId = item.id,
                             modifier = Modifier.fillMaxWidth(),
-                            quoteRepository = quoteRepository,
-                            showOnchainMarketCap = showOnchainMarketCap,
-                            overlaySelected = overlayIds.contains(item.id),
                             dragOffsetY = if (isDragging) {
                                 dragState?.dragOffsetY ?: 0f
                             } else {
                                 0f
                             },
-                            onClick = onDismissQuickMenu,
                             onLongPress = { anchorInRoot ->
                                 onLongPress(item, anchorInRoot)
                             },
@@ -495,7 +465,12 @@ private fun HomeWatchlistPage(
                                 )
                                 dragState = null
                             }
-                        )
+                        ) {
+                            HomeAssetRow(
+                                item = item, quoteRepository = quoteRepository,
+                                showOnchainMarketCap = showOnchainMarketCap, overlaySelected = overlayIds.contains(item.id)
+                            )
+                        }
                     }
                 }
             }
@@ -625,6 +600,7 @@ private fun HomeQuickActionItem(
                 }
             )
             .clickable(onClick = onClick)
+            .heightIn(min = CoinMonitorThemeTokens.design.sizes.minimumTouchTarget)
             .padding(horizontal = 8.dp, vertical = 6.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically

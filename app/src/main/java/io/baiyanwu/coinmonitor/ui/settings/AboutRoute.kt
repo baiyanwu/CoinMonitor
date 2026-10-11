@@ -21,7 +21,6 @@ import androidx.compose.material.icons.automirrored.rounded.OpenInNew
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -40,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import io.baiyanwu.coinmonitor.BuildConfig
 import io.baiyanwu.coinmonitor.R
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorComponentDefaults
+import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorDesignColorTheme
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 
 @Composable
@@ -63,15 +63,15 @@ private fun AboutScreen(
     onOpenRepository: () -> Unit,
     onOpenLicense: () -> Unit,
     onOpenIssues: () -> Unit
-) {
+) = CoinMonitorDesignColorTheme {
     val colors = CoinMonitorThemeTokens.colors
 
     Scaffold(
-        containerColor = colors.pageBackground,
+        containerColor = CoinMonitorThemeTokens.design.colors.pageBackground,
         topBar = {
             CenterAlignedTopAppBar(
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = colors.pageBackground
+                    containerColor = CoinMonitorThemeTokens.design.colors.pageBackground
                 ),
                 title = { Text(text = stringResource(R.string.about_title)) },
                 navigationIcon = {
@@ -88,7 +88,7 @@ private fun AboutScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .background(colors.pageBackground)
+                .background(CoinMonitorThemeTokens.design.colors.pageBackground)
                 .padding(innerPadding),
             contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -114,19 +114,16 @@ private fun AboutScreen(
                         value = stringResource(R.string.about_author_value),
                         onClick = onOpenAuthor
                     )
-                    AboutDivider()
                     AboutInfoRow(
                         label = stringResource(R.string.about_repository),
                         value = stringResource(R.string.about_repository_value),
                         onClick = onOpenRepository
                     )
-                    AboutDivider()
                     AboutInfoRow(
                         label = stringResource(R.string.about_license),
                         value = stringResource(R.string.about_license_value),
                         onClick = onOpenLicense
                     )
-                    AboutDivider()
                     AboutInfoRow(
                         label = stringResource(R.string.about_feedback),
                         value = stringResource(R.string.about_feedback_value),
@@ -258,11 +255,6 @@ private fun AboutInfoRow(
             tint = colors.accent
         )
     }
-}
-
-@Composable
-private fun AboutDivider() {
-    HorizontalDivider(color = CoinMonitorThemeTokens.colors.divider.copy(alpha = 0.5f))
 }
 
 private const val AUTHOR_URL = "https://github.com/baiyanwu"

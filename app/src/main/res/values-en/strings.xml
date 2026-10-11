@@ -2,6 +2,7 @@
     <string name="app_name">CoinMonitor</string>
 
     <string name="tab_home">Home</string>
+    <string name="tab_market">Markets</string>
     <string name="tab_wallet">Wallet</string>
     <string name="tab_browser">Browse</string>
     <string name="tab_kline">Kline</string>
@@ -97,8 +98,6 @@
     <string name="home_empty_onchain_hint">Add an on-chain token to start monitoring.</string>
     <string name="home_add_pair">Add pair</string>
     <string name="home_open_search">Search pairs</string>
-    <string name="home_pair_actions">Pair actions</string>
-    <string name="home_pair_actions_close">Close pair actions menu</string>
     <string name="home_open_market_page">Open the external market page for %1$s</string>
     <string name="home_copy_ca_description">Copy full contract address</string>
     <string name="home_ca_copied">Contract address copied</string>
@@ -113,6 +112,14 @@
     <string name="home_overlay_enable_dialog_confirm">Enable</string>
     <string name="home_watchlist_title">Watchlist</string>
     <string name="home_watchlist_subtitle">Long press an item to add it to the floating window.</string>
+    <string name="home_self_selected">Watchlist</string>
+    <string name="home_overlay_monitor">Overlay</string>
+    <string name="home_overlay_enabled">On</string>
+    <string name="home_overlay_disabled">Off</string>
+    <string name="home_configure">Configure</string>
+    <string name="home_live_trend">Live</string>
+    <string name="home_live_trend_description">Real quote samples received during this home session</string>
+    <string name="home_trend_waiting">Waiting for quote samples</string>
 
     <string name="search_title">Search Pairs</string>
     <string name="search_subtitle">Switch between exchange and on-chain search, then filter on-chain results by EVM / SOL.</string>
@@ -140,14 +147,17 @@
     <string name="error_search_partial_sources">Some market data sources are temporarily unavailable. Other results are shown. Please try again.</string>
 
     <string name="general_settings_title">General</string>
-    <string name="general_settings_subtitle">Manage on-chain market cap, appearance, language, and network logs</string>
+    <string name="general_settings_subtitle">Language, market display &amp; network logs</string>
     <string name="wallet_settings_title">Wallet Settings</string>
-    <string name="wallet_settings_subtitle">Manage wallets, backups, and security</string>
+    <string name="wallet_settings_subtitle">Wallets, backups &amp; security</string>
     <string name="wallet_backup_choose_title">Choose wallet</string>
     <string name="wallet_backup_choose_description">Choose the wallet to back up</string>
     <string name="show_onchain_market_cap">Show on-chain market cap</string>
     <string name="show_onchain_market_cap_description">Show market cap for on-chain tokens on the home screen and in floating windows</string>
     <string name="settings_subtitle">Manage language, appearance, and floating window features here.</string>
+    <string name="settings_group_preferences_security">Preferences &amp; security</string>
+    <string name="settings_group_monitoring_data">Monitoring &amp; data</string>
+    <string name="settings_group_application">Application</string>
     <string name="appearance_title">Appearance</string>
     <string name="appearance_subtitle">Follow system, or lock the app to light or dark mode.</string>
     <string name="theme_system">System</string>
@@ -158,8 +168,8 @@
     <string name="language_system">System</string>
     <string name="language_chinese">简体中文</string>
     <string name="language_english">English</string>
-    <string name="settings_third_party_api_title">Third-party API Settings</string>
-    <string name="settings_third_party_api_subtitle">Manage on-chain providers, wallet networks, and API credentials</string>
+    <string name="settings_third_party_api_title">Third-party APIs</string>
+    <string name="settings_third_party_api_subtitle">Data sources &amp; authorization</string>
     <string name="network_log_title">Network Log</string>
     <string name="network_log_settings_subtitle">Inspect HTTP and WSS request line logs in chronological order.</string>
     <string name="network_log_start">Start recording</string>
@@ -175,7 +185,8 @@
     <string name="network_log_copy">Copy log</string>
     <string name="network_log_copied">Log content copied</string>
 
-    <string name="about_settings_title">About</string>
+    <string name="about_settings_title">About CoinMonitor</string>
+    <string name="settings_about_subtitle">Version, license &amp; source code</string>
     <string name="about_title">About</string>
     <string name="about_version_format">Version %1$s (%2$d)</string>
     <string name="about_intro">A lightweight Android crypto market monitor</string>
@@ -198,6 +209,8 @@
     <string name="app_update_later">Later</string>
     <string name="app_update_open_release">Open update</string>
 
+    <string name="third_party_api_settings_apply_key">Apply for Key</string>
+    <string name="third_party_api_settings_alchemy_title">Alchemy key</string>
     <string name="third_party_api_settings_title">Third-party API Settings</string>
     <string name="third_party_api_settings_section_onchain">Free On-chain Market Data</string>
     <string name="third_party_api_settings_section_ai">AI / OpenAI Compatible</string>
@@ -330,7 +343,7 @@
     <string name="overlay_settings_title">Overlay Settings</string>
     <string name="overlay_items_settings_title">Floating Pairs</string>
     <string name="overlay_items_settings_description">Choose pairs and adjust their global floating-window order</string>
-    <string name="overlay_settings_subtitle">Manage clipboard CA lookup, floating pairs, and window appearance</string>
+    <string name="overlay_settings_subtitle">Panel, marquee &amp; Clipboard CA</string>
     <string name="overlay_settings_page_subtitle">This page only controls the floating window and does not change the main watchlist.</string>
     <string name="overlay_enable">Enable floating window</string>
     <string name="overlay_lock_drag">Lock dragging</string>
@@ -355,17 +368,16 @@
     <string name="overlay_transparent">More transparent</string>
     <string name="overlay_visible">More visible</string>
     <string name="overlay_snap_to_edge">Snap to edge</string>
-    <string name="overlay_snap_to_edge_hint">Automatically dock to the left or right edge of the screen.</string>
-    <string name="overlay_edge_display_docked">Dock only</string>
-    <string name="overlay_edge_display_docked_hint">Keep rotating symbols and prices along the edge.</string>
-    <string name="overlay_edge_display_hidden_tab">Hide completely</string>
-    <string name="overlay_edge_display_hidden_tab_hint">Leave only an edge tab; tap to expand the docked price panel, which collapses automatically after %1$d s.</string>
+    <string name="overlay_snap_to_edge_hint">Snap to the left or right edge after dragging without changing the display layout.</string>
+    <string name="overlay_single_item_scroll">Single-item horizontal scroll</string>
+    <string name="overlay_single_item_scroll_hint">Show one item at a time with horizontal rotation, or turn off for vertical rows. Works independently of edge snapping.</string>
+    <string name="overlay_edge_hide_delay_format">Collapse to edge tab: %1$s</string>
+    <string name="overlay_edge_hide_never">Never (0 s)</string>
+    <string name="overlay_edge_hide_seconds">%1$d s</string>
+    <string name="overlay_edge_display_hidden_tab_hint">Collapse to a translucent edge tab after %1$d s; tap to restore horizontal rotation or vertical rows.</string>
     <string name="overlay_edge_tab_opacity_format">Edge tab opacity %1$d%%</string>
     <string name="overlay_edge_tab_opacity_min">15%</string>
     <string name="overlay_edge_tab_opacity_max">100%</string>
-    <string name="overlay_edge_auto_collapse_delay_format">Auto-collapse delay %1$d s</string>
-    <string name="overlay_edge_auto_collapse_delay_min">1 s</string>
-    <string name="overlay_edge_auto_collapse_delay_max">5 s</string>
     <string name="overlay_edge_tab_expand">Expand floating prices</string>
     <string name="overlay_edge_docked_auto_collapse">Floating prices expanded; collapsing automatically in %1$d s</string>
     <string name="overlay_rotation_hint">When more than 5 pairs are selected, the floating window rotates them in groups of 5.</string>
@@ -454,7 +466,6 @@
     <string name="okx_wallet_api_key">API Key</string>
     <string name="okx_wallet_secret_key">Secret Key</string>
     <string name="okx_wallet_passphrase">Passphrase</string>
-    <string name="okx_wallet_developer_portal">Open OKX Developer Portal</string>
     <string name="okx_wallet_credentials_incomplete">Enter the API Key, Secret Key, and Passphrase before enabling OKX Onchain API.</string>
     <string name="okx_wallet_secure_storage_unavailable">Secure storage is unavailable, so OKX credentials cannot be saved or used.</string>
     <string name="back">Back</string>
@@ -529,6 +540,15 @@
     <string name="wallet_private_key_solana_description">For Solana only; it is not shared with EVM addresses.</string>
     <string name="wallet_refresh">Refresh</string>
     <string name="wallet_more">More</string>
+    <string name="wallet_dapp_browser">DApp Browser</string>
+    <string name="wallet_visible_estimate">Visible asset estimate</string>
+    <string name="wallet_home_summary">%1$d networks · %2$d assets</string>
+    <string name="wallet_unpriced_count">%1$d assets have no valuation</string>
+    <string name="wallet_hide_values">Hide asset amounts</string>
+    <string name="wallet_show_values">Show asset amounts</string>
+    <string name="wallet_updated_time">Updated at %1$s</string>
+    <string name="wallet_refreshing_previous">Refreshing · last update %1$s</string>
+    <string name="wallet_networks_all">All networks</string>
     <string name="wallet_manage">Manage wallets</string>
     <string name="wallet_backup">Back up wallet</string>
     <string name="wallet_security">Security</string>
@@ -624,4 +644,19 @@
     <string name="wallet_biometric_enable">Enable biometrics</string>
     <string name="wallet_biometric_disable">Disable biometrics</string>
     <string name="wallet_biometric_disable_warning">Disabling biometrics requires the wallet password. Afterwards, signing and wallet unlock will require the password until biometrics are enabled again.</string>
+    <string name="home_tokens">Tokens</string>
+    <string name="home_address_tracking">Address tracking</string>
+    <string name="home_empty_tokens_hint">Add exchange pairs or on-chain tokens to your watchlist</string>
+    <string name="address_track">Track address</string>
+    <string name="address_tracked">Address added to tracking</string>
+    <string name="address_tracking_empty">Track an address from clipboard or FoMo, or add one here</string>
+    <string name="address_add">Add address</string>
+    <string name="address_input">Wallet address</string>
+    <string name="address_remove">Remove tracking</string>
+    <string name="address_expand">Expand chains</string>
+    <string name="address_collapse">Collapse chains</string>
+    <string name="address_refresh">Refresh estimates</string>
+    <string name="address_estimate_pending">Not queried</string>
+    <string name="address_refresh_failed">Some addresses could not be refreshed. Previous estimates are retained.</string>
+    <string name="address_updated">Updated %1$s</string>
 </resources>

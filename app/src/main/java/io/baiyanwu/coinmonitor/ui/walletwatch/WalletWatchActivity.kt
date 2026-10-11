@@ -26,7 +26,7 @@ import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 class WalletWatchActivity : CoinMonitorComposeActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setCoinMonitorContent { container -> WalletWatchDetail(container) }
+        setCoinMonitorContent(useDesignPageBackground = true) { container -> WalletWatchDetail(container) }
     }
 
     @OptIn(ExperimentalMaterial3Api::class)
@@ -41,13 +41,15 @@ class WalletWatchActivity : CoinMonitorComposeActivity() {
                     }
                 },
                 colors = androidx.compose.material3.TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = CoinMonitorThemeTokens.colors.pageBackground
+                    containerColor = CoinMonitorThemeTokens.design.colors.pageBackground
                 )
             )
             Box(Modifier.weight(1f)) {
                 WalletWatchRoute(
                     container = container,
-                    onOpenSettings = { ThirdPartyApiSettingsActivity.start(this@WalletWatchActivity) }
+                    onOpenSettings = { ThirdPartyApiSettingsActivity.start(this@WalletWatchActivity) },
+                    initialAddress = intent.getStringExtra("address"),
+                    initialChain = intent.getStringExtra("chain")
                 )
             }
         }
@@ -59,8 +61,8 @@ class WalletWatchActivity : CoinMonitorComposeActivity() {
     }
 
     companion object {
-        fun start(activity: Activity) {
-            DetailPageTransitions.start(activity, Intent(activity, WalletWatchActivity::class.java))
+        fun start(activity: Activity, address: String? = null, chain: String? = null) {
+            DetailPageTransitions.start(activity, Intent(activity, WalletWatchActivity::class.java).putExtra("address", address).putExtra("chain", chain))
         }
     }
 }

@@ -33,6 +33,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import io.baiyanwu.coinmonitor.R
 import io.baiyanwu.coinmonitor.data.AppContainer
 import io.baiyanwu.coinmonitor.ui.settings.overlay.OverlayItemSelectionSection
+import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorDesignColorTheme
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 
 @Composable
@@ -66,7 +67,7 @@ internal fun OverlayItemsSettingsScreen(
     onBack: () -> Unit,
     onToggleItem: (String) -> Unit,
     onMoveItem: (String, String?) -> Unit
-) {
+) = CoinMonitorDesignColorTheme {
     val colors = CoinMonitorThemeTokens.colors
     var isDraggingItem by remember { mutableStateOf(false) }
     Scaffold(

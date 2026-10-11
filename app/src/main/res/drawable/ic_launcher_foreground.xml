@@ -4,7 +4,8 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
     <path
-        android:fillColor="#E9DDFF"
+        android:name="logo_ring"
+        android:fillColor="@color/coinmonitor_logo_ring"
         android:fillType="evenOdd"
         android:pathData="M54,20A34,34 0 1,1 20,54A34,34 0 0,1 54,20zM54,36A18,18 0 1,0 72,54A18,18 0 0,0 54,36z" />
     <path

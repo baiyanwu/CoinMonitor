@@ -80,10 +80,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.baiyanwu.coinmonitor.R
 import io.baiyanwu.coinmonitor.data.AppContainer
+import io.baiyanwu.coinmonitor.domain.model.OkxWalletChainRegistry
 import io.baiyanwu.coinmonitor.domain.model.WalletAsset
 import io.baiyanwu.coinmonitor.ui.components.CoilCoinSymbolIcon
 import io.baiyanwu.coinmonitor.ui.format.AssetAmountFormatter
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorComponentDefaults
+import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorDesignColorTheme
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 import java.math.BigDecimal
 import java.text.DateFormat
@@ -95,9 +97,11 @@ fun WalletWatchRoute(
     container: AppContainer,
     contentTopInset: Dp = 0.dp,
     contentBottomInset: Dp = 0.dp,
-    onOpenSettings: () -> Unit
+    onOpenSettings: () -> Unit,
+    initialAddress: String? = null,
+    initialChain: String? = null
 ) {
-    val viewModel: WalletWatchViewModel = viewModel(factory = WalletWatchViewModel.factory(container))
+    val viewModel: WalletWatchViewModel = viewModel(factory = WalletWatchViewModel.factory(container, initialAddress, initialChain))
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     WalletWatchScreen(
         state = state,
@@ -136,7 +140,7 @@ private fun WalletWatchScreen(
     onSelectChain: (String) -> Unit,
     onHideChain: (String) -> Unit,
     onShowChain: (String) -> Unit
-) {
+) = CoinMonitorDesignColorTheme {
     val colors = CoinMonitorThemeTokens.colors
     val context = LocalContext.current
     val addressInteractionSource = remember { MutableInteractionSource() }
@@ -161,7 +165,7 @@ private fun WalletWatchScreen(
     }
     Scaffold(
         modifier = Modifier.padding(top = contentTopInset, bottom = contentBottomInset),
-        containerColor = colors.pageBackground,
+        containerColor = CoinMonitorThemeTokens.design.colors.pageBackground,
         contentWindowInsets = WindowInsets(0),
         bottomBar = {
             if (hiddenChainAssets.isNotEmpty() || hiddenAssets.isNotEmpty()) {
@@ -296,10 +300,12 @@ private fun WalletWatchScreen(
                                     onHideSmallAssetsChange = onHideSmallAssetsChange
                                 )
                             }
-                            if (snapshot.assets.isNotEmpty()) {
+                            if (snapshot.assets.isNotEmpty() || state.selectedChainIndex != null) {
                                 item {
                                     ChainSelector(
-                                        assets = snapshot.assets,
+                                        assets = snapshot.assets + listOfNotNull(state.selectedChainIndex?.takeIf { index -> snapshot.assets.none { it.chainIndex == index } }?.let { index ->
+                                            WalletAsset(index, OkxWalletChainRegistry.displayName(index), "", "", java.math.BigDecimal.ZERO, null, null, false)
+                                        }),
                                         selectedChainIndex = state.selectedChainIndex,
                                         hiddenChainIndexes = state.hiddenChainIndexes,
                                         editing = chainsEditing,
@@ -574,7 +580,7 @@ private fun WalletAssetRow(asset: WalletAsset, onCopyContract: (String) -> Unit,
 @Composable
 private fun HiddenAssetsBottomBar(chainCount: Int, assetCount: Int, onClick: () -> Unit) {
     val colors = CoinMonitorThemeTokens.colors
-    Surface(color = colors.pageBackground) {
+    Surface(color = CoinMonitorThemeTokens.design.colors.pageBackground) {
         Surface(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp).clickable(onClick = onClick),
             shape = RoundedCornerShape(14.dp),

@@ -6,7 +6,6 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import io.baiyanwu.coinmonitor.data.AppContainer
-import io.baiyanwu.coinmonitor.domain.model.ArrangedEdgeDisplayMode
 import io.baiyanwu.coinmonitor.domain.model.MarqueeSpeed
 import io.baiyanwu.coinmonitor.domain.model.OverlayDisplayType
 import io.baiyanwu.coinmonitor.domain.model.OverlayLeadingDisplayMode
@@ -87,9 +86,9 @@ class OverlaySettingsViewModel(
         }
     }
 
-    fun setArrangedEdgeDisplayMode(mode: ArrangedEdgeDisplayMode) {
+    fun setArrangedSingleItemScroll(enabled: Boolean) {
         viewModelScope.launch {
-            overlayRepository.setArrangedEdgeDisplayMode(mode)
+            overlayRepository.setArrangedSingleItemScroll(enabled)
         }
     }
 

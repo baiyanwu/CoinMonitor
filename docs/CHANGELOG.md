@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.0.14 (2026-10-11)
+
+- 全新圆润蓝紫界面，统一行情、热门、钱包与设置；DApp 浏览器入口移至“钱包 → 更多”。
+- 新增 GMGN、PumpFun、OKX 与共同热门榜单，支持筛选和榜单缓存。
+- 首页新增跨链地址追踪，支持资产估值、名称编辑；交易所与链上代币合并展示。
+- 增强剪贴板查询：钱包持仓、FoMo 地址反查、更多快捷网站及 GPT/Grok 分析入口。
+- 优化悬浮窗横向轮播、靠边吸附与自动收起，修复已知问题并提升稳定性。
+
 ## v1.0.13 (2026-09-28)
 
 - 底部导航新增“浏览”一级 DApp 发现页：常用目录随 APK 以版本化 JSON 打包，支持分类、本地搜索和 Room 搜索历史。点击目录条目或输入 HTTPS 地址后启动独立 `DappBrowserActivity`；MainActivity 不再创建、挂载或持有 WebView。独立 Activity 提供地址编辑、网页历史和 EVM 链切换，并通过 Trust Web3 Provider 4.9.4 为浏览器内任意 HTTPS 主页面注入 EIP-1193 / EIP-6963；EIP-6963 保持 CoinMonitor 身份，钱包选择器图标直接取自 Android 应用图标，同时通过 Provider 自带的 `setOverwriteMetamask(true)` 兼容只识别旧版 MetaMask Connector 的 DApp，不伪造 MetaMask 专属 API。手输网址先显示第三方风险提示，目录不再兼作 Provider 域名白名单。连接、标准 EVM 交易、`personal_sign`、原始 `eth_sign`、EIP-712 V3/V4（含 Permit2）、添加网络及 ERC20/BEP20 仍按实际 origin 走分层原生确认，旧页面的异步响应不会投递给跳转后的新 origin。交易与消息签名在启用强生物识别后优先自动触发一次指纹，失败或用户选择密码后才展示密码框；删除钱包、重置保险库、显示/备份密钥和停用生物识别仍强制密码确认。

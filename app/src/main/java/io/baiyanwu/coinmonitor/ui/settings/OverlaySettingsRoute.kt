@@ -39,7 +39,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.baiyanwu.coinmonitor.R
 import io.baiyanwu.coinmonitor.data.AppContainer
-import io.baiyanwu.coinmonitor.domain.model.ArrangedEdgeDisplayMode
 import io.baiyanwu.coinmonitor.domain.model.MarqueeSpeed
 import io.baiyanwu.coinmonitor.domain.model.OverlayDisplayType
 import io.baiyanwu.coinmonitor.domain.model.OverlayLeadingDisplayMode
@@ -50,6 +49,7 @@ import io.baiyanwu.coinmonitor.ui.settings.overlay.arranged.ArrangedOverlaySetti
 import io.baiyanwu.coinmonitor.ui.settings.overlay.marquee.MarqueeOverlaySettingsSection
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorComponentDefaults
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
+import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorDesignTheme
 import kotlinx.coroutines.launch
 
 @Composable
@@ -71,6 +71,7 @@ fun OverlaySettingsRoute(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
 
+    CoinMonitorDesignTheme {
     OverlaySettingsScreen(
         state = state,
         overlayPermissionGranted = overlayPermissionGranted,
@@ -108,7 +109,7 @@ fun OverlaySettingsRoute(
         onArrangedLeadingDisplayModeChange = viewModel::setArrangedLeadingDisplayMode,
         onArrangedFontScaleChange = viewModel::setArrangedFontScale,
         onArrangedSnapToEdgeChange = viewModel::setArrangedSnapToEdge,
-        onArrangedEdgeDisplayModeChange = viewModel::setArrangedEdgeDisplayMode,
+        onArrangedSingleItemScrollChange = viewModel::setArrangedSingleItemScroll,
         onArrangedEdgeTabOpacityChange = viewModel::setArrangedEdgeTabOpacity,
         onArrangedEdgeAutoCollapseSecondsChange =
             viewModel::setArrangedEdgeAutoCollapseSeconds,
@@ -117,6 +118,7 @@ fun OverlaySettingsRoute(
         onMarqueeFontScaleChange = viewModel::setMarqueeFontScale,
         onMarqueeSpeedChange = viewModel::setMarqueeSpeed
     )
+    }
 }
 
 @Composable
@@ -137,7 +139,7 @@ private fun OverlaySettingsScreen(
     onArrangedLeadingDisplayModeChange: (OverlayLeadingDisplayMode) -> Unit,
     onArrangedFontScaleChange: (Float) -> Unit,
     onArrangedSnapToEdgeChange: (Boolean) -> Unit,
-    onArrangedEdgeDisplayModeChange: (ArrangedEdgeDisplayMode) -> Unit,
+    onArrangedSingleItemScrollChange: (Boolean) -> Unit,
     onArrangedEdgeTabOpacityChange: (Float) -> Unit,
     onArrangedEdgeAutoCollapseSecondsChange: (Int) -> Unit,
     onMarqueeOpacityChange: (Float) -> Unit,
@@ -209,7 +211,7 @@ private fun OverlaySettingsScreen(
                         onLeadingDisplayModeChange = onArrangedLeadingDisplayModeChange,
                         onFontScaleChange = onArrangedFontScaleChange,
                         onSnapToEdgeChange = onArrangedSnapToEdgeChange,
-                        onEdgeDisplayModeChange = onArrangedEdgeDisplayModeChange,
+                        onSingleItemScrollChange = onArrangedSingleItemScrollChange,
                         onEdgeTabOpacityChange = onArrangedEdgeTabOpacityChange,
                         onEdgeAutoCollapseSecondsChange =
                             onArrangedEdgeAutoCollapseSecondsChange

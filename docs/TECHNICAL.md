@@ -33,20 +33,24 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 
 ### Watchlist
 
-- 首页观察列表拆分为可点击、可左右滑动的“交易所 / 链上”两个分页，默认显示交易所；交易所页包含 `CEX_SPOT / CEX_USDT_FUTURES`，链上页只包含 `ONCHAIN_TOKEN`
-- 两个分页分别保存当前进程内的滚动位置和拖动状态；分页选择可在页面重建时恢复，但不跨冷启动持久化
-- 首页添加按钮和分类空状态入口会把当前市场模式传给搜索页；其他搜索入口仍默认进入交易所模式
-- 支持添加、删除和全局手动刷新；两个分页分别展示空状态，删除与悬浮窗选择继续复用原有行为
+- 首页为可点击、可左右滑动的“代币 / 地址追踪”两个分页，默认显示代币；代币页合并 `CEX_SPOT / CEX_USDT_FUTURES / ONCHAIN_TOKEN`，地址追踪页由独立的持久化地址列表驱动
+- 代币页保留滚动位置和拖动状态；分页选择可在页面重建时恢复，但不跨冷启动持久化
+- 代币页顶部加号默认打开交易所添加页，添加页仍可切到链上；地址追踪页加号打开手动添加地址弹框
+- 代币支持添加、删除和全局手动刷新，悬浮窗选择继续复用原有行为；地址追踪支持添加、改名、确认后取消追踪及手动刷新估值，两页分别展示空状态
 - 首页首屏会先等待本地数据回流，避免“先闪空态按钮、再切列表”
 - 首页现在只保留一套手动顺序源，不再区分名字排序、价格排序等模式
-- 首页支持整卡长按拖动排序，并支持置顶 / 取消置顶；置顶项固定排在普通项之前，拖动只调整当前市场分类及同一置顶分组内的相对顺序
+- 首页支持整卡长按拖动排序，并支持置顶 / 取消置顶；置顶项固定排在普通项之前，拖动调整交易所与链上合并列表中同一置顶分组内的相对顺序
 - 长按单个币对会弹出跟手快捷菜单，支持删除、置顶 / 取消置顶，以及加入或移出悬浮窗
-- 首页行情行采用紧凑密度：缩小主币对、价格、涨跌幅、来源标签和图标，并压缩行内间距与垂直内边距
-- 首页币对标题通过系统 URI 处理器打开外部行情页：Binance / OKX 使用持久化的真实 instrument ID，Binance Alpha 回退到官方 Alpha 行情目录，链上优先打开当前固定池的 DexScreener 页面，旧数据缺少池地址时回退到合约搜索
+- 首页按圆润蓝紫稿局部接入新主题：顶部品牌/加号添加入口、代币/地址追踪胶囊切换、固定白色圆角代币列表和悬浮盯盘配置状态条；币种图标 28dp，基础行最小 52dp，大字体或链上 CA 内容可自然撑开
+- 首页不再展示重点卡、自选数量标题或折线图；所有币种继续留在列表中排序，只有币种名称后的右上斜箭头打开外部行情。顶部仅保留加号添加入口；悬浮币对配置继续从悬浮窗设置进入
+- 首页金额和 24h 涨跌幅订阅原有报价状态，链上市值模式不再额外展示“市值”标签；价格/市值选择、缺失值与价格变化闪烁沿用原规则。CA 缩写与 14dp 复制图标同一行，间距 4dp，复制完整代币地址
+- 首页币对名称后的右上斜箭头通过系统 URI 处理器打开外部行情页：Binance / OKX 使用持久化的真实 instrument ID，Binance Alpha 回退到官方 Alpha 行情目录，链上优先打开当前固定池的 DexScreener 页面，旧数据缺少池地址时回退到合约搜索
 - 首页链上观察项在副信息行显示合约地址头尾缩写和复制按钮；复制操作写入完整纯文本 CA 并给出 Toast 反馈，交易所观察项不显示该入口
 - 首页价格继续保持实时显示，但实时价格更新已经从 Room 高频写回中拆出，改为走内存报价状态，降低大量 `WSS` 推送时的滚动抖动
 
 ### Search
+
+- 交易所与链上添加页采用局部设计配色，统一页面、输入框、结果卡片和选中状态；保留原字号、布局与查询/添加流程。
 
 - 支持关键字搜索
 - 页面顶部拆分为可点击、可左右滑动的“交易所 / 链上”两个模式；两个模式各自保存独立输入内容、加载状态和搜索结果
@@ -63,11 +67,12 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 
 ### Settings
 
-- 设置首页依次提供“通用设置”“钱包设置”“悬浮窗设置”。“通用设置”收纳外观模式、语言、“显示链上市值”和网络日志；其中市值开关通过 Preferences DataStore 全局持久化，由首页和前台悬浮服务共同观察，冷启动、Activity 重建与悬浮窗重建后保持一致，仅改变 `ONCHAIN_TOKEN` 的主数值展示。“钱包设置”复用 Activity 级 `WalletViewModel` 与既有钱包功能页面；管理和安全直接进入，备份先在独立选择页切换目标钱包，再进入既有备份流程，钱包页右上角菜单仍直接作用于当前钱包
+- 设置首页接入圆润蓝紫主题，顶部提供“浅色 / 深色 / 跟随系统”快捷选择，下方按“偏好与安全 / 盯盘与数据 / 应用”展示通用设置、钱包设置、悬浮窗设置、第三方 API 与关于入口。快捷外观通过 `SettingsViewModel.setThemeMode` 写入既有偏好，与“通用设置”的外观选项同步。
+- “通用设置”继续收纳外观模式、语言、“显示链上市值”和网络日志；其中市值开关通过 `AppPreferencesRepository` 全局持久化，由首页和前台悬浮服务共同观察，冷启动、Activity 重建与悬浮窗重建后保持一致，仅改变 `ONCHAIN_TOKEN` 的主数值展示。“钱包设置”复用 Activity 级 `WalletViewModel` 与既有钱包功能页面；管理和安全直接进入，备份先在独立选择页切换目标钱包，再进入既有备份流程，钱包页右上角菜单仍直接作用于当前钱包。二级设置页的布局本次不变。
 - 设置页新增独立 `AboutActivity`，沿用统一 Compose Activity 宿主、主题、语言和详情页转场
 - “关于”页通过 `BuildConfig.VERSION_NAME / VERSION_CODE` 读取当前构建版本，版本信息不在字符串资源中重复维护
 - 页面集中展示项目用途、作者 `baiyanwu`、GitHub 源码仓库、Apache-2.0 许可、Issues 反馈入口及行情风险说明；外部链接统一交由系统 URI 处理器打开
-- 关于页和设置入口均提供简体中文与英文资源；设置入口只展示“关于”标题，不附加重复副标题
+- 关于页和设置入口均提供简体中文与英文资源；设置首页入口展示“关于 CoinMonitor”及版本、许可与开源信息摘要，仍进入原有关于页。
 
 ### App Update Check
 
@@ -79,7 +84,7 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 ### K-line
 
 - K 线页、图表、指标设置、搜索回填和 AI 聊天实现仍保留在工程中，但当前不再作为底部导航或首页卡片点击入口暴露
-- `NavHost` 中仍保留 `Destinations.KLINE` route，用于后续恢复入口时复用既有实现；底部导航按“首页 / 钱包 / 浏览 / 设置”展示四个一级页面
+- `NavHost` 中仍保留 `Destinations.KLINE` route，用于后续恢复入口时复用既有实现；底部导航按“行情 / 热门 / 钱包 / 设置”展示四个一级页面，行情沿用 `home` route。“热门”使用按可见标签和前台生命周期加载的独立排行榜状态，详情见 [TRENDING.md](./TRENDING.md)。
 - 图表内核当前基于仓库内 vendored 的 `TradingView Lightweight Charts Android wrapper` 源码模块
 - 第三方图表源码当前直接放在 `third_party/lightweightlibrary`，应用不再依赖外部 `aar`，方便直接调试 wrapper 和内嵌 JS core
 - K 线数据统一走 `MarketKlineRepository`，交易所继续使用 `Binance / Binance Alpha / OKX`，链上池使用 `GeckoTerminal`
@@ -138,12 +143,13 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 - 当前最多允许选择 `10` 个共用悬浮窗币对；超过上限时会在入口页给出提示，限制值统一收口在 `OverlaySettings.MAX_SELECTABLE_ITEMS`。排列型和跑马灯型共用一份跨交易所/链上的 `overlayOrder`，再按各自 `maxItems` 截取前 N 项
 - 两种类型共用启用、锁定和币对选择，透明度、字体、展示数量和位置分别保存；排列型和跑马灯型的主体透明度都支持真实的 `0%–72%`，设置页只展示当前类型的专属配置
 - 两种主体透明度滑杆在拖动期间只更新设置页内的本地百分比，松手时才一次性写入 DataStore 并通知对应悬浮窗；避免连续拖动与跑马灯动画或排列型窗口刷新叠加造成卡顿。
-- 排列型默认最多显示 `5` 个币对，支持字体、左侧图标 / 名称、布局方向、左右吸附和隐藏边条等原有设置
+- 排列型默认最多显示 `5` 个币对，支持字体、左侧图标 / 名称、单 item 横向滚动、左右吸附和隐藏边条设置
 - 悬浮窗中的币种图标统一按圆形裁剪，和应用内列表的视觉语义保持一致
-- 排列型“吸附靠边”总开关下提供两个互斥模式：“仅吸附靠边”继续展示靠边价格面板，“彻底隐藏”只保留屏幕边缘唤出条
-- 彻底隐藏模式的唤出条使用主题色，透明度可在 `15%–100%` 范围连续调整，默认 `45%`
-- 点击唤出条时，边条先消失，价格区域按当前左右吸附方向滑入，并使用和“仅吸附靠边”完全相同的单项靠边轮播；自动收回时价格区域反向滑出，结束后才重新显示边条
-- 自动收回时间支持 `1–5 秒` 整秒选择，默认 `3 秒`；拖动悬浮窗期间会延后回收，避免定时器打断手势
+- 排列型“单 item 横向滚动”与“吸附靠边”为独立开关：前者开启时逐项横向轮播，关闭时竖向排列；后者只决定拖动松手后是否吸附至屏幕左侧或右侧
+- 开启“吸附靠边”后显示“隐藏成横条”的 `0–10 秒` 滑杆，每秒一档，默认 `0 秒` 表示永不隐藏；选择 `1–10 秒` 后，先展示内容，再按所选时间收起为边缘唤出条
+- 隐藏边条使用主题色，透明度可在 `15%–100%` 范围连续调整，默认 `45%`
+- 点击唤出条时，边条先消失，价格区域按当前左右吸附方向滑入，恢复当前选定的单 item 横向轮播或竖向排列，并重新计时；自动收回时价格区域反向滑出，结束后才重新显示边条
+- 隐藏时间滑杆拖动时只更新本地秒数预览，松手后保存；拖动悬浮窗期间暂停自动收回，松手后重新计时，避免定时器打断手势
 - 跑马灯使用 `MATCH_PARENT × WRAP_CONTENT` 的单行窗口，基础高度为 `32dp × fontScale`，X 固定为 `0`，Y 限制在可用屏幕纵向范围并独立持久化
 - 跑马灯默认最多显示全部 `10` 个已选币对；每项使用 `16dp` 圆形币种图标和在轨道创建时按当前价格格式独立测量、最大 `58dp` 的左对齐最新价列；图标左右内距与项末间距统一为 `4dp`，不显示 24 小时涨跌
 - 每个完整数据周期末尾插入一个宽度为项末间距两倍的低亮度圆点分隔槽；当前项末间距为 `4dp`，因此分隔槽为 `8dp`，圆点直径为 `3dp`。由于首项图标内距也为 `4dp`，圆点固定居中后到末项价格及下一轮首项图标的可见距离，均与普通 Item 之间的可见距离相同；分隔槽计入单周期宽度和动画位移，不破坏循环接缝
@@ -191,15 +197,27 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 - `DefaultWalletVaultRepository` 管理加密的多钱包保险库；`DefaultWalletNetworkSettingsRepository` 独立管理 Alchemy Key、动态 EVM 目录、启用网络与逐链 RPC，二者都拒绝在 Android 安全存储不可用时降级。
 - `DefaultSelfCustodyWalletRepository` 执行 `custom RPC > Alchemy RPC` 的交易节点路由；OKX Onchain Balance/Token API 是资产、价格、元数据与风险标记索引层，Alchemy Transfers 只保留为活动历史索引。缓存按 wallet ID 隔离。
 - 钱包刷新按 EVM 地址与 Solana 地址分别查询当前启用网络，并与 OKX 实时支持链取交集。OKX 整体失败时保留最后缓存；部分地址体系或不支持网络只记录到对应资产失败集合。活动索引失败保持独立，不会把正常空资产误报为错误。
-- 自托管钱包首次默认启用 Ethereum、BNB Chain、Robinhood Chain 与 Solana；网络栏复用观察地址页的紧凑编辑样式。停用网络会从持久化的启用列表移除并停止后续拉取，恢复入口统一放在钱包网络设置中。
+- 自托管钱包首次默认启用 Ethereum、BNB Chain、Robinhood Chain 与 Solana；网络胶囊打开可滚动的选择/编辑面板。停用网络会从持久化的启用列表移除并停止后续拉取，恢复入口统一放在钱包网络设置中。
 - 自托管钱包复用观察地址的总资产卡、紧凑资产行与 `AssetAmountFormatter`。默认隐藏估值小于 1 美元和 OKX 标记的风险资产；缺少可靠 Token 精度的资产可展示但不可进入转账流程。
 - 默认 EVM 网络元数据来自应用内种子与 `docs/wallet-evm-networks.json` 远程目录，使用 CAIP-2 风格 `eip155:<chainId>` 作为稳定标识；用户也可添加经 `eth_chainId` 验证的任意标准 EVM RPC。资产覆盖由 OKX 实时支持链决定，Alchemy Portfolio 标记不再控制资产可见性。
 - 原 `WalletWatchRoute` 由独立 `WalletWatchActivity` 承载；观察地址与自托管钱包复用 OKX 客户端实现和同一套加密凭证，但各自持有客户端实例，并保持独立模型、筛选与缓存。
 - 详细规则、构建凭证和验证边界见 [SELF_CUSTODY_WALLET.md](SELF_CUSTODY_WALLET.md)。
 
+## UI Design System
+
+- `CoinMonitorThemeTokens.design` 集中提供圆润蓝紫设计的语义颜色、尺寸、间距、字号、形状和动效时间，并沿用现有外观模式。
+- `CoinMonitorDesignTheme` 支持组件/页面局部迁移，统一转换 Material 与既有语义颜色；全局主题默认映射、未接入页面的布局和系统栏配置保持原样。
+- `CoinMonitorIcons` 集中管理通用图标；`CoinMonitorRoundedCard`、`CoinMonitorPillOption`、`CoinMonitorSmallIconButton`、`CoinMonitorNavigationRow` 和 `CoinMonitorPageHeader` 为不依赖仓库和 ViewModel 的基础控件，底部导航与设置首页已接入。
+- `CoinMonitorBottomBar` 接入四个主 Tab，使用圆角底盘、胶囊选中态、小点和统一描边图标，保留导航状态恢复及现有主 `Scaffold` 安全区传递。
+- 热门页已局部接入新设计，复用 `CoinMonitorPageTopBar` 和 `CoinMonitorSegmentedTabs`；`TrendingPresentation` 只整理实际筛选与完整缓存时间，`TrendingTokenRow` 处理紧凑行、真实来源标记、完整 CA 复制及大字体布局，数据请求和缓存策略仍由既有 ViewModel/仓库负责。详见 [TRENDING.md](./TRENDING.md)。
+- 首页进一步使用 `CoinMonitorListRow` 和 `CoinMonitorSparkline`；`WatchItemCard` 改为纯手势容器，真实行情订阅、CA 复制与数值展示集中在 `HomeMarketComponents`。四个主 Tab 均已接入；钱包通过 `CoinMonitorCompactListRow` 适配器复用同一列表布局，独立详情与二级设置样式后续逐页处理。
+- 完整颜色表、调用方式、组件边界与后续接入约定见 [UI_DESIGN_SYSTEM.md](./UI_DESIGN_SYSTEM.md)。
+
+- 钱包主页局部启用新主题，`WalletHomeComponents` 通过纯展示参数/回调接入共享卡片、胶囊与列表；金额汇总和地址适配位于 `WalletHomeDisplay`，业务操作仍由既有 `WalletViewModel` 处理。
+
 ## DApp Browser
 
-- `MainShell` 的浏览 destination 只渲染 `DappDiscoveryRoute`，MainActivity 不创建或持有 WebView。发现页由 `DappDiscoveryRepository` 读取 `res/raw/dapp_catalog_v1.json`，搜索历史通过 Room `dapp_search_history` 保存；点击目录条目或输入 HTTPS 地址后启动独立 `DappBrowserActivity`。
+- 底部“浏览”Tab 和 `MainShell` 的 `browser` destination 已移除；“钱包 → 更多 → DApp 浏览器”通过独立 `DappDiscoveryActivity` 接入，复用 `DappDiscoveryRoute`，由 `DappDiscoveryRepository` 读取 `res/raw/dapp_catalog_v1.json`，搜索历史通过 Room `dapp_search_history` 保存。独立 `DappBrowserActivity` 与热门页面现有调用继续保留；MainActivity 不创建或持有 WebView。
 - `DappBrowserActivity` 独占一个 `DappWebView` 与 `AndroidView` host，并在 Activity 销毁时统一释放。`DappBrowserRoute` 负责可编辑 HTTPS 地址栏、历史导航、加载进度和链图标菜单；返回键优先回退网页历史，没有网页历史时结束 Activity。这样浏览器渲染 surface、Provider 弹窗和网页生命周期不会进入 MainActivity 的 NavHost。
 - `DappWebView` 由 Activity 提前创建后再交给 Compose `AndroidView` 承载，因此自身必须显式使用 `MATCH_PARENT × MATCH_PARENT` 的原生布局参数，避免 Chromium 的布局 viewport 高度为 0，进而把依赖 `vh/dvh/svh/lvh` 的 DApp 底部弹层压缩掉。Provider document-start 注入仍在首次导航前完成。
 - AndroidX WebKit 通过 document-start script 与 web message listener 注入 Trust Web3 Provider `4.9.4`，不使用 `addJavascriptInterface`。浏览器对任意页面注册 Provider，但 WebView 仅允许 HTTPS 导航，原生消息入口只接受 HTTPS 主 frame，并按发起 origin 投递异步响应。最小 bootstrap 初始化 Trust Core/Ethereum Provider、建立原生回调、暴露标准 `window.ethereum`、Trust 兼容命名空间并发布 EIP-6963 Provider；EIP-6963 身份保持 CoinMonitor，图标在运行时从 Android 应用图标生成 PNG Data URI，并通过 Trust Provider 自带的 `setOverwriteMetamask(true)` 兼容旧版 MetaMask Connector，不注入 `window.metamask`、MetaMask 专属 API、`window.web3` 或页面 DOM/CSS 修补。内置目录只负责发现页展示，手输网址在导航前显示第三方风险提示。
@@ -294,13 +312,15 @@ Release 自动流程：
 
 - 首页长按快捷菜单挂在同一棵 Compose 树里渲染，不走独立 `PopupWindow`；菜单会先测量真实宽度，再按手指落点附近定位，并补一段轻量的入场动画。
 - 首页列表在 ViewModel 首次收到本地数据前会先展示加载态，避免把默认空列表误判为空页面。
-- 首页交易所和链上列表统一使用 Coil Compose 请求、解码并维护代币图标的内存与磁盘缓存；项目代码只提供代币图标、链图标和 Symbol 查询 URL 的回退顺序。非 Compose 原生悬浮窗继续使用 `CoinIconService` 位图缓存。
+- 首页和原生排列/跑马灯悬浮窗共用 Coil 单例请求、解码与内存/磁盘缓存；主图与链标使用独立来源，链上代币缺图显示首字母，交易所币种可查询符号 URL。`CoinIconService` 仅解析元数据 URL，不再维护 Bitmap 缓存。
 - 首页实时价格读取下沉到单行价格子树；每个 item 只订阅自己的 quote flow，避免任意一个币价变化时唤醒整屏可见项。
 - 首页与两种悬浮窗的文本币价统一经过 `QuoteFormatter.formatPrice`；悬浮窗只在 `formatOverlayPrice` 外层补充合约标识，不另做数字格式化。小数部分连续前导 0 达到 3 个时使用 Unicode 下标计数压缩，例如 `0.0001234` 显示为 `0.0₃1234`。
 - 观察钱包与自托管钱包的法币、Token 数量、Token 价格和网络费统一通过 `AssetAmountFormatter` 的 `BigDecimal` 规则显示；行情 `QuoteFormatter` 保持独立，因为其输入精度和极小价格展示语义不同。
 - 首页列表项手势统一收口在自定义 `awaitEachGesture` 流程里：点击、拖动和长按菜单共用一套状态机，避免多套手势监听互相抢占。
 - 首页拖动入口为整卡长按，交互时序为 `350ms` 进入拖动、`900ms` 弹出快捷菜单。
-- 首页与搜索页共用 `MarketModeTabs`；首页用 `HorizontalPager` 承载两个分类页面，并为每页维护独立的 `LazyListState` 和拖动状态。
+- 首页、搜索页、钱包与热门页共用 `MarketModeTabs`，支持任意非空标签列表，单项宽度不超过 `96dp` 且随可用宽度收缩；热门页用四页 `HorizontalPager`，首页用两个分类页面，并为每页维护独立的 `LazyListState` 和拖动状态。
+- 热门的数据请求由 `TrendingViewModel` 按当前标签和 STARTED 生命周期管理，`TrendingClient` 负责三来源请求、解析与最小请求间隔；`TrendingRules` 负责链/合约身份、交集、排序与 NEW。它独立于首页和悬浮窗的实时报价订阅。
+- `AppContainer` 持有 `TrendingSnapshotCache`，后台预读 `files/market_trending/cache-v1.json`；按来源/链/榜单模式/时间窗保存最多 64 个成功快照，同时保存完整交集、NEW 时间和来源冷却。`TrendingPreferences` 单独保存标签和筛选偏好，GMGN key 由 `GmgnCredentialsRepository` 加密保存并排除备份，均不写入榜单缓存。详见 [TRENDING.md](./TRENDING.md)。
 - 首页右下角币对操作菜单使用重叠的触发按钮和关闭按钮承接展开动画；两层按钮固定使用同一 `16dp` 圆角，避免关闭按钮变为纯圆后露出底层按钮四角。图标和容器颜色继续随展开进度过渡。
 - 搜索页、悬浮窗设置页、悬浮币对设置页和关于页使用独立 `Activity`，避免和主 `NavHost` 的底部导航、转场动画、窗口 inset 相互耦合。
 - 应用更新检查绑定主界面组合生命周期，每次主界面创建只请求一次；请求取消会继续向上抛出 `CancellationException`，普通网络或解析失败才静默忽略。
@@ -312,10 +332,11 @@ Release 自动流程：
 - 类型切换时协调器先同步移除旧类型窗口，再显示新类型；同类型行情更新不会重建窗口。
 - 悬浮窗”临时隐藏”建模为运行态，不落库；隐藏时立即 `removeViewImmediate`，保证原位置点击可以穿透到底层应用。
 - 标准悬浮窗行视图复用已有 `ImageView` / `TextView`，避免高频价格刷新时反复重建 leading 区域导致图标闪动。
-- 吸附侧边栏 ticker 做了图标 bitmap 复用和宽度按内容自适应，避免图标闪烁和右侧留白过宽。
+- 排列型悬浮窗的“单 item 横向滚动”和“吸附靠边”分别控制布局和位置，可组合为自由位置/靠边位置的横向轮播或竖向排列。单 item 轮播继续复用图标 bitmap，并按内容自适应宽度。
+- 开启吸附靠边后可通过整数秒滑杆设置“隐藏成横条”的时间：0–10 秒，0 秒表示永不隐藏。其余选项先展示内容，再延时收起为原有透明边缘唤出条。滑杆拖动时只更新本地预览，松手后写入配置，避免反复重置悬浮窗计时。点击唤出条恢复当前选定的横向轮播或竖向排列，并重新计时；拖动悬浮窗期间暂停收起，松手后重新计时。未开启吸附时不执行自动收起，锁定时仍可点击唤出条。
 - 悬浮窗图标在 `WindowManager` 视图层单独做圆形裁剪，保留外层定宽布局，避免改成圆形后把价格列对齐打乱。
-- 悬浮窗全部外观配置统一由 Preferences DataStore 管理：启停、锁定与类型为公共键；旧透明度、字体、数量、吸附方式、边条及坐标键继续作为排列型配置；跑马灯使用独立的透明度、字体、数量、速度和 Y 坐标键。在悬浮窗链路中，Room 管理币对实体、`overlaySelected` 选择状态和 `overlayOrder` 全局顺序，选择与顺序写入保持同一事务。
-- 旧边缘模式字符串 `TICKER` 兼容读取为排列型内部的 `DOCKED` 靠边轮播；跑马灯首次没有专属 Y 坐标时继承旧窗口 Y，仍不存在时使用 `180dp` 默认值。
+- 悬浮窗全部外观配置统一由 Preferences DataStore 管理：启停、锁定与类型为公共键；排列型单 item 滚动使用 `single_item_scroll`，自动收起时间使用 `edge_hide_delay_seconds`（0–10 的整数秒）；旧透明度、字体、数量、吸附、边条透明度及坐标键继续作为排列型配置；跑马灯使用独立的透明度、字体、数量、速度和 Y 坐标键。在悬浮窗链路中，Room 管理币对实体、`overlaySelected` 选择状态和 `overlayOrder` 全局顺序，选择与顺序写入保持同一事务。
+- 旧配置首次读取时，以旧吸附开关决定是否保留单 item 轮播；旧 `DOCKED` / `TICKER` 模式迁移为永不隐藏，旧 `HIDDEN_TAB` 模式保留原先 1–5 秒的自动收起时间；已经保存的新延时值按 0–10 秒读取。首次写入后保存独立的新键并移除旧边缘模式及旧延时键，此后切换吸附不会改变滚动布局或已选延时。跑马灯首次没有专属 Y 坐标时继承旧窗口 Y，仍不存在时使用 `180dp` 默认值。
 - 透明度范围升级后，旧配置中原先代表滑杆 `0%` 的 `0.16` 会一次性解释并保存为真实 `0`；新范围通过版本键区分，因此之后仍可准确保存 `0%–72%` 内的任意值。
 - 旧 `overlay_settings` 数据会先暂存并通过 `SharedPreferencesMigration` 一次性导入 DataStore；已经安装过旧 version 8 的开发包也会在 Room 打开前执行兼容导入。
 - 前台通知使用自定义 `RemoteViews` 内容布局，统一正文与操作按钮的对齐方式。
@@ -336,3 +357,18 @@ Release 自动流程：
 - 流式引擎内部对订阅集合做指纹比较，避免价格回流导致重复重建长连接。
 - vendored chart wrapper 关闭了 `WebView` 自身页面缩放，避免系统层缩放和图表手势混在一起。
 - vendored wrapper 生成产物直接提交 `src/main/assets/com/tradingview/lightweightcharts/scripts/app/main.js`，不执行 `npm run compile` 时也能直接构建运行。
+
+## 地址追踪持久化与导航
+
+- 缩写地址前按 `WalletAddressParser.classify` 展示本地 Solana/EVM 类别图标；EVM 使用以太坊菱形标记整个 EVM 地址类别，与 `chains` 中的具体网络及估值聚合保持独立。
+
+`AddressTrackingStore` 使用独立 SharedPreferences 保存公开地址、链索引和最近估值，通过 StateFlow 更新首页。EVM 的去重键为小写地址，Solana 保持原始大小写。估值直接复用钱包资产查询总值，不对同一地址的多个链重复添加总值；各链从非风险资产计算，并标记缺失价格。查询失败不覆盖已有数据。首页自动刷新只选取 `totalValueUsd` 为空的记录，已有值在页面切换时不请求网络；手动刷新可以请求全部。刷新按地址顺序执行并为每次查询设置超时，不增加定时轮询。
+
+`WalletWatchActivity` 接收地址与链入口参数，在 ViewModel 初始化时填入地址并触发原有查询，避免先恢复上次地址后再覆盖的竞态。指定链可以没有持仓；后续刷新保留用户当前选链。首页代币列表与拖动排序共用市场类型间的顺序。
+
+追踪记录分别保存 `sourceName`（FoMo 链接中原始 profile 用户名）和 `customName`（手动备注）。显示优先使用手动名称；来源名字随追踪传入，资产刷新不修改名称。新字段有默认值，旧 JSON 记录无需迁移即可读取；改名通过按规范化地址匹配更新，同一个 EVM 地址的所有链共用名称。
+
+
+## 首页与悬浮窗图标加载
+
+`watchItemIconModel` 统一首页和两种悬浮窗的来源策略。首页使用 Coil `AsyncImage`，原生排列/贴边轮播/跑马灯使用 `OverlayCoinIconView` 调用同一 `SingletonImageLoader`，共同使用 `coinIconRequest` 的尺寸、解码约束与缓存规则。主图与链标分别请求；链上代币不按同名符号猜图，缺失图片用简称首字母。`CoinIconService` 只解析交易所简称对应 URL，不再下载或手动缓存 Bitmap。原生宿主附着时开始请求，移除时取消，来源改变时验证绑定后再应用结果；报价更新不触发重复图标加载。

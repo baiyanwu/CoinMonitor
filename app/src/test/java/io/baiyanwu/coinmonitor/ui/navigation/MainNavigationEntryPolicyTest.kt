@@ -20,7 +20,7 @@ class MainNavigationEntryPolicyTest {
     }
 
     @Test
-    fun `wallet and browser are top level entries between home and settings`() {
+    fun `main navigation exposes market trending wallet and settings without browser`() {
         val source = readSource(
             rootRelativePath = "app/src/main/java/io/baiyanwu/coinmonitor/ui/navigation/CoinMonitorNavHost.kt",
             moduleRelativePath = "src/main/java/io/baiyanwu/coinmonitor/ui/navigation/CoinMonitorNavHost.kt"
@@ -28,22 +28,30 @@ class MainNavigationEntryPolicyTest {
 
         val homeIndex = source.indexOf("MainTab(Destinations.HOME")
         val walletIndex = source.indexOf("MainTab(Destinations.WALLET")
-        val browserIndex = source.indexOf("MainTab(Destinations.BROWSER")
+        val trendingIndex = source.indexOf("MainTab(Destinations.TRENDING")
         val settingsIndex = source.indexOf("MainTab(Destinations.SETTINGS")
 
         assertTrue(homeIndex >= 0)
-        assertTrue(walletIndex > homeIndex)
-        assertTrue(browserIndex > walletIndex)
-        assertTrue(settingsIndex > browserIndex)
+        assertTrue(trendingIndex > homeIndex)
+        assertTrue(walletIndex > trendingIndex)
+        assertTrue(settingsIndex > walletIndex)
+        assertTrue(source.contains("R.string.tab_market"))
+        assertTrue(source.contains("CoinMonitorBottomBar("))
         assertTrue(source.contains("composable(Destinations.WALLET)"))
-        assertTrue(source.contains("composable(Destinations.BROWSER)"))
+        assertTrue(source.contains("composable(Destinations.TRENDING)"))
+        assertFalse(source.contains("Destinations.BROWSER"))
+        assertFalse(source.contains("R.string.tab_browser"))
         assertTrue(source.contains("WalletRoute("))
-        assertTrue(source.contains("DappDiscoveryRoute("))
+        assertFalse(source.contains("DappDiscoveryRoute("))
+        // 热门中的独立浏览器调用仍有效；发现页不再占据主 Tab。
         assertTrue(source.contains("onOpenBrowser = onOpenDappBrowser"))
         assertFalse(source.contains("DappBrowserRoute("))
         assertFalse(source.contains("DappWebView("))
         assertFalse(source.contains("remember(context) { DappWebView(context) }"))
         assertFalse(source.contains("WalletWatchRoute("))
+        assertTrue(source.contains("saveState = true"))
+        assertTrue(source.contains("restoreState = true"))
+        assertTrue(source.contains("launchSingleTop = true"))
     }
 
     @Test

@@ -78,6 +78,29 @@ class ClipboardModelsTest {
         assertEquals("https://example.com/arb/$CA", custom.url(match))
     }
 
+    @Test fun newBuiltInDestinationsGenerateExactRoutesAndRejectUnsupportedNetworks() {
+        val sol = "So11111111111111111111111111111111111111112"
+        val solMatch = clipboardMatches(sol, listOf(testPair("solana", sol))).single()
+        val bscMatch = clipboardMatches(CA, listOf(testPair("bsc"))).single()
+        val destinations = clipboardDestinations().associateBy { it.id }
+        assertEquals("https://pump.fun/coin/$sol", destinations.getValue("pump").url(solMatch))
+        assertEquals("https://axiom.trade/token/$sol", destinations.getValue("axiom").url(solMatch))
+        for (id in listOf("pump", "axiom")) assertNull(destinations.getValue(id).url(bscMatch))
+        val expected = mapOf("ave" to "https://ave.ai/token/$CA-bsc",
+            "debot" to "https://debot.ai/token/bsc/$CA", "birdeye" to "https://birdeye.so/bsc/token/$CA")
+        expected.forEach { (id, url) -> assertEquals(url, destinations.getValue(id).url(bscMatch)) }
+        for ((chain, mapped) in mapOf("arc" to "arc", "ethereum" to "eth", "robinhood" to "robinhood")) {
+            val match = clipboardMatches(CA, listOf(testPair(chain))).single()
+            assertEquals("https://ave.ai/token/$CA-$mapped", destinations.getValue("ave").url(match))
+        }
+        for (id in listOf("ave", "debot", "birdeye")) {
+            assertNull(destinations.getValue(id).url(clipboardMatches(CA, listOf(testPair("arbitrum"))).single()))
+        }
+        assertEquals("https://ave.ai/token/$sol-sol", destinations.getValue("ave").url(solMatch))
+        assertEquals("https://debot.ai/token/solana/$sol", destinations.getValue("debot").url(solMatch))
+        assertEquals("https://birdeye.so/solana/token/$sol", destinations.getValue("birdeye").url(solMatch))
+    }
+
     @Test fun editedDexDestinationDoesNotUseDefaultPoolRoute() {
         val match = clipboardMatches(CA, listOf(testPair())).single()
         val destination = clipboardDestinations().first().copy(template = "https://example.com/{ca}")
@@ -97,6 +120,37 @@ class ClipboardModelsTest {
         )
         val match = clipboardMatches(CA, listOf(testPair().copy(info = pair.info))).single()
         assertEquals(listOf("twitter" to "https://x.com/token"), match.links)
+        assertEquals(ClipboardProjectLinkKind.X, match.projectLinks.single().kind)
+    }
+
+    @Test fun projectMetadataKeepsDistinctWebsiteDocsAndSocialRoles() {
+        val info = DexScreenerInfo(
+            websites = listOf(DexScreenerWebsite("Website", "https://example.com"), DexScreenerWebsite("Docs", "https://docs.example.com")),
+            socials = listOf(DexScreenerSocial(type = "twitter", url = "https://x.com/token"), DexScreenerSocial(type = "discord", url = "https://discord.gg/token"))
+        )
+        val match = clipboardMatches(CA, listOf(testPair().copy(info = info))).single()
+        assertEquals(listOf(ClipboardProjectLinkKind.WEBSITE, ClipboardProjectLinkKind.DOCUMENTS, ClipboardProjectLinkKind.X, ClipboardProjectLinkKind.DISCORD), match.projectLinks.map { it.kind })
+        assertEquals(info.websites.map { it.url } + info.socials.map { it.url }, match.projectLinks.map { it.url })
+        val quoteMatch = clipboardMatches(testPair().quoteToken.address, listOf(testPair().copy(info = info))).single()
+        assertTrue(quoteMatch.projectLinks.isEmpty())
+    }
+
+    @Test fun projectIconFallbackUsesExactPlatformHostsAndRetainsUnknownLinks() {
+        assertEquals(ClipboardProjectLinkKind.X, clipboardProjectLink(null, "https://www.twitter.com/token", false)?.kind)
+        assertEquals(ClipboardProjectLinkKind.DISCORD, clipboardProjectLink(null, "https://discord.com/invite/token", false)?.kind)
+        assertEquals(ClipboardProjectLinkKind.DOCUMENTS, clipboardProjectLink("Website", "https://example.com/docs", true)?.kind)
+        assertEquals(ClipboardProjectLinkKind.WEBSITE, clipboardProjectLink("Project name", "https://example.com", true)?.kind)
+        assertEquals(ClipboardProjectLinkKind.OTHER, clipboardProjectLink(null, "https://twitter.com.example.com/token", false)?.kind)
+        assertEquals(ClipboardProjectLinkKind.OTHER, clipboardProjectLink("telegram", "https://t.me/token", false)?.kind)
+        assertNull(clipboardProjectLink("Docs", "javascript:alert(1)", true))
+    }
+
+    @Test fun projectBlockRetainsUrlDeduplicationAcrossMetadataLists() {
+        val info = DexScreenerInfo(websites = listOf(DexScreenerWebsite("X", "https://x.com/token")),
+            socials = listOf(DexScreenerSocial(type = "twitter", url = "https://x.com/token")))
+        val match = clipboardMatches(CA, listOf(testPair().copy(info = info))).single()
+        assertEquals(1, match.projectLinks.size)
+        assertEquals("https://x.com/token", match.projectLinks.single().url)
     }
 
     @Test fun validatesDestinationTemplatesAndMappingRows() {
@@ -122,7 +176,7 @@ class ClipboardModelsTest {
 
     @Test fun panelMeasureUsesAvailableAndroidWindowInsteadOfDesktopFrame() {
         assertEquals(
-            ClipboardPanelMeasure(width = 210, maxHeight = 416),
+            ClipboardPanelMeasure(width = 210, maxHeight = 720),
             clipboardPanelMeasure(
                 availableWidth = 344,
                 availableHeight = 784,
@@ -132,7 +186,7 @@ class ClipboardModelsTest {
             )
         )
         assertEquals(
-            ClipboardPanelMeasure(width = 210, maxHeight = 520),
+            ClipboardPanelMeasure(width = 210, maxHeight = 900),
             clipboardPanelMeasure(
                 availableWidth = 1000,
                 availableHeight = 900,
@@ -142,7 +196,7 @@ class ClipboardModelsTest {
             )
         )
         assertEquals(
-            ClipboardPanelMeasure(width = 204, maxHeight = 416),
+            ClipboardPanelMeasure(width = 210, maxHeight = 720),
             clipboardPanelMeasure(
                 availableWidth = 304,
                 availableHeight = 784,

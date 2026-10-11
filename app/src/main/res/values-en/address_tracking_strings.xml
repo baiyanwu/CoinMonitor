@@ -1,0 +1,8 @@
+<resources>
+    <string name="address_unnamed">Unnamed address</string>
+    <string name="address_edit_name">Edit name</string>
+    <string name="address_name">Address name</string>
+    <string name="address_name_hint">Leave blank to use the FoMo name, or Unnamed address if no source name exists</string>
+    <string name="clipboard_fomo_reverse_enabled">Enable FoMo address lookup</string>
+    <string name="clipboard_fomo_reverse_hint">Recognize FoMo profile links in the clipboard and look up linked wallet addresses. Tap + beside an address to track it. Enabled by default; disabling this leaves regular address and token queries available.</string>
+</resources>

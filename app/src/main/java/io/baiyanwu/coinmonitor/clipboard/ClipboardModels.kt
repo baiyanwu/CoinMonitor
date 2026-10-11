@@ -13,7 +13,11 @@ import java.util.Locale
 data class ClipboardSettings(
     val enabled: Boolean = true,
     val addToFloating: Boolean = false,
-    val destinations: List<ClipboardDestination> = clipboardDestinations()
+    val destinations: List<ClipboardDestination> = clipboardDestinations(),
+    val valueMode: String = "price",
+    val aiQuestion: String? = null,
+    val destinationsVersion: Int = 0,
+    val fomoReverseLookupEnabled: Boolean = true
 )
 
 @Serializable
@@ -23,7 +27,10 @@ data class ClipboardDestination(
     val template: String,
     val enabled: Boolean = true,
     val chainValues: Map<String, String> = emptyMap(),
-    val chainTemplates: Map<String, String> = emptyMap()
+    val chainTemplates: Map<String, String> = emptyMap(),
+    val removedNetworkRules: Set<String> = emptySet(),
+    val sourceUrl: String? = null,
+    val iconUrl: String? = null
 ) {
     fun url(match: ClipboardMatch): String? {
         if (id == "dex" && template.isBlank()) {
@@ -31,7 +38,7 @@ data class ClipboardDestination(
         }
         val chain = match.chain.dexScreenerId
         val source = if (template.isBlank()) chainTemplates[chain] ?: return null else template
-        val chainValue = if (chainValues.isEmpty()) chain else chainValues[chain]
+        val chainValue = chainValues[chain]
         if (source.contains("{chain}") && chainValue == null) return null
         return safeClipboardUrl(source.replace("{ca}", encode(match.selection.tokenAddress))
             .replace("{chain}", encode(chainValue.orEmpty())))
@@ -52,8 +59,36 @@ fun clipboardDestinations(): List<ClipboardDestination> = listOf(
         "base" to "https://basescan.org/address/{ca}", "solana" to "https://solscan.io/account/{ca}",
         "robinhood" to "https://robinhoodchain.blockscout.com/address/{ca}")),
     ClipboardDestination("fomo", "Fomo", "https://fomo.family/tokens/{chain}/{ca}",
-        chainValues = mapOf("ethereum" to "ethereum", "bsc" to "bnb", "base" to "base", "solana" to "solana", "monad" to "monad", "robinhood" to "robinhood"))
+        chainValues = mapOf("ethereum" to "ethereum", "bsc" to "bnb", "base" to "base", "solana" to "solana", "monad" to "monad", "robinhood" to "robinhood")),
+    ClipboardDestination("pump", "Pump.fun", "", chainTemplates = mapOf("solana" to "https://pump.fun/coin/{ca}"),
+        iconUrl = "https://pump.fun/favicon.ico"),
+    ClipboardDestination("ave", "Ave.ai", "https://ave.ai/token/{ca}-{chain}",
+        chainValues = mapOf("arc" to "arc", "bsc" to "bsc", "ethereum" to "eth", "robinhood" to "robinhood", "solana" to "sol"),
+        iconUrl = "https://ave.ai/favicon.ico"),
+    ClipboardDestination("axiom", "Axiom", "", chainTemplates = mapOf("solana" to "https://axiom.trade/token/{ca}"),
+        iconUrl = "https://axiom.trade/favicon.ico"),
+    ClipboardDestination("debot", "Debot", "https://debot.ai/token/{chain}/{ca}",
+        chainValues = mapOf("bsc" to "bsc", "robinhood" to "robinhood", "solana" to "solana"),
+        iconUrl = "https://debot.ai/favicon.ico"),
+    ClipboardDestination("birdeye", "Birdeye", "https://birdeye.so/{chain}/token/{ca}",
+        chainValues = mapOf("bsc" to "bsc", "robinhood" to "robinhood", "solana" to "solana"),
+        iconUrl = "https://birdeye.so/favicon.ico")
 )
+
+/** Append this release's new defaults once, without restoring previously deleted sites. */
+internal fun migrateClipboardDestinations(settings: ClipboardSettings): ClipboardSettings {
+    if (settings.destinationsVersion >= 1) return settings
+    val addedIds = setOf("pump", "ave", "axiom", "debot", "birdeye")
+    val additions = clipboardDestinations().filter { default ->
+        default.id in addedIds && settings.destinations.none { existing ->
+            existing.id == default.id ||
+                default.template.isNotBlank() && existing.template == default.template ||
+                default.chainTemplates.isNotEmpty() && (existing.template in default.chainTemplates.values ||
+                    existing.chainTemplates == default.chainTemplates)
+        }
+    }
+    return settings.copy(destinations = settings.destinations + additions, destinationsVersion = 1)
+}
 
 fun safeClipboardUrl(value: String?): String? = value?.takeIf {
     runCatching {
@@ -67,18 +102,20 @@ private fun encode(value: String): String = URLEncoder.encode(value, "UTF-8").re
 object ClipboardAddressParser {
     private val pattern = Regex("(?<![A-Za-z0-9])(?:0x[0-9a-fA-F]{40}|[1-9A-HJ-NP-Za-km-z]{32,44})(?![A-Za-z0-9])")
     fun extract(text: String): List<String> = pattern.findAll(text.take(32_768))
-        .map { it.value }.distinctBy { if (it.startsWith("0x")) it.lowercase() else it }.take(10).toList()
+        .map { it.value }.filter { WalletAddressParser.classify(it) != null }
+        .distinctBy { if (it.startsWith("0x")) it.lowercase() else it }.take(10).toList()
 }
 
 data class ClipboardMatch(val chain: OnchainChain, val selection: SelectedDexPair) {
     val marketCap: Double? get() = selection.marketCap
     // DexScreener's info belongs to the base token, never to the quote token.
-    val links: List<Pair<String, String>> get() {
+    val links: List<Pair<String, String>> get() = projectLinks.map { it.label to it.url }
+    internal val projectLinks: List<ClipboardProjectLink> get() {
         if (selection.tokenSide != PoolTokenSide.BASE) return emptyList()
         val info = selection.pair.info ?: return emptyList()
-        return (info.websites.mapNotNull { link -> safeClipboardUrl(link.url)?.let { (link.label ?: "Website") to it } } +
-            info.socials.mapNotNull { link -> safeClipboardUrl(link.url)?.let { (link.type ?: link.platform ?: "Social") to it } })
-            .distinctBy { it.second }.take(8)
+        return (info.websites.mapNotNull { clipboardProjectLink(it.label, it.url, website = true) } +
+            info.socials.mapNotNull { clipboardProjectLink(it.type ?: it.platform, it.url, website = false) })
+            .distinctBy { it.url }.take(8)
     }
 
     fun watchItem(addToFloating: Boolean, now: Long = System.currentTimeMillis()): WatchItem {

@@ -4,17 +4,25 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import androidx.compose.foundation.border
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.DeleteOutline
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.DragHandle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.AwaitPointerEventScope
@@ -31,6 +39,11 @@ import io.baiyanwu.coinmonitor.R
 import io.baiyanwu.coinmonitor.ui.CoinMonitorComposeActivity
 import io.baiyanwu.coinmonitor.ui.navigation.DetailPageTransitions
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
+import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorDesignTheme
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.material.icons.rounded.ChevronRight
 import java.util.UUID
 
 class ClipboardSettingsActivity : CoinMonitorComposeActivity() {
@@ -58,7 +71,7 @@ class ClipboardSettingsActivity : CoinMonitorComposeActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ClipboardSettingsScreen(store: ClipboardSettingsStore, onBack: () -> Unit) {
+private fun ClipboardSettingsScreen(store: ClipboardSettingsStore, onBack: () -> Unit) = CoinMonitorDesignTheme {
     val colors = CoinMonitorThemeTokens.colors
     val settings by store.settings.collectAsState()
     var editing by remember { mutableStateOf<ClipboardDestination?>(null) }
@@ -86,6 +99,14 @@ private fun ClipboardSettingsScreen(store: ClipboardSettingsStore, onBack: () ->
                     Text(stringResource(R.string.clipboard_enabled_hint), style = MaterialTheme.typography.bodySmall)
                 }
             }
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(14.dp)) {
+                    ClipboardSwitch(stringResource(R.string.clipboard_fomo_reverse_enabled), settings.fomoReverseLookupEnabled) { value ->
+                        store.update { it.copy(fomoReverseLookupEnabled = value) }
+                    }
+                    Text(stringResource(R.string.clipboard_fomo_reverse_hint), style = MaterialTheme.typography.bodySmall)
+                }
+            }
             Text(stringResource(R.string.clipboard_sites), style = MaterialTheme.typography.titleMedium)
             Text(stringResource(R.string.clipboard_sites_hint), style = MaterialTheme.typography.bodySmall)
             Row {
@@ -109,6 +130,14 @@ private fun ClipboardSettingsScreen(store: ClipboardSettingsStore, onBack: () ->
                     current.copy(destinations = current.destinations.filterNot { it.id == site.id })
                 } }
             )
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(12.dp)) {
+                    var question by remember(settings.aiQuestion) { mutableStateOf(settings.aiQuestion.orEmpty()) }
+                    OutlinedTextField(value = question, onValueChange = { question = it }, label = { Text(stringResource(R.string.clipboard_ai_question)) }, modifier = Modifier.fillMaxWidth())
+                    TextButton(onClick = { store.update { it.copy(aiQuestion = question) } }) { Text(stringResource(R.string.clipboard_save)) }
+                    TextButton(onClick = { store.update { it.copy(aiQuestion = null) } }) { Text(stringResource(R.string.clipboard_ai_restore)) }
+                }
+            }
             Spacer(Modifier.height(12.dp))
         }
     }
@@ -255,21 +284,23 @@ private fun ClipboardDestinationRow(
     Card(modifier.fillMaxWidth().graphicsLayer { translationY = dragOffsetY }) {
         Column(Modifier.padding(horizontal = 12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(position.toString(), Modifier.width(24.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(site.name, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-                TextButton(
-                    onClick = onEdit,
-                    modifier = Modifier.height(36.dp),
-                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)
-                ) { Text(stringResource(R.string.clipboard_edit), style = MaterialTheme.typography.labelMedium) }
-                TextButton(
-                    onClick = onDelete,
-                    modifier = Modifier.height(36.dp),
-                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)
-                ) { Text(stringResource(R.string.clipboard_delete), style = MaterialTheme.typography.labelMedium) }
+                ClipboardSiteIcon(site.id, iconUrl = site.iconUrl)
+                Spacer(Modifier.width(8.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(site.name, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text(stringResource(R.string.clipboard_site_network_count, (site.chainValues.keys + site.chainTemplates.keys).size), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                IconButton(onClick = onEdit) { Icon(Icons.Rounded.ChevronRight, stringResource(R.string.clipboard_edit), Modifier.size(18.dp)) }
+                var menu by remember { mutableStateOf(false) }
+                Box {
+                    IconButton(onClick = { menu = true }) { Icon(Icons.Rounded.MoreVert, stringResource(R.string.clipboard_more), Modifier.size(18.dp)) }
+                    DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                        DropdownMenuItem(text = { Text(stringResource(R.string.clipboard_delete)) }, onClick = { menu = false; onDelete() })
+                    }
+                }
                 Switch(checked = site.enabled, onCheckedChange = onEnabledChange)
                 Box(
-                    modifier = Modifier.size(40.dp)
+                    modifier = Modifier.size(48.dp)
                         .semantics { contentDescription = dragDescription }
                         .pointerInput(site.id) {
                             awaitEachGesture {
@@ -316,26 +347,138 @@ private suspend fun AwaitPointerEventScope.awaitClipboardDragDown(): PointerInpu
 
 @Composable
 private fun ClipboardDestinationEditor(site: ClipboardDestination, onDismiss: () -> Unit, onSave: (ClipboardDestination) -> Unit) {
-    var name by remember { mutableStateOf(site.name) }
-    var template by remember { mutableStateOf(site.template) }
-    var mapping by remember { mutableStateOf(site.chainValues.entries.joinToString("\n") { "${it.key}=${it.value}" }) }
-    var templates by remember { mutableStateOf(site.chainTemplates.entries.joinToString("\n") { "${it.key}=${it.value}" }) }
-    val candidate = runCatching { site.copy(name = name.trim(), template = template.trim(),
-        chainValues = clipboardMapping(mapping), chainTemplates = clipboardMapping(templates)) }.getOrNull()
-    val valid = candidate != null && validClipboardDestination(candidate)
-    AlertDialog(onDismissRequest = onDismiss, title = { Text(stringResource(R.string.clipboard_edit_site)) }, text = {
-        Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text(stringResource(R.string.clipboard_site_name)) }, singleLine = true)
-            OutlinedTextField(value = template, onValueChange = { template = it }, label = { Text(stringResource(R.string.clipboard_site_template)) })
-            Text(stringResource(R.string.clipboard_template_hint), style = MaterialTheme.typography.bodySmall)
-            OutlinedTextField(value = mapping, onValueChange = { mapping = it }, label = { Text(stringResource(R.string.clipboard_chain_mapping)) })
-            OutlinedTextField(value = templates, onValueChange = { templates = it }, label = { Text(stringResource(R.string.clipboard_chain_templates)) })
-            Text(stringResource(R.string.clipboard_mapping_hint), style = MaterialTheme.typography.bodySmall)
-            if (!valid) Text(stringResource(R.string.clipboard_invalid_site), color = MaterialTheme.colorScheme.error)
+    val sample = "0x0000000000000000000000000000000000000001"
+    var source by remember { mutableStateOf(site.sourceUrl ?: site.template.ifBlank { site.chainTemplates.values.firstOrNull().orEmpty() }
+        .replace("{ca}", sample).replace("{chain}", site.chainValues.values.firstOrNull() ?: "ethereum")) }
+    var draft by remember { mutableStateOf(site.copy(sourceUrl = site.sourceUrl ?: source.takeIf { safeClipboardUrl(it) != null })) }
+    var valid by remember { mutableStateOf(validClipboardDestination(site)) }
+    var nameEdited by remember { mutableStateOf(site.name.isNotBlank()) }
+    var outcome by remember { mutableStateOf<ClipboardWebsiteRecognition.Outcome?>(null) }
+    var customNetwork by remember { mutableStateOf("") }
+    val recognize: (String?) -> Unit = { selected ->
+        val result = ClipboardWebsiteRecognition.recognize(source, draft.copy(name = if (nameEdited) draft.name else ""), selected)
+        outcome = result
+        if (result is ClipboardWebsiteRecognition.Outcome.Recognized) { draft = result.result.destination; valid = true }
+        else valid = false
+    }
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 24.dp), contentAlignment = Alignment.Center) {
+            Surface(Modifier.widthIn(max = 560.dp).fillMaxWidth().heightIn(max = maxHeight),
+                shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surface) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(stringResource(R.string.clipboard_edit_site), style = MaterialTheme.typography.titleMedium)
+                    Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            CompactWebsiteField(source, { source = it; valid = false; outcome = null },
+                                stringResource(R.string.clipboard_site_source_link), Modifier.weight(1f))
+                            Box(Modifier.width(72.dp).heightIn(min = 48.dp), contentAlignment = Alignment.Center) {
+                                TextButton(onClick = { recognize(null) }, contentPadding = PaddingValues(horizontal = 8.dp)) {
+                                    Text(stringResource(R.string.clipboard_site_recognize), style = MaterialTheme.typography.labelMedium)
+                                }
+                            }
+                        }
+                        when (val result = outcome) {
+                            ClipboardWebsiteRecognition.Outcome.Invalid -> Text(stringResource(R.string.clipboard_site_invalid_link),
+                                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                            ClipboardWebsiteRecognition.Outcome.NoAddress -> Text(stringResource(R.string.clipboard_site_no_address),
+                                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                            is ClipboardWebsiteRecognition.Outcome.Ambiguous -> {
+                                Text(stringResource(R.string.clipboard_site_choose_address), style = MaterialTheme.typography.bodySmall)
+                                result.addresses.forEach { address -> TextButton(onClick = { recognize(address) }) { Text(shortClipboardAddress(address)) } }
+                            }
+                            else -> Unit
+                        }
+                        if (valid) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                CompactWebsiteField(draft.name, { draft = draft.copy(name = it); nameEdited = true },
+                                    stringResource(R.string.clipboard_site_name), Modifier.weight(1f))
+                                Box(Modifier.width(72.dp).heightIn(min = 48.dp), contentAlignment = Alignment.Center) {
+                                    ClipboardSiteIcon(draft.id, iconUrl = draft.iconUrl, size = 24.dp)
+                                }
+                            }
+                            val perChain = draft.template.isBlank() && (draft.chainTemplates.isNotEmpty() || draft.removedNetworkRules.isNotEmpty())
+                            if (draft.template.contains("{chain}") || perChain) {
+                                Text(stringResource(R.string.clipboard_site_network_rules), style = MaterialTheme.typography.labelLarge)
+                                val rows = if (perChain) draft.chainTemplates else draft.chainValues
+                                rows.forEach { (chain, mapped) ->
+                                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        Text(chain, Modifier.width(76.dp), style = MaterialTheme.typography.bodySmall,
+                                            maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                        CompactWebsiteField(
+                                            if (perChain) mapped.replace("{ca}", ClipboardAddressParser.extract(source).firstOrNull() ?: sample) else mapped,
+                                            { value ->
+                                                if (perChain) {
+                                                    val ca = ClipboardAddressParser.extract(value).singleOrNull()
+                                                    draft = draft.copy(chainTemplates = draft.chainTemplates + (chain to if (ca != null) value.replace(ca, "{ca}") else value), removedNetworkRules = draft.removedNetworkRules - chain)
+                                                } else draft = draft.copy(chainValues = draft.chainValues + (chain to value), removedNetworkRules = draft.removedNetworkRules - chain)
+                                            }, stringResource(if (perChain) R.string.clipboard_site_source_link else R.string.clipboard_site_route_name),
+                                            Modifier.weight(1f), showLabel = false, descriptionPrefix = chain)
+                                        CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 36.dp) {
+                                            IconButton(onClick = {
+                                                draft = if (perChain) draft.copy(chainTemplates = draft.chainTemplates - chain, removedNetworkRules = draft.removedNetworkRules + chain)
+                                                    else draft.copy(chainValues = draft.chainValues - chain, removedNetworkRules = draft.removedNetworkRules + chain)
+                                            }, modifier = Modifier.size(36.dp)) {
+                                                Icon(Icons.Rounded.DeleteOutline, "$chain · ${stringResource(R.string.clipboard_delete)}", Modifier.size(20.dp))
+                                            }
+                                        }
+                                    }
+                                }
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    CompactWebsiteField(customNetwork, { customNetwork = it }, stringResource(R.string.clipboard_site_new_network), Modifier.weight(1f))
+                                    IconButton(enabled = customNetwork.trim().matches(Regex("[a-z0-9_-]+")) && customNetwork.trim() !in rows,
+                                        onClick = {
+                                            val key = customNetwork.trim()
+                                            draft = if (perChain) draft.copy(chainTemplates = draft.chainTemplates + (key to ""), removedNetworkRules = draft.removedNetworkRules - key)
+                                                else draft.copy(chainValues = draft.chainValues + (key to key), removedNetworkRules = draft.removedNetworkRules - key)
+                                            customNetwork = ""
+                                        }, modifier = Modifier.size(48.dp)) {
+                                        Icon(Icons.Rounded.Add, stringResource(R.string.clipboard_site_add_network), Modifier.size(20.dp))
+                                    }
+                                }
+                            }
+                            Text(stringResource(R.string.clipboard_site_preview), style = MaterialTheme.typography.labelMedium)
+                            Text((if (draft.template.isNotBlank()) draft.template else draft.chainTemplates.values.firstOrNull().orEmpty())
+                                .replace("{ca}", ClipboardAddressParser.extract(source).firstOrNull() ?: sample)
+                                .replace("{chain}", draft.chainValues.values.firstOrNull().orEmpty()),
+                                style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                    HorizontalDivider()
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                        TextButton(onClick = onDismiss) { Text(stringResource(R.string.clipboard_cancel)) }
+                        TextButton(enabled = valid && validClipboardDestination(draft), onClick = { onSave(draft.copy(name = draft.name.trim())) }) {
+                            Text(stringResource(R.string.clipboard_save))
+                        }
+                    }
+                }
+            }
         }
-    }, confirmButton = {
-        TextButton(enabled = valid, onClick = { candidate?.let(onSave) }) { Text(stringResource(R.string.clipboard_save)) }
-    }, dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.clipboard_cancel)) } })
+    }
+}
+
+@Composable
+private fun CompactWebsiteField(value: String, onValueChange: (String) -> Unit, label: String,
+    modifier: Modifier = Modifier, showLabel: Boolean = true, descriptionPrefix: String = "") {
+    var focused by remember { mutableStateOf(false) }
+    val colors = MaterialTheme.colorScheme
+    BasicTextField(value, onValueChange, singleLine = true, textStyle = MaterialTheme.typography.bodyMedium.copy(color = colors.onSurface),
+        cursorBrush = SolidColor(colors.primary),
+        modifier = modifier.heightIn(min = if (showLabel) 44.dp else 36.dp).onFocusChanged { focused = it.isFocused }
+            .semantics { contentDescription = listOf(descriptionPrefix, label).filter(String::isNotBlank).joinToString(" · ") }
+            .border(1.dp, if (focused) colors.primary else colors.outlineVariant, RoundedCornerShape(8.dp)),
+        decorationBox = { input ->
+            Column(Modifier.padding(horizontal = 10.dp, vertical = 4.dp), verticalArrangement = Arrangement.Center) {
+                if (showLabel) Text(label, style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Box {
+                    if (value.isEmpty() && !showLabel) Text(label, style = MaterialTheme.typography.bodySmall,
+                        color = colors.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    input()
+                }
+            }
+        })
 }
 
 internal fun clipboardMapping(value: String): Map<String, String> {
@@ -353,5 +496,5 @@ internal fun validClipboardDestination(site: ClipboardDestination): Boolean {
     fun validTemplate(value: String): Boolean = safeClipboardUrl(value.replace("{ca}", "sample").replace("{chain}", "ethereum")) != null
     return site.name.isNotBlank() && site.chainValues.values.all { it.matches(Regex("[A-Za-z0-9_-]+")) } &&
         site.chainTemplates.values.all(::validTemplate) &&
-        (if (site.template.isNotBlank()) validTemplate(site.template) else site.id == "dex" || site.chainTemplates.isNotEmpty())
+        (if (site.template.isNotBlank()) validTemplate(site.template) else site.id == "dex" || site.chainTemplates.isNotEmpty() || site.removedNetworkRules.isNotEmpty() && safeClipboardUrl(site.sourceUrl) != null)
 }

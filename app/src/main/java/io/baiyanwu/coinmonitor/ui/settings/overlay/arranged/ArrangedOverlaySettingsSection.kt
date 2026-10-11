@@ -7,9 +7,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -22,7 +19,6 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.baiyanwu.coinmonitor.R
-import io.baiyanwu.coinmonitor.domain.model.ArrangedEdgeDisplayMode
 import io.baiyanwu.coinmonitor.domain.model.ArrangedOverlaySettings
 import io.baiyanwu.coinmonitor.domain.model.OverlayLeadingDisplayMode
 import io.baiyanwu.coinmonitor.domain.model.OverlaySettings
@@ -48,7 +44,7 @@ internal fun ArrangedOverlaySettingsSection(
     onLeadingDisplayModeChange: (OverlayLeadingDisplayMode) -> Unit,
     onFontScaleChange: (Float) -> Unit,
     onSnapToEdgeChange: (Boolean) -> Unit,
-    onEdgeDisplayModeChange: (ArrangedEdgeDisplayMode) -> Unit,
+    onSingleItemScrollChange: (Boolean) -> Unit,
     onEdgeTabOpacityChange: (Float) -> Unit,
     onEdgeAutoCollapseSecondsChange: (Int) -> Unit
 ) {
@@ -162,7 +158,15 @@ internal fun ArrangedOverlaySettingsSection(
             endLabel = stringResource(R.string.common_max_count)
         )
 
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            OverlaySettingSwitchRow(
+                title = stringResource(R.string.overlay_single_item_scroll),
+                subtitle = stringResource(R.string.overlay_single_item_scroll_hint),
+                checked = settings.singleItemScroll,
+                horizontalPadding = 0.dp,
+                verticalPadding = 0.dp,
+                onCheckedChange = onSingleItemScrollChange
+            )
             OverlaySettingSwitchRow(
                 title = stringResource(R.string.overlay_snap_to_edge),
                 subtitle = stringResource(R.string.overlay_snap_to_edge_hint),
@@ -171,79 +175,88 @@ internal fun ArrangedOverlaySettingsSection(
                 verticalPadding = 0.dp,
                 onCheckedChange = onSnapToEdgeChange
             )
-            ArrangedEdgeModeSelector(
-                selectedMode = settings.edgeDisplayMode,
-                edgeTabOpacity = settings.edgeTabOpacity,
-                edgeAutoCollapseSeconds = settings.edgeAutoCollapseSeconds,
-                enabled = settings.snapToEdge,
-                onModeSelected = onEdgeDisplayModeChange,
-                onEdgeTabOpacityChange = onEdgeTabOpacityChange,
-                onEdgeAutoCollapseSecondsChange = onEdgeAutoCollapseSecondsChange
-            )
+            if (settings.snapToEdge) {
+                ArrangedHiddenEdgeOptions(
+                    edgeTabOpacity = settings.edgeTabOpacity,
+                    edgeAutoCollapseSeconds = settings.edgeAutoCollapseSeconds,
+                    onEdgeTabOpacityChange = onEdgeTabOpacityChange,
+                    onEdgeAutoCollapseSecondsChange = onEdgeAutoCollapseSecondsChange
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun ArrangedEdgeModeSelector(
-    selectedMode: ArrangedEdgeDisplayMode,
+private fun ArrangedHiddenEdgeOptions(
     edgeTabOpacity: Float,
     edgeAutoCollapseSeconds: Int,
-    enabled: Boolean,
-    onModeSelected: (ArrangedEdgeDisplayMode) -> Unit,
     onEdgeTabOpacityChange: (Float) -> Unit,
     onEdgeAutoCollapseSecondsChange: (Int) -> Unit
 ) {
-    val options = listOf(
-        ArrangedEdgeDisplayMode.DOCKED to stringResource(R.string.overlay_edge_display_docked),
-        ArrangedEdgeDisplayMode.HIDDEN_TAB to stringResource(R.string.overlay_edge_display_hidden_tab)
-    )
     val colors = CoinMonitorThemeTokens.colors
     val normalizedOpacity = edgeTabOpacity.coerceIn(
         ArrangedOverlaySettings.MIN_EDGE_TAB_OPACITY,
         ArrangedOverlaySettings.MAX_EDGE_TAB_OPACITY
     )
-    val normalizedSeconds = edgeAutoCollapseSeconds.coerceIn(
-        ArrangedOverlaySettings.MIN_EDGE_AUTO_COLLAPSE_SECONDS,
-        ArrangedOverlaySettings.MAX_EDGE_AUTO_COLLAPSE_SECONDS
-    )
-    val modeHint = if (selectedMode == ArrangedEdgeDisplayMode.HIDDEN_TAB) {
-        stringResource(R.string.overlay_edge_display_hidden_tab_hint, normalizedSeconds)
-    } else {
-        stringResource(R.string.overlay_edge_display_docked_hint)
+    var hideDelaySeconds by remember(edgeAutoCollapseSeconds) {
+        mutableFloatStateOf(
+            ArrangedOverlaySettings.normalizeEdgeAutoCollapseSeconds(
+                edgeAutoCollapseSeconds
+            ).toFloat()
+        )
     }
+    val normalizedSeconds = hideDelaySeconds.roundToInt()
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(start = 12.dp, top = 4.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-            options.forEachIndexed { index, (mode, label) ->
-                SegmentedButton(
-                    selected = selectedMode == mode,
-                    onClick = { onModeSelected(mode) },
-                    enabled = enabled,
-                    shape = SegmentedButtonDefaults.itemShape(index, options.size),
-                    modifier = Modifier.weight(1f),
-                    label = { Text(label) }
-                )
-            }
-        }
-        Text(modeHint, style = MaterialTheme.typography.bodySmall, color = colors.secondaryText)
-        if (selectedMode == ArrangedEdgeDisplayMode.HIDDEN_TAB) {
+        Text(
+            stringResource(
+                R.string.overlay_edge_hide_delay_format,
+                if (normalizedSeconds == 0) stringResource(R.string.overlay_edge_hide_never)
+                else stringResource(R.string.overlay_edge_hide_seconds, normalizedSeconds)
+            ),
+            style = MaterialTheme.typography.titleSmall
+        )
+        Slider(
+            value = hideDelaySeconds,
+            onValueChange = { hideDelaySeconds = it },
+            onValueChangeFinished = {
+                onEdgeAutoCollapseSecondsChange(hideDelaySeconds.roundToInt())
+            },
+            valueRange = ArrangedOverlaySettings.MIN_EDGE_AUTO_COLLAPSE_SECONDS.toFloat()..
+                ArrangedOverlaySettings.MAX_EDGE_AUTO_COLLAPSE_SECONDS.toFloat(),
+            steps = ArrangedOverlaySettings.MAX_EDGE_AUTO_COLLAPSE_SECONDS -
+                ArrangedOverlaySettings.MIN_EDGE_AUTO_COLLAPSE_SECONDS - 1,
+            colors = CoinMonitorComponentDefaults.sliderColors()
+        )
+        OverlaySliderEndpoints(
+            startLabel = stringResource(R.string.overlay_edge_hide_never),
+            endLabel = stringResource(
+                R.string.overlay_edge_hide_seconds,
+                ArrangedOverlaySettings.MAX_EDGE_AUTO_COLLAPSE_SECONDS
+            )
+        )
+        if (normalizedSeconds > 0) {
+            Text(
+                stringResource(R.string.overlay_edge_display_hidden_tab_hint, normalizedSeconds),
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.secondaryText
+            )
             Text(
                 stringResource(
                     R.string.overlay_edge_tab_opacity_format,
                     (normalizedOpacity * 100).roundToInt()
                 ),
                 style = MaterialTheme.typography.titleSmall,
-                color = if (enabled) colors.primaryText else colors.secondaryText
+                color = colors.primaryText
             )
             Slider(
                 value = normalizedOpacity,
                 onValueChange = onEdgeTabOpacityChange,
-                enabled = enabled,
                 valueRange = ArrangedOverlaySettings.MIN_EDGE_TAB_OPACITY..
                     ArrangedOverlaySettings.MAX_EDGE_TAB_OPACITY,
                 colors = CoinMonitorComponentDefaults.sliderColors()
@@ -251,24 +264,6 @@ private fun ArrangedEdgeModeSelector(
             OverlaySliderEndpoints(
                 stringResource(R.string.overlay_edge_tab_opacity_min),
                 stringResource(R.string.overlay_edge_tab_opacity_max)
-            )
-            Text(
-                stringResource(R.string.overlay_edge_auto_collapse_delay_format, normalizedSeconds),
-                style = MaterialTheme.typography.titleSmall,
-                color = if (enabled) colors.primaryText else colors.secondaryText
-            )
-            Slider(
-                value = normalizedSeconds.toFloat(),
-                onValueChange = { onEdgeAutoCollapseSecondsChange(it.roundToInt()) },
-                enabled = enabled,
-                valueRange = ArrangedOverlaySettings.MIN_EDGE_AUTO_COLLAPSE_SECONDS.toFloat()..
-                    ArrangedOverlaySettings.MAX_EDGE_AUTO_COLLAPSE_SECONDS.toFloat(),
-                steps = 3,
-                colors = CoinMonitorComponentDefaults.sliderColors()
-            )
-            OverlaySliderEndpoints(
-                stringResource(R.string.overlay_edge_auto_collapse_delay_min),
-                stringResource(R.string.overlay_edge_auto_collapse_delay_max)
             )
         }
     }

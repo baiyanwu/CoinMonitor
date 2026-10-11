@@ -2,18 +2,40 @@
 
 底部“钱包”页是本机自托管热钱包。首次默认启用 Ethereum、BNB Chain、Robinhood Chain 和 Solana Mainnet；Base、Arbitrum、Optimism、Polygon 等目录网络可由用户继续启用。Solana 是固定网络；EVM 网络由可更新目录与用户自定义 RPC 动态扩展，不要求每增加一条标准 EVM 链就发布新版 App。
 
+## 钱包主页 UI
+
+- 使用通用蓝紫局部主题和 14dp 页面边距；小标题、钱包选择卡、余额卡、分组资产/活动列表和观察地址快捷卡采用紧凑圆角布局。币种图标 28dp，资产行最小 52dp；长文案和大字体允许撑开。
+- 钱包选择卡展示当前网络的地址并支持复制；全网络模式优先展示该钱包支持的 EVM 地址，没有 EVM 时展示 Solana 地址。切换钱包及增加钱包沿用现有 ViewModel 和独立详情导航。
+- “可见资产估值”沿用风险/小额过滤后的全网络汇总，与下面列表的网络筛选独立；展示支持网络数、可见资产数和真实快照更新时间。金额保持 BigDecimal；未加载或全部无法估值时显示“—”，已加载的空结果显示零，部分无法估值会明确提示数量。
+- 眼睛按钮隐藏/显示主页余额、资产估值/数量与活动金额；该显示状态只保留于当前主页会话。刷新、显示筛选、网络/API 配置及钱包管理/备份/安全位于“更多”，下拉刷新继续有效。
+- 网络选择与收款网络面板的具体网络行按 Chain ID 显示对应链图标，本地图标优先，其余使用既有链图标来源；“所有网络”仍使用集合图标。
+- 网络胶囊打开可滚动的选择面板，支持全部网络、单个网络、移除已启用网络和进入既有网络管理。收款按钮先选择网络，再进入既有收款页面；转账继续进入既有签名/广播流程。
+- 资产/活动保留各自滚动位置和横向滑动切换。后台刷新或恢复缓存期间不清空已有快照；全网络模式也展示失败网络提示。图表和第三方 Provider、密码/生物识别、备份安全策略未调整。
+
+2026-10-10 主页校对：顶部复用通用标题栏及白色操作按钮；资产/活动采用单一滑动胶囊和 280ms 横滑，连续点击取消旧任务，停稳后同步 Tab。钱包内容 Tab 切换只修改 `contentTab`，不调用刷新；相邻页面预组合使用已有公开快照。网络筛选与收款选择面板使用统一紧凑行，保留全部/单网络选择、编辑移除及管理入口。资产估值/活动金额列统一 110dp，大字体、窄屏或长金额改到下一行，不截断金额；未验证、不可转账、未知估值及活动状态仍显示。提示/空列表采用无阴影卡片，日期和未变资产的筛选/汇总避免因切换重复计算。规则及预览范围见 [UI_DESIGN_SYSTEM.md](./UI_DESIGN_SYSTEM.md#钱包主页校对2026-10-10)。
+
+本轮 322 个单元测试、Debug 静态检查（无错误，166 条警告）与构建通过；确认变体、包名、证书和版本兼容后，同签名 Debug 1.0.13/13 已覆盖安装至 Seeker 并保留数据。安装后停止设备操作，未执行钱包界面、密码、生物识别、转账或签名验证；组件 Preview 通过编译，不等同于实际渲染或手机视觉验收。构建/安装记录保留在 `app/build/ui-review/wallet-20261010-142840/`。
+
+同日用户解锁并要求检查活动页后，按原始实屏调整区块间距，紧凑按钮采用 40dp 可见底盘/48dp 点击区，活动记录恢复两行主体文字并去掉每行圆形箭头底盘。当时观察地址快捷卡位于资产列表末尾及更多菜单；后续 2026-10-11 调整为资产/活动共用的固定底部入口（详见下文），入口仍打开原 `WalletWatchActivity`。详细诊断见 [UI_DESIGN_SYSTEM.md](./UI_DESIGN_SYSTEM.md#钱包解锁实屏反馈修正2026-10-10)。当前只确认修改前的实屏问题，修正后的观感需重新解锁后验收。
+
+修正版通过 322 个测试与 Debug 静态检查/构建，并同签名覆盖安装。用户重新解锁后已截图复核资产页及活动页；上述区块间隔、两行活动和观察地址位置在本机浅色常规字号下生效。原图和构建/安装记录保留于 `app/build/ui-review/wallet-live-20261010-154459/`。仅执行一次活动 Tab 导航，未操作钱包资金/设置或录制动效；此记录不替代用户对观感的验收。
+
+2026-10-11 UI 反馈修正：资产与活动共用固定圆角白色 Surface，内部 LazyColumn 保留独立滚动位置、稳定条目 ID 和内容类型；取消行间分割线，内容首尾各留 8dp。切换胶囊直接跟随分页位置，普通按钮保留单层原生涟漪。Seeker 实际检查资产短列表和活动往返滚动，圆角保持固定；6 项隔离 UI 回归覆盖钱包两页和热门四页的滚动裁剪。主页可截图，导入和备份页防截屏逻辑保留；未执行转账或签名。最终 UI 交付与验证边界见 [UI_DESIGN_SYSTEM.md](./UI_DESIGN_SYSTEM.md#当前交付与用户确认2026-10-11)。
+
 ## 能力边界
 
 - 助记词钱包使用一组 12 词 BIP39 助记词，派生首个 EVM 地址和首个 Solana 地址。
 - 原始私钥导入按密钥体系选择 `EVM` 或 `Solana`。EVM 私钥派生出的同一地址适用于全部已启用 EVM 网络；Solana 私钥只用于 Solana，不把 ETH、BNB Chain、Base 等 EVM 网络拆成重复钱包。
 - 支持多钱包创建、助记词/原始私钥导入、唯一命名、切换、备份、删除、收款与转账。
 - “设置 → 钱包设置”复用钱包页右上角菜单中的钱包管理、备份钱包和安全设置功能；钱包管理与安全设置直接进入既有页面，备份钱包会先要求选择目标钱包。钱包页右上角三个原入口继续保留，并直接作用于当前钱包。
-- 支持 EVM 原生币与 ERC20、SOL 与 SPL Token。资产详情仍可通过系统浏览器打开 Uniswap“兑换”和 OKX Bridge“跨链桥”；底部“浏览”页提供本地 DApp 目录，选择条目或确认手输 HTTPS 地址后，在独立 Activity 的受限 WebView 中注入 EIP-1193 Provider。浏览器开放连接钱包、账户/Chain ID、网络切换、只读 RPC、标准 EVM 交易、`personal_sign`、原始 `eth_sign`、EIP-712 V3/V4，以及经原生确认的网络和 ERC20 Token 添加请求。
+- 支持 EVM 原生币与 ERC20、SOL 与 SPL Token。资产详情仍可通过系统浏览器打开 Uniswap“兑换”和 OKX Bridge“跨链桥”；底部“浏览”Tab 已移除，DApp 入口位于“钱包 → 更多 → DApp 浏览器”。独立 Activity 的受限 WebView 和 EIP-1193 Provider 保留，开放连接钱包、账户/Chain ID、网络切换、只读 RPC、标准 EVM 交易、`personal_sign`、原始 `eth_sign`、EIP-712 V3/V4，以及经原生确认的网络和 ERC20 Token 添加请求。
 - Trust Wallet Core 负责密钥、地址、App 内转账及 DApp 交易/消息的本地签名；Trust Web3 Provider 只负责浏览页的 JavaScript Provider 协议层，不接触助记词或私钥。OKX Onchain API 负责发现资产、聚合余额、价格、Token 元数据和风险标记；Alchemy 或用户配置的 RPC 负责交易前链上余额校验、手续费、广播和状态查询。
 
 ## 网络模式
 
-在“设置 → 第三方 API 设置”配置并启用 OKX Onchain API 后，自托管钱包使用同一套本机加密凭证查询资产。再在“钱包网络”填写 Alchemy API Key，应用会为目录中带 Alchemy 节点映射的网络自动组成交易 RPC 地址，用户不需要逐条填写。网络管理页可以启用或停用目录中的网络，也可以手动刷新由仓库维护的 EVM 网络目录。
+在“设置 → 第三方 API 设置”配置并启用 OKX Onchain API 后，自托管钱包使用同一套本机加密凭证查询资产。再在“Alchemy key”填写 Alchemy API Key，应用会为目录中带 Alchemy 节点映射的网络自动组成交易 RPC 地址，用户不需要逐条填写。网络管理页可以启用或停用目录中的网络，也可以手动刷新由仓库维护的 EVM 网络目录。
+
+第三方 API 设置中的凭证区块依次为 OKX、GMGN、Alchemy key；三个区块均提供“去申请Key”按钮，分别打开 [OKX Developer Portal](https://web3.okx.com/onchainos/dev-portal)、[GMGN API 申请页](https://gmgn.ai/ai)和 [Alchemy Dashboard](https://dashboard.alchemy.com/)。Alchemy key 区块保留网络管理与自定义 RPC 功能，钱包的网络设置入口直接定位到该区块。
 
 Alchemy 尚未收录或目录尚未更新的标准 EVM 网络，可以直接填写名称、Chain ID、原生币符号、浏览器地址和 RPC 添加。自定义 EVM 网络立即进入网络列表，不依赖发版；保存前必须通过 `eth_chainId` 验证。单条网络也可以覆盖为自建或第三方 RPC，自定义 RPC 永远优先于 Alchemy RPC。Solana 自定义节点仍验证 Mainnet genesis hash。
 
@@ -47,13 +69,13 @@ OKX 失败时应用保留最后一次资产缓存，不会改用另一套聚合�
 
 ## 资产详情与活动
 
-点击资产行先进入对应资产详情，不再直接进入转账表单。详情页展示当前网络、余额、估值以及“收款 / 转账 / 兑换 / 跨链桥”四个入口：收款和转账使用 App 内现有流程；兑换仅对 Uniswap 已支持的 EVM 网络开放，并通过系统浏览器打开 `app.uniswap.org`；跨链桥通过系统浏览器打开 OKX Bridge。这两个系统浏览器快捷入口不会获得本机助记词、私钥或签名能力；只有底部“浏览”页启动的独立 DApp 浏览器才提供受原生确认保护的 Web3 Provider。
+点击资产行先进入对应资产详情，不再直接进入转账表单。详情页展示当前网络、余额、估值以及“收款 / 转账 / 兑换 / 跨链桥”四个入口：收款和转账使用 App 内现有流程；兑换仅对 Uniswap 已支持的 EVM 网络开放，并通过系统浏览器打开 `app.uniswap.org`；跨链桥通过系统浏览器打开 OKX Bridge。这两个系统浏览器快捷入口不会获得本机助记词、私钥或签名能力；App 内独立 DApp 浏览器提供受原生确认保护的 Web3 Provider，钱包中的入口位于“更多 → DApp 浏览器”。
 
-详情页交易历史与钱包“活动”页使用同一份 Alchemy + 本地交易数据，不额外混入 OKX 历史接口。EVM 按合约地址、Solana 按 Mint、原生币按网络和 Symbol 精确过滤，不用 Symbol 猜测同名 Token。活动列表与资产列表复用紧凑字号；资产/活动分页复用首页 ViewPager 样式，各自保留滚动位置。
+详情页交易历史与钱包“活动”页使用同一份 Alchemy + 本地交易数据，不额外混入 OKX 历史接口。EVM 按合约地址、Solana 按 Mint、原生币按网络和 Symbol 精确过滤，不用 Symbol 猜测同名 Token。钱包主页活动与资产列表使用通用紧凑字号与圆角分组卡片；资产/活动使用胶囊选项与 HorizontalPager，各自保留滚动位置。独立资产详情继续复用既有操作和交易历史流程。
 
 ## DApp 浏览器
 
-底部“浏览”页是 Compose DApp 发现页，不再直接承载 WebView。发现页从随 APK 打包的版本化 JSON 读取常用 DApp，支持本地搜索、分类筛选和 Room 搜索历史；选择条目或输入 HTTPS 地址后启动独立 `DappBrowserActivity`。该 Activity 单独持有 `DappWebView`、地址栏、网页历史、链选择和 Provider 确认，不与 MainActivity 的 NavHost 或底部导航共享 WebView 生命周期。
+底部“浏览”Tab 和对应主导航发现页 route 已移除。“钱包 → 更多 → DApp 浏览器”打开 `DappDiscoveryActivity`，复用 Compose 发现页和本地数据：从随 APK 打包的版本化 JSON 读取常用 DApp，支持本地搜索、分类筛选和 Room 搜索历史。选择 DApp 或确认手输 HTTPS 地址后再打开独立浏览器。独立 `DappBrowserActivity` 及热门页面现有调用继续保留；该 Activity 单独持有 `DappWebView`、地址栏、网页历史、链选择和 Provider 确认，不与 MainActivity 的 NavHost 或底部导航共享 WebView 生命周期。
 
 内置目录只负责推荐、分类、图标和默认打开地址，不参与钱包权限判定。浏览器内任意 HTTPS 主页面都能发现 Provider；EIP-6963 始终以 CoinMonitor 身份公布，钱包选择器图标从 Android 应用图标实时生成，并调用 Trust Provider 自带的 `setOverwriteMetamask(true)` 兼容只识别旧版 MetaMask Connector 的 DApp，但不注入 `window.metamask` 或伪造 MetaMask 专属 API。用户手动输入网址时先显示第三方网站风险提示，网页请求账户时再按实际 origin 展示连接确认。原生桥拒绝 iframe 与非 HTTPS 来源，Provider 响应也绑定发起请求的 origin，页面跳转后不会把旧请求结果投递给新站点。不使用 `addJavascriptInterface`，禁止 HTTP 导航、混合内容、文件访问与内容 URI 访问，也不会绕过 TLS 错误。只读 RPC 通过现有 `custom RPC > Alchemy RPC` 路由和统一 `OkHttpClient` 转发，并使用显式方法白名单。
 
@@ -87,7 +109,7 @@ gpr.key=YOUR_CLASSIC_PAT_WITH_READ_PACKAGES
 
 ## 观察地址隔离
 
-右上角“观察地址”打开原 `WalletWatchActivity`。旧 OKX 查询、最后地址、隐藏链/资产、小额与风险过滤、缓存及 OKX 凭证均复用原实现；该页面没有转账入口，也不会读取或合并本地钱包。
+钱包主页底部“观察地址”小块固定在资产/活动分页区域之外，与行情页“悬浮盯盘”使用相同的圆角、48dp 最小高度与页面边距；不会随资产列表滚动，资产和活动页共用入口。点击仍打开原 `WalletWatchActivity`，右上角更多菜单入口保留。旧 OKX 查询、最后地址、隐藏链/资产、小额与风险过滤、缓存及 OKX 凭证均复用原实现；该页面没有转账入口，也不会读取或合并本地钱包。
 
 ## 主要代码
 
@@ -108,6 +130,10 @@ ui/wallet/WalletRoute.kt
 ```
 
 ## 验证
+
+2026-10-09 钱包主页 UI 改造：304 个 App Debug 单元测试通过；静态检查无错误（166 条警告）；Debug 构建完成，并在确认签名和构建类型匹配后覆盖安装至 Seeker，安装包 SHA-256 与产物一致。提供浅色/深色/大字体组件 Preview，未启动 App 或执行实体机视觉、签名、转账验收。
+
+同日，用户再次安装后手动查看并确认钱包主页 UI 可接受。签名/主网转账仍未执行验收。
 
 必须先配置 Wallet Core GitHub Packages 只读凭证，再运行：
 
