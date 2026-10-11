@@ -177,9 +177,9 @@ private fun TokenResult(state: ClipboardPanelState, settings: ClipboardSettings,
     if (state.chartLoading || state.chartUnavailable) state.holderCount?.let { Text(stringResource(R.string.clipboard_holders_description, it), style = MaterialTheme.typography.bodySmall) }
     if (state.matches.size > 1) NetworkPicker(match.chain.chainIndex, state.matches.map { it.chain.chainIndex to it.chain.displayName }) { value -> state.matches.firstOrNull { it.chain.chainIndex == value }?.let(state::chooseChain) }
     HorizontalDivider()
-    val entries = settings.destinations.filter { it.enabled }.map { SiteLink(it.name, it.url(match), it.id, it.iconUrl) } +
-        match.links.sortedBy { (label, _) -> if (label.lowercase() in setOf("website", "site")) 0 else 1 }.map { SiteLink(it.first, it.second) }
+    val entries = settings.destinations.filter { it.enabled }.map { SiteLink(it.name, it.url(match), it.id, it.iconUrl) }
     LinkGrid(entries, match.chain.dexScreenerId, onOpen)
+    ProjectLinks(match.projectLinks, onOpen)
     val question = settings.aiQuestion ?: stringResource(R.string.clipboard_ai_default_question)
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         ClipboardTextButton(onClick = { onOpen(clipboardAIPromptUrl("gpt", match, question)) }, modifier = Modifier.weight(1f)) { Text("GPT") }
@@ -319,6 +319,45 @@ internal fun NetworkPicker(selected: String?, options: List<Pair<String, String>
 }
 
 private data class SiteLink(val name: String, val url: String?, val id: String = "", val iconUrl: String? = null)
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+private fun ProjectLinks(links: List<ClipboardProjectLink>, onOpen: (String) -> Unit) {
+    if (links.isEmpty()) return
+    Surface(color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(10.dp)) {
+        Row(Modifier.fillMaxWidth().padding(4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(stringResource(R.string.clipboard_project_links), style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 4.dp))
+            FlowRow(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                links.sortedBy { it.kind.ordinal }.forEach { link ->
+                    val label = when (link.kind) {
+                        ClipboardProjectLinkKind.WEBSITE -> stringResource(R.string.clipboard_project_website)
+                        ClipboardProjectLinkKind.DOCUMENTS -> stringResource(R.string.clipboard_project_docs)
+                        ClipboardProjectLinkKind.X -> "X"
+                        ClipboardProjectLinkKind.DISCORD -> "Discord"
+                        ClipboardProjectLinkKind.OTHER -> link.label
+                    }
+                    val description = "$label · ${java.net.URI(link.url).host}"
+                    TooltipBox(positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                        tooltip = { PlainTooltip { Text(description) } }, state = rememberTooltipState()) {
+                        ClipboardIconButton(onClick = { onOpen(link.url) }) {
+                            when (link.kind) {
+                                ClipboardProjectLinkKind.X -> Text("X", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.semantics { contentDescription = description })
+                                ClipboardProjectLinkKind.DISCORD -> Image(painterResource(R.drawable.clipboard_logo_discord), description, Modifier.size(18.dp))
+                                else -> Icon(when (link.kind) {
+                                    ClipboardProjectLinkKind.WEBSITE -> Icons.Rounded.Language
+                                    ClipboardProjectLinkKind.DOCUMENTS -> Icons.Rounded.Description
+                                    else -> Icons.Rounded.Link
+                                }, description, Modifier.size(18.dp))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun LinkGrid(links: List<SiteLink>, chain: String, onOpen: (String) -> Unit) {
     links.chunked(2).forEach { entries -> Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {

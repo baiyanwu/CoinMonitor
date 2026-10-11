@@ -24,6 +24,9 @@
     <string name="clipboard_chart_source">GeckoTerminal · USD</string>
     <string name="clipboard_chart_now">Now</string>
     <string name="clipboard_projects">Project</string>
+    <string name="clipboard_project_links">Project links</string>
+    <string name="clipboard_project_website">Website</string>
+    <string name="clipboard_project_docs">Docs</string>
     <string name="clipboard_holders_description">%1$d holders</string>
     <string name="clipboard_action_failed">Unable to save. Try again.</string>
     <string name="clipboard_open_failed">Unable to open this link.</string>

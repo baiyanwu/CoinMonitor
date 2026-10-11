@@ -79,12 +79,13 @@ object ClipboardAddressParser {
 data class ClipboardMatch(val chain: OnchainChain, val selection: SelectedDexPair) {
     val marketCap: Double? get() = selection.marketCap
     // DexScreener's info belongs to the base token, never to the quote token.
-    val links: List<Pair<String, String>> get() {
+    val links: List<Pair<String, String>> get() = projectLinks.map { it.label to it.url }
+    internal val projectLinks: List<ClipboardProjectLink> get() {
         if (selection.tokenSide != PoolTokenSide.BASE) return emptyList()
         val info = selection.pair.info ?: return emptyList()
-        return (info.websites.mapNotNull { link -> safeClipboardUrl(link.url)?.let { (link.label ?: "Website") to it } } +
-            info.socials.mapNotNull { link -> safeClipboardUrl(link.url)?.let { (link.type ?: link.platform ?: "Social") to it } })
-            .distinctBy { it.second }.take(8)
+        return (info.websites.mapNotNull { clipboardProjectLink(it.label, it.url, website = true) } +
+            info.socials.mapNotNull { clipboardProjectLink(it.type ?: it.platform, it.url, website = false) })
+            .distinctBy { it.url }.take(8)
     }
 
     fun watchItem(addToFloating: Boolean, now: Long = System.currentTimeMillis()): WatchItem {

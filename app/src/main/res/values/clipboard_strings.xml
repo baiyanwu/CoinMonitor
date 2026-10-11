@@ -24,6 +24,9 @@
     <string name="clipboard_chart_source">GeckoTerminal · USD</string>
     <string name="clipboard_chart_now">更新时</string>
     <string name="clipboard_projects">项目</string>
+    <string name="clipboard_project_links">项目链接</string>
+    <string name="clipboard_project_website">官网</string>
+    <string name="clipboard_project_docs">文档</string>
     <string name="clipboard_holders_description">持仓人数 %1$d</string>
     <string name="clipboard_action_failed">保存失败，请重试。</string>
     <string name="clipboard_open_failed">无法打开此链接。</string>
