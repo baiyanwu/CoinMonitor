@@ -25,6 +25,25 @@ class FomoProfileResolverTest {
         error("unreachable")
     }
 
+    @Test fun displayNameUsesOriginalProfilePathInsteadOfIndexedTranslatedName() = runBlocking {
+        val resolver = FomoProfileResolver { request ->
+            if (request.method == "GET") profile().let { indexed ->
+                JsonObject(indexed + ("profile" to obj("""{"handle":"example","name":"翻译后的名字"}""")))
+            } else {
+                val buffer = Buffer(); request.body!!.writeTo(buffer)
+                when (obj(buffer.readUtf8())["method"]!!.jsonPrimitive.content) {
+                    "eth_getTransactionReceipt" -> buildJsonObject { put("result", receipt()) }
+                    "eth_getBlockByNumber" -> obj("""{"result":{"timestamp":"0x64"}}""")
+                    "eth_getCode" -> obj("""{"result":"0xef0100e6cae83bde06e4c305530e199d7217f42808555b"}""")
+                    else -> error("Unexpected RPC")
+                }
+            }
+        }
+        val result = resolver.resolve(FomoProfileLink("ExAmPlE"))
+        assertEquals("ExAmPlE", result.name)
+        assertEquals(owner, result.evm?.address)
+    }
+
     @Test fun acceptsOnlyActualProfileHostsAndUniqueHandles() {
         assertEquals("example", FomoProfileLink.extract("Copied: https://fomo.family/profile/example?x=1")?.handle)
         for (url in listOf("https://fomo.family.evil.com/profile/example", "https://evil.com/fomo.family/profile/example", "https://fomo.family@evil.com/profile/example", "https://fomo.family:443/profile/example", "https://fomo.family/profile/example/extra", "@example")) assertNull(url, FomoProfileLink.extract(url))

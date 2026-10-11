@@ -63,7 +63,7 @@ internal class FomoProfileResolver(
         val trades = indexed.rows("trades").take(15).mapNotNull(Trade::parse)
         val sol = async { family(trades.filter { it.network == SOLANA_NETWORK }, true) }
         val evm = async { family(trades.filter { it.network in EVM_RPC }, false) }
-        val result = FomoProfileWallets(profile.string("handle")!!, profile.string("name")?.takeIf { it.isNotBlank() } ?: link.handle,
+        val result = FomoProfileWallets(profile.string("handle")!!, link.handle,
             sol.await().evidence, evm.await().evidence, avatarUrl(profile.string("avatar")))
         coroutineContext.ensureActive()
         if (result.solana == null && result.evm == null) throw FomoProfileException(if (sol.await().unavailable || evm.await().unavailable) FomoFailure.UNAVAILABLE else FomoFailure.NO_EVIDENCE)

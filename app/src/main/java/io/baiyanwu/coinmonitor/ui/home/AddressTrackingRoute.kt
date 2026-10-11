@@ -50,7 +50,7 @@ internal class AddressTrackingViewModel(private val container: AppContainer) : V
         val chain = if (WalletAddressParser.classify(address) == WalletAddressKind.SOLANA) "501" else "1"
         val alreadyTracked = entries.value.any { trackedAddressKey(it.address) == trackedAddressKey(address) }
         container.addressTrackingStore.track(address, chain)
-        if (alreadyTracked) refresh(listOf(address))
+        if (alreadyTracked && entries.value.firstOrNull { trackedAddressKey(it.address) == trackedAddressKey(address) }?.totalValueUsd.isNullOrBlank()) refresh(listOf(address))
     }
 
     fun rename(address: String, name: String) = container.addressTrackingStore.rename(address, name)
@@ -59,6 +59,8 @@ internal class AddressTrackingViewModel(private val container: AppContainer) : V
         queued.remove(address)
         container.addressTrackingStore.remove(address)
     }
+
+    fun refreshMissingEstimates() = refresh(addressesMissingEstimate(entries.value))
 
     private val queued = linkedSetOf<String>()
 
@@ -101,8 +103,8 @@ internal fun AddressTrackingRoute(container: AppContainer, showAdd: Boolean = fa
     var editingName by rememberSaveable { mutableStateOf("") }
     var removing by remember { mutableStateOf<TrackedAddress?>(null) }
     val design = CoinMonitorThemeTokens.design
-    // Query on entry / newly tracked addresses / credentials becoming available, never on recomposition or expansion.
-    LaunchedEffect(entries.map { trackedAddressKey(it.address) }, credentials.isReady) { vm.refresh() }
+    // Retain saved estimates on entry; query only addresses that have no estimate.
+    LaunchedEffect(entries.map { trackedAddressKey(it.address) }, credentials.isReady) { vm.refreshMissingEstimates() }
     Column(Modifier.fillMaxSize().padding(horizontal = design.spacing.pageHorizontal)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             TextButton(onClick = { adding = true }) { Text(stringResource(R.string.address_add)) }
@@ -129,7 +131,7 @@ internal fun AddressTrackingRoute(container: AppContainer, showAdd: Boolean = fa
                             }.padding(4.dp)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(entry.displayName ?: stringResource(R.string.address_unnamed), maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis, style = design.typography.rowTitle, modifier = Modifier.weight(1f))
+                                        overflow = TextOverflow.Ellipsis, style = design.typography.rowTitle, modifier = Modifier.weight(1f, fill = false))
                                     IconButton(onClick = { editingAddress = entry.address; editingName = entry.displayName.orEmpty() }, modifier = Modifier.size(28.dp)) {
                                         Icon(Icons.Rounded.Edit, stringResource(R.string.address_edit_name), modifier = Modifier.size(16.dp))
                                     }
@@ -192,3 +194,6 @@ internal fun AddressTrackingRoute(container: AppContainer, showAdd: Boolean = fa
         dismissButton = { TextButton(onClick = { removing = null }) { Text(stringResource(R.string.common_cancel)) } }
     ) }
 }
+
+internal fun addressesMissingEstimate(entries: List<TrackedAddress>): List<String> =
+    entries.filter { it.totalValueUsd.isNullOrBlank() }.map { it.address }
