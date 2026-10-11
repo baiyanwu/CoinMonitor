@@ -24,7 +24,8 @@ class TrendingPreferences(context: Context) {
             period = value("period")?.takeIf { it in TrendingOptions.periods(source) } ?: "5m",
             sort = TrendingSort.entries.firstOrNull { it.name == value("sort") } ?: TrendingSort.DEFAULT,
             ascending = value("ascending") == "true",
-            value = TrendingValue.entries.firstOrNull { it.name == value("value") } ?: TrendingValue.MARKET_CAP
+            value = TrendingValue.entries.firstOrNull { it.name == value("value") } ?: TrendingValue.MARKET_CAP,
+            pumpChainIndex = value("pump_chain")?.takeUnless { it == "all" }
         )
     }
     fun save(source: TrendingSource, options: TrendingOptions) = save(source.name, options)
@@ -32,7 +33,7 @@ class TrendingPreferences(context: Context) {
     private fun save(prefix: String, options: TrendingOptions) {
         val fields = mapOf("chain" to (options.chain?.name ?: "all"), "mode" to options.mode.name,
             "period" to options.period, "sort" to options.sort.name,
-            "ascending" to options.ascending.toString(), "value" to options.value.name)
+            "pump_chain" to (options.pumpChainIndex ?: "all"), "ascending" to options.ascending.toString(), "value" to options.value.name)
         preferences.edit().apply { fields.forEach { (field, value) -> putString("${prefix}_$field", value) } }.apply()
     }
 }

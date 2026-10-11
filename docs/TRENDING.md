@@ -20,7 +20,7 @@ Android 底部导航顺序为“行情 / 热门 / 钱包 / 设置”，“热门
 - 2026-10-11 最终布局：圆角榜单白块保持固定，条目在内部滚动，取消行间分割线。白块内的固定底行左侧显示结果数量，右侧显示“更新于 … · USD”，两者同一行；无成功快照时首次结果提示只在左侧展示。“手动刷新”提示文字移除，顶部刷新按钮保留。Seeker 原始截图与文字边界已核对，用户确认当前展示没有问题；记录在 `app/build/ui-review/trending-inline-footer-seeker-20261011-131258/`。
 
 - 页面局部使用 `CoinMonitorDesignTheme`，沿用浅色/深色/跟随系统偏好。顶部为小字号品牌/页面标题和小图标按钮；“共同 / GMGN / PumpFun / OKX”采用胶囊标签，保留点击与左右滑动。
-- 来源数量、链/时间窗筛选摘要、更新时间和刷新状态分开显示。独立来源使用自己的实际筛选；共同来源链或时间窗不同、或包含没有时间窗的 PumpFun 时显示“独立筛选”，不照抄设计图里的 Solana/24h 示例。共同榜单等待其他来源时不显示已成功更新或零交集；刷新失败后更新时间对应正在保留的完整共同快照。
+- 来源数量、链/时间窗筛选摘要、更新时间和刷新状态分开显示。独立来源使用自己的实际筛选；共同来源链或时间窗不同、或包含 PumpFun 时显示“独立筛选”，不照抄设计图里的 Solana/24h 示例。共同榜单等待其他来源时不显示已成功更新或零交集；刷新失败后更新时间对应正在保留的完整共同快照。
 - 榜单收进圆角卡片：两位排名、28dp 币种图标、链徽标、真实来源色点、缩写 CA、市值/价格和涨跌/流动性。首行使用轻微蓝紫底色；行高以 52dp 为下限，允许长数值和大字体撑开。新增的复制图标保留 48dp 点击区域，复制完整 CA；点击其余行区域仍进入详情。
 - 聪明钱仍紧跟币种，NEW 和风险状态保留。来源色点只按代币实际 `links` 展示，不给所有币种写死三个来源。市值/价格循环切换仍在表头；极小价格继续复用 `QuoteFormatter`。
 - 筛选面板使用圆角分组和紧凑胶囊选项，来源为多选语义，其余筛选为单选语义；保持至少两个共同来源、排序和凭证入口。该阶段保留的自动刷新与间隔选项已在 2026-10-11 移除。详情面板统一字号和指标卡片，保留复制及独立浏览器入口。
@@ -67,14 +67,14 @@ PumpFun 原榜单不返回独立价格字段；使用同一记录的 USD 市值�
 | 来源 | API | 筛选 | 凭证 |
 | --- | --- | --- | --- |
 | GMGN | `GET /v1/market/rank`；`POST /v1/market/hot_searches` | 热门/热搜、全部或单链、1m/5m/1h/6h/24h | 第三方 API 设置新增的 GMGN API key |
-| PumpFun | `GET https://frontend-api-v3.pump.fun/coins/great-coins?topK=50` | 固定 Solana 榜单，保留网站排序 | 无需 key |
+| PumpFun | `GET https://advanced-indexer.pump.fun/boards/trending` | 对齐 Mac 多链请求，固定 1h 窗口，保留网站排序 | 无需 key |
 | OKX | `GET /api/v6/dex/market/token/hot-token` | 热门/热搜、全部或单链、5m/1h/4h/24h | 复用现有启用的 OKX Onchain API 三项凭证 |
 
 GMGN 单链选项与 Mac 相同：Solana、BSC、Base、Ethereum、Arbitrum、HyperEVM、Robinhood、Arc、Stable。热门按成交额请求；热搜按访问数排序。Solana 带 `renounced`/`frozen` 筛选，其余链带 `not_honeypot`/`verified`/`renounced`。全部链热门逐链查询且至少间隔两秒；热搜一次提交所有链参数。
 
 OKX 单链选择提供 Solana、BSC、Base、Ethereum、Arbitrum；全部链接受接口返回的合法链标识。沿用 Mac 参数：`rankingType=4`，热门 `rankBy=5`（成交额），热搜 `rankBy=9`（站内搜索数），`riskFilter=true`、`stableTokenFilter=true`，最多 30 条。该热门排序是应用选择的成交额排序。官方接口默认 Trending 排序为 token score；二者并非相同顺序。
 
-共同热门默认选择三个来源，允许选择其中任意两个，按各来源当前筛选的最新成功结果求交集。身份为链和合约地址；Solana 地址保留大小写，EVM 地址忽略大小写。主记录、指标和顺序优先使用所选来源中的 GMGN、OKX、PumpFun，不使用未选来源的指标。来源未配置或还没有成功快照时显示等待/配置状态；不会将缺失数据解释为没有交集。与 Mac 一样，不同来源的时间窗由各来源独立设置，PumpFun 没有时间窗和热搜接口。
+共同热门默认选择三个来源，允许选择其中任意两个，按各来源当前筛选的最新成功结果求交集。身份为链和合约地址；Solana 地址保留大小写，EVM 地址忽略大小写。主记录、指标和顺序优先使用所选来源中的 GMGN、OKX、PumpFun，不使用未选来源的指标。来源未配置或还没有成功快照时显示等待/配置状态；不会将缺失数据解释为没有交集。与 Mac 一样，不同来源的时间窗由各来源独立设置，PumpFun 本页采用多链热门榜的固定 1h 窗口，不提供热搜模式选择。
 
 筛选面板提供来源选择、每个来源的链/榜单/时间窗、排序方向和市值/价格显示。筛选、来源和排序设置持久化。首次默认进入共同热门，GMGN/OKX 默认 Solana、热门模式和 5m 时间窗。四个看板移除定时自动刷新，顶部刷新按钮作用于当前看板；进入热门页面或切换到对应看板时额外触发一轮刷新。移除自动刷新开关和间隔选项，旧版本保存的自动刷新设置不再读取。显示缺失指标时不会使用其他指标代替。
 
@@ -117,3 +117,15 @@ OKX 单链选择提供 Solana、BSC、Base、Ethereum、Arbitrum；全部链接�
 本次 UI 改造在 2026-10-09 完成 `:app:testDebugUnitTest`（307 个测试全部通过）、`:app:lintDebug`（无错误，162 条警告）、`:app:assembleDebug`。Seeker 已安装版本为 Debug 1.0.13；新包与原安装包的签名一致，`adb install -r` 返回 `Success`，保留已有数据。自动安装过程未启动 App 或截图；随后用户反馈本轮热门页无明显问题，并确认提交。上述代码检查不代表生产接口验证。
 
 接口参考：[GMGN 官方客户端](https://github.com/GMGNAI/gmgn-skills/blob/main/src/client/OpenApiClient.ts)、[OKX 热门代币](https://web3.okx.com/zh-hans/onchainos/dev-docs/market/market-token-hot-token)。PumpFun 网站接口未提供公开的排名算法或限流承诺；本页不将该榜单称为纯热搜榜。
+
+## PumpFun 多链对齐（2026-10-12）
+
+- 请求沿用 Mac 当前热门榜参数：`tier=web`、`surface=TRENDING`、`platform=WEB`、`chains=solana,eip155:4663,eip155:8453,eip155:56,eip155:1,eip155:5042`、`ranking=social`、`window=1h`、`hot=label`。不把旧 Solana 接口的结果当作完整多链榜。
+- 支持新 `board=trending` 或 `movers` 的 `entries` 短字段（`c/m/n/t/i/mc`）、`coins` 包装与旧数组格式。按 CAIP-2 解析真实链，兼容旧数据缺失链字段时的 Solana；未知 EVM 链保留独立身份，EVM 501 不与 Solana 的 OKX 标识 501 混淆。
+- 默认“全部”，提供已知链及数据中出现的新 EVM 链选项，并保存选择。筛选在同一份完整快照上执行，不触发请求，不重置 NEW；共同热门使用所选 Pump 链的记录求交集，筛选选择进入共同快照键。
+- 多链请求使用新的缓存键，避免旧 Solana 快照被误认为完整多链数据。顶部摘要显示实际链和 1h；新短字段响应缺少供应量/精度时价格显示 `--`，不推算缺失数据。
+- “全部”指请求参数内各链返回的榜单记录；单链没有记录时显示空榜，不保证接口包含每条链，也不补造记录。
+
+- 只读接口核对：本次热门请求成功返回 `board=movers` 与 30 条记录，其中 Solana 22、BSC 6、Ethereum 2；这是当次接口快照，不代表长期链覆盖。与 Mac 一样兼容该 board 标记。
+
+- 验证：单元测试 388 项，387 通过、1 项既有 Fomo 测试跳过，失败/错误为 0；Debug lint 无错误，Debug APK 构建成功。新增测试覆盖多链解码、链身份与大小写去重、新/旧响应格式、缓存本地筛选，以及切换 Pump 链后共同交集重算且不发请求。实体机 UI 未自动操作或验收。

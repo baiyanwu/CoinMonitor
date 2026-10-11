@@ -19,6 +19,21 @@ enum class TrendingChain(val title: String, val gmgnId: String, val okxId: Strin
         else listOf("not_honeypot", "verified", "renounced")
 }
 
+/** Pump CAIP-2 identities, including unfamiliar EVM networks. */
+data class PumpTrendingChain(val index: String) {
+    val title: String get() = TrendingChain.entries.firstOrNull { it.okxId == index }?.title ?: "Chain #${index.removePrefix("eip155:")}"
+    fun validAddress(address: String): Boolean = (if (index == "501") TrendingChain.SOLANA else TrendingChain.ETHEREUM).validAddress(address)
+    companion object {
+        fun fromCaip(value: String): PumpTrendingChain? {
+            if (value in listOf("solana:mainnet", "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp")) return PumpTrendingChain("501")
+            if (!value.matches(Regex("eip155:[0-9]+"))) return null
+            val id = value.substringAfter(':').toULongOrNull()?.takeIf { it > 0uL } ?: return null
+            // EVM chain 501 must never collide with OKX's Solana identifier.
+            return PumpTrendingChain(if (id == 501uL) "eip155:501" else id.toString())
+        }
+    }
+}
+
 enum class TrendingSort { DEFAULT, TOKEN, MARKET_CAP, PRICE, CHANGE, VOLUME, LIQUIDITY, SMART_MONEY }
 enum class TrendingValue { MARKET_CAP, PRICE }
 
@@ -36,10 +51,11 @@ data class TrendingOptions(
     val period: String = "5m",
     val sort: TrendingSort = TrendingSort.DEFAULT,
     val ascending: Boolean = false,
-    val value: TrendingValue = TrendingValue.MARKET_CAP
+    val value: TrendingValue = TrendingValue.MARKET_CAP,
+    val pumpChainIndex: String? = null
 ) {
     // Presentation settings do not invalidate a successful ranking snapshot.
-    fun queryKey(source: TrendingSource): String = if (source == TrendingSource.PUMP) "pump"
+    fun queryKey(source: TrendingSource): String = if (source == TrendingSource.PUMP) "pump:multichain:1h"
         else "${source.name}:${chain?.name ?: "all"}:${mode.name}:$period"
     companion object {
         fun periods(source: TrendingSource): List<String> = when (source) {

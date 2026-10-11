@@ -6,11 +6,13 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class TrendingPresentationTest {
-    @Test fun `PumpFun summary has Solana without an invented time window or mode`() {
+    @Test fun `PumpFun summary defaults to all chains and actual one hour window`() {
         val summary = TrendingUiState().summary(TrendingBoard.PUMP)
         assertEquals(listOf(TrendingSource.PUMP), summary.sources)
-        assertEquals(TrendingChain.SOLANA, summary.chain)
-        assertNull(summary.period)
+        assertNull(summary.chain)
+        assertNull(summary.chainTitle)
+        assertFalse(summary.mixedChains)
+        assertEquals("1h", summary.period)
         assertNull(summary.mode)
     }
 

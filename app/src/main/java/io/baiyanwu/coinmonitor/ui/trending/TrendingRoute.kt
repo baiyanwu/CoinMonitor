@@ -327,11 +327,11 @@ private fun TrendingUpdateStatus(summary: TrendingBoardSummary, modifier: Modifi
 private fun scopeTitle(summary: TrendingBoardSummary): String {
     val chain = when {
         summary.mixedChains -> stringResource(R.string.trending_mixed_chains)
-        summary.chain != null -> summary.chain.title
+        summary.chainTitle != null -> summary.chainTitle
         else -> stringResource(R.string.trending_all_chains)
     }
     val range = when {
-        summary.sources == listOf(TrendingSource.PUMP) -> TrendingSource.PUMP.title
+        summary.sources == listOf(TrendingSource.PUMP) -> summary.period
         summary.sources.size > 1 && (TrendingSource.PUMP in summary.sources || summary.mixedPeriods || summary.mode == null) ->
             stringResource(R.string.trending_independent_filters)
         summary.mode == TrendingMode.HOT_SEARCH -> listOfNotNull(summary.period, modeTitle(summary.mode)).joinToString(" · ")

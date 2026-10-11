@@ -52,7 +52,7 @@
     <string name="trending_network_error">请求失败，%1$d 秒后可重试</string>
     <string name="trending_sources">共同热门来源（至少两个）</string>
     <string name="trending_shared_hint">按链和合约地址求所选榜单的交集；数据和排序优先采用 GMGN、OKX、PumpFun。</string>
-    <string name="trending_pump_hint">Solana 热门榜，无需 API key，保留网站排序；该接口不提供时间范围或热搜榜。</string>
+    <string name="trending_pump_hint">多链热门榜，无需 API key，保留网站排序；按 1h 时间窗获取，链筛选使用同一份榜单数据。</string>
     <string name="trending_sort">列表排序</string>
     <string name="trending_ascending">升序</string>
     <string name="trending_descending">降序</string>
