@@ -81,7 +81,6 @@
     <string name="clipboard_fomo_unavailable">Unable to resolve: network request failed or timed out.</string>
     <string name="clipboard_fomo_unconfirmed">Unconfirmed; this does not mean there is no wallet.</string>
     <string name="clipboard_fomo_view_wallet">View resolved wallet</string>
-    <string name="clipboard_fomo_evidence_hint">Matched a third-party recent-trade index against successful on-chain transactions. This is not proof of personal wallet ownership.</string>
     <string name="clipboard_site_network_count">%1$d network rules</string>
     <string name="clipboard_more">More actions</string>
     <string name="clipboard_site_source_link">Actual token detail-page link</string>

@@ -76,7 +76,7 @@ class ClipboardWindowController(
                 state.receive(clipboard.primaryClip?.let { clip ->
                     (0 until clip.itemCount.coerceAtMost(10)).mapNotNull { clip.getItemAt(it).text }
                         .joinToString("\n").take(32_768)
-                })
+                }, fomoReverseLookupEnabled = container.clipboardSettingsStore.settings.value.fomoReverseLookupEnabled)
             } catch (_: SecurityException) {
                 state.readFailed()
             }
@@ -162,8 +162,8 @@ class ClipboardWindowController(
                                     .setPrimaryClip(android.content.ClipData.newPlainText("address", address))
                             }, onValueModeChange = { mode ->
                                 container.clipboardSettingsStore.update { it.copy(valueMode = mode) }
-                            }, onTrackAddress = { address, chain, snapshot ->
-                                container.addressTrackingStore.track(address, chain, snapshot)
+                            }, onTrackAddress = { address, chain, snapshot, name ->
+                                container.addressTrackingStore.track(address, chain, snapshot, name)
                                 Toast.makeText(localized, R.string.address_tracked, Toast.LENGTH_SHORT).show()
                             }, onWalletSettings = {
                                 hide()

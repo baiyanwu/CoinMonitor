@@ -49,7 +49,7 @@ internal fun ClipboardPanelView(
     state: ClipboardPanelState, settings: ClipboardSettings, watchlist: List<WatchItem>, anchor: () -> IntArray,
     onDismiss: () -> Unit, onRetryRead: () -> Unit, onFloatingChange: (Boolean, WatchItem?) -> Unit,
     onToggleWatchlist: (ClipboardMatch, WatchItem?) -> Unit, onOpen: (String) -> Unit, onSettings: () -> Unit,
-    onCopy: (String) -> Unit, onValueModeChange: (String) -> Unit, onWalletSettings: () -> Unit, onTrackAddress: (String, String, WalletPortfolioSnapshot?) -> Unit
+    onCopy: (String) -> Unit, onValueModeChange: (String) -> Unit, onWalletSettings: () -> Unit, onTrackAddress: (String, String, WalletPortfolioSnapshot?, String?) -> Unit
 ) = CoinMonitorDesignTheme { ClipboardCompactTheme {
     Box(Modifier.fillMaxSize()) {
         Box(Modifier.fillMaxSize().clickable(onClick = onDismiss))
@@ -59,10 +59,10 @@ internal fun ClipboardPanelView(
                 Column(Modifier.verticalScroll(rememberScrollState()).padding(6.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                     if (state.mode == ClipboardContentMode.FOMO) FomoResult(state, onDismiss, onCopy, onOpen, onSettings, onTrackAddress)
                     else {
-                        QueryHeader(state, onCopy, onDismiss, onSettings)
+                        QueryHeader(state, onCopy, onDismiss, onSettings, onTrackAddress)
                         if (state.fomoWallets != null) ClipboardTextButton(onClick = state::showFomoResult) { Text(stringResource(R.string.clipboard_fomo_back)) }
                         else if (state.supportsWallet) QueryModeControls(state, settings, watchlist, onFloatingChange, onToggleWatchlist)
-                        if (state.mode == ClipboardContentMode.WALLET) WalletResult(state, onOpen, onWalletSettings, onTrackAddress)
+                        if (state.mode == ClipboardContentMode.WALLET) WalletResult(state, onOpen, onWalletSettings)
                         else if (state.selected != null) TokenResult(state, settings, onOpen, onValueModeChange)
                         else PendingResult(state, onRetryRead)
                         state.actionMessage?.let { Text(stringResource(it), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
@@ -83,7 +83,7 @@ internal fun ClipboardPanelView(
 } }
 
 @Composable
-private fun QueryHeader(state: ClipboardPanelState, onCopy: (String) -> Unit, onDismiss: () -> Unit, onSettings: () -> Unit) {
+private fun QueryHeader(state: ClipboardPanelState, onCopy: (String) -> Unit, onDismiss: () -> Unit, onSettings: () -> Unit, onTrack: (String, String, WalletPortfolioSnapshot?, String?) -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         val match = state.selected
         if (state.mode == ClipboardContentMode.TOKEN && match != null) CoinSymbolIcon(match.selection.tokenSymbol,
@@ -96,7 +96,16 @@ private fun QueryHeader(state: ClipboardPanelState, onCopy: (String) -> Unit, on
             Text(listOfNotNull(title, subtitle).joinToString(" · "), style = MaterialTheme.typography.titleMedium, maxLines = 2)
             state.address?.let { AddressText(it) }
         }
-        state.address?.let { AddressCopyButton(it, onCopy) }
+        state.address?.let { address ->
+            AddressCopyButton(address, onCopy)
+            if (state.mode == ClipboardContentMode.WALLET) AddressTrackButton {
+                val chain = state.walletChain ?: if (WalletAddressParser.classify(address) == WalletAddressKind.SOLANA) "501" else "1"
+                val name = state.fomoWallets?.takeIf { wallets ->
+                    listOfNotNull(wallets.solana, wallets.evm).any { trackedAddressKey(it.address) == trackedAddressKey(address) }
+                }?.let { it.name.ifBlank { it.handle } }
+                onTrack(address, chain, state.walletSnapshot, name)
+            }
+        }
         QueryWindowActions(onSettings, onDismiss)
     }
 }
@@ -119,6 +128,13 @@ private fun AddressCopyButton(address: String, onCopy: (String) -> Unit) {
     LaunchedEffect(copied) { if (copied) { delay(1400); copied = false } }
     ClipboardIconButton(onClick = { onCopy(address); copied = true }) {
         Icon(if (copied) Icons.Rounded.Check else Icons.Rounded.ContentCopy, stringResource(R.string.clipboard_copy_address), Modifier.size(16.dp))
+    }
+}
+
+@Composable
+private fun AddressTrackButton(onClick: () -> Unit) {
+    ClipboardIconButton(onClick = onClick) {
+        Icon(Icons.Rounded.Add, stringResource(R.string.address_track), Modifier.size(16.dp))
     }
 }
 
@@ -259,7 +275,7 @@ private fun TokenResult(state: ClipboardPanelState, settings: ClipboardSettings,
 }
 
 @Composable
-private fun WalletResult(state: ClipboardPanelState, onOpen: (String) -> Unit, onSettings: () -> Unit, onTrack: (String, String, WalletPortfolioSnapshot?) -> Unit) {
+private fun WalletResult(state: ClipboardPanelState, onOpen: (String) -> Unit, onSettings: () -> Unit) {
     val address = state.address ?: return
     if (WalletAddressParser.classify(address) == WalletAddressKind.EVM) NetworkPicker(state.walletChain,
         OkxWalletChainRegistry.evmChainIndexes.map { it to OkxWalletChainRegistry.displayName(it) }, state::chooseWalletChain)
@@ -290,7 +306,7 @@ private fun WalletResult(state: ClipboardPanelState, onOpen: (String) -> Unit, o
         }
     }
     val chain = state.walletChain ?: return
-    ClipboardTonalButton(onClick = { onTrack(address, chain, state.walletSnapshot) }) { Text(stringResource(R.string.address_track)) }
+
     val dexChain = mapOf("1" to "ethereum", "56" to "bsc", "8453" to "base", "501" to "solana", "4663" to "robinhood")[chain]
     val route = mapOf("1" to "eth", "56" to "bsc", "8453" to "base", "501" to "sol")[chain]
     val explorer = clipboardDestinations().first { it.id == "explorer" }.chainTemplates[dexChain]?.replace("{ca}", address)
@@ -317,7 +333,7 @@ private fun WalletHoldingRow(asset: WalletAsset) {
 }
 
 @Composable
-private fun FomoResult(state: ClipboardPanelState, onDismiss: () -> Unit, onCopy: (String) -> Unit, onOpen: (String) -> Unit, onSettings: () -> Unit, onTrack: (String, String, WalletPortfolioSnapshot?) -> Unit) {
+private fun FomoResult(state: ClipboardPanelState, onDismiss: () -> Unit, onCopy: (String) -> Unit, onOpen: (String) -> Unit, onSettings: () -> Unit, onTrack: (String, String, WalletPortfolioSnapshot?, String?) -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         FomoAvatar(state.fomoWallets?.avatarUrl)
         Column(Modifier.weight(1f)) { Text(state.fomoWallets?.name ?: state.fomoLink?.handle ?: "FoMo", style = MaterialTheme.typography.titleMedium); Text("@${state.fomoLink?.handle.orEmpty()} · FoMo", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
@@ -333,16 +349,17 @@ private fun FomoResult(state: ClipboardPanelState, onDismiss: () -> Unit, onCopy
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(title, style = MaterialTheme.typography.titleSmall)
                     if (evidence == null) Text(stringResource(R.string.clipboard_fomo_unconfirmed), style = MaterialTheme.typography.bodySmall)
-                    else AddressCopy(evidence.address, onCopy, Modifier.weight(1f))
+                    else {
+                        AddressCopy(evidence.address, onCopy, Modifier.weight(1f))
+                        AddressTrackButton { onTrack(evidence.address, if (title == "Solana") "501" else state.fomoEvmChain ?: "1", null, wallets.name.ifBlank { wallets.handle }) }
+                    }
                 }
                 if (evidence != null) {
                     if (title == "EVM") NetworkPicker(state.fomoEvmChain, listOf("1", "8453", "56", "143", "4663").map { it to OkxWalletChainRegistry.displayName(it) }, state::selectFomoChain)
-                    ClipboardTonalButton(onClick = { onTrack(evidence.address, if (title == "Solana") "501" else state.fomoEvmChain ?: "1", null) }) { Text(stringResource(R.string.address_track)) }
                     ClipboardTonalButton(onClick = { state.showFomoWallet(evidence) }, enabled = title == "Solana" || state.fomoEvmChain != null, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.clipboard_fomo_view_wallet)) }
                 }
             }
         }
-        Text(stringResource(R.string.clipboard_fomo_evidence_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 

@@ -6,6 +6,42 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class ClipboardPanelStateTest {
+    @Test fun disabledFomoLookupMakesNoProfileRequestAndKeepsOrdinaryAddressQueries() = runBlocking {
+        var fomoCalls = 0
+        var addressCalls = 0
+        val source = object : ClipboardDataSource {
+            override suspend fun lookup(address: String): List<ClipboardMatch> { addressCalls++; return emptyList() }
+            override suspend fun chart(match: ClipboardMatch) = emptyList<ClipboardChartPoint>()
+            override suspend fun holders(match: ClipboardMatch): Int? = null
+        }
+        val profiles = object : FomoProfileDataSource {
+            override suspend fun resolve(link: FomoProfileLink): FomoProfileWallets {
+                fomoCalls++
+                return FomoProfileWallets(link.handle, "Alice", null, null, null)
+            }
+        }
+        val state = ClipboardPanelState(source, this, fomo = profiles)
+        state.receive("https://fomo.family/profile/example", fomoReverseLookupEnabled = false)
+        yield()
+        assertEquals(0, fomoCalls)
+        assertTrue(state.fomoLinks.isEmpty())
+        assertEquals(ClipboardContentMode.TOKEN, state.mode)
+        state.receive(CA, fomoReverseLookupEnabled = false)
+        yield()
+        assertEquals(1, addressCalls)
+        state.receive("https://fomo.family/profile/example")
+        yield()
+        assertEquals(1, fomoCalls)
+        assertEquals(ClipboardContentMode.FOMO, state.mode)
+        assertEquals("Alice", state.fomoWallets?.name)
+    }
+
+    @Test fun fomoLookupDefaultsOnForOldSettingsAndPersistsOff() {
+        val json = kotlinx.serialization.json.Json
+        assertTrue(json.decodeFromString<ClipboardSettings>("{}").fomoReverseLookupEnabled)
+        assertFalse(json.decodeFromString<ClipboardSettings>("""{"fomoReverseLookupEnabled":false}""").fomoReverseLookupEnabled)
+    }
+
     @Test fun multipleAddressesDoNotStartRequestsUntilChosen() = runBlocking {
         var calls = 0
         val source = object : ClipboardDataSource {

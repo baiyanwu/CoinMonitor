@@ -12,19 +12,22 @@ data class TrackedAddress(
     val totalIsEstimated: Boolean = false,
     val chainValuesUsd: Map<String, String> = emptyMap(),
     val updatedAtMillis: Long? = null,
-    val estimatedChains: Set<String> = emptySet()
+    val estimatedChains: Set<String> = emptySet(),
+    val sourceName: String? = null,
+    val customName: String? = null
 )
 
 fun trackedAddressKey(address: String): String =
     if (WalletAddressParser.classify(address) == WalletAddressKind.EVM) address.trim().lowercase() else address.trim()
 
-fun mergeTrackedAddress(items: List<TrackedAddress>, address: String, chain: String, now: Long): List<TrackedAddress> {
+fun mergeTrackedAddress(items: List<TrackedAddress>, address: String, chain: String, now: Long, sourceName: String? = null): List<TrackedAddress> {
     val kind = WalletAddressParser.classify(address) ?: return items
     if (chain !in OkxWalletChainRegistry.indexesFor(kind)) return items
     val key = trackedAddressKey(address)
     val existing = items.firstOrNull { trackedAddressKey(it.address) == key }
-    val entry = existing?.copy(chains = (existing.chains + chain).distinct())
-        ?: TrackedAddress(address.trim(), listOf(chain), now)
+    val name = sourceName?.trim()?.takeIf(String::isNotBlank)
+    val entry = existing?.copy(chains = (existing.chains + chain).distinct(), sourceName = name ?: existing.sourceName)
+        ?: TrackedAddress(address.trim(), listOf(chain), now, sourceName = name)
     return if (existing == null) listOf(entry) + items else items.map { if (it == existing) entry else it }
 }
 
@@ -45,3 +48,7 @@ fun TrackedAddress.withPortfolio(snapshot: WalletPortfolioSnapshot): TrackedAddr
         estimatedChains = grouped.filterValues { assets -> assets.any { it.holdingValueUsd == null } }.keys
     )
 }
+
+val TrackedAddress.displayName: String? get() = customName ?: sourceName
+
+fun TrackedAddress.renamed(name: String): TrackedAddress = copy(customName = name.trim().takeIf(String::isNotBlank))

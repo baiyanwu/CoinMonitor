@@ -16,8 +16,8 @@ class AddressTrackingStore(context: Context) {
     val entries = mutableEntries.asStateFlow()
 
     @Synchronized
-    fun track(address: String, chain: String, snapshot: WalletPortfolioSnapshot? = null) {
-        val merged = mergeTrackedAddress(mutableEntries.value, address, chain, System.currentTimeMillis())
+    fun track(address: String, chain: String, snapshot: WalletPortfolioSnapshot? = null, sourceName: String? = null) {
+        val merged = mergeTrackedAddress(mutableEntries.value, address, chain, System.currentTimeMillis(), sourceName)
         save(merged.map { entry ->
             if (snapshot != null && trackedAddressKey(entry.address) == trackedAddressKey(snapshot.address)) entry.withPortfolio(snapshot) else entry
         })
@@ -26,6 +26,11 @@ class AddressTrackingStore(context: Context) {
     @Synchronized
     fun update(snapshot: WalletPortfolioSnapshot) {
         save(mutableEntries.value.map { if (trackedAddressKey(it.address) == trackedAddressKey(snapshot.address)) it.withPortfolio(snapshot) else it })
+    }
+
+    @Synchronized
+    fun rename(address: String, name: String) {
+        save(mutableEntries.value.map { if (trackedAddressKey(it.address) == trackedAddressKey(address)) it.renamed(name) else it })
     }
 
     @Synchronized

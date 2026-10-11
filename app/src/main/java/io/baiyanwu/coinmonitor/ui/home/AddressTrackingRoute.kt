@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.ExpandLess
@@ -52,6 +53,8 @@ internal class AddressTrackingViewModel(private val container: AppContainer) : V
         if (alreadyTracked) refresh(listOf(address))
     }
 
+    fun rename(address: String, name: String) = container.addressTrackingStore.rename(address, name)
+
     fun remove(address: String) {
         queued.remove(address)
         container.addressTrackingStore.remove(address)
@@ -94,6 +97,8 @@ internal fun AddressTrackingRoute(container: AppContainer, showAdd: Boolean = fa
     var adding by rememberSaveable { mutableStateOf(false) }
     var input by rememberSaveable { mutableStateOf("") }
     var invalid by rememberSaveable { mutableStateOf(false) }
+    var editingAddress by rememberSaveable { mutableStateOf<String?>(null) }
+    var editingName by rememberSaveable { mutableStateOf("") }
     var removing by remember { mutableStateOf<TrackedAddress?>(null) }
     val design = CoinMonitorThemeTokens.design
     // Query on entry / newly tracked addresses / credentials becoming available, never on recomposition or expansion.
@@ -122,7 +127,15 @@ internal fun AddressTrackingRoute(container: AppContainer, showAdd: Boolean = fa
                                 WalletWatchActivity.start(context as Activity, entry.address,
                                     if (WalletAddressParser.classify(entry.address) == WalletAddressKind.EVM) "1" else "501")
                             }.padding(4.dp)) {
-                                Text(compactContractAddress(entry.address), maxLines = 1, overflow = TextOverflow.Ellipsis, style = design.typography.rowTitle)
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(entry.displayName ?: stringResource(R.string.address_unnamed), maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis, style = design.typography.rowTitle, modifier = Modifier.weight(1f))
+                                    IconButton(onClick = { editingAddress = entry.address; editingName = entry.displayName.orEmpty() }, modifier = Modifier.size(28.dp)) {
+                                        Icon(Icons.Rounded.Edit, stringResource(R.string.address_edit_name), modifier = Modifier.size(16.dp))
+                                    }
+                                }
+                                Text(compactContractAddress(entry.address), maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                    style = design.typography.caption, color = design.colors.secondaryText)
                                 entry.updatedAtMillis?.let {
                                     Text(stringResource(R.string.address_updated, DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(it))),
                                         style = design.typography.caption, color = design.colors.secondaryText)
@@ -161,6 +174,18 @@ internal fun AddressTrackingRoute(container: AppContainer, showAdd: Boolean = fa
         }) { Text(stringResource(R.string.address_track)) } },
         dismissButton = { TextButton(onClick = { adding = false; onDismissAdd() }) { Text(stringResource(R.string.common_cancel)) } }
     )
+    editingAddress?.let { address -> AlertDialog(
+        onDismissRequest = { editingAddress = null },
+        title = { Text(stringResource(R.string.address_edit_name)) },
+        text = { Column {
+            Text(compactContractAddress(address), style = design.typography.caption)
+            OutlinedTextField(value = editingName, onValueChange = { editingName = it.take(80) },
+                label = { Text(stringResource(R.string.address_name)) }, singleLine = true,
+                supportingText = { Text(stringResource(R.string.address_name_hint)) })
+        } },
+        confirmButton = { TextButton(onClick = { vm.rename(address, editingName); editingAddress = null }) { Text(stringResource(R.string.common_confirm)) } },
+        dismissButton = { TextButton(onClick = { editingAddress = null }) { Text(stringResource(R.string.common_cancel)) } }
+    ) }
     removing?.let { entry -> AlertDialog(
         onDismissRequest = { removing = null }, title = { Text(stringResource(R.string.address_remove)) }, text = { Text(entry.address) },
         confirmButton = { TextButton(onClick = { vm.remove(entry.address); removing = null }) { Text(stringResource(R.string.common_confirm)) } },

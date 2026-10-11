@@ -16,7 +16,8 @@ data class ClipboardSettings(
     val destinations: List<ClipboardDestination> = clipboardDestinations(),
     val valueMode: String = "price",
     val aiQuestion: String? = null,
-    val destinationsVersion: Int = 0
+    val destinationsVersion: Int = 0,
+    val fomoReverseLookupEnabled: Boolean = true
 )
 
 @Serializable

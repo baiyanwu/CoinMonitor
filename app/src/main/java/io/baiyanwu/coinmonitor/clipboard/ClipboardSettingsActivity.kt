@@ -99,6 +99,14 @@ private fun ClipboardSettingsScreen(store: ClipboardSettingsStore, onBack: () ->
                     Text(stringResource(R.string.clipboard_enabled_hint), style = MaterialTheme.typography.bodySmall)
                 }
             }
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(14.dp)) {
+                    ClipboardSwitch(stringResource(R.string.clipboard_fomo_reverse_enabled), settings.fomoReverseLookupEnabled) { value ->
+                        store.update { it.copy(fomoReverseLookupEnabled = value) }
+                    }
+                    Text(stringResource(R.string.clipboard_fomo_reverse_hint), style = MaterialTheme.typography.bodySmall)
+                }
+            }
             Text(stringResource(R.string.clipboard_sites), style = MaterialTheme.typography.titleMedium)
             Text(stringResource(R.string.clipboard_sites_hint), style = MaterialTheme.typography.bodySmall)
             Row {

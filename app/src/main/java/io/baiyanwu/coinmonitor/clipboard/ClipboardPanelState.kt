@@ -73,7 +73,7 @@ internal class ClipboardPanelState(
     private var chartJob: Job? = null
     private var holdersJob: Job? = null
 
-    fun receive(text: String?) {
+    fun receive(text: String?, fomoReverseLookupEnabled: Boolean = true) {
         cancelQueries()
         generation++
         address = null; selected = null; matches = emptyList(); chart = emptyList()
@@ -81,7 +81,7 @@ internal class ClipboardPanelState(
         fomoWallets = null; fomoLink = null; fomoMessage = null; fomoEvmChain = null
         addresses = emptyList(); mode = ClipboardContentMode.TOKEN
         if (text?.contains("PRIVATE KEY") == true || text?.contains("GMGN_PRIVATE_KEY") == true) { message = R.string.clipboard_no_address; return }
-        fomoLinks = FomoProfileLink.extractAll(text.orEmpty())
+        fomoLinks = if (fomoReverseLookupEnabled) FomoProfileLink.extractAll(text.orEmpty()) else emptyList()
         if (fomoLinks.isNotEmpty()) {
             mode = ClipboardContentMode.FOMO
             if (fomoLinks.size == 1) chooseFomo(fomoLinks.single())

@@ -1,0 +1,8 @@
+<resources>
+    <string name="address_unnamed">未命名地址</string>
+    <string name="address_edit_name">修改名称</string>
+    <string name="address_name">地址名称</string>
+    <string name="address_name_hint">留空恢复 FoMo 名称；没有来源名称则显示未命名地址</string>
+    <string name="clipboard_fomo_reverse_enabled">是否开启 FoMo 反查地址</string>
+    <string name="clipboard_fomo_reverse_hint">开启后，快捷查询会识别剪切板中的 FoMo 主页链接并查询关联钱包地址，可点击地址旁的＋加入追踪。默认开启；关闭后不进行 FoMo 反查，普通地址与代币查询不受影响。</string>
+</resources>

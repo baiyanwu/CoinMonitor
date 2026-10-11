@@ -49,6 +49,26 @@ class TrackedAddressTest {
         )
     }
 
+    @Test fun fomoNamesPersistAndManualNamesSurviveRetrackingAndPortfolioRefresh() {
+        val initial = mergeTrackedAddress(emptyList(), address, "1", 100, " Alice ").single()
+        assertEquals("Alice", initial.displayName)
+        val renamed = initial.renamed(" My whale ")
+        val merged = mergeTrackedAddress(listOf(renamed), address.lowercase(), "8453", 200, "Alice new").single()
+        assertEquals("My whale", merged.displayName)
+        assertEquals("Alice new", merged.sourceName)
+        val refreshed = merged.withPortfolio(WalletPortfolioSnapshot(address, WalletAddressKind.EVM, emptyList(), BigDecimal.ZERO, false, 300))
+        assertEquals("My whale", refreshed.displayName)
+        assertEquals(refreshed, Json.decodeFromString<TrackedAddress>(Json.encodeToString(refreshed)))
+        assertEquals("Alice new", refreshed.renamed("  ").displayName)
+    }
+
+    @Test fun oldRecordsRemainReadableAndFomoRetrackingCanAddTheirName() {
+        val old = Json.decodeFromString<TrackedAddress>("""{"address":"$address","chains":["1"],"addedAtMillis":100}""")
+        assertNull(old.displayName)
+        assertEquals("Alice", mergeTrackedAddress(listOf(old), address, "8453", 200, "Alice").single().displayName)
+        assertNull(mergeTrackedAddress(listOf(old), address, "8453", 200, " ").single().displayName)
+    }
+
     private fun asset(chain: String, contract: String, value: String?, risk: Boolean = false) = WalletAsset(
         chain, chain, contract, contract, BigDecimal.ONE, value?.toBigDecimal(), value?.toBigDecimal(), risk
     )

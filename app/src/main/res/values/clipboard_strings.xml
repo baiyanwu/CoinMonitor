@@ -81,7 +81,6 @@
     <string name="clipboard_fomo_unavailable">暂时无法解析，网络查询失败或超时。</string>
     <string name="clipboard_fomo_unconfirmed">未确认，不能据此判断没有钱包。</string>
     <string name="clipboard_fomo_view_wallet">查看解析钱包</string>
-    <string name="clipboard_fomo_evidence_hint">依据第三方近期交易索引与成功的链上交易交叉匹配，不代表本人完成钱包所有权认证。</string>
     <string name="clipboard_site_network_count">%1$d 个网络规则</string>
     <string name="clipboard_more">更多操作</string>
     <string name="clipboard_site_source_link">真实代币详情页链接</string>
