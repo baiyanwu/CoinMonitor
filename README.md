@@ -99,3 +99,5 @@ cd CoinMonitor
 ## License
 
 This project is licensed under [Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0). See [LICENSE](./LICENSE) for details.
+
+Home combines exchange and on-chain watchlists under Tokens and adds Address tracking. Track wallets from clipboard, resolved FoMo profiles, or manual entry; EVM addresses aggregate across chains and open the existing wallet observer. See [Wallet watch](docs/WALLET_WATCH.md).

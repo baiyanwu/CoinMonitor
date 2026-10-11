@@ -162,6 +162,9 @@ class ClipboardWindowController(
                                     .setPrimaryClip(android.content.ClipData.newPlainText("address", address))
                             }, onValueModeChange = { mode ->
                                 container.clipboardSettingsStore.update { it.copy(valueMode = mode) }
+                            }, onTrackAddress = { address, chain, snapshot ->
+                                container.addressTrackingStore.track(address, chain, snapshot)
+                                Toast.makeText(localized, R.string.address_tracked, Toast.LENGTH_SHORT).show()
                             }, onWalletSettings = {
                                 hide()
                                 context.startActivity(Intent(context, io.baiyanwu.coinmonitor.ui.settings.ThirdPartyApiSettingsActivity::class.java)

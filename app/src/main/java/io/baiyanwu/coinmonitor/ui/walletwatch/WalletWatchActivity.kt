@@ -47,7 +47,9 @@ class WalletWatchActivity : CoinMonitorComposeActivity() {
             Box(Modifier.weight(1f)) {
                 WalletWatchRoute(
                     container = container,
-                    onOpenSettings = { ThirdPartyApiSettingsActivity.start(this@WalletWatchActivity) }
+                    onOpenSettings = { ThirdPartyApiSettingsActivity.start(this@WalletWatchActivity) },
+                    initialAddress = intent.getStringExtra("address"),
+                    initialChain = intent.getStringExtra("chain")
                 )
             }
         }
@@ -59,8 +61,8 @@ class WalletWatchActivity : CoinMonitorComposeActivity() {
     }
 
     companion object {
-        fun start(activity: Activity) {
-            DetailPageTransitions.start(activity, Intent(activity, WalletWatchActivity::class.java))
+        fun start(activity: Activity, address: String? = null, chain: String? = null) {
+            DetailPageTransitions.start(activity, Intent(activity, WalletWatchActivity::class.java).putExtra("address", address).putExtra("chain", chain))
         }
     }
 }

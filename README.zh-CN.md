@@ -99,3 +99,5 @@ cd CoinMonitor
 ## License
 
 本项目采用 [Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0) 许可证，详情见 [LICENSE](./LICENSE)。
+
+首页支持「代币 / 地址追踪」切换，交易所与链上自选合并展示；地址追踪可从剪切板、FoMo 结果或手动输入添加，同一 EVM 地址跨链聚合并直达观察地址。详见 [观察地址文档](docs/WALLET_WATCH.md)。

@@ -355,3 +355,9 @@ Release 自动流程：
 - 流式引擎内部对订阅集合做指纹比较，避免价格回流导致重复重建长连接。
 - vendored chart wrapper 关闭了 `WebView` 自身页面缩放，避免系统层缩放和图表手势混在一起。
 - vendored wrapper 生成产物直接提交 `src/main/assets/com/tradingview/lightweightcharts/scripts/app/main.js`，不执行 `npm run compile` 时也能直接构建运行。
+
+## 地址追踪持久化与导航
+
+`AddressTrackingStore` 使用独立 SharedPreferences 保存公开地址、链索引和最近估值，通过 StateFlow 更新首页。EVM 的去重键为小写地址，Solana 保持原始大小写。估值直接复用钱包资产查询总值，不对同一地址的多个链重复添加总值；各链从非风险资产计算，并标记缺失价格。查询失败不覆盖已有数据。首页追踪刷新按地址顺序执行并为每次查询设置超时，不增加定时轮询。
+
+`WalletWatchActivity` 接收地址与链入口参数，在 ViewModel 初始化时填入地址并触发原有查询，避免先恢复上次地址后再覆盖的竞态。指定链可以没有持仓；后续刷新保留用户当前选链。首页代币列表与拖动排序共用市场类型间的顺序。

@@ -75,7 +75,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.baiyanwu.coinmonitor.data.AppContainer
-import io.baiyanwu.coinmonitor.domain.model.MarketType
 import io.baiyanwu.coinmonitor.domain.repository.QuoteRepository
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
 import io.baiyanwu.coinmonitor.ui.components.WatchItemCard
@@ -100,15 +99,7 @@ private data class HomeDragState(
     val didReorder: Boolean = false
 )
 
-private val HOME_MODES = listOf(SearchMode.EXCHANGE, SearchMode.ONCHAIN)
-
-internal fun filterHomeWatchItems(
-    items: List<WatchItem>,
-    mode: SearchMode
-): List<WatchItem> = when (mode) {
-    SearchMode.EXCHANGE -> items.filter { it.marketType != MarketType.ONCHAIN_TOKEN }
-    SearchMode.ONCHAIN -> items.filter { it.marketType == MarketType.ONCHAIN_TOKEN }
-}
+private val HOME_PAGES = listOf("tokens", "addresses")
 
 @Composable
 fun HomeRoute(
@@ -160,6 +151,7 @@ fun HomeRoute(
             onSetHomePinned = viewModel::setHomePinned,
             onMoveHomeItem = viewModel::moveHomeItem,
             onMovePinnedHomeItem = viewModel::movePinnedHomeItem,
+            addressTrackingContent = { showAdd, dismiss -> AddressTrackingRoute(container, showAdd, dismiss) },
             onRefresh = viewModel::refreshNow
         )
     }
@@ -179,9 +171,11 @@ internal fun HomeScreen(
     onSetHomePinned: (String, Boolean) -> Unit,
     onMoveHomeItem: (String, String?) -> Unit,
     onMovePinnedHomeItem: (String, String?) -> Unit,
-    onRefresh: () -> Unit
+    onRefresh: () -> Unit,
+    addressTrackingContent: @Composable (Boolean, () -> Unit) -> Unit = { _, _ -> }
 ) {
     var quickMenuState by remember { mutableStateOf<HomeQuickMenuState?>(null) }
+    var showAddAddress by rememberSaveable { mutableStateOf(false) }
     var pairActionsExpanded by remember { mutableStateOf(false) }
     var showOverlayEnableDialog by remember { mutableStateOf(false) }
     var rootSize by remember { mutableStateOf(IntSize.Zero) }
@@ -190,19 +184,15 @@ internal fun HomeScreen(
     val dismissInteractionSource = remember { MutableInteractionSource() }
     val pagerState = rememberPagerState(
         initialPage = 0,
-        pageCount = HOME_MODES::size
+        pageCount = HOME_PAGES::size
     )
     val exchangeListState = rememberLazyListState()
-    val onchainListState = rememberLazyListState()
     val pagerScope = rememberCoroutineScope()
     var selectedPage by rememberSaveable { mutableStateOf(pagerState.settledPage) }
     var clickTarget by remember { mutableStateOf<Int?>(null) }
     var pageSwitchJob by remember { mutableStateOf<Job?>(null) }
     var switchRequest by remember { mutableStateOf(0L) }
     val design = CoinMonitorThemeTokens.design
-    val pageItems = remember(state.items) {
-        HOME_MODES.map { mode -> filterHomeWatchItems(state.items, mode) }
-    }
     val overlayEnableDialogTitle = stringResource(R.string.home_overlay_enable_dialog_title)
     val overlayEnableDialogMessage = stringResource(R.string.home_overlay_enable_dialog_message)
     val overlayEnableDialogDismiss = stringResource(R.string.common_cancel)
@@ -228,7 +218,7 @@ internal fun HomeScreen(
             }
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            HomeHeader(onSearch = { onNavigateSearch(HOME_MODES[selectedPage]) }) {
+            HomeHeader(onSearch = { if (selectedPage == 1) showAddAddress = true else onNavigateSearch(SearchMode.EXCHANGE) }) {
                 HomePairActionsMenu(
                     expanded = pairActionsExpanded,
                     onExpandedChange = { expanded ->
@@ -238,7 +228,7 @@ internal fun HomeScreen(
                     onAddPair = {
                         if (pairActionsExpanded) {
                             pairActionsExpanded = false
-                            onNavigateSearch(HOME_MODES[selectedPage])
+                            onNavigateSearch(SearchMode.EXCHANGE)
                         }
                     },
                     onConfigureOverlayItems = {
@@ -279,23 +269,21 @@ internal fun HomeScreen(
                     .fillMaxWidth()
                     .weight(1f),
                 beyondViewportPageCount = 1,
-                key = { HOME_MODES[it].name }
+                key = { HOME_PAGES[it] }
             ) {
-                val mode = HOME_MODES[it]
+                if (it == 1) {
+                    if (pagerState.settledPage == 1) addressTrackingContent(showAddAddress) { showAddAddress = false }
+                    return@HorizontalPager
+                }
                 HomeWatchlistPage(
-                    mode = mode,
                     isLoaded = state.isLoaded,
                     isRefreshing = state.isRefreshing,
-                    items = pageItems[it],
+                    items = state.items,
                     overlayIds = state.overlayIds,
-                    listState = if (mode == SearchMode.EXCHANGE) {
-                        exchangeListState
-                    } else {
-                        onchainListState
-                    },
+                    listState = exchangeListState,
                     quoteRepository = quoteRepository,
                     showOnchainMarketCap = state.showOnchainMarketCap,
-                    onNavigateSearch = { onNavigateSearch(mode) },
+                    onNavigateSearch = { onNavigateSearch(SearchMode.EXCHANGE) },
                     onDismissQuickMenu = { quickMenuState = null },
                     onLongPress = { item, anchorInRoot ->
                         quickMenuState = if (quickMenuState?.itemId == item.id) {
@@ -373,7 +361,6 @@ internal fun HomeScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun HomeWatchlistPage(
-    mode: SearchMode,
     isLoaded: Boolean,
     isRefreshing: Boolean,
     items: List<WatchItem>,
@@ -392,13 +379,7 @@ private fun HomeWatchlistPage(
     var dragState by remember { mutableStateOf<HomeDragState?>(null) }
     val colors = CoinMonitorThemeTokens.colors
     val scope = rememberCoroutineScope()
-    val emptyHint = stringResource(
-        if (mode == SearchMode.EXCHANGE) {
-            R.string.home_empty_exchange_hint
-        } else {
-            R.string.home_empty_onchain_hint
-        }
-    )
+    val emptyHint = stringResource(R.string.home_empty_tokens_hint)
 
     LaunchedEffect(items) {
         if (dragState == null) {

@@ -647,4 +647,19 @@
     <string name="wallet_biometric_enable">Enable biometrics</string>
     <string name="wallet_biometric_disable">Disable biometrics</string>
     <string name="wallet_biometric_disable_warning">Disabling biometrics requires the wallet password. Afterwards, signing and wallet unlock will require the password until biometrics are enabled again.</string>
+    <string name="home_tokens">Tokens</string>
+    <string name="home_address_tracking">Address tracking</string>
+    <string name="home_empty_tokens_hint">Add exchange pairs or on-chain tokens to your watchlist</string>
+    <string name="address_track">Track address</string>
+    <string name="address_tracked">Address added to tracking</string>
+    <string name="address_tracking_empty">Track an address from clipboard or FoMo, or add one here</string>
+    <string name="address_add">Add address</string>
+    <string name="address_input">Wallet address</string>
+    <string name="address_remove">Remove tracking</string>
+    <string name="address_expand">Expand chains</string>
+    <string name="address_collapse">Collapse chains</string>
+    <string name="address_refresh">Refresh estimates</string>
+    <string name="address_estimate_pending">Not queried</string>
+    <string name="address_refresh_failed">Some addresses could not be refreshed. Previous estimates are retained.</string>
+    <string name="address_updated">Updated %1$s</string>
 </resources>

@@ -104,8 +104,8 @@ internal fun HomeModeSelector(
     Box(Modifier.fillMaxWidth().padding(horizontal = design.spacing.pageHorizontal)) {
         CoinMonitorSegmentedTabs(
             tabs = listOf(
-                CoinMonitorSegmentedTab("0", stringResource(R.string.search_mode_exchange)),
-                CoinMonitorSegmentedTab("1", stringResource(R.string.search_mode_onchain))
+                CoinMonitorSegmentedTab("0", stringResource(R.string.home_tokens)),
+                CoinMonitorSegmentedTab("1", stringResource(R.string.home_address_tracking))
             ),
             selectedId = selectedPage.toString(),
             onSelect = { onSelectPage(it.toInt()) },

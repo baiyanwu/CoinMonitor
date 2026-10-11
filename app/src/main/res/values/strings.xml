@@ -647,4 +647,19 @@
     <string name="wallet_biometric_enable">启用生物识别</string>
     <string name="wallet_biometric_disable">停用生物识别</string>
     <string name="wallet_biometric_disable_warning">停用生物识别必须验证钱包密码。停用后，签名和钱包解锁将只能使用密码，直到再次启用。</string>
+    <string name="home_tokens">代币</string>
+    <string name="home_address_tracking">地址追踪</string>
+    <string name="home_empty_tokens_hint">添加交易所交易对或链上代币到自选列表</string>
+    <string name="address_track">追踪地址</string>
+    <string name="address_tracked">已加入地址追踪</string>
+    <string name="address_tracking_empty">从剪切板或 FoMo 解析结果追踪地址，也可在这里手动添加</string>
+    <string name="address_add">添加地址</string>
+    <string name="address_input">钱包地址</string>
+    <string name="address_remove">取消追踪</string>
+    <string name="address_expand">展开各链</string>
+    <string name="address_collapse">收起各链</string>
+    <string name="address_refresh">刷新估值</string>
+    <string name="address_estimate_pending">尚未查询</string>
+    <string name="address_refresh_failed">部分地址刷新失败，已保留上次估值。</string>
+    <string name="address_updated">更新于 %1$s</string>
 </resources>

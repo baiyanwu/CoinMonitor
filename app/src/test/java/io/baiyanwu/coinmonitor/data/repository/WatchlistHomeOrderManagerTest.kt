@@ -90,7 +90,7 @@ class WatchlistHomeOrderManagerTest {
     }
 
     @Test
-    fun `reorder should only renumber items in the same market group`() {
+    fun `reorder merges exchange and onchain items in the same pinned group`() {
         val items = listOf(
             watchItem(id = "exchange-a", addedAt = 1L, homeOrder = 1024L),
             watchItem(
@@ -117,7 +117,9 @@ class WatchlistHomeOrderManagerTest {
         assertEquals(
             listOf(
                 HomeOrderUpdate(id = "exchange-b", order = 1024L),
-                HomeOrderUpdate(id = "exchange-a", order = 2048L)
+                HomeOrderUpdate(id = "exchange-a", order = 2048L),
+                HomeOrderUpdate(id = "onchain-a", order = 3072L),
+                HomeOrderUpdate(id = "onchain-b", order = 4096L)
             ),
             updates
         )
