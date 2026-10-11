@@ -3,6 +3,8 @@ package io.baiyanwu.coinmonitor.clipboard
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -52,7 +54,7 @@ internal fun ClipboardPanelView(
         Layout(content = {
             Surface(shape = RoundedCornerShape(14.dp), color = CoinMonitorThemeTokens.design.colors.surface,
                 border = BorderStroke(0.5.dp, CoinMonitorThemeTokens.design.colors.divider), shadowElevation = 6.dp) {
-                Column(Modifier.verticalScroll(rememberScrollState()).padding(8.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                Column(Modifier.verticalScroll(rememberScrollState()).padding(6.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                     if (state.mode == ClipboardContentMode.FOMO) FomoResult(state, onDismiss, onCopy, onOpen, onSettings)
                     else {
                         QueryHeader(state, onCopy, onDismiss, onSettings)
@@ -72,7 +74,7 @@ internal fun ClipboardPanelView(
             val margin = 12.dp.roundToPx()
             val width = (constraints.maxWidth - margin * 2).coerceAtLeast(0)
             val height = (constraints.maxHeight - margin * 2).coerceAtLeast(0)
-            val measure = clipboardPanelMeasure(width, height, constraints.maxHeight, 280.dp.roundToPx(), 280.dp.roundToPx())
+            val measure = clipboardPanelMeasure(width, height, constraints.maxHeight, 250.dp.roundToPx(), 250.dp.roundToPx())
             val child = measurables.single().measure(Constraints(minWidth = measure.width, maxWidth = measure.width, maxHeight = measure.maxHeight))
             val coordinates = anchor()
             val position = clipboardPanelPosition(coordinates[0] - margin, coordinates[1] - margin, coordinates[2] - margin, child.width, child.height, width, height, 8.dp.roundToPx())
@@ -86,8 +88,8 @@ private fun QueryHeader(state: ClipboardPanelState, onCopy: (String) -> Unit, on
     Row(verticalAlignment = Alignment.CenterVertically) {
         val match = state.selected
         if (state.mode == ClipboardContentMode.TOKEN && match != null) CoinSymbolIcon(match.selection.tokenSymbol,
-            iconUrl = match.selection.pair.info?.imageUrl.takeIf { match.selection.tokenSide == PoolTokenSide.BASE }, allowSymbolLookup = false, size = 24.dp)
-        else Icon(Icons.Rounded.AccountBalanceWallet, null, Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
+            iconUrl = match.selection.pair.info?.imageUrl.takeIf { match.selection.tokenSide == PoolTokenSide.BASE }, allowSymbolLookup = false, size = 20.dp)
+        else Icon(Icons.Rounded.AccountBalanceWallet, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
         Spacer(Modifier.width(6.dp))
         Column(Modifier.weight(1f)) {
             val title = if (state.mode == ClipboardContentMode.WALLET) stringResource(R.string.clipboard_wallet_mode) else match?.selection?.tokenSymbol ?: stringResource(R.string.clipboard_title)
@@ -157,7 +159,7 @@ private fun TokenResult(state: ClipboardPanelState, settings: ClipboardSettings,
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
             Text(stringResource(if (settings.valueMode == "marketCap") R.string.clipboard_value_market_cap else R.string.clipboard_value_price), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(if (settings.valueMode == "marketCap") compactClipboardNumber(match.marketCap) else "$${QuoteFormatter.formatPrice(match.selection.priceUsd)}", fontSize = 20.sp, lineHeight = 23.sp, fontWeight = FontWeight.SemiBold)
+            Text(if (settings.valueMode == "marketCap") compactClipboardNumber(match.marketCap) else "$${QuoteFormatter.formatPrice(match.selection.priceUsd)}", fontSize = 18.sp, lineHeight = 21.sp, fontWeight = FontWeight.SemiBold)
         }
         ClipboardIconButton(onClick = { onValueModeChange(if (settings.valueMode == "marketCap") "price" else "marketCap") }) { Icon(Icons.Rounded.SwapHoriz, stringResource(R.string.clipboard_toggle_value), Modifier.size(16.dp)) }
         match.selection.change24hPercent?.let { Text("24H ${if (it > 0) "+" else ""}${String.format(java.util.Locale.US, "%.2f", it)}%", style = MaterialTheme.typography.bodySmall, color = trendColor(it)) }
@@ -178,19 +180,21 @@ private fun TokenResult(state: ClipboardPanelState, settings: ClipboardSettings,
     if (state.matches.size > 1) NetworkPicker(match.chain.chainIndex, state.matches.map { it.chain.chainIndex to it.chain.displayName }) { value -> state.matches.firstOrNull { it.chain.chainIndex == value }?.let(state::chooseChain) }
     HorizontalDivider()
     val entries = settings.destinations.filter { it.enabled }.map { SiteLink(it.name, it.url(match), it.id, it.iconUrl) }
-    LinkGrid(entries, match.chain.dexScreenerId, onOpen)
+    LinkGrid(entries, match.chain.dexScreenerId, onOpen, fixedViewport = true)
     ProjectLinks(match.projectLinks, onOpen)
     val question = settings.aiQuestion ?: stringResource(R.string.clipboard_ai_default_question)
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        ClipboardTextButton(onClick = { onOpen(clipboardAIPromptUrl("gpt", match, question)) }, modifier = Modifier.weight(1f)) { Text("GPT") }
-        ClipboardTextButton(onClick = { onOpen(clipboardAIPromptUrl("grok", match, question)) }, modifier = Modifier.weight(1f)) { Text("Grok") }
-        ClipboardTonalButton(onClick = { onToggleWatchlist(match, existing) }, enabled = !state.actionBusy, modifier = Modifier.weight(1.5f)) {
-            Icon(if (existing == null) Icons.Rounded.Add else Icons.Rounded.Check, null, Modifier.size(16.dp))
-            Text(stringResource(if (existing == null) R.string.clipboard_add_watch_compact else R.string.clipboard_added_watch_compact))
+    CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 24.dp) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+            ClipboardTextButton(onClick = { onOpen(clipboardAIPromptUrl("gpt", match, question)) }, modifier = Modifier.weight(1f), minimumHeight = 24.dp) { Text("GPT") }
+            ClipboardTextButton(onClick = { onOpen(clipboardAIPromptUrl("grok", match, question)) }, modifier = Modifier.weight(1f), minimumHeight = 24.dp) { Text("Grok") }
+            ClipboardIconButton(onClick = { onToggleWatchlist(match, existing) }, enabled = !state.actionBusy, size = 24.dp) {
+                Icon(if (existing == null) Icons.Rounded.Add else Icons.Rounded.Check,
+                    stringResource(if (existing == null) R.string.clipboard_add_watch else R.string.clipboard_remove_watch), Modifier.size(16.dp))
+            }
         }
     }
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(stringResource(R.string.clipboard_add_floating), Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+        Text(stringResource(R.string.clipboard_add_floating), Modifier.weight(1f), fontSize = 9.sp, lineHeight = 12.sp)
         ClipboardFloatingToggle(checked = existing?.overlaySelected ?: settings.addToFloating, enabled = !state.actionBusy,
             label = stringResource(R.string.clipboard_add_floating), onCheckedChange = { onFloatingChange(it, existing) })
     }
@@ -212,7 +216,7 @@ private fun WalletResult(state: ClipboardPanelState, onOpen: (String) -> Unit, o
     if (preview != null && state.walletMessage != R.string.wallet_watch_credentials_required) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(stringResource(if (preview.partial) R.string.clipboard_wallet_partial_value else R.string.clipboard_wallet_value), style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
-            Text("$${AssetAmountFormatter.fiat(preview.value)}", fontSize = 20.sp, lineHeight = 23.sp, fontWeight = FontWeight.SemiBold)
+            Text("$${AssetAmountFormatter.fiat(preview.value)}", fontSize = 18.sp, lineHeight = 21.sp, fontWeight = FontWeight.SemiBold)
         }
         Text(stringResource(R.string.clipboard_wallet_updated, preview.assets.size, DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(preview.snapshot.updatedAtMillis))), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         var expanded by remember(address, state.walletChain) { mutableStateOf(false) }
@@ -237,8 +241,8 @@ private fun WalletResult(state: ClipboardPanelState, onOpen: (String) -> Unit, o
 @Composable
 private fun WalletHoldingRow(asset: WalletAsset) {
     val value = asset.holdingValueUsd?.let { "$${AssetAmountFormatter.fiat(it)}" } ?: stringResource(R.string.wallet_watch_no_price)
-    BoxWithConstraints(Modifier.fillMaxWidth().heightIn(min = 36.dp).padding(vertical = 3.dp)) {
-        val stack = maxWidth < 230.dp || androidx.compose.ui.platform.LocalDensity.current.fontScale >= 1.3f || value.length > 16
+    BoxWithConstraints(Modifier.fillMaxWidth().heightIn(min = 32.dp).padding(vertical = 2.dp)) {
+        val stack = maxWidth < 210.dp || androidx.compose.ui.platform.LocalDensity.current.fontScale >= 1.3f || value.length > 16
         if (stack) Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(asset.symbol, style = MaterialTheme.typography.titleSmall)
             Text(AssetAmountFormatter.token(asset.balance), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -295,7 +299,7 @@ private fun FomoAvatar(url: String?) {
         } catch (error: CancellationException) { if (error !is TimeoutCancellationException) throw error }
         catch (_: Exception) { bitmap = null }
     }
-    bitmap?.let { Image(it.asImageBitmap(), null, Modifier.size(24.dp).clip(CircleShape)); Spacer(Modifier.width(8.dp)) }
+    bitmap?.let { Image(it.asImageBitmap(), null, Modifier.size(20.dp).clip(CircleShape)); Spacer(Modifier.width(8.dp)) }
 }
 
 @Composable
@@ -342,13 +346,13 @@ private fun ProjectLinks(links: List<ClipboardProjectLink>, onOpen: (String) -> 
                         tooltip = { PlainTooltip { Text(description) } }, state = rememberTooltipState()) {
                         ClipboardIconButton(onClick = { onOpen(link.url) }) {
                             when (link.kind) {
-                                ClipboardProjectLinkKind.X -> Text("X", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.semantics { contentDescription = description })
-                                ClipboardProjectLinkKind.DISCORD -> Image(painterResource(R.drawable.clipboard_logo_discord), description, Modifier.size(18.dp))
+                                ClipboardProjectLinkKind.X -> Text("X", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.semantics { contentDescription = description })
+                                ClipboardProjectLinkKind.DISCORD -> Image(painterResource(R.drawable.clipboard_logo_discord), description, Modifier.size(16.dp))
                                 else -> Icon(when (link.kind) {
                                     ClipboardProjectLinkKind.WEBSITE -> Icons.Rounded.Language
                                     ClipboardProjectLinkKind.DOCUMENTS -> Icons.Rounded.Description
                                     else -> Icons.Rounded.Link
-                                }, description, Modifier.size(18.dp))
+                                }, description, Modifier.size(16.dp))
                             }
                         }
                     }
@@ -359,13 +363,27 @@ private fun ProjectLinks(links: List<ClipboardProjectLink>, onOpen: (String) -> 
 }
 
 @Composable
-private fun LinkGrid(links: List<SiteLink>, chain: String, onOpen: (String) -> Unit) {
-    links.chunked(2).forEach { entries -> Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        entries.forEach { entry -> ClipboardOutlinedButton(onClick = { entry.url?.let(onOpen) }, enabled = entry.url != null, modifier = Modifier.weight(1f)) {
-            ClipboardSiteIcon(entry.id, chain, entry.iconUrl, size = 16.dp); Spacer(Modifier.width(4.dp)); Text(entry.name, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f), maxLines = 2, overflow = TextOverflow.Ellipsis)
+private fun LinkGrid(links: List<SiteLink>, chain: String, onOpen: (String) -> Unit, fixedViewport: Boolean = false) {
+    if (links.isEmpty()) return
+    if (fixedViewport) {
+        // Two full rows, both intervening gaps and half of the third row stay visible.
+        val viewportHeight = 28.dp * 2.5f + 3.dp * 2
+        LazyColumn(Modifier.fillMaxWidth().height(viewportHeight), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            items(links.chunked(2)) { entries -> SiteLinkRow(entries, chain, onOpen, fixedHeight = true) }
+        }
+    } else links.chunked(2).forEach { SiteLinkRow(it, chain, onOpen, fixedHeight = false) }
+}
+
+@Composable
+private fun SiteLinkRow(entries: List<SiteLink>, chain: String, onOpen: (String) -> Unit, fixedHeight: Boolean) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        entries.forEach { entry -> ClipboardOutlinedButton(onClick = { entry.url?.let(onOpen) }, enabled = entry.url != null,
+            modifier = Modifier.weight(1f).then(if (fixedHeight) Modifier.height(28.dp) else Modifier)) {
+            ClipboardSiteIcon(entry.id, chain, entry.iconUrl, size = 14.dp); Spacer(Modifier.width(3.dp))
+            Text(entry.name, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
         } }
         if (entries.size == 1) Spacer(Modifier.weight(1f))
-    } }
+    }
 }
 
 @Composable
@@ -393,7 +411,7 @@ internal fun destinationIconResource(id: String, chainId: String): Int? = when (
 @Composable
 private fun ClipboardChart(points: List<ClipboardChartPoint>, change: Double?) {
     val color = trendColor(change)
-    Canvas(Modifier.fillMaxWidth().height(40.dp)) {
+    Canvas(Modifier.fillMaxWidth().height(32.dp)) {
         if (points.size < 2) return@Canvas
         val minimum = points.minOf { it.price }
         val range = (points.maxOf { it.price } - minimum).coerceAtLeast(minimum * 0.001)
