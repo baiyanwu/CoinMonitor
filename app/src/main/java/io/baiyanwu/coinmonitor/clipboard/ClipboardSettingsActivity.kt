@@ -381,9 +381,9 @@ private fun ClipboardDestinationEditor(site: ClipboardDestination, onDismiss: ()
                         }
                         if (valid) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                ClipboardSiteIcon(draft.id, iconUrl = draft.iconUrl, size = 24.dp)
                                 CompactWebsiteField(draft.name, { draft = draft.copy(name = it); nameEdited = true },
                                     stringResource(R.string.clipboard_site_name), Modifier.weight(1f))
+                                ClipboardSiteIcon(draft.id, iconUrl = draft.iconUrl, size = 24.dp)
                             }
                             val perChain = draft.template.isBlank() && (draft.chainTemplates.isNotEmpty() || draft.removedNetworkRules.isNotEmpty())
                             if (draft.template.contains("{chain}") || perChain) {
@@ -403,11 +403,13 @@ private fun ClipboardDestinationEditor(site: ClipboardDestination, onDismiss: ()
                                                 } else draft = draft.copy(chainValues = draft.chainValues + (chain to value), removedNetworkRules = draft.removedNetworkRules - chain)
                                             }, stringResource(if (perChain) R.string.clipboard_site_source_link else R.string.clipboard_site_route_name),
                                             Modifier.weight(1f), showLabel = false, descriptionPrefix = chain)
-                                        IconButton(onClick = {
-                                            draft = if (perChain) draft.copy(chainTemplates = draft.chainTemplates - chain, removedNetworkRules = draft.removedNetworkRules + chain)
-                                                else draft.copy(chainValues = draft.chainValues - chain, removedNetworkRules = draft.removedNetworkRules + chain)
-                                        }, modifier = Modifier.size(48.dp)) {
-                                            Icon(Icons.Rounded.DeleteOutline, "$chain · ${stringResource(R.string.clipboard_delete)}", Modifier.size(20.dp))
+                                        CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 36.dp) {
+                                            IconButton(onClick = {
+                                                draft = if (perChain) draft.copy(chainTemplates = draft.chainTemplates - chain, removedNetworkRules = draft.removedNetworkRules + chain)
+                                                    else draft.copy(chainValues = draft.chainValues - chain, removedNetworkRules = draft.removedNetworkRules + chain)
+                                            }, modifier = Modifier.size(36.dp)) {
+                                                Icon(Icons.Rounded.DeleteOutline, "$chain · ${stringResource(R.string.clipboard_delete)}", Modifier.size(20.dp))
+                                            }
                                         }
                                     }
                                 }
@@ -452,11 +454,11 @@ private fun CompactWebsiteField(value: String, onValueChange: (String) -> Unit, 
     val colors = MaterialTheme.colorScheme
     BasicTextField(value, onValueChange, singleLine = true, textStyle = MaterialTheme.typography.bodyMedium.copy(color = colors.onSurface),
         cursorBrush = SolidColor(colors.primary),
-        modifier = modifier.heightIn(min = 48.dp).onFocusChanged { focused = it.isFocused }
+        modifier = modifier.heightIn(min = if (showLabel) 44.dp else 36.dp).onFocusChanged { focused = it.isFocused }
             .semantics { contentDescription = listOf(descriptionPrefix, label).filter(String::isNotBlank).joinToString(" · ") }
             .border(1.dp, if (focused) colors.primary else colors.outlineVariant, RoundedCornerShape(8.dp)),
         decorationBox = { input ->
-            Column(Modifier.padding(horizontal = 10.dp, vertical = 6.dp), verticalArrangement = Arrangement.Center) {
+            Column(Modifier.padding(horizontal = 10.dp, vertical = 4.dp), verticalArrangement = Arrangement.Center) {
                 if (showLabel) Text(label, style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Box {
                     if (value.isEmpty() && !showLabel) Text(label, style = MaterialTheme.typography.bodySmall,
