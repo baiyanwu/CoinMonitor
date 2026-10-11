@@ -74,7 +74,7 @@ class FixedListsScrollTest {
         setContent {
             val listState = rememberLazyListState()
             if (activity) WalletActivityPage(state, listState, {}, true)
-            else WalletAssetsPage(state, listState, {}, true, {}, {})
+            else WalletAssetsPage(state, listState, {}, true, {})
         }
         val tag = if (activity) "wallet-activity-container" else "wallet-assets-container"
         verifyViewport(tag, "$tag-list")

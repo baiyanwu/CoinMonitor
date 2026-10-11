@@ -1,6 +1,7 @@
 package io.baiyanwu.coinmonitor.ui.home
 
 import android.app.Activity
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -16,6 +17,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -136,8 +138,28 @@ internal fun AddressTrackingRoute(container: AppContainer, showAdd: Boolean = fa
                                         Icon(Icons.Rounded.Edit, stringResource(R.string.address_edit_name), modifier = Modifier.size(16.dp))
                                     }
                                 }
-                                Text(compactContractAddress(entry.address), maxLines = 1, overflow = TextOverflow.Ellipsis,
-                                    style = design.typography.caption, color = design.colors.secondaryText)
+                                val addressKind = remember(entry.address) { WalletAddressParser.classify(entry.address) }
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(design.spacing.tiny)
+                                ) {
+                                    val icon = when (addressKind) {
+                                        WalletAddressKind.SOLANA -> R.drawable.trending_chain_sol
+                                        WalletAddressKind.EVM -> R.drawable.trending_chain_eth
+                                        null -> null
+                                    }
+                                    if (icon != null) Image(
+                                        painter = painterResource(icon),
+                                        contentDescription = stringResource(
+                                            if (addressKind == WalletAddressKind.SOLANA) R.string.wallet_private_key_solana
+                                            else R.string.wallet_private_key_evm
+                                        ),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Text(compactContractAddress(entry.address), maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.weight(1f, fill = false),
+                                        style = design.typography.caption, color = design.colors.secondaryText)
+                                }
                                 entry.updatedAtMillis?.let {
                                     Text(stringResource(R.string.address_updated, DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(it))),
                                         style = design.typography.caption, color = design.colors.secondaryText)

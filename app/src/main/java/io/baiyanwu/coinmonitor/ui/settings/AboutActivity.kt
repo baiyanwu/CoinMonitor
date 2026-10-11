@@ -9,7 +9,7 @@ import io.baiyanwu.coinmonitor.ui.navigation.DetailPageTransitions
 class AboutActivity : CoinMonitorComposeActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setCoinMonitorContent {
+        setCoinMonitorContent(useDesignPageBackground = true) {
             AboutRoute(onBack = { finish() })
         }
     }

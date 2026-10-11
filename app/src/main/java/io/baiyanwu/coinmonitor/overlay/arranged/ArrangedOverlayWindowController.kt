@@ -2,8 +2,6 @@ package io.baiyanwu.coinmonitor.overlay.arranged
 
 import android.animation.ValueAnimator
 import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.Outline
 import android.graphics.Paint
 import android.graphics.PixelFormat
 import android.graphics.Typeface
@@ -13,25 +11,22 @@ import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
-import android.view.ViewOutlineProvider
 import android.view.ViewConfiguration
 import android.view.WindowManager
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.view.animation.PathInterpolator
 import android.widget.FrameLayout
-import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.compose.ui.graphics.toArgb
 import io.baiyanwu.coinmonitor.R
-import io.baiyanwu.coinmonitor.domain.model.OnchainChainIconRegistry
 import io.baiyanwu.coinmonitor.domain.model.ArrangedOverlaySettings
 import io.baiyanwu.coinmonitor.domain.model.OverlayLeadingDisplayMode
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
 import io.baiyanwu.coinmonitor.domain.repository.AppPreferencesRepository
 import io.baiyanwu.coinmonitor.domain.repository.OverlayRepository
 import io.baiyanwu.coinmonitor.overlay.ArrangedOverlayWindowHost
-import io.baiyanwu.coinmonitor.overlay.CoinIconService
+import io.baiyanwu.coinmonitor.overlay.OverlayCoinIconView
 import io.baiyanwu.coinmonitor.overlay.OverlayPermissionHelper
 import io.baiyanwu.coinmonitor.overlay.MarketCapFlashPolicy
 import io.baiyanwu.coinmonitor.overlay.QuoteFormatter
@@ -52,7 +47,6 @@ internal class ArrangedOverlayWindowController(
     private val onTap: (View) -> Unit = {}
 ) : ArrangedOverlayWindowHost {
     private val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
-    private val coinIconService = CoinIconService.get(context)
 
     private var rootView: LinearLayout? = null
     private var layoutParams: WindowManager.LayoutParams? = null
@@ -106,7 +100,6 @@ internal class ArrangedOverlayWindowController(
             }
         }
     }
-    private val iconBitmapCache = LinkedHashMap<String, Bitmap>()
 
     private val overlayColors
         get() = resolveOverlayDesignColors(context, appPreferencesRepository.getPreferences())
@@ -252,7 +245,6 @@ internal class ArrangedOverlayWindowController(
         latestSettings = null
         cancelMarketCapFlashAnimations()
         lastMarketCapRenderAtById.clear()
-        iconBitmapCache.clear()
         rootView = null
         layoutParams = null
     }
@@ -449,55 +441,18 @@ internal class ArrangedOverlayWindowController(
         }
     }
 
-    private fun buildIconView(
-        item: WatchItem,
-        width: Int,
-        metrics: OverlayMetrics
-    ): View {
-        val iconView = ImageView(context).apply {
-            scaleType = ImageView.ScaleType.FIT_CENTER
-            layoutParams = FrameLayout.LayoutParams(metrics.iconSizePx, metrics.iconSizePx).apply {
-                gravity = Gravity.CENTER_VERTICAL
-            }
-            background = buildDefaultBitcoinDrawable(metrics)
-            clipToOutline = true
-            outlineProvider = object : ViewOutlineProvider() {
-                override fun getOutline(view: View, outline: Outline) {
-                    outline.setOval(0, 0, view.width, view.height)
-                }
-            }
-            setImageDrawable(buildDefaultBitcoinDrawable(metrics))
+    private fun buildIconView(item: WatchItem, width: Int, metrics: OverlayMetrics): View {
+        val iconView = OverlayCoinIconView(context, scope).apply {
+            layoutParams = FrameLayout.LayoutParams(metrics.iconSizePx, metrics.iconSizePx, Gravity.CENTER_VERTICAL)
+            bind(item, metrics.iconSizePx, overlayColors)
         }
-
-        scope.launch {
-            val bitmap = coinIconService.loadBitmap(
-                symbol = item.baseSymbol,
-                preferredIconUrl = item.iconUrl,
-                fallbackIconUrls = OnchainChainIconRegistry.resolveIconUrls(item.chainIndex),
-                grayscaleFallback = item.chainIndex != null
-            )
-            if (bitmap != null) {
-                iconView.setImageBitmap(bitmap)
-            } else {
-                iconView.setImageDrawable(buildDefaultBitcoinDrawable(metrics))
-            }
-        }
-
         return FrameLayout(context).apply {
-            layoutParams = LinearLayout.LayoutParams(width, metrics.iconSizePx).also {
-                it.marginEnd = metrics.leadingSpacingPx
-            }
+            layoutParams = LinearLayout.LayoutParams(width, metrics.iconSizePx).also { it.marginEnd = metrics.leadingSpacingPx }
             addView(iconView)
         }
     }
 
-    private fun buildDefaultBitcoinDrawable(metrics: OverlayMetrics): GradientDrawable {
-        return GradientDrawable().apply {
-            shape = GradientDrawable.OVAL
-            setColor(overlayColors.overlayFallbackBackground.toArgb())
-            setStroke(metrics.fallbackStrokePx, overlayColors.overlayFallbackBorder.toArgb())
-        }
-    }
+
 
     private fun measureLeadingColumnWidth(
         items: List<WatchItem>,
@@ -678,19 +633,8 @@ internal class ArrangedOverlayWindowController(
                 it.marginEnd = metrics.leadingSpacingPx
             }
         }
-        val iconView = ImageView(context).apply {
-            scaleType = ImageView.ScaleType.FIT_CENTER
-            layoutParams = FrameLayout.LayoutParams(metrics.iconSizePx, metrics.iconSizePx).apply {
-                gravity = Gravity.CENTER_VERTICAL
-            }
-            background = buildDefaultBitcoinDrawable(metrics)
-            clipToOutline = true
-            outlineProvider = object : ViewOutlineProvider() {
-                override fun getOutline(view: View, outline: Outline) {
-                    outline.setOval(0, 0, view.width, view.height)
-                }
-            }
-            setImageDrawable(buildDefaultBitcoinDrawable(metrics))
+        val iconView = OverlayCoinIconView(context, scope).apply {
+            layoutParams = FrameLayout.LayoutParams(metrics.iconSizePx, metrics.iconSizePx, Gravity.CENTER_VERTICAL)
         }
         val priceView = TextView(context).apply {
             maxLines = 1
@@ -719,39 +663,7 @@ internal class ArrangedOverlayWindowController(
             ViewGroup.LayoutParams.WRAP_CONTENT,
             ViewGroup.LayoutParams.WRAP_CONTENT
         )
-        val iconSignature = listOf(
-            item.id,
-            item.iconUrl,
-            item.chainIndex,
-            item.baseSymbol,
-            metrics.iconSizePx,
-            overlayColors.overlayFallbackBorder.toArgb()
-        ).joinToString("|")
-        if (sidebarItemView.iconSignature != iconSignature) {
-            sidebarItemView.iconSignature = iconSignature
-            val cachedBitmap = iconBitmapCache[iconSignature]
-            if (cachedBitmap != null) {
-                sidebarItemView.iconView.setImageBitmap(cachedBitmap)
-            } else {
-                sidebarItemView.iconView.setImageDrawable(buildDefaultBitcoinDrawable(metrics))
-                scope.launch {
-                    val bitmap = coinIconService.loadBitmap(
-                        symbol = item.baseSymbol,
-                        preferredIconUrl = item.iconUrl,
-                        fallbackIconUrls = OnchainChainIconRegistry.resolveIconUrls(item.chainIndex),
-                        grayscaleFallback = item.chainIndex != null
-                    )
-                    if (bitmap != null) {
-                        iconBitmapCache[iconSignature] = bitmap
-                        if (sidebarItemView.iconSignature == iconSignature) {
-                            sidebarItemView.iconView.setImageBitmap(bitmap)
-                        }
-                    } else if (sidebarItemView.iconSignature == iconSignature) {
-                        sidebarItemView.iconView.setImageDrawable(buildDefaultBitcoinDrawable(metrics))
-                    }
-                }
-            }
-        }
+        sidebarItemView.iconView.bind(item, metrics.iconSizePx, overlayColors)
     }
 
     private fun measureSidebarTickerWidth(
@@ -1288,9 +1200,8 @@ internal class ArrangedOverlayWindowController(
 
     private data class SidebarItemView(
         val root: LinearLayout,
-        val iconView: ImageView,
-        val priceView: TextView,
-        var iconSignature: String? = null
+        val iconView: OverlayCoinIconView,
+        val priceView: TextView
     )
 
     private inner class SidebarTickerHolder(

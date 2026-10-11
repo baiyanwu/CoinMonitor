@@ -133,6 +133,7 @@ import io.baiyanwu.coinmonitor.domain.model.modeFor
 import io.baiyanwu.coinmonitor.ui.components.CoilCoinSymbolIcon
 import io.baiyanwu.coinmonitor.ui.format.AssetAmountFormatter
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorComponentDefaults
+import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorDesignColorTheme
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorDesignTheme
 import io.baiyanwu.coinmonitor.ui.components.CoinMonitorIcons
@@ -201,7 +202,7 @@ fun WalletRoute(
     CoinMonitorDesignTheme {
         Scaffold(
             modifier = Modifier.padding(top = contentTopInset, bottom = contentBottomInset),
-            containerColor = CoinMonitorThemeTokens.colors.pageBackground,
+            containerColor = CoinMonitorThemeTokens.design.colors.pageBackground,
             contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0),
             snackbarHost = { SnackbarHost(snackbar) }
         ) { padding ->
@@ -308,7 +309,7 @@ private fun WalletStandaloneRoute(
     onFinished: () -> Unit,
     onNavigate: (WalletPage) -> Unit,
     content: @Composable (WalletUiState, WalletViewModel) -> Unit
-) {
+) = CoinMonitorDesignColorTheme {
     val viewModel = activityWalletViewModel(container)
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var retainedState by remember(page) { mutableStateOf(state) }
@@ -334,7 +335,7 @@ private fun WalletStandaloneRoute(
     }
     BackHandler { viewModel.goHome() }
 
-    Box(Modifier.fillMaxSize()) {
+    Box(Modifier.fillMaxSize().background(CoinMonitorThemeTokens.design.colors.pageBackground)) {
         when {
             !state.vault.secureStorageAvailable -> SecureStorageUnavailable()
             !state.vault.initialized -> FirstWalletSetup(
@@ -373,7 +374,7 @@ fun WalletBackupSelectionRoute(
     container: AppContainer,
     onBack: () -> Unit,
     onNavigateBackup: () -> Unit
-) {
+) = CoinMonitorDesignColorTheme {
     val viewModel = activityWalletViewModel(container)
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -536,7 +537,7 @@ internal fun WalletUnlockGate(
         Box(
             Modifier
                 .fillMaxSize()
-                .background(CoinMonitorThemeTokens.colors.pageBackground)
+                .background(CoinMonitorThemeTokens.design.colors.pageBackground)
         )
         return
     }
@@ -976,13 +977,14 @@ private fun WalletDashboard(
                 ) { page ->
                     when (WalletContentTab.entries[page]) {
                         WalletContentTab.ASSETS -> WalletAssetsPage(
-                            state, assetsListState, onOpenAssetSettings, valuesVisible, viewModel::openAssetDetail, onOpenWatchWallet
+                            state, assetsListState, onOpenAssetSettings, valuesVisible, viewModel::openAssetDetail
                         )
                         WalletContentTab.ACTIVITY -> WalletActivityPage(state, activityListState, onOpenNetworkSettings, valuesVisible)
                     }
                 }
             }
         }
+        WalletHomeWatchEntry(onOpenWatchWallet)
     }
     if (networkPicker) ModalBottomSheet(
         onDismissRequest = { networkPicker = false }, shape = design.shapes.bottomBar,
@@ -1008,6 +1010,7 @@ private fun WalletDashboard(
             items(supportedNetworks, key = WalletNetwork::id) { network ->
                 WalletHomeNetworkRow(
                     network.displayName, selected = state.selectedNetwork?.id == network.id,
+                    network = network,
                     onClick = { viewModel.selectNetwork(network); networkPicker = false },
                     onRemove = if (networksEditing) { { viewModel.removeNetwork(network) } } else null
                 )
@@ -1028,7 +1031,7 @@ private fun WalletDashboard(
             verticalArrangement = Arrangement.spacedBy(design.spacing.small)
         ) {
             items(supportedNetworks, key = WalletNetwork::id) { network ->
-                WalletHomeNetworkRow(network.displayName, onClick = { receiveDialog = false; viewModel.openReceive(network) })
+                WalletHomeNetworkRow(network.displayName, onClick = { receiveDialog = false; viewModel.openReceive(network) }, network = network)
             }
         }
     }
@@ -1040,10 +1043,8 @@ internal fun WalletAssetsPage(
     listState: LazyListState,
     onOpenAssetSettings: () -> Unit,
     valuesVisible: Boolean,
-    onOpenDetail: (SelfCustodyAsset) -> Unit,
-    onOpenWatchWallet: () -> Unit
+    onOpenDetail: (SelfCustodyAsset) -> Unit
 ) {
-    val design = CoinMonitorThemeTokens.design
     val assets = remember(state.portfolio, state.selectedNetwork, state.hideAssetsBelowOneUsd, state.includeUnverifiedAssets) {
         state.visibleAssets
     }
@@ -1070,9 +1071,6 @@ internal fun WalletAssetsPage(
             items(assets, key = { it.id }, contentType = { "wallet-asset" }) { asset ->
                 WalletHomeAssetRow(asset, valuesVisible) { onOpenDetail(asset) }
             }
-        }
-        item(key = "wallet-watch-entry") {
-            WalletHomeWatchEntry(onOpenWatchWallet, Modifier.padding(top = design.spacing.group))
         }
     }
 }
@@ -1853,13 +1851,13 @@ private fun NetworkDropdown(
 @Composable
 private fun DetailScreenScaffold(title: String, onBack: () -> Unit, content: @Composable () -> Unit) {
     Scaffold(
-        containerColor = CoinMonitorThemeTokens.colors.pageBackground,
+        containerColor = CoinMonitorThemeTokens.design.colors.pageBackground,
         contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0),
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text(title) },
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, stringResource(R.string.back)) } },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = CoinMonitorThemeTokens.colors.pageBackground)
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = CoinMonitorThemeTokens.design.colors.pageBackground)
             )
         }
     ) { padding -> Box(Modifier.fillMaxSize().padding(padding)) { content() } }

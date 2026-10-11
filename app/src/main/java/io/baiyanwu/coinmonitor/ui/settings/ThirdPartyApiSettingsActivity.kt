@@ -14,7 +14,7 @@ class ThirdPartyApiSettingsActivity : CoinMonitorComposeActivity() {
                 intent.getStringExtra(EXTRA_INITIAL_SECTION).orEmpty()
             )
         }.getOrDefault(ThirdPartyApiSettingsSection.TOP)
-        setCoinMonitorContent { container ->
+        setCoinMonitorContent(useDesignPageBackground = true) { container ->
             ThirdPartyApiSettingsRoute(
                 container = container,
                 initialSection = initialSection,

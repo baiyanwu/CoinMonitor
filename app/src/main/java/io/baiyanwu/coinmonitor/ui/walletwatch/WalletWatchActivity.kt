@@ -26,7 +26,7 @@ import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 class WalletWatchActivity : CoinMonitorComposeActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setCoinMonitorContent { container -> WalletWatchDetail(container) }
+        setCoinMonitorContent(useDesignPageBackground = true) { container -> WalletWatchDetail(container) }
     }
 
     @OptIn(ExperimentalMaterial3Api::class)
@@ -41,7 +41,7 @@ class WalletWatchActivity : CoinMonitorComposeActivity() {
                     }
                 },
                 colors = androidx.compose.material3.TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = CoinMonitorThemeTokens.colors.pageBackground
+                    containerColor = CoinMonitorThemeTokens.design.colors.pageBackground
                 )
             )
             Box(Modifier.weight(1f)) {

@@ -46,6 +46,7 @@ import io.baiyanwu.coinmonitor.ui.components.CoinMonitorCompactListRow
 import io.baiyanwu.coinmonitor.ui.components.CoinMonitorCompactActionButton
 import io.baiyanwu.coinmonitor.ui.components.CoinMonitorIcons
 import io.baiyanwu.coinmonitor.ui.components.CoinMonitorPageTopBar
+import io.baiyanwu.coinmonitor.ui.components.OnchainChainIcon
 import io.baiyanwu.coinmonitor.ui.components.CoinMonitorListRow
 import io.baiyanwu.coinmonitor.ui.components.CoinMonitorSegmentedTab
 import io.baiyanwu.coinmonitor.ui.components.CoinMonitorSegmentedTabs
@@ -294,26 +295,45 @@ internal fun WalletHomeIcon(icon: ImageVector) {
 @Composable
 internal fun WalletHomeWatchEntry(onClick: () -> Unit, modifier: Modifier = Modifier) {
     val design = CoinMonitorThemeTokens.design
-    CoinMonitorRoundedCard(modifier.fillMaxWidth(), contentPadding = PaddingValues(0.dp)) {
-        CoinMonitorCompactListRow(
-            onClick = onClick,
-            leading = { WalletHomeIcon(CoinMonitorIcons.Search) },
-            headline = { Text(stringResource(R.string.wallet_watch_entry), style = design.typography.rowTitle) },
-            supporting = {
-                Text(
-                    stringResource(R.string.wallet_watch_entry_description), style = design.typography.caption,
-                    color = design.colors.secondaryText, maxLines = 1, overflow = TextOverflow.Ellipsis
-                )
-            },
-            trailing = { Icon(CoinMonitorIcons.ChevronRight, null, Modifier.size(design.sizes.actionIcon), tint = design.colors.secondaryText) }
-        )
+    Surface(
+        onClick = onClick,
+        shape = design.shapes.pill,
+        color = design.colors.surface,
+        contentColor = design.colors.primaryText,
+        modifier = modifier
+            .padding(horizontal = design.spacing.pageHorizontal, vertical = design.spacing.small)
+            .fillMaxWidth().testTag("wallet-watch-entry")
+    ) {
+        Row(
+            Modifier.heightIn(min = design.sizes.minimumTouchTarget)
+                .padding(horizontal = design.spacing.cardPadding),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(design.spacing.inline)
+        ) {
+            Box(
+                Modifier.size(design.sizes.actionContainer)
+                    .background(design.colors.selectedContainer, design.shapes.pill),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(CoinMonitorIcons.Search, null, Modifier.size(design.sizes.actionIcon), tint = design.colors.accent)
+            }
+            Text(
+                stringResource(R.string.wallet_watch_entry),
+                modifier = Modifier.weight(1f),
+                style = design.typography.label,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Icon(CoinMonitorIcons.ChevronRight, null, Modifier.size(design.sizes.actionIcon), tint = design.colors.accent)
+        }
     }
 }
 
 /** 主页网络筛选与收款网络共用布局；null 选中态表示直接进入的操作行。 */
 @Composable
 internal fun WalletHomeNetworkRow(
-    name: String, onClick: () -> Unit, selected: Boolean? = null, onRemove: (() -> Unit)? = null
+    name: String, onClick: () -> Unit, selected: Boolean? = null, onRemove: (() -> Unit)? = null,
+    network: WalletNetwork? = null
 ) {
     val design = CoinMonitorThemeTokens.design
     Surface(
@@ -322,7 +342,15 @@ internal fun WalletHomeNetworkRow(
         contentColor = design.colors.primaryText
     ) {
         CoinMonitorListRow(
-            leading = { WalletHomeIcon(Icons.Rounded.Language) },
+            leading = {
+                if (network == null) WalletHomeIcon(Icons.Rounded.Language)
+                else OnchainChainIcon(
+                    chainIndex = if (network.isEvm) network.chainId?.toString()
+                        else if (network.id == WalletNetwork.SOLANA.id) "501" else null,
+                    name = network.displayName,
+                    size = design.sizes.tabIcon
+                )
+            },
             title = { Text(name, style = design.typography.rowTitle, maxLines = 1, overflow = TextOverflow.Ellipsis) },
             supporting = {},
             trailing = {
@@ -519,8 +547,8 @@ private fun WalletHomeStatesPreview() {
                 verticalArrangement = Arrangement.spacedBy(design.spacing.group)
             ) {
                 WalletHomeNetworkRow(stringResource(R.string.wallet_networks_all), {}, selected = true)
-                WalletHomeNetworkRow(WalletNetwork.ETHEREUM.displayName, {}, selected = false, onRemove = {})
-                WalletHomeNetworkRow(WalletNetwork.SOLANA.displayName, {})
+                WalletHomeNetworkRow(WalletNetwork.ETHEREUM.displayName, {}, selected = false, onRemove = {}, network = WalletNetwork.ETHEREUM)
+                WalletHomeNetworkRow(WalletNetwork.SOLANA.displayName, {}, network = WalletNetwork.SOLANA)
                 WalletHomeEmptyCard(stringResource(R.string.wallet_no_assets))
                 WalletHomeMessageCard(
                     title = stringResource(R.string.wallet_asset_provider_not_configured),

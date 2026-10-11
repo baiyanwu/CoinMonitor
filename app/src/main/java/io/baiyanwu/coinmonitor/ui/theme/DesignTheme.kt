@@ -83,6 +83,16 @@ fun CoinMonitorDesignTheme(content: @Composable () -> Unit) {
     }
 }
 
+/** 为既有子页同步设计配色，保留父级字号、形状与页面布局。 */
+@Composable
+fun CoinMonitorDesignColorTheme(content: @Composable () -> Unit) {
+    val typography = MaterialTheme.typography
+    val shapes = MaterialTheme.shapes
+    CoinMonitorDesignTheme {
+        MaterialTheme(typography = typography, shapes = shapes, content = content)
+    }
+}
+
 /** Material 与既有语义入口使用同一份新配色，转换仅在局部主题内生效。 */
 internal fun CoinMonitorDesignColors.toSemanticColors() = CoinMonitorColors(
     pageBackground = pageBackground,

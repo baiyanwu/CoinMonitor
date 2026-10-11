@@ -85,6 +85,7 @@ import io.baiyanwu.coinmonitor.domain.model.WalletAsset
 import io.baiyanwu.coinmonitor.ui.components.CoilCoinSymbolIcon
 import io.baiyanwu.coinmonitor.ui.format.AssetAmountFormatter
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorComponentDefaults
+import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorDesignColorTheme
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 import java.math.BigDecimal
 import java.text.DateFormat
@@ -139,7 +140,7 @@ private fun WalletWatchScreen(
     onSelectChain: (String) -> Unit,
     onHideChain: (String) -> Unit,
     onShowChain: (String) -> Unit
-) {
+) = CoinMonitorDesignColorTheme {
     val colors = CoinMonitorThemeTokens.colors
     val context = LocalContext.current
     val addressInteractionSource = remember { MutableInteractionSource() }
@@ -164,7 +165,7 @@ private fun WalletWatchScreen(
     }
     Scaffold(
         modifier = Modifier.padding(top = contentTopInset, bottom = contentBottomInset),
-        containerColor = colors.pageBackground,
+        containerColor = CoinMonitorThemeTokens.design.colors.pageBackground,
         contentWindowInsets = WindowInsets(0),
         bottomBar = {
             if (hiddenChainAssets.isNotEmpty() || hiddenAssets.isNotEmpty()) {
@@ -579,7 +580,7 @@ private fun WalletAssetRow(asset: WalletAsset, onCopyContract: (String) -> Unit,
 @Composable
 private fun HiddenAssetsBottomBar(chainCount: Int, assetCount: Int, onClick: () -> Unit) {
     val colors = CoinMonitorThemeTokens.colors
-    Surface(color = colors.pageBackground) {
+    Surface(color = CoinMonitorThemeTokens.design.colors.pageBackground) {
         Surface(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp).clickable(onClick = onClick),
             shape = RoundedCornerShape(14.dp),

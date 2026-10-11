@@ -98,8 +98,6 @@
     <string name="home_empty_onchain_hint">先添加一个链上代币开始监控</string>
     <string name="home_add_pair">添加币对</string>
     <string name="home_open_search">搜索币对</string>
-    <string name="home_pair_actions">币对操作</string>
-    <string name="home_pair_actions_close">关闭币对操作菜单</string>
     <string name="home_open_market_page">打开 %1$s 的外部行情页</string>
     <string name="home_copy_ca_description">复制完整 CA</string>
     <string name="home_ca_copied">CA 已复制</string>
@@ -122,7 +120,6 @@
     <string name="home_live_trend">实时</string>
     <string name="home_live_trend_description">本次首页会话收到的真实报价走势</string>
     <string name="home_trend_waiting">等待报价走势</string>
-    <string name="home_market_cap_label">市值</string>
 
     <string name="search_title">搜索币对</string>
     <string name="search_subtitle">支持在交易所与链上搜索间切换，链上结果可按 EVM / SOL 筛选。</string>
@@ -552,7 +549,6 @@
     <string name="wallet_updated_time">更新于 %1$s</string>
     <string name="wallet_refreshing_previous">刷新中 · 上次更新 %1$s</string>
     <string name="wallet_networks_all">全部网络</string>
-    <string name="wallet_watch_entry_description">查询其他地址的链上资产</string>
     <string name="wallet_manage">钱包管理</string>
     <string name="wallet_backup">备份钱包</string>
     <string name="wallet_security">安全设置</string>

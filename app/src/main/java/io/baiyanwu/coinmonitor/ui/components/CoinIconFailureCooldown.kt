@@ -35,3 +35,6 @@ internal class CoinIconFailureCooldown(
     @Synchronized
     fun clear(url: String) { retryAt.remove(url) }
 }
+
+/** Compose 与原生悬浮窗共享坏图冷却，避免切换宿主后反复请求。 */
+internal val coinIconFailures = CoinIconFailureCooldown()

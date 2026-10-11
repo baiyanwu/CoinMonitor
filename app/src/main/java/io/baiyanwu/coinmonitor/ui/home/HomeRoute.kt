@@ -107,7 +107,6 @@ fun HomeRoute(
     contentTopInset: Dp = 0.dp,
     contentBottomInset: Dp = 0.dp,
     onNavigateSearch: (SearchMode) -> Unit,
-    onNavigateOverlayItems: () -> Unit,
     onNavigateOverlaySettings: () -> Unit
 ) {
     val viewModel: HomeViewModel = viewModel(factory = HomeViewModel.factory(container))
@@ -143,7 +142,6 @@ fun HomeRoute(
             contentTopInset = contentTopInset,
             contentBottomInset = contentBottomInset,
             onNavigateSearch = onNavigateSearch,
-            onNavigateOverlayItems = onNavigateOverlayItems,
             onNavigateOverlaySettings = onNavigateOverlaySettings,
             quoteRepository = container.quoteRepository,
             onRemoveWatchItem = viewModel::removeWatchItem,
@@ -163,7 +161,6 @@ internal fun HomeScreen(
     contentTopInset: Dp,
     contentBottomInset: Dp,
     onNavigateSearch: (SearchMode) -> Unit,
-    onNavigateOverlayItems: () -> Unit,
     onNavigateOverlaySettings: () -> Unit,
     quoteRepository: QuoteRepository,
     onRemoveWatchItem: (String) -> Unit,
@@ -176,7 +173,6 @@ internal fun HomeScreen(
 ) {
     var quickMenuState by remember { mutableStateOf<HomeQuickMenuState?>(null) }
     var showAddAddress by rememberSaveable { mutableStateOf(false) }
-    var pairActionsExpanded by remember { mutableStateOf(false) }
     var showOverlayEnableDialog by remember { mutableStateOf(false) }
     var rootSize by remember { mutableStateOf(IntSize.Zero) }
     var rootOrigin by remember { mutableStateOf(IntOffset.Zero) }
@@ -201,7 +197,6 @@ internal fun HomeScreen(
     LaunchedEffect(pagerState.settledPage, pagerState.isScrollInProgress, clickTarget) {
         if (pagerState.isScrollInProgress) {
             quickMenuState = null
-            pairActionsExpanded = false
         }
         if (clickTarget == null && !pagerState.isScrollInProgress) selectedPage = pagerState.settledPage
     }
@@ -218,28 +213,10 @@ internal fun HomeScreen(
             }
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            HomeHeader(onSearch = { if (selectedPage == 1) showAddAddress = true else onNavigateSearch(SearchMode.EXCHANGE) }) {
-                HomePairActionsMenu(
-                    expanded = pairActionsExpanded,
-                    onExpandedChange = { expanded ->
-                        quickMenuState = null
-                        pairActionsExpanded = expanded
-                    },
-                    onAddPair = {
-                        if (pairActionsExpanded) {
-                            pairActionsExpanded = false
-                            onNavigateSearch(SearchMode.EXCHANGE)
-                        }
-                    },
-                    onConfigureOverlayItems = {
-                        if (pairActionsExpanded) {
-                            pairActionsExpanded = false
-                            onNavigateOverlayItems()
-                        }
-                    }
-                )
-
-            }
+            HomeHeader(
+                addingAddress = selectedPage == 1,
+                onAdd = { if (selectedPage == 1) showAddAddress = true else onNavigateSearch(SearchMode.EXCHANGE) }
+            )
             HomeModeSelector(
                 selectedPage = pagerState.currentPage,
                 indicatorPosition = { pagerState.currentPage + pagerState.currentPageOffsetFraction },
@@ -247,7 +224,6 @@ internal fun HomeScreen(
                     val request = ++switchRequest
                     pageSwitchJob?.cancel()
                     quickMenuState = null
-                    pairActionsExpanded = false
                     clickTarget = page
                     selectedPage = page
                     pageSwitchJob = pagerScope.launch {

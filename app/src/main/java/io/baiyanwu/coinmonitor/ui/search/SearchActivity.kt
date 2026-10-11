@@ -12,7 +12,7 @@ class SearchActivity : CoinMonitorComposeActivity() {
         super.onCreate(savedInstanceState)
         val entryMode = resolveEntryMode()
         val initialSearchMode = resolveInitialSearchMode(intent.getStringExtra(EXTRA_SEARCH_MODE))
-        setCoinMonitorContent { container ->
+        setCoinMonitorContent(useDesignPageBackground = true) { container ->
             SearchRoute(
                 container = container,
                 entryMode = entryMode,

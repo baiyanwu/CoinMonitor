@@ -9,7 +9,7 @@ import io.baiyanwu.coinmonitor.ui.navigation.DetailPageTransitions
 class NetworkLogActivity : CoinMonitorComposeActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setCoinMonitorContent { container ->
+        setCoinMonitorContent(useDesignPageBackground = true) { container ->
             NetworkLogRoute(
                 container = container,
                 onBack = { finish() }

@@ -79,7 +79,6 @@ fun CoinMonitorNavHost(
     onOpenKlineSearch: () -> Unit,
     onOpenKlineHistory: () -> Unit,
     onOpenKlineIndicatorSettings: () -> Unit,
-    onOpenOverlayItems: () -> Unit,
     onOpenOverlaySettings: () -> Unit,
     onOpenThirdPartyApiSettings: () -> Unit,
     onOpenWalletNetworkSettings: () -> Unit,
@@ -153,7 +152,6 @@ fun CoinMonitorNavHost(
                 onOpenKlineSearch = onOpenKlineSearch,
                 onOpenKlineHistory = onOpenKlineHistory,
                 onOpenKlineIndicatorSettings = onOpenKlineIndicatorSettings,
-                onOpenOverlayItems = onOpenOverlayItems,
                 onOpenOverlaySettings = onOpenOverlaySettings,
                 onOpenThirdPartyApiSettings = onOpenThirdPartyApiSettings,
                 onOpenWalletNetworkSettings = onOpenWalletNetworkSettings,
@@ -233,7 +231,6 @@ private fun MainShell(
     onOpenKlineSearch: () -> Unit,
     onOpenKlineHistory: () -> Unit,
     onOpenKlineIndicatorSettings: () -> Unit,
-    onOpenOverlayItems: () -> Unit,
     onOpenOverlaySettings: () -> Unit,
     onOpenThirdPartyApiSettings: () -> Unit,
     onOpenWalletNetworkSettings: () -> Unit,
@@ -295,7 +292,6 @@ private fun MainShell(
                     contentTopInset = innerPadding.calculateTopPadding(),
                     contentBottomInset = innerPadding.calculateBottomPadding(),
                     onNavigateSearch = onOpenSearch,
-                    onNavigateOverlayItems = onOpenOverlayItems,
                     onNavigateOverlaySettings = onOpenOverlaySettings
                 )
             }

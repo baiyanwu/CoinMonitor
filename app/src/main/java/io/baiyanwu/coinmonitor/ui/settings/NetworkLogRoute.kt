@@ -44,6 +44,7 @@ import io.baiyanwu.coinmonitor.data.AppContainer
 import io.baiyanwu.coinmonitor.domain.model.NetworkLogEntry
 import io.baiyanwu.coinmonitor.domain.model.NetworkLogProtocol
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorComponentDefaults
+import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorDesignColorTheme
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 import android.widget.Toast
 
@@ -84,14 +85,14 @@ private fun NetworkLogScreen(
     onWssEnabledChange: (Boolean) -> Unit,
     onClear: () -> Unit,
     onEntryClick: (Long) -> Unit
-) {
+) = CoinMonitorDesignColorTheme {
     val colors = CoinMonitorThemeTokens.colors
     Scaffold(
-        containerColor = colors.pageBackground,
+        containerColor = CoinMonitorThemeTokens.design.colors.pageBackground,
         topBar = {
             CenterAlignedTopAppBar(
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = colors.pageBackground
+                    containerColor = CoinMonitorThemeTokens.design.colors.pageBackground
                 ),
                 title = {
                     Text(text = stringResource(R.string.network_log_title))
@@ -134,7 +135,7 @@ private fun NetworkLogScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(colors.pageBackground)
+                .background(CoinMonitorThemeTokens.design.colors.pageBackground)
                 .padding(innerPadding)
                 .padding(horizontal = 14.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -199,7 +200,7 @@ private fun NetworkLogScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(colors.pageBackground),
+                        .background(CoinMonitorThemeTokens.design.colors.pageBackground),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(

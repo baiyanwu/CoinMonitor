@@ -9,7 +9,7 @@ import io.baiyanwu.coinmonitor.ui.navigation.DetailPageTransitions
 class OverlayItemsSettingsActivity : CoinMonitorComposeActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setCoinMonitorContent { container ->
+        setCoinMonitorContent(useDesignPageBackground = true) { container ->
             OverlayItemsSettingsRoute(
                 container = container,
                 onBack = { finish() }

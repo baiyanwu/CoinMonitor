@@ -98,8 +98,6 @@
     <string name="home_empty_onchain_hint">Add an on-chain token to start monitoring.</string>
     <string name="home_add_pair">Add pair</string>
     <string name="home_open_search">Search pairs</string>
-    <string name="home_pair_actions">Pair actions</string>
-    <string name="home_pair_actions_close">Close pair actions menu</string>
     <string name="home_open_market_page">Open the external market page for %1$s</string>
     <string name="home_copy_ca_description">Copy full contract address</string>
     <string name="home_ca_copied">Contract address copied</string>
@@ -122,7 +120,6 @@
     <string name="home_live_trend">Live</string>
     <string name="home_live_trend_description">Real quote samples received during this home session</string>
     <string name="home_trend_waiting">Waiting for quote samples</string>
-    <string name="home_market_cap_label">Market cap</string>
 
     <string name="search_title">Search Pairs</string>
     <string name="search_subtitle">Switch between exchange and on-chain search, then filter on-chain results by EVM / SOL.</string>
@@ -552,7 +549,6 @@
     <string name="wallet_updated_time">Updated at %1$s</string>
     <string name="wallet_refreshing_previous">Refreshing · last update %1$s</string>
     <string name="wallet_networks_all">All networks</string>
-    <string name="wallet_watch_entry_description">View on-chain assets at another address</string>
     <string name="wallet_manage">Manage wallets</string>
     <string name="wallet_backup">Back up wallet</string>
     <string name="wallet_security">Security</string>

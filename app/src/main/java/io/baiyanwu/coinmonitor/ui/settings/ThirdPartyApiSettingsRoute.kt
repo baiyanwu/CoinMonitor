@@ -65,6 +65,7 @@ import io.baiyanwu.coinmonitor.domain.model.WalletNetwork
 import io.baiyanwu.coinmonitor.domain.model.WalletProviderMode
 import io.baiyanwu.coinmonitor.domain.model.modeFor
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorComponentDefaults
+import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorDesignColorTheme
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 
 private const val SHOW_AI_SETTINGS_ENTRY = false
@@ -150,7 +151,7 @@ private fun ThirdPartyApiSettingsScreen(
     onAiSystemPromptChange: (String) -> Unit,
     onSaveAi: () -> Unit,
     onClearAi: () -> Unit
-) {
+) = CoinMonitorDesignColorTheme {
     val colors = CoinMonitorThemeTokens.colors
     var showAiValidationError by rememberSaveable { mutableStateOf(false) }
     var showOkxValidationError by rememberSaveable { mutableStateOf(false) }
@@ -162,7 +163,7 @@ private fun ThirdPartyApiSettingsScreen(
     )
 
     Scaffold(
-        containerColor = colors.pageBackground,
+        containerColor = CoinMonitorThemeTokens.design.colors.pageBackground,
         topBar = {
             ThirdPartyApiTopBar(onBack = onBack)
         }
@@ -170,7 +171,7 @@ private fun ThirdPartyApiSettingsScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .background(colors.pageBackground)
+                .background(CoinMonitorThemeTokens.design.colors.pageBackground)
                 .padding(innerPadding),
             state = listState,
             contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
@@ -923,10 +924,9 @@ private fun SaveClearButtons(
 private fun ThirdPartyApiTopBar(
     onBack: () -> Unit
 ) {
-    val colors = CoinMonitorThemeTokens.colors
     CenterAlignedTopAppBar(
         colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-            containerColor = colors.pageBackground
+            containerColor = CoinMonitorThemeTokens.design.colors.pageBackground
         ),
         title = {
             Text(text = stringResource(R.string.third_party_api_settings_title))

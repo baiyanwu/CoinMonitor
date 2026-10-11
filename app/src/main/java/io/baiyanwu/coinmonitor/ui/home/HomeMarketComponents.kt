@@ -25,12 +25,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.ArrowOutward
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Layers
 import androidx.compose.material.icons.rounded.PushPin
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -41,6 +41,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalInspectionMode
@@ -58,14 +59,17 @@ import io.baiyanwu.coinmonitor.R
 import io.baiyanwu.coinmonitor.domain.model.ExchangeSource
 import io.baiyanwu.coinmonitor.domain.model.MarketPageUrlResolver
 import io.baiyanwu.coinmonitor.domain.model.MarketType
-import io.baiyanwu.coinmonitor.domain.model.OnchainChainIconRegistry
+import io.baiyanwu.coinmonitor.domain.model.OnchainChainRegistry
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
 import io.baiyanwu.coinmonitor.domain.model.withQuote
 import io.baiyanwu.coinmonitor.domain.repository.QuoteRepository
 import io.baiyanwu.coinmonitor.overlay.QuoteFormatter
 import io.baiyanwu.coinmonitor.ui.components.CoinMonitorIcons
 import io.baiyanwu.coinmonitor.ui.components.CoinMonitorListRow
-import io.baiyanwu.coinmonitor.ui.components.CoinMonitorLogo
+import io.baiyanwu.coinmonitor.ui.components.CoinMonitorPageTopBar
+import io.baiyanwu.coinmonitor.ui.components.OnchainChainIcon
+import io.baiyanwu.coinmonitor.ui.components.CoinInitialPlaceholder
+import io.baiyanwu.coinmonitor.ui.components.watchItemIconModel
 import io.baiyanwu.coinmonitor.ui.components.CoinMonitorSegmentedTab
 import io.baiyanwu.coinmonitor.ui.components.CoinMonitorSegmentedTabs
 import io.baiyanwu.coinmonitor.ui.components.CoinMonitorSmallIconButton
@@ -77,19 +81,14 @@ import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 import kotlinx.coroutines.delay
 
 @Composable
-internal fun HomeHeader(onSearch: () -> Unit, more: @Composable () -> Unit) {
+internal fun HomeHeader(addingAddress: Boolean, onAdd: () -> Unit) {
     val design = CoinMonitorThemeTokens.design
-    Row(
-        Modifier.fillMaxWidth().padding(horizontal = design.spacing.pageHorizontal, vertical = design.spacing.small),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(design.spacing.inline)
-    ) {
-        CoinMonitorLogo()
-        Text(stringResource(R.string.app_name), style = design.typography.rowTitle, color = design.colors.accent)
-        Box(Modifier.size(1.dp, 16.dp).background(design.colors.divider))
-        Text(stringResource(R.string.home_self_selected), style = design.typography.label, color = design.colors.primaryText, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-        CoinMonitorSmallIconButton(CoinMonitorIcons.Search, stringResource(R.string.home_open_search), onSearch, containerColor = design.colors.surface)
-        more()
+    CoinMonitorPageTopBar(stringResource(R.string.home_self_selected)) {
+        CoinMonitorSmallIconButton(
+            CoinMonitorIcons.Add,
+            stringResource(if (addingAddress) R.string.address_add else R.string.home_add_pair),
+            onAdd, modifier = Modifier.testTag("home-add"), containerColor = design.colors.surface
+        )
     }
 }
 
@@ -183,7 +182,24 @@ internal fun HomeAssetRow(item: WatchItem, quoteRepository: QuoteRepository, sho
     val copiedMessage = stringResource(R.string.home_ca_copied)
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         CoinMonitorListRow(
-            leading = { HomeCoinIcon(item) }, title = { HomePairTitle(item) },
+            leading = { HomeCoinIcon(item) },
+            title = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(design.spacing.tiny)
+                ) {
+                    HomePairTitle(item, Modifier.weight(1f, fill = false))
+                    if (marketPageUrl != null) Icon(
+                        Icons.Rounded.ArrowOutward,
+                        contentDescription = openMarketLabel,
+                        modifier = Modifier.size(design.sizes.inlineActionIcon)
+                            .clickable(role = Role.Button, onClickLabel = openMarketLabel) {
+                                runCatching { uriHandler.openUri(marketPageUrl) }
+                            },
+                        tint = design.colors.accent
+                    )
+                }
+            },
             supporting = {
                 Column(verticalArrangement = Arrangement.spacedBy(design.spacing.tiny)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(design.spacing.small)) {
@@ -193,23 +209,33 @@ internal fun HomeAssetRow(item: WatchItem, quoteRepository: QuoteRepository, sho
                         if (item.homePinned) Icon(Icons.Rounded.PushPin, stringResource(R.string.home_pinned_tag), Modifier.size(12.dp), tint = design.colors.accent)
                         if (overlaySelected) Icon(Icons.Rounded.Layers, stringResource(R.string.home_overlay_tag), Modifier.size(12.dp), tint = design.colors.secondaryText)
                     }
-                    contract?.let { Text(compactContractAddress(it), style = design.typography.caption, color = design.colors.secondaryText, maxLines = 1, overflow = TextOverflow.Ellipsis) }
-                }
-            },
-            identityModifier = if (marketPageUrl != null) Modifier.clickable(onClickLabel = openMarketLabel, role = Role.Button) {
-                runCatching { uriHandler.openUri(marketPageUrl) }
-            } else Modifier,
-            middle = when {
-                contract != null -> ({
-                    IconButton(onClick = {
-                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                        clipboard.setPrimaryClip(ClipData.newPlainText("Contract address", contract))
-                        Toast.makeText(context, copiedMessage, Toast.LENGTH_SHORT).show()
-                    }, modifier = Modifier.size(design.sizes.minimumTouchTarget)) {
-                        Icon(Icons.Rounded.ContentCopy, copyLabel, Modifier.size(design.sizes.actionIcon), tint = design.colors.accent)
+                    contract?.let { address ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(design.spacing.tiny)
+                        ) {
+                            Text(
+                                compactContractAddress(address),
+                                modifier = Modifier.weight(1f, fill = false),
+                                style = design.typography.caption,
+                                color = design.colors.secondaryText,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Icon(
+                                Icons.Rounded.ContentCopy,
+                                contentDescription = copyLabel,
+                                modifier = Modifier.size(design.sizes.inlineActionIcon)
+                                    .clickable(role = Role.Button, onClickLabel = copyLabel) {
+                                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                        clipboard.setPrimaryClip(ClipData.newPlainText("Contract address", address))
+                                        Toast.makeText(context, copiedMessage, Toast.LENGTH_SHORT).show()
+                                    },
+                                tint = design.colors.accent
+                            )
+                        }
                     }
-                })
-                else -> null
+                }
             },
             trailing = {
                 Column(Modifier.widthIn(max = minOf(128.dp, maxWidth * 0.4f)), horizontalAlignment = Alignment.End) {
@@ -224,20 +250,37 @@ internal fun HomeAssetRow(item: WatchItem, quoteRepository: QuoteRepository, sho
 private fun HomeCoinIcon(item: WatchItem) {
     val preview = LocalInspectionMode.current
     val design = CoinMonitorThemeTokens.design
-    CoilCoinSymbolIcon(symbol = item.baseSymbol, iconUrl = item.iconUrl.takeUnless { preview },
-        fallbackIconUrls = if (preview) emptyList() else OnchainChainIconRegistry.resolveIconUrls(item.chainIndex), allowSymbolLookup = !preview,
-        size = design.sizes.coinIcon)
+    val model = watchItemIconModel(item)
+    Box(Modifier.size(design.sizes.coinIcon)) {
+        CoilCoinSymbolIcon(
+            symbol = model.symbol,
+            iconUrl = model.tokenIconUrl.takeUnless { preview },
+            allowSymbolLookup = !preview && model.allowSymbolLookup,
+            size = design.sizes.coinIcon,
+            placeholderContent = { modifier -> CoinInitialPlaceholder(item.baseSymbol, modifier) }
+        )
+        if (model.chainIndex != null) {
+            val chain = OnchainChainRegistry.resolve(model.chainIndex)
+            OnchainChainIcon(
+                chainIndex = model.chainIndex,
+                name = chain?.displayName ?: model.chainIndex,
+                modifier = Modifier.align(Alignment.BottomEnd)
+                    .background(design.colors.surface, CircleShape).padding(1.dp).clip(CircleShape),
+                size = design.sizes.chainBadge
+            )
+        }
+    }
 }
 
 @Composable
-private fun HomePairTitle(item: WatchItem) {
+private fun HomePairTitle(item: WatchItem, modifier: Modifier = Modifier) {
     val design = CoinMonitorThemeTokens.design
     val label = homePairLabel(item)
     val title = buildAnnotatedString {
         append(label.substringBefore(" / "))
         if (label.contains(" / ")) withStyle(SpanStyle(color = design.colors.secondaryText)) { append(" / "); append(label.substringAfter(" / ")) }
     }
-    Text(title, style = design.typography.rowTitle, color = design.colors.primaryText, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    Text(title, modifier = modifier, style = design.typography.rowTitle, color = design.colors.primaryText, maxLines = 1, overflow = TextOverflow.Ellipsis)
 }
 
 @Composable
@@ -269,7 +312,6 @@ private fun HomeQuoteTexts(item: WatchItem, showOnchainMarketCap: Boolean) {
         if (valueFlashing) item.resolveLivePriceColor(colors, colors.primaryText) else colors.primaryText,
         tween(if (valueFlashing) 80 else 420), label = "home-value-flash"
     )
-    if (marketCapMode) Text(stringResource(R.string.home_market_cap_label), style = design.typography.caption, color = colors.secondaryText)
     Text(formatHomeWatchValue(item, showOnchainMarketCap), style = design.typography.value,
         color = valueColor, maxLines = 1, overflow = TextOverflow.Ellipsis)
     Row(horizontalArrangement = Arrangement.spacedBy(design.spacing.small)) {

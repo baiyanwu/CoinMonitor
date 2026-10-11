@@ -56,6 +56,7 @@ import io.baiyanwu.coinmonitor.domain.model.WatchItem
 import io.baiyanwu.coinmonitor.ui.components.CoinSymbolIcon
 import io.baiyanwu.coinmonitor.ui.components.CompactSearchField
 import io.baiyanwu.coinmonitor.ui.components.MarketModeTabs
+import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorDesignColorTheme
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 import kotlinx.coroutines.launch
 import java.util.Locale
@@ -115,7 +116,7 @@ private fun SearchScreen(
     onToggleItem: (WatchItem) -> Unit,
     onSelectOnchainPool: (WatchItem, OnchainPoolOption) -> Unit,
     onSelectForKline: (WatchItem) -> Unit
-) {
+) = CoinMonitorDesignColorTheme {
     val colors = CoinMonitorThemeTokens.colors
     val pagerState = rememberPagerState(
         initialPage = SEARCH_MODES.indexOf(initialSearchMode).coerceAtLeast(0),

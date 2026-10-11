@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import io.baiyanwu.coinmonitor.BuildConfig
 import io.baiyanwu.coinmonitor.R
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorComponentDefaults
+import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorDesignColorTheme
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 
 @Composable
@@ -62,15 +63,15 @@ private fun AboutScreen(
     onOpenRepository: () -> Unit,
     onOpenLicense: () -> Unit,
     onOpenIssues: () -> Unit
-) {
+) = CoinMonitorDesignColorTheme {
     val colors = CoinMonitorThemeTokens.colors
 
     Scaffold(
-        containerColor = colors.pageBackground,
+        containerColor = CoinMonitorThemeTokens.design.colors.pageBackground,
         topBar = {
             CenterAlignedTopAppBar(
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = colors.pageBackground
+                    containerColor = CoinMonitorThemeTokens.design.colors.pageBackground
                 ),
                 title = { Text(text = stringResource(R.string.about_title)) },
                 navigationIcon = {
@@ -87,7 +88,7 @@ private fun AboutScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .background(colors.pageBackground)
+                .background(CoinMonitorThemeTokens.design.colors.pageBackground)
                 .padding(innerPadding),
             contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
