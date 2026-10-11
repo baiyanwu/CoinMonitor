@@ -237,13 +237,20 @@ private fun TokenResult(state: ClipboardPanelState, settings: ClipboardSettings,
     LinkGrid(entries, match.chain.dexScreenerId, onOpen, fixedViewport = true)
     ProjectLinks(match.projectLinks, onOpen)
     val question = settings.aiQuestion ?: stringResource(R.string.clipboard_ai_default_question)
+    val aiLabels = ClipboardAIPromptLabels(
+        token = stringResource(R.string.clipboard_ai_token), chain = stringResource(R.string.clipboard_ai_chain),
+        contract = stringResource(R.string.clipboard_ai_contract), price = stringResource(R.string.clipboard_ai_price),
+        marketCap = stringResource(R.string.clipboard_ai_market_cap), pool = stringResource(R.string.clipboard_ai_pool),
+        market = stringResource(R.string.clipboard_ai_market), website = stringResource(R.string.clipboard_ai_website),
+        unknown = stringResource(R.string.clipboard_ai_unknown)
+    )
     CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 24.dp) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-            ClipboardTonalButton(onClick = { onOpen(clipboardAIPromptUrl("gpt", match, question)) }, modifier = Modifier.weight(1f), minimumHeight = 24.dp) {
+            ClipboardTonalButton(onClick = { onOpen(clipboardAIPromptUrl("gpt", match, question, aiLabels)) }, modifier = Modifier.weight(1f), minimumHeight = 24.dp) {
                 Icon(painterResource(R.drawable.clipboard_logo_gpt), null, Modifier.size(14.dp))
                 Spacer(Modifier.width(4.dp)); Text("GPT")
             }
-            ClipboardTonalButton(onClick = { onOpen(clipboardAIPromptUrl("grok", match, question)) }, modifier = Modifier.weight(1f), minimumHeight = 24.dp) {
+            ClipboardTonalButton(onClick = { onOpen(clipboardAIPromptUrl("grok", match, question, aiLabels)) }, modifier = Modifier.weight(1f), minimumHeight = 24.dp) {
                 Icon(painterResource(R.drawable.clipboard_logo_grok), null, Modifier.size(14.dp))
                 Spacer(Modifier.width(4.dp)); Text("Grok")
             }

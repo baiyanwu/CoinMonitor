@@ -94,7 +94,16 @@
     <string name="clipboard_site_new_network">New network, e.g. base / solana</string>
     <string name="clipboard_site_add_network">Add network rule</string>
     <string name="clipboard_site_preview">Link preview</string>
-    <string name="clipboard_ai_default_question">Analyze this token, liquidity and risks. Distinguish verified information from unknowns.</string>
+    <string name="clipboard_ai_default_question">Research this token: verify project identity, utility, liquidity, holder concentration and recent catalysts.</string>
     <string name="clipboard_ai_question">Default GPT / Grok question</string>
     <string name="clipboard_ai_restore">Restore default question</string>
+    <string name="clipboard_ai_token">Token</string>
+    <string name="clipboard_ai_chain">Network</string>
+    <string name="clipboard_ai_contract">Contract address</string>
+    <string name="clipboard_ai_price">Price (USD)</string>
+    <string name="clipboard_ai_market_cap">Market cap (USD)</string>
+    <string name="clipboard_ai_pool">Pool address</string>
+    <string name="clipboard_ai_market">Market</string>
+    <string name="clipboard_ai_website">Website</string>
+    <string name="clipboard_ai_unknown">Unknown</string>
 </resources>

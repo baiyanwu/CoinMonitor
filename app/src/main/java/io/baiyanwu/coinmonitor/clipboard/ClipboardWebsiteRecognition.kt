@@ -90,15 +90,3 @@ internal object ClipboardWebsiteRecognition {
         return if (validClipboardDestination(destination)) Outcome.Recognized(Result(destination, address, chain)) else Outcome.Invalid
     }
 }
-
-internal fun clipboardAIPromptUrl(provider: String, match: ClipboardMatch, question: String): String {
-    val prompt = buildString {
-        append(question.trim())
-        append("\n${match.selection.tokenName} (${match.selection.tokenSymbol})")
-        append("\n${match.chain.displayName}\nCA: ${match.selection.tokenAddress}")
-        append("\nUSD: ${match.selection.priceUsd}")
-        match.marketCap?.let { append("\nMarket cap: $it") }
-    }
-    val encoded = java.net.URLEncoder.encode(prompt, "UTF-8").replace("+", "%20")
-    return if (provider == "grok") "https://grok.com/?q=$encoded" else "https://chatgpt.com/?q=$encoded"
-}

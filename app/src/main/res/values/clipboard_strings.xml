@@ -94,7 +94,16 @@
     <string name="clipboard_site_new_network">新增网络，如 base / solana</string>
     <string name="clipboard_site_add_network">添加网络规则</string>
     <string name="clipboard_site_preview">链接预览</string>
-    <string name="clipboard_ai_default_question">分析这个代币的基本信息、流动性与风险，区分已核实信息和未知项。</string>
+    <string name="clipboard_ai_default_question">请研究这个代币：核实项目身份、实际用途、流动性、持仓集中度和近期催化。</string>
     <string name="clipboard_ai_question">GPT / Grok 默认提问</string>
     <string name="clipboard_ai_restore">恢复默认提问</string>
+    <string name="clipboard_ai_token">代币</string>
+    <string name="clipboard_ai_chain">网络</string>
+    <string name="clipboard_ai_contract">合约地址</string>
+    <string name="clipboard_ai_price">价格（美元）</string>
+    <string name="clipboard_ai_market_cap">市值（美元）</string>
+    <string name="clipboard_ai_pool">池地址</string>
+    <string name="clipboard_ai_market">行情</string>
+    <string name="clipboard_ai_website">官网</string>
+    <string name="clipboard_ai_unknown">未知</string>
 </resources>

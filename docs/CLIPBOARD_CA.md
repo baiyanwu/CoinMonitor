@@ -140,3 +140,9 @@
 - Seeker 上同签名覆盖安装 Debug 1.0.13，保留应用数据。原有七个网站和顺序保留，五个新增网站自动追加；逐个打开编辑页，核对 Ave 五条、Debot/Birdeye 各三条、Pump.fun/Axiom 各一条 Solana 规则，全部取消编辑，没有保存改动。
 - 使用当前剪贴板 Solana CLAUDIA CA `2j5SaS7xy776qCBpyPQbZjyQSAtKiFgrwjfErthnW2ZM`，通过实际悬浮 CA 卡片滚动并点击五个入口。浏览器地址栏或 Android VIEW Intent 均包含正确 CA 和网络路由。Birdeye 实际加载 CLAUDIA 详情、报价和图表；Ave 跳转移动版但存在声明弹窗，不能确认完整详情；Axiom 停在 Cloudflare 安全验证；Pump.fun 被已安装 Pump App 接管并显示引导页；Debot 被已安装 App 接管并显示登录页。后三项不能视为详情页验证通过。
 - 原始 PNG、页面结构、安装记录及结果保存在 `app/build/ui-review/websites-20261011/`。结束时设备停在 CLAUDIA 卡片，网站区显示五个新增入口，品牌图标均已加载。本轮没有修改剪贴板、自选、悬浮开关或网络规则，没有验证 BSC/Arc/Ethereum/Robinhood 详情页，也没有在实体机删除规则后重启测试；这些范围不能由本轮结果推定通过。
+
+### AI 跳转资料与 macOS 对齐（2026-10-11）
+
+- GPT/Grok 使用相同的本地资料正文：代币名称与符号、网络、完整 CA、美元价格、完整市值（千分位，最多两位小数）、当前池地址、行情详情链接、基础代币项目官网和 X 主页；用户提问放在末尾，保留原文、换行及特殊字符。缺失或无效数字明确写“未知”，行情链接缺失或不安全时使用当前 DexScreener 池链接。
+- 与 macOS 当前实现一致，不传持仓人数、走势图、文档链接、X 搜索或帖子链接，也不让报价侧目标继承基础代币市值和项目资料。默认提问同步为核实身份、用途、流动性、持仓集中度和近期催化；已保存的自定义提问（包括空文本）保持原样。Android GPT 继续打开 ChatGPT，Grok 继续打开 grok.com；macOS 的 GPT 目标为本地 Codex，新目标并未移植到 Android。
+- 验证：54 项剪贴板测试通过、1 项公网测试跳过，Debug 静态检查和构建通过；同签名保留数据覆盖安装到 Seeker。实际点击 GPT/Grok，解码两次 Android VIEW URL，正文逐字一致（本轮 CLAUDIA 为 401 字符、13 行），含当前池、行情链接、两个官网及两个 X 主页。ChatGPT 初次输入框内容与正文完全匹配，随后页面出现网站验证错误；Grok 的发送确认框完整包含同一正文。未点击发送，未验证 AI 回答。截图和原始传递内容位于 `app/build/ui-review/ai-context-20261011/`，设备停在 Grok 确认框。
