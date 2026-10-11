@@ -15,8 +15,12 @@ class ClipboardSettingsStore(context: Context) {
     private val json = Json { ignoreUnknownKeys = true }
     private val mutableSettings = MutableStateFlow(runCatching {
         json.decodeFromString<ClipboardSettings>(preferences.getString("settings", null) ?: "{}")
-    }.getOrDefault(ClipboardSettings()))
+    }.getOrDefault(ClipboardSettings()).let(::migrateClipboardDestinations))
     val settings = mutableSettings.asStateFlow()
+
+    init {
+        preferences.edit().putString("settings", json.encodeToString(mutableSettings.value)).apply()
+    }
 
     @Synchronized
     fun update(change: (ClipboardSettings) -> ClipboardSettings) {

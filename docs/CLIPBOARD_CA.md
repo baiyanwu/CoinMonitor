@@ -50,6 +50,9 @@
 
 ## 快捷网站配置
 
+- 内置入口共 12 个：DexScreener、GMGN、OKX、Binance、X、Explorer、Fomo、Pump.fun、Ave.ai、Axiom、Debot、Birdeye。Pump.fun 与 Axiom 仅提供 Solana 路由；Ave.ai 使用 `https://ave.ai/token/{ca}-{chain}`，映射 Arc=`arc`、BNB Chain=`bsc`、Ethereum=`eth`、Robinhood=`robinhood`、Solana=`sol`；Debot 使用 `https://debot.ai/token/{chain}/{ca}`，Birdeye 使用 `https://birdeye.so/{chain}/token/{ca}`，两者映射 BNB Chain=`bsc`、Robinhood=`robinhood`、Solana=`solana`。新增规则依据用户提供的详情链接和截图，未独立验证所有网络上的网站详情页可用性。
+- 升级首次加载时只追加缺失的五个新增内置网站，已手动添加的相同路由不重复加入；保留已有网站顺序、名称、开关、自定义规则及旧入口删除状态；保存迁移版本后，用户再次删除的新入口不会在重启后复活。恢复默认仍是显式操作。
+- Ave.ai 的 `CA-网络` 后缀参与本地识别；Pump.fun/Axiom 的无网络路径按精确内置模板识别为 Solana，不用于其他网络。新增图标使用各站点 favicon，加载失败沿用通用图标。
 - 新增/编辑通过真实详情页链接识别网站名称、图标来源、地址位置及网络规则。唯一 CA 自动处理，多个 CA 必须选择，无地址或无效链接不能保存。
 - 已知且格式精确匹配的内置路由复用其现有网络规则；陌生网站只使用粘贴链接已确认的网络，不推断其他链。
 - CA-only 链接不显示网络表。使用网络名称或逐链完整链接时规则默认展开，可编辑、增加和删除；名称和链接预览可见，不要求用户编辑整个原始模板或多行映射字符串。

@@ -15,7 +15,8 @@ data class ClipboardSettings(
     val addToFloating: Boolean = false,
     val destinations: List<ClipboardDestination> = clipboardDestinations(),
     val valueMode: String = "price",
-    val aiQuestion: String? = null
+    val aiQuestion: String? = null,
+    val destinationsVersion: Int = 0
 )
 
 @Serializable
@@ -57,8 +58,36 @@ fun clipboardDestinations(): List<ClipboardDestination> = listOf(
         "base" to "https://basescan.org/address/{ca}", "solana" to "https://solscan.io/account/{ca}",
         "robinhood" to "https://robinhoodchain.blockscout.com/address/{ca}")),
     ClipboardDestination("fomo", "Fomo", "https://fomo.family/tokens/{chain}/{ca}",
-        chainValues = mapOf("ethereum" to "ethereum", "bsc" to "bnb", "base" to "base", "solana" to "solana", "monad" to "monad", "robinhood" to "robinhood"))
+        chainValues = mapOf("ethereum" to "ethereum", "bsc" to "bnb", "base" to "base", "solana" to "solana", "monad" to "monad", "robinhood" to "robinhood")),
+    ClipboardDestination("pump", "Pump.fun", "", chainTemplates = mapOf("solana" to "https://pump.fun/coin/{ca}"),
+        iconUrl = "https://pump.fun/favicon.ico"),
+    ClipboardDestination("ave", "Ave.ai", "https://ave.ai/token/{ca}-{chain}",
+        chainValues = mapOf("arc" to "arc", "bsc" to "bsc", "ethereum" to "eth", "robinhood" to "robinhood", "solana" to "sol"),
+        iconUrl = "https://ave.ai/favicon.ico"),
+    ClipboardDestination("axiom", "Axiom", "", chainTemplates = mapOf("solana" to "https://axiom.trade/token/{ca}"),
+        iconUrl = "https://axiom.trade/favicon.ico"),
+    ClipboardDestination("debot", "Debot", "https://debot.ai/token/{chain}/{ca}",
+        chainValues = mapOf("bsc" to "bsc", "robinhood" to "robinhood", "solana" to "solana"),
+        iconUrl = "https://debot.ai/favicon.ico"),
+    ClipboardDestination("birdeye", "Birdeye", "https://birdeye.so/{chain}/token/{ca}",
+        chainValues = mapOf("bsc" to "bsc", "robinhood" to "robinhood", "solana" to "solana"),
+        iconUrl = "https://birdeye.so/favicon.ico")
 )
+
+/** Append this release's new defaults once, without restoring previously deleted sites. */
+internal fun migrateClipboardDestinations(settings: ClipboardSettings): ClipboardSettings {
+    if (settings.destinationsVersion >= 1) return settings
+    val addedIds = setOf("pump", "ave", "axiom", "debot", "birdeye")
+    val additions = clipboardDestinations().filter { default ->
+        default.id in addedIds && settings.destinations.none { existing ->
+            existing.id == default.id ||
+                default.template.isNotBlank() && existing.template == default.template ||
+                default.chainTemplates.isNotEmpty() && (existing.template in default.chainTemplates.values ||
+                    existing.chainTemplates == default.chainTemplates)
+        }
+    }
+    return settings.copy(destinations = settings.destinations + additions, destinationsVersion = 1)
+}
 
 fun safeClipboardUrl(value: String?): String? = value?.takeIf {
     runCatching {

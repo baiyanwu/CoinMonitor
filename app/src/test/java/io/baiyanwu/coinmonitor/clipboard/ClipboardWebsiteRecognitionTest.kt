@@ -57,6 +57,73 @@ class ClipboardWebsiteRecognitionTest {
         assertFalse(settings.destinations.single().enabled); assertEquals("price", settings.valueMode)
     }
 
+    @Test fun aveSuffixRecognizesNetworkAndPreservesManualRules() {
+        val first = recognize("https://ave.ai/token/$CA-arc")
+        assertEquals("arc", first.chain)
+        assertEquals("https://ave.ai/token/{ca}-{chain}", first.destination.template)
+        assertEquals("sol", first.destination.chainValues["solana"])
+        val edited = first.destination.copy(chainValues = first.destination.chainValues - "bsc" + ("ethereum" to "custom"),
+            removedNetworkRules = setOf("bsc"))
+        val again = recognize("https://ave.ai/token/$CA-eth", edited).destination
+        assertEquals("custom", again.chainValues["ethereum"])
+        assertFalse(again.chainValues.containsKey("bsc"))
+        val unknown = recognize("https://example.com/token/$CA-arc")
+        assertNull(unknown.chain)
+        assertEquals("https://example.com/token/{ca}-arc", unknown.destination.template)
+    }
+
+    @Test fun newBuiltInRoutesImportTheirNetworkRules() {
+        val sol = "So11111111111111111111111111111111111111112"
+        for ((id, url, chain) in listOf(
+            Triple("pump", "https://pump.fun/coin/$sol", "solana"),
+            Triple("axiom", "https://axiom.trade/token/$sol", "solana"),
+            Triple("debot", "https://debot.ai/token/bsc/$CA", "bsc"),
+            Triple("birdeye", "https://birdeye.so/bsc/token/$CA", "bsc")
+        )) {
+            val result = recognize(url)
+            val default = clipboardDestinations().first { it.id == id }
+            assertEquals(chain, result.chain)
+            assertEquals(default.name, result.destination.name)
+            assertEquals(default.template, result.destination.template)
+            assertEquals(default.chainTemplates, result.destination.chainTemplates)
+            assertEquals(default.chainValues, result.destination.chainValues)
+        }
+    }
+
+    @Test fun newDefaultsAreAppendedOnceWithoutResettingExistingConfiguration() {
+        val custom = ClipboardDestination("custom", "My site", "https://example.com/{ca}", enabled = false)
+        val ave = clipboardDestinations().first { it.id == "ave" }.copy(name = "My Ave", enabled = false,
+            chainValues = mapOf("bsc" to "custom"), removedNetworkRules = setOf("solana"))
+        val old = ClipboardSettings(enabled = false, destinations = listOf(custom, ave), valueMode = "market_cap", aiQuestion = "Research")
+        val migrated = migrateClipboardDestinations(old)
+        assertEquals(listOf(custom, ave), migrated.destinations.take(2))
+        assertEquals(listOf("custom", "ave", "pump", "axiom", "debot", "birdeye"), migrated.destinations.map { it.id })
+        assertEquals(old.copy(destinations = migrated.destinations, destinationsVersion = 1), migrated)
+        val deleted = migrated.copy(destinations = migrated.destinations.filterNot { it.id == "pump" })
+        val reloaded = Json.decodeFromString<ClipboardSettings>(Json.encodeToString(ClipboardSettings.serializer(), deleted))
+        assertEquals(deleted, migrateClipboardDestinations(reloaded))
+        assertEquals(12, migrateClipboardDestinations(ClipboardSettings()).destinations.size)
+    }
+
+    @Test fun migrationDoesNotDuplicatePreviouslyAddedCustomRoutes() {
+        val pump = ClipboardDestination("user-pump", "My Pump", "https://pump.fun/coin/{ca}")
+        val ave = clipboardDestinations().first { it.id == "ave" }.copy(id = "user-ave", name = "My Ave")
+        val migrated = migrateClipboardDestinations(ClipboardSettings(destinations = listOf(pump, ave)))
+        assertEquals(listOf(pump, ave), migrated.destinations.take(2))
+        assertFalse(migrated.destinations.any { it.id in setOf("pump", "ave") })
+        assertEquals(5, migrated.destinations.size)
+    }
+
+    @Test fun deletedSolanaOnlyRuleStaysDeletedWhenRecognizedAgain() {
+        val sol = "So11111111111111111111111111111111111111112"
+        val url = "https://pump.fun/coin/$sol"
+        val first = recognize(url).destination
+        val deleted = first.copy(chainTemplates = emptyMap(), removedNetworkRules = setOf("solana"))
+        val again = recognize(url, deleted).destination
+        assertTrue(again.chainTemplates.isEmpty())
+        assertEquals(setOf("solana"), again.removedNetworkRules)
+    }
+
     @Test fun unsafeUrlsAreRejectedAndAiLiteralPlusIsEncoded() {
         assertEquals(ClipboardWebsiteRecognition.Outcome.Invalid, ClipboardWebsiteRecognition.recognize("javascript:$CA", newSite))
         assertEquals(ClipboardWebsiteRecognition.Outcome.Invalid, ClipboardWebsiteRecognition.recognize("https://user:pass@example.com/$CA", newSite))

@@ -78,6 +78,29 @@ class ClipboardModelsTest {
         assertEquals("https://example.com/arb/$CA", custom.url(match))
     }
 
+    @Test fun newBuiltInDestinationsGenerateExactRoutesAndRejectUnsupportedNetworks() {
+        val sol = "So11111111111111111111111111111111111111112"
+        val solMatch = clipboardMatches(sol, listOf(testPair("solana", sol))).single()
+        val bscMatch = clipboardMatches(CA, listOf(testPair("bsc"))).single()
+        val destinations = clipboardDestinations().associateBy { it.id }
+        assertEquals("https://pump.fun/coin/$sol", destinations.getValue("pump").url(solMatch))
+        assertEquals("https://axiom.trade/token/$sol", destinations.getValue("axiom").url(solMatch))
+        for (id in listOf("pump", "axiom")) assertNull(destinations.getValue(id).url(bscMatch))
+        val expected = mapOf("ave" to "https://ave.ai/token/$CA-bsc",
+            "debot" to "https://debot.ai/token/bsc/$CA", "birdeye" to "https://birdeye.so/bsc/token/$CA")
+        expected.forEach { (id, url) -> assertEquals(url, destinations.getValue(id).url(bscMatch)) }
+        for ((chain, mapped) in mapOf("arc" to "arc", "ethereum" to "eth", "robinhood" to "robinhood")) {
+            val match = clipboardMatches(CA, listOf(testPair(chain))).single()
+            assertEquals("https://ave.ai/token/$CA-$mapped", destinations.getValue("ave").url(match))
+        }
+        for (id in listOf("ave", "debot", "birdeye")) {
+            assertNull(destinations.getValue(id).url(clipboardMatches(CA, listOf(testPair("arbitrum"))).single()))
+        }
+        assertEquals("https://ave.ai/token/$sol-sol", destinations.getValue("ave").url(solMatch))
+        assertEquals("https://debot.ai/token/solana/$sol", destinations.getValue("debot").url(solMatch))
+        assertEquals("https://birdeye.so/solana/token/$sol", destinations.getValue("birdeye").url(solMatch))
+    }
+
     @Test fun editedDexDestinationDoesNotUseDefaultPoolRoute() {
         val match = clipboardMatches(CA, listOf(testPair())).single()
         val destination = clipboardDestinations().first().copy(template = "https://example.com/{ca}")

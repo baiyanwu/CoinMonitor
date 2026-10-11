@@ -16,7 +16,7 @@ internal object ClipboardWebsiteRecognition {
 
     private val aliases = mapOf("sol" to "solana", "solana" to "solana", "eth" to "ethereum",
         "ethereum" to "ethereum", "bnb" to "bsc", "bsc" to "bsc", "base" to "base",
-        "monad" to "monad", "robinhood-chain" to "robinhood", "robinhood" to "robinhood",
+        "monad" to "monad", "arc" to "arc", "robinhood-chain" to "robinhood", "robinhood" to "robinhood",
         "arbitrum" to "arbitrum", "arb" to "arbitrum", "polygon" to "polygon", "optimism" to "optimism")
     private val explorerChains = mapOf("etherscan.io" to "ethereum", "bscscan.com" to "bsc",
         "basescan.org" to "base", "solscan.io" to "solana", "robinhoodchain.blockscout.com" to "robinhood")
@@ -57,8 +57,16 @@ internal object ClipboardWebsiteRecognition {
                 }
             }
         }
-        val chain = route?.lowercase()?.let(aliases::get) ?: explorerChains[host]
-        val known = clipboardDestinations().firstOrNull { it.template == template }
+        val suffix = uri.rawPath.orEmpty().substringAfterLast('-')
+        if (route == null && host == "ave.ai" && uri.rawPath == "/token/$address-$suffix") {
+            if (suffix.lowercase() in aliases) {
+                route = suffix
+                template = template.replace("{ca}-$suffix", "{ca}-{chain}")
+            }
+        }
+        val known = clipboardDestinations().firstOrNull { it.template == template || template in it.chainTemplates.values }
+        val knownChain = known?.chainTemplates?.entries?.singleOrNull { it.value == template }?.key
+        val chain = route?.lowercase()?.let(aliases::get) ?: explorerChains[host] ?: knownChain
         val oldSourceTemplate = existing.sourceUrl?.let { source -> ClipboardAddressParser.extract(source).singleOrNull()?.let { source.replace(it, "{ca}") } }
         val sameFormat = existing.template == template || existing.template.isBlank() && (template in existing.chainTemplates.values || oldSourceTemplate == template)
         val values = linkedMapOf<String, String>()
@@ -70,7 +78,7 @@ internal object ClipboardWebsiteRecognition {
         val name = known?.name ?: mapOf("dexscreener.com" to "DexScreener", "gmgn.ai" to "GMGN",
             "web3.okx.com" to "OKX Web3", "web3.binance.com" to "Binance Web3", "fomo.family" to "FoMo", "x.com" to "X")[host]
             ?: host.removePrefix("www.")
-        val perChain = route == null && chain != null && host in explorerChains
+        val perChain = route == null && chain != null && (host in explorerChains || knownChain != null)
         val destination = existing.copy(
             name = existing.name.ifBlank { name }, template = if (perChain) "" else template,
             chainValues = if (perChain) emptyMap() else values,
