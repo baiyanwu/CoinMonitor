@@ -133,6 +133,6 @@ internal fun formatOverlayFontSize(fontSizeSp: Float): String {
     return String.format(Locale.US, "%.1f", fontSizeSp)
 }
 
-internal const val MIN_OVERLAY_FONT_SIZE_SP = 11.05f
-internal const val MAX_OVERLAY_FONT_SIZE_SP = 17.55f
-private const val DEFAULT_OVERLAY_FONT_SIZE_SP = 13f
+internal const val MIN_OVERLAY_FONT_SIZE_SP = 9.35f
+internal const val MAX_OVERLAY_FONT_SIZE_SP = 14.85f
+private const val DEFAULT_OVERLAY_FONT_SIZE_SP = 11f

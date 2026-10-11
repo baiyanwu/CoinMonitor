@@ -799,10 +799,10 @@ internal class MarqueeOverlayWindowController(
                 )
                 fun scaledDp(value: Int): Int = (value * density * fontScale).roundToInt()
                 val itemSpacingPx = scaledDp(4)
-                val iconSizePx = scaledDp(16)
+                val iconSizePx = scaledDp(12)
                 return MarqueeMetrics(
                     fontScale = fontScale,
-                    heightPx = scaledDp(36),
+                    heightPx = scaledDp(28),
                     iconSizePx = iconSizePx,
                     iconSlotWidthPx = MarqueeSpacingPolicy.iconSlotWidthPx(
                         iconSizePx = iconSizePx,
@@ -815,7 +815,7 @@ internal class MarqueeOverlayWindowController(
                     ),
                     cycleSeparatorDotSizePx = scaledDp(3),
                     fallbackStrokePx = scaledDp(1),
-                    textSizeSp = 13f * fontScale
+                    textSizeSp = 11f * fontScale
                 )
             }
         }
