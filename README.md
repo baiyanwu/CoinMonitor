@@ -30,7 +30,8 @@
 - Open `General` from Settings to manage the persistent `Show on-chain market cap` switch together with appearance, language, and network logs; the switch changes every on-chain row across Home, the arranged overlay, and the marquee overlay between price and market cap, while exchange quotes are unaffected
 - Open `Wallet Settings` for wallet management, backup, and security; backup started from Settings first asks which wallet to use, while the original three entries remain available from the wallet page menu
 - Settings uses compact rounded blue-purple cards grouped into Preferences & Security, Monitoring & Data, and Application, with Light / Dark / System shortcuts backed by the existing appearance preference. Detail pages retain their current behavior and layouts
-- Split the home watchlist into swipeable `Exchange / On-chain` pages with category-local ordering, compact quote rows, quick actions, live refresh, and search that opens in the active market mode
+- Home has swipeable `Tokens / Address tracking` tabs. Tokens combines exchange and on-chain watch items with shared ordering and pinning; Address tracking groups the same EVM address across chains and opens the existing wallet observer.
+- Track addresses manually or with the `+` beside clipboard/FoMo address copy controls. FoMo names use the original `/profile/` path value; a pencil beside each name edits a persistent alias. Existing estimates stay cached when switching tabs; only missing estimates load automatically. FoMo reverse lookup is enabled by default and can be disabled in Quick query and website settings. [Wallet watch and tracking](docs/WALLET_WATCH.md)
 - Home uses the rounded blue-purple design with a small header, pill market selector, a real-asset spotlight, a grouped watchlist, and overlay configuration status. Mini charts use up to 32 real quote samples from this home session; they are live trends rather than 24-hour history. The former floating action menu is available from the header's More button. [UI design notes](./docs/UI_DESIGN_SYSTEM.md)
 - Open the corresponding external market page from a pair title; on-chain rows show `target / counter token` from the selected pool, provide a compact contract address with one-tap full-address copy, and keep the label synchronized when the pool or quote source changes
 - Pin selected items into either an arranged floating panel or a full-width, single-line marquee that scrolls tightly packed coin icons and latest prices, with a subtle dot between complete cycles
@@ -99,5 +100,3 @@ cd CoinMonitor
 ## License
 
 This project is licensed under [Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0). See [LICENSE](./LICENSE) for details.
-
-Home combines exchange and on-chain watchlists under Tokens and adds Address tracking. Track wallets from clipboard, resolved FoMo profiles, or manual entry; EVM addresses aggregate across chains and open the existing wallet observer. See [Wallet watch](docs/WALLET_WATCH.md).
