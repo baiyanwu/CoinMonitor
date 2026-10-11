@@ -185,15 +185,12 @@ private fun TrendingList(
         verticalArrangement = Arrangement.spacedBy(design.spacing.small)
     ) {
         TrendingSourceSummary(summary, onFilters)
-        if (missingKeysLabel != null && rows.isNotEmpty()) TextButton(onClick = onOpenApiSettings, modifier = Modifier.fillMaxWidth()) {
-            Text(missingKeysLabel)
-        }
-        summary.failures.forEach { source ->
+        // Cached rows remain usable: show refresh failures only on an empty board.
+        if (rows.isEmpty()) summary.failures.forEach { source ->
             val snapshot = state.snapshots.getValue(source)
             val seconds = ((snapshot.retryAt - state.now).coerceAtLeast(0) + 999) / 1000
             Text(
-                "${source.title} · ${failureTitle(snapshot.failure!!, seconds)}" +
-                    if (rows.isNotEmpty()) " · ${stringResource(R.string.trending_previous_result)}" else "",
+                "${source.title} · ${failureTitle(snapshot.failure!!, seconds)}",
                 Modifier.padding(horizontal = design.spacing.inline), style = design.typography.caption, color = design.colors.error
             )
         }
