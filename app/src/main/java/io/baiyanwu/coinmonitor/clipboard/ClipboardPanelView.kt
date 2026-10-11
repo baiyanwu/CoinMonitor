@@ -278,7 +278,7 @@ internal fun NetworkPicker(selected: String?, options: List<Pair<String, String>
     var open by remember { mutableStateOf(false) }
     Box {
         OutlinedButton(onClick = { open = true }, modifier = Modifier.fillMaxWidth()) { Text(options.firstOrNull { it.first == selected }?.second ?: stringResource(R.string.clipboard_wallet_choose_network)); Icon(Icons.Rounded.ExpandMore, null, Modifier.size(18.dp)) }
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }, properties = PopupProperties(focusable = false)) { options.forEach { (id, name) -> DropdownMenuItem(text = { Text(name) }, onClick = { open = false; onSelect(id) }) } }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }, modifier = Modifier.heightIn(max = CoinMonitorThemeTokens.design.sizes.pickerMaximumHeight), properties = PopupProperties(focusable = false)) { options.forEach { (id, name) -> DropdownMenuItem(text = { Text(name) }, onClick = { open = false; onSelect(id) }) } }
     }
 }
 
