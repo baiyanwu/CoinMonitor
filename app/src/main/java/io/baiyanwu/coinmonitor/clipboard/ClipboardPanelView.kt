@@ -181,35 +181,42 @@ private fun QueryModeControls(state: ClipboardPanelState, settings: ClipboardSet
 private fun TokenQuote(state: ClipboardPanelState, settings: ClipboardSettings, match: ClipboardMatch, onValueModeChange: (String) -> Unit) {
     val loadingDescription = stringResource(R.string.clipboard_chart_loading)
     Box(Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
-        // Match the quote region's measured height, including when the value wraps at larger font sizes.
-        ClipboardChart(state.chart, match.selection.change24hPercent, Modifier.matchParentSize())
+        // Keep the chart in the right two thirds; the left value can grow vertically at larger font sizes.
+        Box(Modifier.matchParentSize(), contentAlignment = Alignment.CenterEnd) {
+            ClipboardChart(state.chart, match.selection.change24hPercent, Modifier.fillMaxWidth(2f / 3f).fillMaxHeight())
+        }
         Column(Modifier.fillMaxWidth()) {
             CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 20.dp) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text(stringResource(if (settings.valueMode == "marketCap") R.string.clipboard_value_market_cap else R.string.clipboard_value_price),
-                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        ClipboardIconButton(onClick = { onValueModeChange(if (settings.valueMode == "marketCap") "price" else "marketCap") }, size = 20.dp) {
-                            Icon(Icons.Rounded.SwapHoriz, stringResource(R.string.clipboard_toggle_value), Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
-                        }
+                            fontSize = 9.sp, lineHeight = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         match.selection.change24hPercent?.let {
-                            Text("24H ${if (it > 0) "+" else ""}${String.format(java.util.Locale.US, "%.2f", it)}%",
+                            Text("${if (it > 0) "+" else ""}${String.format(java.util.Locale.US, "%.2f", it)}%",
                                 Modifier.weight(1f, fill = false), style = MaterialTheme.typography.bodySmall, color = trendColor(it),
                                 maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
+                        ClipboardIconButton(onClick = { onValueModeChange(if (settings.valueMode == "marketCap") "price" else "marketCap") }, size = 20.dp) {
+                            Icon(Icons.Rounded.SwapHoriz, stringResource(R.string.clipboard_toggle_value), Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
+                        }
                     }
-                    state.holderCount?.let { count ->
-                        val description = stringResource(R.string.clipboard_holders_description, count)
-                        Row(Modifier.clearAndSetSemantics { contentDescription = description },
-                            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Icon(Icons.Rounded.Person, null, Modifier.size(12.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text(count.toString(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        state.holderCount?.let { count ->
+                            val description = stringResource(R.string.clipboard_holders_description, count)
+                            Row(Modifier.clearAndSetSemantics { contentDescription = description },
+                                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Icon(Icons.Rounded.Person, null, Modifier.size(12.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(count.toString(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                        if (match.selection.change24hPercent != null) {
+                            Text("24H", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
             }
             Text(if (settings.valueMode == "marketCap") compactClipboardNumber(match.marketCap) else "$${QuoteFormatter.formatPrice(match.selection.priceUsd)}",
-                fontSize = 18.sp, lineHeight = 21.sp, fontWeight = FontWeight.SemiBold)
+                Modifier.fillMaxWidth(1f / 3f), fontSize = 15.sp, lineHeight = 18.sp, fontWeight = FontWeight.SemiBold)
         }
         when {
             state.chartLoading -> CircularProgressIndicator(Modifier.align(Alignment.BottomEnd).size(12.dp)
@@ -410,8 +417,8 @@ private fun ProjectLinks(links: List<ClipboardProjectLink>, onOpen: (String) -> 
 private fun LinkGrid(links: List<SiteLink>, chain: String, onOpen: (String) -> Unit, fixedViewport: Boolean = false) {
     if (links.isEmpty()) return
     if (fixedViewport) {
-        // Three full rows, all three intervening gaps and half of the fourth row stay visible.
-        val viewportHeight = 28.dp * 3.5f + 3.dp * 3
+        // Four full rows and all three intervening gaps stay visible.
+        val viewportHeight = 28.dp * 4 + 3.dp * 3
         LazyColumn(Modifier.fillMaxWidth().height(viewportHeight), verticalArrangement = Arrangement.spacedBy(3.dp)) {
             items(links.chunked(2)) { entries -> SiteLinkRow(entries, chain, onOpen, fixedHeight = true) }
         }
