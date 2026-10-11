@@ -32,7 +32,9 @@
 
 ## 网络模式
 
-在“设置 → 第三方 API 设置”配置并启用 OKX Onchain API 后，自托管钱包使用同一套本机加密凭证查询资产。再在“钱包网络”填写 Alchemy API Key，应用会为目录中带 Alchemy 节点映射的网络自动组成交易 RPC 地址，用户不需要逐条填写。网络管理页可以启用或停用目录中的网络，也可以手动刷新由仓库维护的 EVM 网络目录。
+在“设置 → 第三方 API 设置”配置并启用 OKX Onchain API 后，自托管钱包使用同一套本机加密凭证查询资产。再在“Alchemy key”填写 Alchemy API Key，应用会为目录中带 Alchemy 节点映射的网络自动组成交易 RPC 地址，用户不需要逐条填写。网络管理页可以启用或停用目录中的网络，也可以手动刷新由仓库维护的 EVM 网络目录。
+
+第三方 API 设置中的凭证区块依次为 OKX、GMGN、Alchemy key；三个区块均提供“去申请Key”按钮，分别打开 [OKX Developer Portal](https://web3.okx.com/onchainos/dev-portal)、[GMGN API 申请页](https://gmgn.ai/ai)和 [Alchemy Dashboard](https://dashboard.alchemy.com/)。Alchemy key 区块保留网络管理与自定义 RPC 功能，钱包的网络设置入口直接定位到该区块。
 
 Alchemy 尚未收录或目录尚未更新的标准 EVM 网络，可以直接填写名称、Chain ID、原生币符号、浏览器地址和 RPC 添加。自定义 EVM 网络立即进入网络列表，不依赖发版；保存前必须通过 `eth_chainId` 验证。单条网络也可以覆盖为自建或第三方 RPC，自定义 RPC 永远优先于 Alchemy RPC。Solana 自定义节点仍验证 Mainnet genesis hash。
 

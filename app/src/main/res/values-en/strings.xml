@@ -212,6 +212,8 @@
     <string name="app_update_later">Later</string>
     <string name="app_update_open_release">Open update</string>
 
+    <string name="third_party_api_settings_apply_key">Apply for Key</string>
+    <string name="third_party_api_settings_alchemy_title">Alchemy key</string>
     <string name="third_party_api_settings_title">Third-party API Settings</string>
     <string name="third_party_api_settings_section_onchain">Free On-chain Market Data</string>
     <string name="third_party_api_settings_section_ai">AI / OpenAI Compatible</string>
@@ -467,7 +469,6 @@
     <string name="okx_wallet_api_key">API Key</string>
     <string name="okx_wallet_secret_key">Secret Key</string>
     <string name="okx_wallet_passphrase">Passphrase</string>
-    <string name="okx_wallet_developer_portal">Open OKX Developer Portal</string>
     <string name="okx_wallet_credentials_incomplete">Enter the API Key, Secret Key, and Passphrase before enabling OKX Onchain API.</string>
     <string name="okx_wallet_secure_storage_unavailable">Secure storage is unavailable, so OKX credentials cannot be saved or used.</string>
     <string name="back">Back</string>

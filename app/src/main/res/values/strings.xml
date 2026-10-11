@@ -212,6 +212,8 @@
     <string name="app_update_later">稍后</string>
     <string name="app_update_open_release">前往更新</string>
 
+    <string name="third_party_api_settings_apply_key">去申请Key</string>
+    <string name="third_party_api_settings_alchemy_title">Alchemy key</string>
     <string name="third_party_api_settings_title">第三方 API 设置</string>
     <string name="third_party_api_settings_section_onchain">免费链上行情</string>
     <string name="third_party_api_settings_section_ai">AI / OpenAI Compatible</string>
@@ -467,7 +469,6 @@
     <string name="okx_wallet_api_key">API Key</string>
     <string name="okx_wallet_secret_key">Secret Key</string>
     <string name="okx_wallet_passphrase">Passphrase</string>
-    <string name="okx_wallet_developer_portal">打开 OKX Developer Portal</string>
     <string name="okx_wallet_credentials_incomplete">启用 OKX Onchain API 前，请完整填写 API Key、Secret Key 和 Passphrase。</string>
     <string name="okx_wallet_secure_storage_unavailable">当前设备不支持安全存储，无法保存或使用 OKX 凭证。</string>
     <string name="back">返回</string>
