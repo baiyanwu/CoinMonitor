@@ -22,8 +22,6 @@ class TrendingPreferences(context: Context) {
             chain = if (value("chain") == "all") null else TrendingChain.entries.firstOrNull { it.name == value("chain") } ?: TrendingChain.SOLANA,
             mode = TrendingMode.entries.firstOrNull { it.name == value("mode") } ?: TrendingMode.TRENDING,
             period = value("period")?.takeIf { it in TrendingOptions.periods(source) } ?: "5m",
-            refreshSeconds = value("refresh")?.toIntOrNull()?.takeIf { it in TrendingOptions.refreshIntervals } ?: 30,
-            autoRefresh = value("auto") != "false",
             sort = TrendingSort.entries.firstOrNull { it.name == value("sort") } ?: TrendingSort.DEFAULT,
             ascending = value("ascending") == "true",
             value = TrendingValue.entries.firstOrNull { it.name == value("value") } ?: TrendingValue.MARKET_CAP
@@ -33,8 +31,7 @@ class TrendingPreferences(context: Context) {
     fun saveShared(options: TrendingOptions) = save("SHARED", options)
     private fun save(prefix: String, options: TrendingOptions) {
         val fields = mapOf("chain" to (options.chain?.name ?: "all"), "mode" to options.mode.name,
-            "period" to options.period, "refresh" to options.refreshSeconds.toString(),
-            "auto" to options.autoRefresh.toString(), "sort" to options.sort.name,
+            "period" to options.period, "sort" to options.sort.name,
             "ascending" to options.ascending.toString(), "value" to options.value.name)
         preferences.edit().apply { fields.forEach { (field, value) -> putString("${prefix}_$field", value) } }.apply()
     }

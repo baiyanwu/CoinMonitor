@@ -23,27 +23,25 @@ enum class TrendingSort { DEFAULT, TOKEN, MARKET_CAP, PRICE, CHANGE, VOLUME, LIQ
 enum class TrendingValue { MARKET_CAP, PRICE }
 
 object TrendingRefreshPolicy {
-    fun isDue(updatedAt: Long?, options: TrendingOptions, now: Long, nextAllowed: Long = 0,
-        blocked: Boolean = false, requested: Boolean = false): Boolean =
-        !blocked && now >= nextAllowed && (requested || updatedAt == null ||
-            (options.autoRefresh && now >= updatedAt + options.refreshSeconds * 1000L))
+    const val minimumIntervalMillis = 5_000L
+    fun isDue(now: Long, nextAllowed: Long = 0,
+        blocked: Boolean = false, requested: Boolean = false, lastRequestedAt: Long? = null): Boolean =
+        requested && !blocked && now >= nextAllowed &&
+            (lastRequestedAt == null || now - lastRequestedAt >= minimumIntervalMillis)
 }
 
 data class TrendingOptions(
     val chain: TrendingChain? = TrendingChain.SOLANA,
     val mode: TrendingMode = TrendingMode.TRENDING,
     val period: String = "5m",
-    val refreshSeconds: Int = 30,
-    val autoRefresh: Boolean = true,
     val sort: TrendingSort = TrendingSort.DEFAULT,
     val ascending: Boolean = false,
     val value: TrendingValue = TrendingValue.MARKET_CAP
 ) {
-    // Presentation/refresh settings do not invalidate a successful ranking snapshot.
+    // Presentation settings do not invalidate a successful ranking snapshot.
     fun queryKey(source: TrendingSource): String = if (source == TrendingSource.PUMP) "pump"
         else "${source.name}:${chain?.name ?: "all"}:${mode.name}:$period"
     companion object {
-        val refreshIntervals = listOf(15, 30, 60, 120, 300)
         fun periods(source: TrendingSource): List<String> = when (source) {
             TrendingSource.GMGN -> listOf("1m", "5m", "1h", "6h", "24h")
             TrendingSource.OKX -> listOf("5m", "1h", "4h", "24h")

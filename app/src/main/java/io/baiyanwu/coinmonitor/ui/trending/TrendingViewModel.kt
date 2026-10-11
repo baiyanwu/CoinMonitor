@@ -58,7 +58,8 @@ class TrendingViewModel(
     private val preferences: TrendingPreferences,
     private val gmgn: GmgnCredentialsRepository,
     private val okx: OkxWalletCredentialsRepository,
-    private val snapshotCache: TrendingSnapshotCache
+    private val snapshotCache: TrendingSnapshotCache,
+    private val clock: () -> Long = System::currentTimeMillis
 ) : ViewModel() {
     private val initialCacheState = snapshotCache.state.value
     private val cache = initialCacheState.snapshots.mapValues { it.value.toUi() }.toMutableMap()
@@ -79,8 +80,10 @@ class TrendingViewModel(
     }.toMutableMap()
     private val invalidatedWhileLoading = mutableSetOf<TrendingSource>()
     private val jobs = mutableMapOf<TrendingSource, Job>()
+    private val requestStartedAt = mutableMapOf<TrendingSource, Long>()
     private var ticker: Job? = null
     private var active = false
+    private var refreshAfterRestore = false
     private var lastGmgnKey = gmgn.apiKey.value
     private var lastOkx = okx.getCredentials()
 
@@ -100,6 +103,10 @@ class TrendingViewModel(
                 cacheLoaded = true
                 publish()
                 reconcile()
+                if (refreshAfterRestore) {
+                    refreshAfterRestore = false
+                    refresh()
+                }
             }
         }
         viewModelScope.launch {
@@ -129,10 +136,12 @@ class TrendingViewModel(
         if (active) return
         active = true
         reconcile()
+        refresh()
         ticker = viewModelScope.launch { while (isActive) { publish(); delay(1000) } }
     }
     fun stop() {
         active = false
+        refreshAfterRestore = false
         jobs.values.forEach(Job::cancel); jobs.clear()
         ticker?.cancel(); ticker = null
     }
@@ -140,7 +149,8 @@ class TrendingViewModel(
         if (_state.value.board == board) return
         preferences.saveBoard(board)
         _state.update { it.copy(board = board) }
-        reconcile()
+        publish(); reconcile()
+        refresh()
     }
     fun toggleSource(source: TrendingSource) {
         val selected = _state.value.sources.toMutableSet()
@@ -167,67 +177,68 @@ class TrendingViewModel(
         else updateOptions(TrendingRules.demand(board, _state.value.sources).first(), options)
     }
     fun refresh() {
-        if (!cacheLoaded) return
+        if (!active) return
+        if (!cacheLoaded) {
+            refreshAfterRestore = true
+            return
+        }
         _state.value.demand.filter { it in _state.value.ready && _state.value.snapshots[it]?.loading != true }.forEach { source ->
             // A manual retry can recheck credentials/quota, but never bypasses a server cooldown.
             val limit = limits[source] ?: Limit()
-            if (System.currentTimeMillis() >= limit.next) {
+            val now = clock()
+            if (TrendingRefreshPolicy.isDue(now, limit.next, requested = true, lastRequestedAt = requestStartedAt[source])) {
                 if (limit.blocked) setLimit(source, limit.copy(blocked = false))
                 jobs.remove(source)?.cancel()
-                if (active) launchSource(source, force = true)
+                if (active) launchSource(source)
             }
         }
     }
     private fun reconcile() {
         val wanted = if (active && cacheLoaded) _state.value.demand else emptySet()
         jobs.keys.toList().filter { it !in wanted || it !in _state.value.ready }.forEach { jobs.remove(it)?.cancel() }
-        wanted.filter { it in _state.value.ready && jobs[it]?.isActive != true }.forEach { launchSource(it) }
+        // Lifecycle, filter and credential changes only reconcile existing manual requests.
     }
-    private fun launchSource(source: TrendingSource, force: Boolean = false) {
+    private fun launchSource(source: TrendingSource) {
         jobs[source] = viewModelScope.launch {
-            var requested = force
-            while (isActive) {
-                val options = _state.value.options.getValue(source)
-                val key = options.queryKey(source)
-                val snapshot = cache[key] ?: TrendingSnapshot()
-                val limit = limits[source] ?: Limit()
-                val now = System.currentTimeMillis()
-                if (TrendingRefreshPolicy.isDue(snapshot.updatedAt, options, now, limit.next, limit.blocked, requested)) {
-                    requested = false
-                    setLimit(source, limit.copy(next = now + 2000))
-                    cache[key] = snapshot.copy(loading = true)
-                    publish()
-                    try {
-                        val rows = client.fetch(source, options, gmgn.apiKey.value, okx.getCredentials())
-                        ensureActive()
-                        val received = System.currentTimeMillis()
-                        cache[key] = TrendingSnapshot(rows, received,
-                            TrendingRules.newDates(rows.map { it.id }, snapshot.updatedAt?.let { snapshot.tokens.map { row -> row.id } }, snapshot.newDates, received))
-                        snapshotCache.put(key, cache.getValue(key).toCached())
-                        setLimit(source, Limit(received + 2000))
-                    } catch (error: CancellationException) {
-                        throw error
-                    } catch (error: Exception) {
-                        val failure = (error as? TrendingException)?.failure ?: TrendingFailure.NETWORK
-                        val blocked = failure in setOf(TrendingFailure.CREDENTIALS, TrendingFailure.AUTHENTICATION, TrendingFailure.QUOTA)
-                        val next = when {
-                            failure == TrendingFailure.RATE_LIMIT -> (error as TrendingException).retryAt
-                            blocked -> System.currentTimeMillis() + 2000
-                            else -> System.currentTimeMillis() + 60_000
-                        }
-                        setLimit(source, Limit(next, failure, blocked))
-                        cache[key] = snapshot.copy(failure = failure, retryAt = next)
-                    } finally {
-                        cache[key]?.let { cache[key] = it.copy(loading = false) }
-                        publish()
+            val options = _state.value.options.getValue(source)
+            val key = options.queryKey(source)
+            val snapshot = cache[key] ?: TrendingSnapshot()
+            val limit = limits[source] ?: Limit()
+            val now = clock()
+            if (TrendingRefreshPolicy.isDue(now, limit.next, limit.blocked, requested = true, lastRequestedAt = requestStartedAt[source])) {
+                requestStartedAt[source] = now
+                setLimit(source, limit.copy(next = now + TrendingRefreshPolicy.minimumIntervalMillis))
+                cache[key] = snapshot.copy(loading = true)
+                publish()
+                try {
+                    val rows = client.fetch(source, options, gmgn.apiKey.value, okx.getCredentials())
+                    ensureActive()
+                    val received = clock()
+                    cache[key] = TrendingSnapshot(rows, received,
+                        TrendingRules.newDates(rows.map { it.id }, snapshot.updatedAt?.let { snapshot.tokens.map { row -> row.id } }, snapshot.newDates, received))
+                    snapshotCache.put(key, cache.getValue(key).toCached())
+                    setLimit(source, Limit(now + TrendingRefreshPolicy.minimumIntervalMillis))
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (error: Exception) {
+                    val failure = (error as? TrendingException)?.failure ?: TrendingFailure.NETWORK
+                    val blocked = failure in setOf(TrendingFailure.CREDENTIALS, TrendingFailure.AUTHENTICATION, TrendingFailure.QUOTA)
+                    val next = when {
+                        failure == TrendingFailure.RATE_LIMIT -> maxOf((error as TrendingException).retryAt, now + TrendingRefreshPolicy.minimumIntervalMillis)
+                        blocked -> now + TrendingRefreshPolicy.minimumIntervalMillis
+                        else -> clock() + 60_000
                     }
+                    setLimit(source, Limit(next, failure, blocked))
+                    cache[key] = snapshot.copy(failure = failure, retryAt = next)
+                } finally {
+                    cache[key]?.let { cache[key] = it.copy(loading = false) }
+                    publish()
                 }
-                delay(1000)
             }
         }
     }
     private fun publish() {
-        val now = System.currentTimeMillis()
+        val now = clock()
         val state = _state.value
         val snapshots = TrendingSource.entries.associateWith { source ->
             val item = cache[state.options.getValue(source).queryKey(source)] ?: TrendingSnapshot()

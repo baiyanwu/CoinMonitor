@@ -16,7 +16,6 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.ui.unit.dp
 import io.baiyanwu.coinmonitor.R
 import io.baiyanwu.coinmonitor.domain.model.*
-import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorComponentDefaults
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 import io.baiyanwu.coinmonitor.ui.components.CoinMonitorPillOption
 import io.baiyanwu.coinmonitor.ui.components.CoinMonitorRoundedCard
@@ -48,12 +47,6 @@ internal fun TrendingFilters(state: TrendingUiState, onToggleSource: (TrendingSo
                         { onOptions(source, options.copy(chain = it)) })
                     ChoiceRow(TrendingOptions.periods(source), { it == options.period }, { it }, { onOptions(source, options.copy(period = it)) })
                 } else Text(stringResource(R.string.trending_pump_hint), style = MaterialTheme.typography.bodySmall, color = CoinMonitorThemeTokens.colors.secondaryText)
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text(stringResource(R.string.trending_auto_refresh), Modifier.padding(top = 12.dp), style = MaterialTheme.typography.bodyMedium)
-                    Switch(options.autoRefresh, { onOptions(source, options.copy(autoRefresh = it)) }, colors = CoinMonitorComponentDefaults.switchColors())
-                }
-                ChoiceRow(TrendingOptions.refreshIntervals, { it == options.refreshSeconds }, { stringResource(R.string.trending_seconds, it) },
-                    { onOptions(source, options.copy(refreshSeconds = it)) })
             } }
         }
         item { CoinMonitorRoundedCard(Modifier.fillMaxWidth()) {

@@ -3,7 +3,7 @@
     <string name="tab_trending">Trending</string>
     <string name="trending_shared">Shared</string>
     <string name="trending_shared_short">Shared</string>
-    <string name="trending_waiting_update">Awaiting first result</string>
+    <string name="trending_waiting_update">Tap refresh to load the first result</string>
     <string name="trending_mixed_chains">Mixed chains</string>
     <string name="trending_independent_filters">Per-source</string>
     <string name="trending_address_copied">Contract address copied</string>
@@ -56,9 +56,6 @@
     <string name="trending_sources">Shared sources (at least two)</string>
     <string name="trending_shared_hint">Matches chain and contract across selected rankings. Data and order prioritize GMGN, OKX, then PumpFun.</string>
     <string name="trending_pump_hint">Solana ranking, no API key required, in website order. No time range or hot-search ranking is available.</string>
-    <string name="trending_auto_refresh">Auto refresh</string>
-    <string name="trending_paused">Paused</string>
-    <string name="trending_seconds">%1$d s</string>
     <string name="trending_sort">Sort</string>
     <string name="trending_ascending">Ascending</string>
     <string name="trending_descending">Descending</string>

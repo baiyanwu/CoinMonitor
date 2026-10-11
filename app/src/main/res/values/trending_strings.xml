@@ -3,7 +3,7 @@
     <string name="tab_trending">热门</string>
     <string name="trending_shared">共同热门</string>
     <string name="trending_shared_short">共同</string>
-    <string name="trending_waiting_update">等待首次结果</string>
+    <string name="trending_waiting_update">点击刷新获取首次结果</string>
     <string name="trending_mixed_chains">独立链筛选</string>
     <string name="trending_independent_filters">独立筛选</string>
     <string name="trending_address_copied">合约地址已复制</string>
@@ -53,9 +53,6 @@
     <string name="trending_sources">共同热门来源（至少两个）</string>
     <string name="trending_shared_hint">按链和合约地址求所选榜单的交集；数据和排序优先采用 GMGN、OKX、PumpFun。</string>
     <string name="trending_pump_hint">Solana 热门榜，无需 API key，保留网站排序；该接口不提供时间范围或热搜榜。</string>
-    <string name="trending_auto_refresh">自动刷新</string>
-    <string name="trending_paused">已暂停</string>
-    <string name="trending_seconds">%1$d 秒</string>
     <string name="trending_sort">列表排序</string>
     <string name="trending_ascending">升序</string>
     <string name="trending_descending">降序</string>

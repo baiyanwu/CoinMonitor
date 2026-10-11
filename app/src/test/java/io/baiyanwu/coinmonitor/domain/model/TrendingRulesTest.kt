@@ -55,9 +55,9 @@ class TrendingRulesTest {
         assertEquals(listOf(newest, high, low, unknown), TrendingRules.sorted(rows, options, setOf(newest.id)))
         assertEquals(listOf(newest, low, high, unknown), TrendingRules.sorted(rows, options.copy(ascending = true), setOf(newest.id)))
     }
-    @Test fun `display and refresh options retain query identity but filters change it`() {
+    @Test fun `display options retain query identity but filters change it`() {
         val options = TrendingOptions()
-        assertEquals(options.queryKey(TrendingSource.GMGN), options.copy(sort = TrendingSort.LIQUIDITY, value = TrendingValue.PRICE, refreshSeconds = 15).queryKey(TrendingSource.GMGN))
+        assertEquals(options.queryKey(TrendingSource.GMGN), options.copy(sort = TrendingSort.LIQUIDITY, value = TrendingValue.PRICE).queryKey(TrendingSource.GMGN))
         assertNotEquals(options.queryKey(TrendingSource.GMGN), options.copy(mode = TrendingMode.HOT_SEARCH).queryKey(TrendingSource.GMGN))
         assertEquals(options.queryKey(TrendingSource.PUMP), options.copy(chain = TrendingChain.BASE, period = "24h").queryKey(TrendingSource.PUMP))
     }

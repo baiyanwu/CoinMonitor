@@ -30,18 +30,22 @@ class TrendingCachedStateTest {
         assertEquals(sharedQueryKey(sources, first), sharedQueryKey(sources, first +
             (TrendingSource.GMGN to TrendingOptions(value = TrendingValue.PRICE))))
     }
-    @Test fun `entering with a fresh cache does not force an immediate request`() {
-        val options = TrendingOptions(refreshSeconds = 30)
-        assertFalse(TrendingRefreshPolicy.isDue(100000, options, 100001))
-        assertFalse(TrendingRefreshPolicy.isDue(100000, options, 129999))
-        assertTrue(TrendingRefreshPolicy.isDue(100000, options, 130000))
+    @Test fun `no automatic request on entry or after time passes`() {
+        listOf(0L, 100001L, 130000L, Long.MAX_VALUE).forEach { now ->
+            assertFalse(TrendingRefreshPolicy.isDue(now))
+        }
     }
-    @Test fun `manual refresh and stale cache respect pause and server cooldown`() {
-        val options = TrendingOptions(autoRefresh = false)
-        assertFalse(TrendingRefreshPolicy.isDue(1000, options, 90000))
-        assertTrue(TrendingRefreshPolicy.isDue(1000, options, 90000, requested = true))
-        assertFalse(TrendingRefreshPolicy.isDue(1000, options, 90000, nextAllowed = 100000, requested = true))
-        assertFalse(TrendingRefreshPolicy.isDue(1000, options, 90000, blocked = true, requested = true))
-        assertTrue(TrendingRefreshPolicy.isDue(null, options, 90000))
+    @Test fun `clearing credential errors does not bypass five second request spacing`() {
+        assertFalse(TrendingRefreshPolicy.isDue(94999, requested = true, lastRequestedAt = 90000))
+        assertTrue(TrendingRefreshPolicy.isDue(95000, requested = true, lastRequestedAt = 90000))
+    }
+    @Test fun `manual and board switch refresh share a five second minimum interval`() {
+        val firstRequest = 90000L
+        val nextAllowed = firstRequest + TrendingRefreshPolicy.minimumIntervalMillis
+        assertTrue(TrendingRefreshPolicy.isDue(firstRequest, requested = true))
+        assertFalse(TrendingRefreshPolicy.isDue(firstRequest + 4999, nextAllowed, requested = true))
+        assertTrue(TrendingRefreshPolicy.isDue(firstRequest + 5000, nextAllowed, requested = true))
+        assertFalse(TrendingRefreshPolicy.isDue(firstRequest + 5000, nextAllowed = firstRequest + 60000, requested = true))
+        assertFalse(TrendingRefreshPolicy.isDue(firstRequest + 5000, blocked = true, requested = true))
     }
 }
