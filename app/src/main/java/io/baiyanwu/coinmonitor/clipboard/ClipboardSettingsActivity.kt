@@ -364,8 +364,10 @@ private fun ClipboardDestinationEditor(site: ClipboardDestination, onDismiss: ()
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             CompactWebsiteField(source, { source = it; valid = false; outcome = null },
                                 stringResource(R.string.clipboard_site_source_link), Modifier.weight(1f))
-                            TextButton(onClick = { recognize(null) }, contentPadding = PaddingValues(horizontal = 8.dp)) {
-                                Text(stringResource(R.string.clipboard_site_recognize), style = MaterialTheme.typography.labelMedium)
+                            Box(Modifier.width(72.dp).heightIn(min = 48.dp), contentAlignment = Alignment.Center) {
+                                TextButton(onClick = { recognize(null) }, contentPadding = PaddingValues(horizontal = 8.dp)) {
+                                    Text(stringResource(R.string.clipboard_site_recognize), style = MaterialTheme.typography.labelMedium)
+                                }
                             }
                         }
                         when (val result = outcome) {
@@ -380,10 +382,12 @@ private fun ClipboardDestinationEditor(site: ClipboardDestination, onDismiss: ()
                             else -> Unit
                         }
                         if (valid) {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                 CompactWebsiteField(draft.name, { draft = draft.copy(name = it); nameEdited = true },
                                     stringResource(R.string.clipboard_site_name), Modifier.weight(1f))
-                                ClipboardSiteIcon(draft.id, iconUrl = draft.iconUrl, size = 24.dp)
+                                Box(Modifier.width(72.dp).heightIn(min = 48.dp), contentAlignment = Alignment.Center) {
+                                    ClipboardSiteIcon(draft.id, iconUrl = draft.iconUrl, size = 24.dp)
+                                }
                             }
                             val perChain = draft.template.isBlank() && (draft.chainTemplates.isNotEmpty() || draft.removedNetworkRules.isNotEmpty())
                             if (draft.template.contains("{chain}") || perChain) {
