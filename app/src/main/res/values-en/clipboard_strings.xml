@@ -16,7 +16,6 @@
     <string name="clipboard_add_watch">＋ Add to watchlist</string>
     <string name="clipboard_remove_watch">－ Remove from watchlist</string>
     <string name="clipboard_add_floating">Add to floating quotes</string>
-    <string name="clipboard_floating_label">Float</string>
     <string name="clipboard_chart_title">Last 24 hours · GeckoTerminal</string>
     <string name="clipboard_chart_loading">Loading chart</string>
     <string name="clipboard_chart_unavailable">Chart unavailable. Quote details remain available.</string>

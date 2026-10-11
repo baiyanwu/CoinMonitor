@@ -16,7 +16,6 @@
     <string name="clipboard_add_watch">＋ 加入自选</string>
     <string name="clipboard_remove_watch">－ 移出自选</string>
     <string name="clipboard_add_floating">加入悬浮窗</string>
-    <string name="clipboard_floating_label">悬浮窗</string>
     <string name="clipboard_chart_title">近 24 小时走势 · GeckoTerminal</string>
     <string name="clipboard_chart_loading">正在加载走势</string>
     <string name="clipboard_chart_unavailable">暂无走势数据，基本行情仍可使用。</string>

@@ -158,14 +158,12 @@ private fun QueryModeControls(state: ClipboardPanelState, settings: ClipboardSet
             ClipboardModeTabs(wallet = state.mode == ClipboardContentMode.WALLET,
                 onSelect = { if (it) state.useWalletMode() else state.useTokenMode() },
                 tokenLabel = stringResource(R.string.clipboard_token_mode), walletLabel = stringResource(R.string.clipboard_wallet_mode),
-                modifier = Modifier.weight(2f))
+                modifier = Modifier.weight(1f))
             Box(Modifier.weight(1f).padding(start = 3.dp), contentAlignment = Alignment.CenterEnd) {
                 // These actions apply to a resolved token, never to the wallet address mode.
                 state.selected?.takeIf { state.mode == ClipboardContentMode.TOKEN }?.let { match ->
                     val existing = watchlist.firstOrNull { it.semanticKey == match.watchItem(false).semanticKey }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text(stringResource(R.string.clipboard_floating_label), Modifier.weight(1f), fontSize = 9.sp, lineHeight = 12.sp,
-                            maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Row(horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.CenterVertically) {
                         ClipboardFloatingToggle(checked = existing?.overlaySelected ?: settings.addToFloating, enabled = !state.actionBusy,
                             label = stringResource(R.string.clipboard_add_floating), onCheckedChange = { onFloatingChange(it, existing) }, size = 20.dp)
                         ClipboardIconButton(onClick = { onToggleWatchlist(match, existing) }, enabled = !state.actionBusy, size = 20.dp) {
@@ -181,7 +179,6 @@ private fun QueryModeControls(state: ClipboardPanelState, settings: ClipboardSet
 
 @Composable
 private fun TokenQuote(state: ClipboardPanelState, settings: ClipboardSettings, match: ClipboardMatch, onValueModeChange: (String) -> Unit) {
-    val textBackdrop = MaterialTheme.colorScheme.surface.copy(alpha = 0.90f)
     val loadingDescription = stringResource(R.string.clipboard_chart_loading)
     Box(Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
         // Match the quote region's measured height, including when the value wraps at larger font sizes.
@@ -191,19 +188,19 @@ private fun TokenQuote(state: ClipboardPanelState, settings: ClipboardSettings, 
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text(stringResource(if (settings.valueMode == "marketCap") R.string.clipboard_value_market_cap else R.string.clipboard_value_price),
-                            Modifier.background(textBackdrop), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         ClipboardIconButton(onClick = { onValueModeChange(if (settings.valueMode == "marketCap") "price" else "marketCap") }, size = 20.dp) {
                             Icon(Icons.Rounded.SwapHoriz, stringResource(R.string.clipboard_toggle_value), Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
                         }
                         match.selection.change24hPercent?.let {
                             Text("24H ${if (it > 0) "+" else ""}${String.format(java.util.Locale.US, "%.2f", it)}%",
-                                Modifier.weight(1f, fill = false).background(textBackdrop), style = MaterialTheme.typography.bodySmall, color = trendColor(it),
+                                Modifier.weight(1f, fill = false), style = MaterialTheme.typography.bodySmall, color = trendColor(it),
                                 maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
                     }
                     state.holderCount?.let { count ->
                         val description = stringResource(R.string.clipboard_holders_description, count)
-                        Row(Modifier.background(textBackdrop).clearAndSetSemantics { contentDescription = description },
+                        Row(Modifier.clearAndSetSemantics { contentDescription = description },
                             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                             Icon(Icons.Rounded.Person, null, Modifier.size(12.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                             Text(count.toString(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -212,7 +209,7 @@ private fun TokenQuote(state: ClipboardPanelState, settings: ClipboardSettings, 
                 }
             }
             Text(if (settings.valueMode == "marketCap") compactClipboardNumber(match.marketCap) else "$${QuoteFormatter.formatPrice(match.selection.priceUsd)}",
-                Modifier.background(textBackdrop), fontSize = 18.sp, lineHeight = 21.sp, fontWeight = FontWeight.SemiBold)
+                fontSize = 18.sp, lineHeight = 21.sp, fontWeight = FontWeight.SemiBold)
         }
         when {
             state.chartLoading -> CircularProgressIndicator(Modifier.align(Alignment.BottomEnd).size(12.dp)
@@ -413,8 +410,8 @@ private fun ProjectLinks(links: List<ClipboardProjectLink>, onOpen: (String) -> 
 private fun LinkGrid(links: List<SiteLink>, chain: String, onOpen: (String) -> Unit, fixedViewport: Boolean = false) {
     if (links.isEmpty()) return
     if (fixedViewport) {
-        // Two full rows, both intervening gaps and half of the third row stay visible.
-        val viewportHeight = 28.dp * 2.5f + 3.dp * 2
+        // Three full rows, all three intervening gaps and half of the fourth row stay visible.
+        val viewportHeight = 28.dp * 3.5f + 3.dp * 3
         LazyColumn(Modifier.fillMaxWidth().height(viewportHeight), verticalArrangement = Arrangement.spacedBy(3.dp)) {
             items(links.chunked(2)) { entries -> SiteLinkRow(entries, chain, onOpen, fixedHeight = true) }
         }
