@@ -185,8 +185,14 @@ private fun TokenResult(state: ClipboardPanelState, settings: ClipboardSettings,
     val question = settings.aiQuestion ?: stringResource(R.string.clipboard_ai_default_question)
     CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 24.dp) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-            ClipboardTextButton(onClick = { onOpen(clipboardAIPromptUrl("gpt", match, question)) }, modifier = Modifier.weight(1f), minimumHeight = 24.dp) { Text("GPT") }
-            ClipboardTextButton(onClick = { onOpen(clipboardAIPromptUrl("grok", match, question)) }, modifier = Modifier.weight(1f), minimumHeight = 24.dp) { Text("Grok") }
+            ClipboardTonalButton(onClick = { onOpen(clipboardAIPromptUrl("gpt", match, question)) }, modifier = Modifier.weight(1f), minimumHeight = 24.dp) {
+                Icon(painterResource(R.drawable.clipboard_logo_gpt), null, Modifier.size(14.dp))
+                Spacer(Modifier.width(4.dp)); Text("GPT")
+            }
+            ClipboardTonalButton(onClick = { onOpen(clipboardAIPromptUrl("grok", match, question)) }, modifier = Modifier.weight(1f), minimumHeight = 24.dp) {
+                Icon(painterResource(R.drawable.clipboard_logo_grok), null, Modifier.size(14.dp))
+                Spacer(Modifier.width(4.dp)); Text("Grok")
+            }
             ClipboardIconButton(onClick = { onToggleWatchlist(match, existing) }, enabled = !state.actionBusy, size = 24.dp) {
                 Icon(if (existing == null) Icons.Rounded.Add else Icons.Rounded.Check,
                     stringResource(if (existing == null) R.string.clipboard_add_watch else R.string.clipboard_remove_watch), Modifier.size(16.dp))
@@ -328,10 +334,10 @@ private data class SiteLink(val name: String, val url: String?, val id: String =
 @Composable
 private fun ProjectLinks(links: List<ClipboardProjectLink>, onOpen: (String) -> Unit) {
     if (links.isEmpty()) return
-    Surface(color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(10.dp)) {
-        Row(Modifier.fillMaxWidth().padding(4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+    CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 20.dp) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(stringResource(R.string.clipboard_project_links), style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 4.dp))
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
             FlowRow(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 links.sortedBy { it.kind.ordinal }.forEach { link ->
                     val label = when (link.kind) {
@@ -344,7 +350,7 @@ private fun ProjectLinks(links: List<ClipboardProjectLink>, onOpen: (String) -> 
                     val description = "$label · ${java.net.URI(link.url).host}"
                     TooltipBox(positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
                         tooltip = { PlainTooltip { Text(description) } }, state = rememberTooltipState()) {
-                        ClipboardIconButton(onClick = { onOpen(link.url) }) {
+                        ClipboardIconButton(onClick = { onOpen(link.url) }, size = 20.dp) {
                             when (link.kind) {
                                 ClipboardProjectLinkKind.X -> Text("X", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.semantics { contentDescription = description })
                                 ClipboardProjectLinkKind.DISCORD -> Image(painterResource(R.drawable.clipboard_logo_discord), description, Modifier.size(16.dp))

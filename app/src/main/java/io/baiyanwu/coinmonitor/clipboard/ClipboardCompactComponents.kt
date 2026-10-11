@@ -39,8 +39,8 @@ internal fun ClipboardTextButton(onClick: () -> Unit, modifier: Modifier = Modif
 }
 
 @Composable
-internal fun ClipboardTonalButton(onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, content: @Composable RowScope.() -> Unit) {
-    FilledTonalButton(onClick, modifier.defaultMinSize(minHeight = 28.dp), enabled = enabled,
+internal fun ClipboardTonalButton(onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, minimumHeight: Dp = 28.dp, content: @Composable RowScope.() -> Unit) {
+    FilledTonalButton(onClick, modifier.defaultMinSize(minHeight = minimumHeight), enabled = enabled,
         shape = RoundedCornerShape(8.dp), contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp), content = content)
 }
 
