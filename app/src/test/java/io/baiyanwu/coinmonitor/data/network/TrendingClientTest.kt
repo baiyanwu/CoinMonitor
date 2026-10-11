@@ -3,11 +3,16 @@ package io.baiyanwu.coinmonitor.data.network
 import io.baiyanwu.coinmonitor.domain.model.*
 import kotlinx.serialization.json.Json
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.asCoroutineDispatcher
 import okhttp3.Headers
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
 import okhttp3.Response
+import okhttp3.ResponseBody
 import okhttp3.ResponseBody.Companion.toResponseBody
+import okio.Buffer
+import okio.ForwardingSource
+import okio.buffer
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -15,6 +20,42 @@ class TrendingClientTest {
     private val address = "0x" + "a".repeat(40)
     private fun decode(text: String) = Json.parseToJsonElement(text)
     private val gmgnRow get() = """{"chain":"base","address":"$address","symbol":"TEST","market_cap":"1200","volume":"50","price_change_percent":"-2.5"}"""
+
+    @Test fun `ranking response bodies are consumed off the caller thread`() {
+        val executor = java.util.concurrent.Executors.newSingleThreadExecutor { task -> Thread(task, "ranking-ui-caller") }
+        executor.asCoroutineDispatcher().use { caller ->
+            runBlocking(caller) {
+                val callerThread = Thread.currentThread()
+                val bodyThreads = java.util.concurrent.CopyOnWriteArrayList<Thread>()
+                val fixtures = mapOf(
+                    TrendingSource.PUMP to """[{"mint":"So11111111111111111111111111111111111111112","name":"Wrapped","symbol":"SOL"}]""",
+                    TrendingSource.OKX to """{"code":"0","data":[{"chainIndex":"8453","tokenContractAddress":"$address","tokenSymbol":"TEST"}]}""",
+                    TrendingSource.GMGN to """{"code":0,"data":{"rank":[$gmgnRow]}}"""
+                )
+                for ((source, fixture) in fixtures) {
+                    val client = TrendingClient(OkHttpClient.Builder().addInterceptor { chain ->
+                        val content = Buffer().writeUtf8(fixture)
+                        val stream = object : ForwardingSource(content) {
+                            override fun read(sink: Buffer, byteCount: Long): Long {
+                                bodyThreads.add(Thread.currentThread())
+                                return super.read(sink, byteCount)
+                            }
+                        }.buffer()
+                        Response.Builder().request(chain.request()).protocol(Protocol.HTTP_1_1).code(200).message("OK")
+                            .body(object : ResponseBody() {
+                                override fun contentType() = null
+                                override fun contentLength() = fixture.toByteArray().size.toLong()
+                                override fun source() = stream
+                            }).build()
+                    }.build())
+                    assertEquals(1, client.fetch(source, TrendingOptions(chain = TrendingChain.BASE), "fixture-key",
+                        OkxWalletCredentials(true, "fixture-key", "fixture-secret", "fixture-passphrase")).size)
+                }
+                assertTrue(bodyThreads.isNotEmpty())
+                assertTrue("Reading a ranking response must not block the UI caller", bodyThreads.none { it === callerThread })
+            }
+        }
+    }
 
     @Test fun `gmgn accepts direct and double envelopes and rejects conflicting chains`() {
         val direct = """{"code":0,"data":{"rank":[$gmgnRow]}}"""

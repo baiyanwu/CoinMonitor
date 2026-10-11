@@ -1,10 +1,12 @@
 package io.baiyanwu.coinmonitor.data.network
 
 import io.baiyanwu.coinmonitor.domain.model.*
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.*
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
@@ -22,8 +24,9 @@ class TrendingException(val failure: TrendingFailure, val retryAt: Long = 0) : E
 class TrendingClient(private val httpClient: OkHttpClient) {
     private val sourceLocks = TrendingSource.entries.associateWith { Mutex() }
     private val lastStarted = java.util.concurrent.ConcurrentHashMap<TrendingSource, Long>()
-    suspend fun fetch(source: TrendingSource, options: TrendingOptions, gmgnKey: String, okx: OkxWalletCredentials): List<TrendingToken> {
-        return when (source) {
+    // enqueue() only moves transport off-thread. Reading its body and decoding also need IO.
+    suspend fun fetch(source: TrendingSource, options: TrendingOptions, gmgnKey: String, okx: OkxWalletCredentials): List<TrendingToken> = withContext(Dispatchers.IO) {
+        when (source) {
             TrendingSource.PUMP -> TrendingDecoder.pump(execute(pumpRequest(), source))
             TrendingSource.OKX -> {
                 if (!okx.isReady) throw TrendingException(TrendingFailure.CREDENTIALS)

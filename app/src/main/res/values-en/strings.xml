@@ -115,7 +115,6 @@
     <string name="home_watchlist_title">Watchlist</string>
     <string name="home_watchlist_subtitle">Long press an item to add it to the floating window.</string>
     <string name="home_self_selected">Watchlist</string>
-    <string name="home_my_watchlist">My Watchlist</string>
     <string name="home_overlay_monitor">Overlay</string>
     <string name="home_overlay_enabled">On</string>
     <string name="home_overlay_disabled">Off</string>
@@ -123,7 +122,6 @@
     <string name="home_live_trend">Live</string>
     <string name="home_live_trend_description">Real quote samples received during this home session</string>
     <string name="home_trend_waiting">Waiting for quote samples</string>
-    <string name="home_focus_asset">Focus on %1$s</string>
     <string name="home_market_cap_label">Market cap</string>
 
     <string name="search_title">Search Pairs</string>
@@ -160,9 +158,6 @@
     <string name="show_onchain_market_cap">Show on-chain market cap</string>
     <string name="show_onchain_market_cap_description">Show market cap for on-chain tokens on the home screen and in floating windows</string>
     <string name="settings_subtitle">Manage language, appearance, and floating window features here.</string>
-    <string name="settings_appearance_title">Appearance</string>
-    <string name="settings_theme_light">Light</string>
-    <string name="settings_theme_dark">Dark</string>
     <string name="settings_group_preferences_security">Preferences &amp; security</string>
     <string name="settings_group_monitoring_data">Monitoring &amp; data</string>
     <string name="settings_group_application">Application</string>

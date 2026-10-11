@@ -13,6 +13,7 @@ import androidx.compose.ui.unit.sp
 @Immutable
 data class CoinMonitorDesignColors(
     val brand: Color,
+    val logoRing: Color,
     val accent: Color,
     val onAccent: Color,
     val pageBackground: Color,
@@ -37,6 +38,7 @@ data class CoinMonitorDesignColors(
 
 internal val LightDesignColors = CoinMonitorDesignColors(
     brand = Color(0xFF8E88F8),
+    logoRing = Color(0xFF9891BE),
     accent = Color(0xFF6863AA),
     onAccent = Color.White,
     pageBackground = Color(0xFFF5F6F9),
@@ -61,6 +63,7 @@ internal val LightDesignColors = CoinMonitorDesignColors(
 
 internal val DarkDesignColors = CoinMonitorDesignColors(
     brand = Color(0xFF8E88F8),
+    logoRing = Color(0xFFECEAF8),
     accent = Color(0xFFB8B3FF),
     onAccent = Color(0xFF28243F),
     pageBackground = Color(0xFF171B27),
@@ -100,6 +103,7 @@ object CoinMonitorDesignSizes {
     val brandMark = 28.dp
     val actionIcon = 18.dp
     val actionContainer = 32.dp
+    val compactActionMinimumHeight = 40.dp
     val minimumTouchTarget = 48.dp
     val pillMinimumHeight = 32.dp
     val listRowMinimumHeight = 52.dp
@@ -112,14 +116,18 @@ object CoinMonitorDesignSizes {
     val pickerMaximumHeight = 360.dp
     val sparklineWidth = 52.dp
     val sparklineHeight = 24.dp
-    val featuredSparklineHeight = 56.dp
+    val featuredSparklineHeight = 40.dp
+    val homeModeSelectorWidth = 220.dp
+    val trendingValueColumnWidth = 110.dp
+    val trendingEmptyBodyMinimumHeight = 96.dp
+    val walletValueColumnWidth = 110.dp
+    val walletStackedValueBreakpoint = 300.dp
+    val walletEmptyBodyMinimumHeight = 96.dp
     val segmentedIndicatorMinimumHeight = 40.dp
     val chainBadge = 12.dp
     val sourceDot = 5.dp
     val sourceSummaryDot = 8.dp
     val rankWidth = 22.dp
-    val brandMarkInner = 20.dp
-    val brandCutout = 7.dp
     val inlineActionIcon = 14.dp
     val selectionMark = 12.dp
     val dividerThickness = 0.5.dp
@@ -131,7 +139,6 @@ object CoinMonitorDesignShapes {
     val menu = RoundedCornerShape(14.dp)
     val bottomBar = RoundedCornerShape(28.dp)
     val pill = RoundedCornerShape(50)
-    val brandMark = RoundedCornerShape(7.dp)
 }
 
 object CoinMonitorDesignTypography {
@@ -139,7 +146,7 @@ object CoinMonitorDesignTypography {
     val rowTitle = TextStyle(fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold)
     val rowSubtitle = TextStyle(fontSize = 12.sp, lineHeight = 17.sp)
     val value = TextStyle(fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold)
-    val featuredValue = TextStyle(fontSize = 22.sp, lineHeight = 28.sp, fontWeight = FontWeight.SemiBold)
+    val featuredValue = TextStyle(fontSize = 20.sp, lineHeight = 26.sp, fontWeight = FontWeight.SemiBold)
     val caption = TextStyle(fontSize = 11.sp, lineHeight = 16.sp)
     val label = TextStyle(fontSize = 13.sp, lineHeight = 18.sp, fontWeight = FontWeight.Medium)
     val tabLabel = TextStyle(fontSize = 11.sp, lineHeight = 16.sp, fontWeight = FontWeight.Medium)
@@ -151,6 +158,7 @@ object CoinMonitorDesignTypography {
 object CoinMonitorDesignMotion {
     const val selectionDurationMillis = 160
     const val pressDurationMillis = 120
+    const val pageSwitchDurationMillis = 280
 }
 
 @Immutable

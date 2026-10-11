@@ -1,6 +1,5 @@
 package io.baiyanwu.coinmonitor.ui.trending
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -10,13 +9,15 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -28,8 +29,12 @@ import io.baiyanwu.coinmonitor.domain.model.TrendingSource
 import io.baiyanwu.coinmonitor.domain.model.TrendingToken
 import io.baiyanwu.coinmonitor.domain.model.TrendingValue
 import io.baiyanwu.coinmonitor.ui.components.CoinMonitorIcons
-import io.baiyanwu.coinmonitor.ui.components.CoinSymbolIcon
+import io.baiyanwu.coinmonitor.ui.components.CoilCoinSymbolIcon
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
+import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.request.crossfade
+import coil3.size.Precision
 import java.util.Locale
 
 @Composable
@@ -42,7 +47,9 @@ internal fun TrendingTokenRow(
     BoxWithConstraints(
         Modifier.fillMaxWidth().heightIn(min = design.sizes.listRowMinimumHeight)
             .clip(design.shapes.card)
-            .background(if (rank == 1) design.colors.selectedContainer else Color.Transparent)
+            .then(if (rank == 1) Modifier.background(
+                Brush.horizontalGradient(listOf(design.colors.selectedContainer, design.colors.surface))
+            ) else Modifier)
             .clickable { onToken(token) }
             .padding(horizontal = design.spacing.inline, vertical = design.spacing.tiny)
     ) {
@@ -69,7 +76,7 @@ internal fun TrendingTokenRow(
                         Modifier.size(design.sizes.inlineActionIcon), tint = design.colors.secondaryText
                     )
                 }
-                if (!stackedValues) Column(Modifier.widthIn(max = 110.dp), horizontalAlignment = Alignment.End) {
+                if (!stackedValues) Column(Modifier.width(design.sizes.trendingValueColumnWidth), horizontalAlignment = Alignment.End) {
                     TrendingTokenValue(token, value)
                     TrendingTokenChange(token)
                 }
@@ -180,10 +187,20 @@ internal fun TrendingTokenIcon(token: TrendingToken) {
             Box(Modifier.fillMaxSize().background(design.colors.surfaceMuted, design.shapes.pill), contentAlignment = Alignment.Center) {
                 Text(token.symbol.take(1), style = design.typography.label, color = design.colors.accent)
             }
-        } else CoinSymbolIcon(token.symbol, iconUrl = token.iconUrl, allowSymbolLookup = false, size = design.sizes.coinIcon)
+        } else CoilCoinSymbolIcon(
+            token.symbol, iconUrl = token.iconUrl, allowSymbolLookup = false, size = design.sizes.coinIcon,
+            contentScale = ContentScale.Fit
+        )
         val badge = Modifier.align(Alignment.BottomEnd).size(design.sizes.chainBadge)
             .background(design.colors.surface, design.shapes.pill).padding(design.spacing.tiny).clip(design.shapes.pill)
-        if (chainLogo != null) Image(painterResource(chainLogo), token.chainTitle, modifier = badge)
+        if (chainLogo != null) {
+            val context = LocalContext.current
+            val pixels = with(LocalDensity.current) { (design.sizes.chainBadge - design.spacing.tiny * 2).roundToPx().coerceAtLeast(1) }
+            val request = remember(context, chainLogo, pixels) {
+                ImageRequest.Builder(context).data(chainLogo).size(pixels, pixels).precision(Precision.EXACT).crossfade(false).build()
+            }
+            AsyncImage(request, token.chainTitle, modifier = badge, contentScale = ContentScale.Fit)
+        }
         else Icon(Icons.Rounded.Language, token.chainTitle, modifier = badge, tint = design.colors.secondaryText)
     }
 }

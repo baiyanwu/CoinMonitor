@@ -6,30 +6,33 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorDesignTheme
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorTheme
@@ -53,6 +56,42 @@ fun CoinMonitorRoundedCard(
             Modifier.padding(contentPadding ?: PaddingValues(design.spacing.cardPadding)),
             content = content
         )
+    }
+}
+
+/** Material Surface 在同一可见底盘内绘制原生涟漪，并提供最小触摸区域。 */
+@Composable
+fun CoinMonitorCompactActionButton(
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    leadingIcon: ImageVector? = null,
+    trailingIcon: ImageVector? = null,
+    containerColor: Color? = null,
+    contentColor: Color? = null
+) {
+    val design = CoinMonitorThemeTokens.design
+    val fill = if (enabled) containerColor ?: design.colors.selectedContainer else design.colors.disabledContainer
+    val foreground = if (enabled) contentColor ?: design.colors.selectedContent else design.colors.disabledContent
+    Surface(
+        onClick = onClick, enabled = enabled,
+        modifier = modifier.semantics { role = Role.Button },
+        shape = design.shapes.pill, color = fill, contentColor = foreground
+    ) {
+        Row(
+            Modifier.fillMaxWidth().heightIn(min = design.sizes.compactActionMinimumHeight)
+                .padding(horizontal = design.spacing.cardPadding, vertical = design.spacing.small),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(design.spacing.small, Alignment.CenterHorizontally)
+        ) {
+            leadingIcon?.let { Icon(it, null, Modifier.size(design.sizes.actionIcon), tint = foreground) }
+            Text(
+                label, Modifier.weight(1f, fill = trailingIcon != null), style = design.typography.label,
+                color = foreground, maxLines = 1, overflow = TextOverflow.Ellipsis
+            )
+            trailingIcon?.let { Icon(it, null, Modifier.size(design.sizes.actionIcon), tint = foreground) }
+        }
     }
 }
 
@@ -109,28 +148,13 @@ fun CoinMonitorPillOption(
         selected -> design.colors.selectedContent
         else -> design.colors.secondaryText
     }
-    val interaction = if (role == Role.Checkbox) {
-        Modifier.toggleable(value = selected, enabled = enabled, role = role, onValueChange = { onClick() })
-    } else {
-        Modifier.selectable(selected = selected, enabled = enabled, role = role, onClick = onClick)
-    }
-    Box(
-        modifier = modifier
-            .defaultMinSize(
-                minWidth = design.sizes.minimumTouchTarget,
-                minHeight = design.sizes.minimumTouchTarget
-            )
-            .clip(design.shapes.pill)
-            .then(interaction),
-        contentAlignment = Alignment.Center
-    ) {
-        Box(
-            Modifier
-                .heightIn(min = design.sizes.pillMinimumHeight)
-                .background(containerColor, design.shapes.pill)
+    val content: @Composable () -> Unit = {
+        BoxWithConstraints(
+            Modifier.heightIn(min = design.sizes.pillMinimumHeight)
                 .padding(horizontal = design.spacing.inline, vertical = design.spacing.small),
             contentAlignment = Alignment.Center
         ) {
+            val boundedWidth = constraints.hasBoundedWidth
             Row(
                 horizontalArrangement = Arrangement.spacedBy(design.spacing.small),
                 verticalAlignment = Alignment.CenterVertically
@@ -140,15 +164,32 @@ fun CoinMonitorPillOption(
                 }
                 Text(
                     label,
-                    modifier = Modifier.weight(1f, fill = false),
+                    // LazyRow 提供无界横向约束，不能给文字分配剩余权重。
+                    modifier = if (boundedWidth) Modifier.weight(1f, fill = false) else Modifier,
                     color = contentColor,
-                    style = textStyle ?: design.typography.label
+                    style = textStyle ?: design.typography.label,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 if (showSelectionMark && selected) {
                     Icon(CoinMonitorIcons.Check, null, Modifier.size(design.sizes.selectionMark), tint = contentColor)
                 }
             }
         }
+    }
+    // 背景、形状、交互和涟漪由同一个 Material Surface 管理。
+    if (role == Role.Checkbox) {
+        Surface(
+            checked = selected, onCheckedChange = { onClick() }, enabled = enabled,
+            modifier = modifier.semantics { this.role = role }, shape = design.shapes.pill,
+            color = containerColor, contentColor = contentColor, content = content
+        )
+    } else {
+        Surface(
+            selected = selected, onClick = onClick, enabled = enabled,
+            modifier = modifier.semantics { this.role = role }, shape = design.shapes.pill,
+            color = containerColor, contentColor = contentColor, content = content
+        )
     }
 }
 
@@ -202,33 +243,23 @@ fun CoinMonitorSmallIconButton(
     contentDescription: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    containerColor: Color? = null
 ) {
     val design = CoinMonitorThemeTokens.design
-    IconButton(
+    FilledIconButton(
         onClick = onClick,
         enabled = enabled,
-        modifier = modifier.defaultMinSize(
-            minWidth = design.sizes.minimumTouchTarget,
-            minHeight = design.sizes.minimumTouchTarget
+        modifier = modifier.minimumInteractiveComponentSize().size(design.sizes.actionContainer),
+        shape = design.shapes.pill,
+        colors = IconButtonDefaults.filledIconButtonColors(
+            containerColor = containerColor ?: design.colors.selectedContainer,
+            contentColor = design.colors.selectedContent,
+            disabledContainerColor = design.colors.disabledContainer,
+            disabledContentColor = design.colors.disabledContent
         )
     ) {
-        Box(
-            Modifier
-                .size(design.sizes.actionContainer)
-                .background(
-                    if (enabled) design.colors.selectedContainer else design.colors.disabledContainer,
-                    design.shapes.pill
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                icon,
-                contentDescription,
-                Modifier.size(design.sizes.actionIcon),
-                tint = if (enabled) design.colors.selectedContent else design.colors.disabledContent
-            )
-        }
+        Icon(icon, contentDescription, Modifier.size(design.sizes.actionIcon))
     }
 }
 

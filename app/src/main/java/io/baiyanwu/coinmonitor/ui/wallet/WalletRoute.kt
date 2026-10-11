@@ -8,6 +8,8 @@ import android.graphics.Bitmap
 import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -27,7 +29,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
@@ -96,6 +97,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -134,14 +136,18 @@ import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorComponentDefaults
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorDesignTheme
 import io.baiyanwu.coinmonitor.ui.components.CoinMonitorIcons
-import io.baiyanwu.coinmonitor.ui.components.CoinMonitorPillOption
-import io.baiyanwu.coinmonitor.ui.components.CoinMonitorRoundedCard
 import io.baiyanwu.coinmonitor.ui.components.CoinMonitorSmallIconButton
 import io.baiyanwu.coinmonitor.ui.wallet.components.WalletHomeHeader
 import io.baiyanwu.coinmonitor.ui.wallet.components.WalletSelectionCard
 import io.baiyanwu.coinmonitor.ui.wallet.components.WalletBalanceCard
 import io.baiyanwu.coinmonitor.ui.wallet.components.WalletHomeAssetRow
-import io.baiyanwu.coinmonitor.ui.wallet.components.WalletGroupedListItem
+import io.baiyanwu.coinmonitor.ui.wallet.components.WalletHomeListContainer
+import io.baiyanwu.coinmonitor.ui.wallet.components.WalletHomeContentSelector
+import io.baiyanwu.coinmonitor.ui.wallet.components.WalletHomeNetworkRow
+import io.baiyanwu.coinmonitor.ui.wallet.components.WalletHomeEmptyCard
+import io.baiyanwu.coinmonitor.ui.wallet.components.WalletHomeMessageCard
+import io.baiyanwu.coinmonitor.ui.wallet.components.WalletHomeActivityRow
+import io.baiyanwu.coinmonitor.ui.wallet.components.WalletHomeWatchEntry
 import io.baiyanwu.coinmonitor.ui.wallet.components.MnemonicInput
 import io.baiyanwu.coinmonitor.ui.wallet.components.findFragmentActivity
 import io.baiyanwu.coinmonitor.ui.wallet.components.hasSupportedMnemonicWordCount
@@ -155,6 +161,7 @@ import java.text.DateFormat
 import java.util.Date
 import kotlin.random.Random
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
 
 @Composable
 fun WalletRoute(
@@ -849,23 +856,39 @@ private fun WalletDashboard(
     var networkPicker by remember { mutableStateOf(false) }
     var networksEditing by rememberSaveable { mutableStateOf(false) }
     var valuesVisible by rememberSaveable(wallet.id) { mutableStateOf(true) }
-    val supportedNetworks = state.networkConfiguration.enabledNetworks.filter(wallet::supports)
+    val supportedNetworks = remember(state.networkConfiguration, wallet) {
+        state.networkConfiguration.enabledNetworks.filter(wallet::supports)
+    }
+    val summary = remember(state.portfolio, state.hideAssetsBelowOneUsd, state.includeUnverifiedAssets, state.networkConfiguration, wallet) {
+        state.homeSummary()
+    }
     val pagerState = rememberPagerState(initialPage = state.contentTab.ordinal, pageCount = { WalletContentTab.entries.size })
     val pagerScope = rememberCoroutineScope()
+    var selectedContentTab by rememberSaveable { mutableStateOf(state.contentTab) }
+    var pageSwitchJob by remember { mutableStateOf<Job?>(null) }
+    var contentClickTarget by remember { mutableStateOf<WalletContentTab?>(null) }
+    var switchRequest by remember { mutableStateOf(0L) }
     val assetsListState = rememberLazyListState()
     val activityListState = rememberLazyListState()
 
-    LaunchedEffect(pagerState.currentPage) {
-        viewModel.selectContentTab(WalletContentTab.entries[pagerState.currentPage])
+    LaunchedEffect(pagerState.settledPage, pagerState.isScrollInProgress, contentClickTarget) {
+        if (contentClickTarget == null && !pagerState.isScrollInProgress) {
+            selectedContentTab = WalletContentTab.entries[pagerState.settledPage]
+            viewModel.selectContentTab(selectedContentTab)
+        }
     }
 
     Column(Modifier.fillMaxSize()) {
         WalletHomeHeader(onLock = viewModel::lock) {
             Box {
-                CoinMonitorSmallIconButton(CoinMonitorIcons.More, stringResource(R.string.wallet_more), { moreMenu = true })
-                DropdownMenu(moreMenu, { moreMenu = false }) {
+                CoinMonitorSmallIconButton(
+                    CoinMonitorIcons.More, stringResource(R.string.wallet_more), { moreMenu = true },
+                    containerColor = design.colors.surface
+                )
+                DropdownMenu(moreMenu, { moreMenu = false }, shape = design.shapes.menu, containerColor = design.colors.surface, tonalElevation = 0.dp) {
                     DropdownMenuItem({ Text(stringResource(R.string.wallet_refresh)) }, onClick = { moreMenu = false; viewModel.refresh() }, enabled = !state.refreshing)
                     DropdownMenuItem({ Text(stringResource(R.string.wallet_dapp_browser)) }, onClick = { moreMenu = false; onOpenDappDiscovery() })
+                    DropdownMenuItem({ Text(stringResource(R.string.wallet_watch_entry)) }, onClick = { moreMenu = false; onOpenWatchWallet() })
                     DropdownMenuItem({ Text(stringResource(R.string.wallet_manage)) }, onClick = { moreMenu = false; viewModel.setPage(WalletPage.MANAGE) })
                     DropdownMenuItem({ Text(stringResource(R.string.wallet_backup)) }, onClick = { moreMenu = false; viewModel.setPage(WalletPage.BACKUP) })
                     DropdownMenuItem({ Text(stringResource(R.string.wallet_security)) }, onClick = { moreMenu = false; viewModel.setPage(WalletPage.SECURITY) })
@@ -892,7 +915,7 @@ private fun WalletDashboard(
                 onSelect = { walletMenu = true },
                 onCopyAddress = { address -> copyText(context, address, copiedMessage) },
                 menu = {
-                    DropdownMenu(walletMenu, { walletMenu = false }) {
+                    DropdownMenu(walletMenu, { walletMenu = false }, shape = design.shapes.menu, containerColor = design.colors.surface, tonalElevation = 0.dp) {
                         state.vault.wallets.forEach { item ->
                             DropdownMenuItem({ Text(item.name) }, onClick = { walletMenu = false; viewModel.selectWallet(item.id) })
                         }
@@ -918,126 +941,124 @@ private fun WalletDashboard(
                 }
                 Box(Modifier.padding(horizontal = design.spacing.pageHorizontal)) {
                     WalletBalanceCard(
-                        summary = state.homeSummary(), valuesVisible = valuesVisible, refreshing = state.refreshing,
+                        summary = summary, valuesVisible = valuesVisible, refreshing = state.refreshing,
                         onToggleVisibility = { valuesVisible = !valuesVisible },
                         onSend = { viewModel.openSend() }, onReceive = { receiveDialog = true },
                         actionsEnabled = supportedNetworks.isNotEmpty()
                     )
                 }
-                Row(
-                    Modifier.fillMaxWidth().padding(horizontal = design.spacing.pageHorizontal)
-                        .selectableGroup(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    CoinMonitorPillOption(
-                        stringResource(R.string.wallet_assets), pagerState.currentPage == WalletContentTab.ASSETS.ordinal,
-                        onClick = { pagerScope.launch { pagerState.animateScrollToPage(WalletContentTab.ASSETS.ordinal) } },
-                        modifier = Modifier.weight(1f)
-                    )
-                    CoinMonitorPillOption(
-                        stringResource(R.string.wallet_activity), pagerState.currentPage == WalletContentTab.ACTIVITY.ordinal,
-                        onClick = { pagerScope.launch { pagerState.animateScrollToPage(WalletContentTab.ACTIVITY.ordinal) } },
-                        modifier = Modifier.weight(1f)
-                    )
-                    TextButton(
-                        onClick = { networkPicker = true }, modifier = Modifier.weight(1.5f).heightIn(min = design.sizes.minimumTouchTarget),
-                        shape = design.shapes.pill
-                    ) {
-                        Text(
-                            state.selectedNetwork?.displayName ?: stringResource(R.string.wallet_networks_all),
-                            style = design.typography.caption, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f)
-                        )
-                        Icon(Icons.Rounded.KeyboardArrowDown, null, Modifier.size(design.sizes.actionIcon))
+                WalletHomeContentSelector(
+                    selectedTab = WalletContentTab.entries[pagerState.currentPage],
+                    indicatorPosition = { pagerState.currentPage + pagerState.currentPageOffsetFraction },
+                    networkName = state.selectedNetwork?.displayName ?: stringResource(R.string.wallet_networks_all),
+                    onNetwork = { networkPicker = true },
+                    modifier = Modifier.padding(horizontal = design.spacing.pageHorizontal, vertical = design.spacing.inline),
+                    onSelect = { target ->
+                        val request = ++switchRequest
+                        pageSwitchJob?.cancel()
+                        contentClickTarget = target
+                        selectedContentTab = target
+                        pageSwitchJob = pagerScope.launch {
+                            try {
+                                pagerState.animateScrollToPage(
+                                    target.ordinal,
+                                    animationSpec = tween(design.motion.pageSwitchDurationMillis, easing = FastOutSlowInEasing)
+                                )
+                            } finally {
+                                if (switchRequest == request) contentClickTarget = null
+                            }
+                        }
                     }
-                }
+                )
                 HorizontalPager(
-                    state = pagerState, modifier = Modifier.fillMaxWidth().weight(1f), verticalAlignment = Alignment.Top
+                    state = pagerState, modifier = Modifier.fillMaxWidth().weight(1f), verticalAlignment = Alignment.Top,
+                    beyondViewportPageCount = 1, key = { WalletContentTab.entries[it].name }
                 ) { page ->
                     when (WalletContentTab.entries[page]) {
-                        WalletContentTab.ASSETS -> WalletAssetsPage(state, assetsListState, onOpenAssetSettings, valuesVisible, viewModel::openAssetDetail)
+                        WalletContentTab.ASSETS -> WalletAssetsPage(
+                            state, assetsListState, onOpenAssetSettings, valuesVisible, viewModel::openAssetDetail, onOpenWatchWallet
+                        )
                         WalletContentTab.ACTIVITY -> WalletActivityPage(state, activityListState, onOpenNetworkSettings, valuesVisible)
                     }
                 }
             }
         }
-        Box(Modifier.padding(horizontal = design.spacing.pageHorizontal, vertical = design.spacing.inline)) {
-            CoinMonitorRoundedCard(Modifier.fillMaxWidth(), contentPadding = PaddingValues(0.dp)) {
-                io.baiyanwu.coinmonitor.ui.components.CoinMonitorCompactListRow(
-                    onClick = onOpenWatchWallet,
-                    leading = { Icon(CoinMonitorIcons.Search, null, Modifier.size(design.sizes.coinIcon), tint = design.colors.accent) },
-                    headline = { Text(stringResource(R.string.wallet_watch_entry), style = design.typography.rowTitle) },
-                    supporting = { Text(stringResource(R.string.wallet_watch_entry_description), style = design.typography.caption, color = design.colors.secondaryText) },
-                    trailing = { Icon(Icons.AutoMirrored.Rounded.ArrowForward, null, Modifier.size(design.sizes.actionIcon), tint = design.colors.secondaryText) }
-                )
-            }
-        }
     }
-    if (networkPicker) ModalBottomSheet(onDismissRequest = { networkPicker = false }, containerColor = design.colors.surface) {
+    if (networkPicker) ModalBottomSheet(
+        onDismissRequest = { networkPicker = false }, shape = design.shapes.bottomBar,
+        containerColor = design.colors.pageBackground, contentColor = design.colors.primaryText
+    ) {
         Row(Modifier.fillMaxWidth().padding(horizontal = design.spacing.pageHorizontal), verticalAlignment = Alignment.CenterVertically) {
             Text(stringResource(R.string.wallet_network_settings_title), Modifier.weight(1f), style = design.typography.rowTitle)
             TextButton(onClick = { networksEditing = !networksEditing }) {
                 Text(stringResource(if (networksEditing) R.string.wallet_finish_network_edit else R.string.wallet_edit_networks))
             }
         }
-        LazyColumn(Modifier.fillMaxWidth().heightIn(max = design.sizes.pickerMaximumHeight)) {
+        LazyColumn(
+            Modifier.fillMaxWidth().heightIn(max = design.sizes.pickerMaximumHeight).selectableGroup(),
+            contentPadding = PaddingValues(horizontal = design.spacing.pageHorizontal, vertical = design.spacing.small),
+            verticalArrangement = Arrangement.spacedBy(design.spacing.small)
+        ) {
             item {
-                TextButton(onClick = { viewModel.selectNetwork(null); networkPicker = false }, modifier = Modifier.fillMaxWidth()) {
-                    Text(stringResource(R.string.wallet_networks_all))
-                    if (state.selectedNetwork == null) Icon(Icons.Rounded.Done, null)
-                }
+                WalletHomeNetworkRow(
+                    stringResource(R.string.wallet_networks_all), selected = state.selectedNetwork == null,
+                    onClick = { viewModel.selectNetwork(null); networkPicker = false }
+                )
             }
             items(supportedNetworks, key = WalletNetwork::id) { network ->
-                Row(Modifier.fillMaxWidth().padding(horizontal = design.spacing.pageHorizontal), verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(onClick = { viewModel.selectNetwork(network); networkPicker = false }, modifier = Modifier.weight(1f)) {
-                        Text(network.displayName, Modifier.weight(1f))
-                        if (state.selectedNetwork?.id == network.id) Icon(Icons.Rounded.Done, null)
-                    }
-                    if (networksEditing) CoinMonitorSmallIconButton(
-                        CoinMonitorIcons.Close, stringResource(R.string.wallet_remove_network, network.displayName),
-                        onClick = { viewModel.removeNetwork(network) }
-                    )
-                }
+                WalletHomeNetworkRow(
+                    network.displayName, selected = state.selectedNetwork?.id == network.id,
+                    onClick = { viewModel.selectNetwork(network); networkPicker = false },
+                    onRemove = if (networksEditing) { { viewModel.removeNetwork(network) } } else null
+                )
             }
         }
         TextButton(onClick = { networkPicker = false; onOpenNetworkSettings() }, modifier = Modifier.fillMaxWidth()) {
             Text(stringResource(R.string.wallet_network_manage))
         }
     }
-    if (receiveDialog) ModalBottomSheet(onDismissRequest = { receiveDialog = false }, containerColor = design.colors.surface) {
+    if (receiveDialog) ModalBottomSheet(
+        onDismissRequest = { receiveDialog = false }, shape = design.shapes.bottomBar,
+        containerColor = design.colors.pageBackground, contentColor = design.colors.primaryText
+    ) {
         Text(stringResource(R.string.wallet_choose_receive_network), Modifier.padding(horizontal = design.spacing.pageHorizontal), style = design.typography.rowTitle)
-        LazyColumn(Modifier.fillMaxWidth().heightIn(max = design.sizes.pickerMaximumHeight)) {
+        LazyColumn(
+            Modifier.fillMaxWidth().heightIn(max = design.sizes.pickerMaximumHeight),
+            contentPadding = PaddingValues(horizontal = design.spacing.pageHorizontal, vertical = design.spacing.inline),
+            verticalArrangement = Arrangement.spacedBy(design.spacing.small)
+        ) {
             items(supportedNetworks, key = WalletNetwork::id) { network ->
-                TextButton(onClick = { receiveDialog = false; viewModel.openReceive(network) }, modifier = Modifier.fillMaxWidth()) { Text(network.displayName) }
+                WalletHomeNetworkRow(network.displayName, onClick = { receiveDialog = false; viewModel.openReceive(network) })
             }
         }
     }
 }
 
 @Composable
-private fun WalletAssetsPage(
+internal fun WalletAssetsPage(
     state: WalletUiState,
     listState: LazyListState,
     onOpenAssetSettings: () -> Unit,
     valuesVisible: Boolean,
-    onOpenDetail: (SelfCustodyAsset) -> Unit
+    onOpenDetail: (SelfCustodyAsset) -> Unit,
+    onOpenWatchWallet: () -> Unit
 ) {
-    LazyColumn(
-        state = listState,
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(horizontal = CoinMonitorThemeTokens.design.spacing.pageHorizontal)
-    ) {
+    val design = CoinMonitorThemeTokens.design
+    val assets = remember(state.portfolio, state.selectedNetwork, state.hideAssetsBelowOneUsd, state.includeUnverifiedAssets) {
+        state.visibleAssets
+    }
+    WalletHomeListContainer(listState, "wallet-assets-container") {
         if (state.loading && state.portfolio == null) {
             item { WalletPageLoading() }
         } else {
             val failures = state.portfolio?.refreshFailures
             val failedAssets = failures?.assetIndex.orEmpty().filter { state.selectedNetwork == null || it.id == state.selectedNetwork.id }.toSet()
             val failedBalances = failures?.nativeBalance.orEmpty().filter { state.selectedNetwork == null || it.id == state.selectedNetwork.id }.toSet()
-            if (failedAssets.isNotEmpty()) item { WalletRefreshWarning(R.string.wallet_asset_index_failure, failedAssets) }
-            if (failedBalances.isNotEmpty()) item { WalletRefreshWarning(R.string.wallet_native_balance_failure, failedBalances) }
-            if (state.visibleAssets.isEmpty()) item {
+            if (failedAssets.isNotEmpty()) item { WalletRefreshWarning(R.string.wallet_asset_index_failure, failedAssets, compact = true) }
+            if (failedBalances.isNotEmpty()) item { WalletRefreshWarning(R.string.wallet_native_balance_failure, failedBalances, compact = true) }
+            if (assets.isEmpty()) item {
                 if (state.okxCredentialsReady) {
-                    EmptyInline(stringResource(R.string.wallet_no_assets))
+                    WalletHomeEmptyCard(stringResource(R.string.wallet_no_assets))
                 } else {
                     WalletConfigurationPrompt(
                         title = stringResource(R.string.wallet_asset_provider_not_configured),
@@ -1046,36 +1067,35 @@ private fun WalletAssetsPage(
                     )
                 }
             }
-            itemsIndexed(state.visibleAssets, key = { _, asset -> asset.id }) { index, asset ->
-                WalletGroupedListItem(first = index == 0, last = index == state.visibleAssets.lastIndex) {
-                    WalletHomeAssetRow(asset, valuesVisible) { onOpenDetail(asset) }
-                }
+            items(assets, key = { it.id }, contentType = { "wallet-asset" }) { asset ->
+                WalletHomeAssetRow(asset, valuesVisible) { onOpenDetail(asset) }
             }
+        }
+        item(key = "wallet-watch-entry") {
+            WalletHomeWatchEntry(onOpenWatchWallet, Modifier.padding(top = design.spacing.group))
         }
     }
 }
 
 @Composable
-private fun WalletActivityPage(
+internal fun WalletActivityPage(
     state: WalletUiState,
     listState: LazyListState,
     onOpenNetworkSettings: () -> Unit,
     valuesVisible: Boolean
 ) {
-    val activities = state.portfolio?.activities.orEmpty().filter {
-        state.selectedNetwork == null || it.network.id == state.selectedNetwork.id
+    val activities = remember(state.portfolio, state.selectedNetwork) {
+        state.portfolio?.activities.orEmpty().filter {
+            state.selectedNetwork == null || it.network.id == state.selectedNetwork.id
+        }
     }
-    LazyColumn(
-        state = listState,
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(horizontal = CoinMonitorThemeTokens.design.spacing.pageHorizontal)
-    ) {
+    WalletHomeListContainer(listState, "wallet-activity-container") {
         if (state.loading && state.portfolio == null) {
             item { WalletPageLoading() }
         } else {
             val failedActivities = state.portfolio?.refreshFailures?.activityIndex.orEmpty()
                 .filter { state.selectedNetwork == null || it.id == state.selectedNetwork.id }.toSet()
-            if (failedActivities.isNotEmpty()) item { WalletRefreshWarning(R.string.wallet_activity_index_failure, failedActivities) }
+            if (failedActivities.isNotEmpty()) item { WalletRefreshWarning(R.string.wallet_activity_index_failure, failedActivities, compact = true) }
             if (!state.networkConfiguration.hasAlchemy) item {
                 if (state.networkConfiguration.customRpcUrls.isEmpty()) {
                     WalletConfigurationPrompt(
@@ -1087,11 +1107,9 @@ private fun WalletActivityPage(
                     RpcActivityWarning(onOpenNetworkSettings)
                 }
             }
-            if (activities.isEmpty()) item { EmptyInline(stringResource(R.string.wallet_no_activity)) }
-            itemsIndexed(activities, key = { _, activity -> activity.id }) { index, activity ->
-                WalletGroupedListItem(first = index == 0, last = index == activities.lastIndex) {
-                    ActivityRow(activity, valuesVisible = valuesVisible, compact = true)
-                }
+            if (activities.isEmpty()) item { WalletHomeEmptyCard(stringResource(R.string.wallet_no_activity)) }
+            items(activities, key = { it.id }, contentType = { "wallet-activity" }) { activity ->
+                ActivityRow(activity, valuesVisible = valuesVisible, compact = true)
             }
         }
     }
@@ -1099,46 +1117,25 @@ private fun WalletActivityPage(
 
 @Composable
 private fun WalletPageLoading() {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 16.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        CircularProgressIndicator(
-            modifier = Modifier.size(28.dp),
-            strokeWidth = 2.5.dp
-        )
-    }
+    WalletHomeEmptyCard(loading = true)
 }
 
 @Composable
 private fun BackupWarning(onClick: () -> Unit) {
-    ElevatedCard(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
-        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
-    ) {
-        Column(Modifier.padding(CoinMonitorThemeTokens.design.spacing.cardPadding)) {
-            Text(stringResource(R.string.wallet_not_backed_up), style = CoinMonitorThemeTokens.design.typography.rowTitle, color = MaterialTheme.colorScheme.onErrorContainer)
-            Text(stringResource(R.string.wallet_not_backed_up_description), style = CoinMonitorThemeTokens.design.typography.caption, color = MaterialTheme.colorScheme.onErrorContainer)
-        }
-    }
+    WalletHomeMessageCard(
+        title = stringResource(R.string.wallet_not_backed_up),
+        body = stringResource(R.string.wallet_not_backed_up_description), warning = true,
+        modifier = Modifier.clickable(onClick = onClick)
+    )
 }
 
 @Composable
 private fun WalletConfigurationPrompt(title: String, description: String, onClick: () -> Unit) {
-    ElevatedCard(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Rounded.Settings, contentDescription = null)
-                Text(title, Modifier.padding(start = 10.dp), fontWeight = FontWeight.Bold)
-            }
-            Text(description, color = CoinMonitorThemeTokens.colors.secondaryText)
-            TextButton(onClick = onClick, modifier = Modifier.align(Alignment.End)) {
-                Text(stringResource(R.string.wallet_configure_network))
-            }
-        }
-    }
+    WalletHomeMessageCard(
+        title = title, body = description,
+        actionLabel = stringResource(R.string.wallet_configure_network), onAction = onClick,
+        modifier = Modifier.padding(bottom = CoinMonitorThemeTokens.design.spacing.group)
+    )
 }
 
 @Composable
@@ -1268,6 +1265,14 @@ private fun WalletAssetAction(
 
 @Composable
 private fun ActivityRow(activity: WalletActivity, valuesVisible: Boolean = true, compact: Boolean = false) {
+    if (compact) {
+        val uriHandler = LocalUriHandler.current
+        val transactionUrl = activity.network.transactionUrl(activity.transactionHash)
+        WalletHomeActivityRow(activity, valuesVisible, enabled = transactionUrl != null) {
+            transactionUrl?.let(uriHandler::openUri)
+        }
+        return
+    }
     val design = CoinMonitorThemeTokens.design
     val titleStyle = if (compact) design.typography.compactRowTitle else MaterialTheme.typography.titleSmall.copy(fontSize = 13.sp, lineHeight = 17.sp)
     val subtitleStyle = if (compact) design.typography.compactRowSubtitle else MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, lineHeight = 11.sp)
@@ -1322,25 +1327,16 @@ private fun ActivityRow(activity: WalletActivity, valuesVisible: Boolean = true,
                 )
             }
         }
-        if (!compact) HorizontalDivider(color = CoinMonitorThemeTokens.colors.divider.copy(alpha = 0.55f))
     }
 }
 
 @Composable
 private fun RpcActivityWarning(onClick: () -> Unit) {
-    Column(
-        modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.tertiaryContainer, RoundedCornerShape(12.dp)).padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp)
-    ) {
-        Text(
-            stringResource(R.string.wallet_rpc_activity_warning),
-            color = MaterialTheme.colorScheme.onTertiaryContainer,
-            style = MaterialTheme.typography.bodySmall
-        )
-        TextButton(onClick = onClick, modifier = Modifier.align(Alignment.End)) {
-            Text(stringResource(R.string.wallet_configure_network))
-        }
-    }
+    WalletHomeMessageCard(
+        body = stringResource(R.string.wallet_rpc_activity_warning),
+        actionLabel = stringResource(R.string.wallet_configure_network), onAction = onClick,
+        modifier = Modifier.padding(bottom = CoinMonitorThemeTokens.design.spacing.group)
+    )
 }
 
 @Composable
@@ -1939,7 +1935,14 @@ private fun EmptyInline(text: String) {
 }
 
 @Composable
-private fun WalletRefreshWarning(messageRes: Int, networks: Set<WalletNetwork>) {
+private fun WalletRefreshWarning(messageRes: Int, networks: Set<WalletNetwork>, compact: Boolean = false) {
+    if (compact) {
+        WalletHomeMessageCard(
+            body = stringResource(messageRes, networks.sortedBy(WalletNetwork::displayName).joinToString { it.displayName }),
+            modifier = Modifier.padding(bottom = CoinMonitorThemeTokens.design.spacing.group)
+        )
+        return
+    }
     Text(
         stringResource(
             messageRes,

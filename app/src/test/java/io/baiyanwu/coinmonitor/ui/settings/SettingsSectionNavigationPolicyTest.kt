@@ -8,7 +8,7 @@ import org.junit.Test
 
 class SettingsSectionNavigationPolicyTest {
     @Test
-    fun `general detail keeps advanced preferences while home reuses appearance preferences`() {
+    fun `general detail keeps advanced preferences while home only provides navigation`() {
         val settingsSource = readSource(
             "app/src/main/java/io/baiyanwu/coinmonitor/ui/settings/SettingsRoute.kt",
             "src/main/java/io/baiyanwu/coinmonitor/ui/settings/SettingsRoute.kt"
@@ -25,14 +25,17 @@ class SettingsSectionNavigationPolicyTest {
         assertFalse(settingsSource.contains("R.string.language_title"))
         assertFalse(settingsSource.contains("R.string.network_log_title"))
         assertFalse(settingsSource.contains("R.string.clipboard_settings"))
-        assertTrue(settingsSource.contains("SettingsViewModel.factory(container)"))
-        assertTrue(settingsSource.contains("themeMode = state.preferences.themeMode"))
-        assertTrue(settingsSource.contains("onThemeModeChange = model::setThemeMode"))
-        assertTrue(settingsSource.contains("R.string.settings_appearance_title"))
+        assertFalse(settingsSource.contains("SettingsViewModel.factory(container)"))
+        assertFalse(settingsSource.contains("onThemeModeChange"))
+        assertFalse(settingsSource.contains("SettingsAppearanceChoices"))
+        assertFalse(settingsSource.contains("R.string.settings_appearance_title"))
         assertTrue(settingsSource.contains("CoinMonitorDesignTheme {"))
         assertTrue(detailsSource.contains("fun GeneralSettingsRoute("))
         assertTrue(detailsSource.contains("R.string.show_onchain_market_cap"))
         assertTrue(detailsSource.contains("R.string.appearance_title"))
+        assertTrue(detailsSource.contains("viewModel.setThemeMode(AppThemeMode.SYSTEM)"))
+        assertTrue(detailsSource.contains("viewModel.setThemeMode(AppThemeMode.LIGHT)"))
+        assertTrue(detailsSource.contains("viewModel.setThemeMode(AppThemeMode.DARK)"))
         assertTrue(detailsSource.contains("R.string.language_title"))
         assertTrue(detailsSource.contains("R.string.network_log_title"))
     }
@@ -90,13 +93,16 @@ class SettingsSectionNavigationPolicyTest {
         assertTrue(walletSource.contains("viewModel::selectWalletForBackup"))
 
         val moreMenuStart = walletSource.indexOf("DropdownMenu(moreMenu")
-        val moreMenuEnd = walletSource.indexOf("R.string.wallet_watch_entry", moreMenuStart)
+        // Watch address is now an actual menu entry, so it cannot delimit the menu body.
+        val moreMenuEnd = walletSource.indexOf("WalletSelectionCard(", moreMenuStart)
         assertTrue(moreMenuStart >= 0)
         assertTrue(moreMenuEnd > moreMenuStart)
         val moreMenu = walletSource.substring(moreMenuStart, moreMenuEnd)
         assertTrue(moreMenu.contains("WalletPage.MANAGE"))
         assertTrue(moreMenu.contains("WalletPage.BACKUP"))
         assertTrue(moreMenu.contains("WalletPage.SECURITY"))
+        assertTrue(moreMenu.contains("R.string.wallet_watch_entry"))
+        assertTrue(moreMenu.contains("onOpenWatchWallet()"))
     }
 
     private fun readSource(rootRelativePath: String, moduleRelativePath: String): String {

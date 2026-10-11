@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -24,8 +23,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -87,6 +85,7 @@ import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorDesignTheme
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 import io.baiyanwu.coinmonitor.R
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 private data class HomeQuickMenuState(
@@ -188,9 +187,6 @@ internal fun HomeScreen(
     var rootSize by remember { mutableStateOf(IntSize.Zero) }
     var rootOrigin by remember { mutableStateOf(IntOffset.Zero) }
     val colors = CoinMonitorThemeTokens.colors
-    val history = remember { HomeQuoteHistory() }
-    val watchIds = remember(state.items) { state.items.map { it.id }.toSet() }
-    LaunchedEffect(watchIds) { history.retainOnly(watchIds) }
     val dismissInteractionSource = remember { MutableInteractionSource() }
     val pagerState = rememberPagerState(
         initialPage = 0,
@@ -199,6 +195,11 @@ internal fun HomeScreen(
     val exchangeListState = rememberLazyListState()
     val onchainListState = rememberLazyListState()
     val pagerScope = rememberCoroutineScope()
+    var selectedPage by rememberSaveable { mutableStateOf(pagerState.settledPage) }
+    var clickTarget by remember { mutableStateOf<Int?>(null) }
+    var pageSwitchJob by remember { mutableStateOf<Job?>(null) }
+    var switchRequest by remember { mutableStateOf(0L) }
+    val design = CoinMonitorThemeTokens.design
     val pageItems = remember(state.items) {
         HOME_MODES.map { mode -> filterHomeWatchItems(state.items, mode) }
     }
@@ -207,9 +208,12 @@ internal fun HomeScreen(
     val overlayEnableDialogDismiss = stringResource(R.string.common_cancel)
     val overlayEnableDialogConfirm = stringResource(R.string.home_overlay_enable_dialog_confirm)
 
-    LaunchedEffect(pagerState.currentPage) {
-        quickMenuState = null
-        pairActionsExpanded = false
+    LaunchedEffect(pagerState.settledPage, pagerState.isScrollInProgress, clickTarget) {
+        if (pagerState.isScrollInProgress) {
+            quickMenuState = null
+            pairActionsExpanded = false
+        }
+        if (clickTarget == null && !pagerState.isScrollInProgress) selectedPage = pagerState.settledPage
     }
 
     Box(
@@ -224,7 +228,7 @@ internal fun HomeScreen(
             }
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            HomeHeader(onSearch = { onNavigateSearch(HOME_MODES[pagerState.currentPage]) }) {
+            HomeHeader(onSearch = { onNavigateSearch(HOME_MODES[selectedPage]) }) {
                 HomePairActionsMenu(
                     expanded = pairActionsExpanded,
                     onExpandedChange = { expanded ->
@@ -234,7 +238,7 @@ internal fun HomeScreen(
                     onAddPair = {
                         if (pairActionsExpanded) {
                             pairActionsExpanded = false
-                            onNavigateSearch(HOME_MODES[pagerState.currentPage])
+                            onNavigateSearch(HOME_MODES[selectedPage])
                         }
                     },
                     onConfigureOverlayItems = {
@@ -248,7 +252,25 @@ internal fun HomeScreen(
             }
             HomeModeSelector(
                 selectedPage = pagerState.currentPage,
-                onSelectPage = { page -> pagerScope.launch { pagerState.animateScrollToPage(page) } }
+                indicatorPosition = { pagerState.currentPage + pagerState.currentPageOffsetFraction },
+                onSelectPage = { page ->
+                    val request = ++switchRequest
+                    pageSwitchJob?.cancel()
+                    quickMenuState = null
+                    pairActionsExpanded = false
+                    clickTarget = page
+                    selectedPage = page
+                    pageSwitchJob = pagerScope.launch {
+                        try {
+                            pagerState.animateScrollToPage(
+                                page,
+                                animationSpec = tween(design.motion.pageSwitchDurationMillis, easing = FastOutSlowInEasing)
+                            )
+                        } finally {
+                            if (switchRequest == request) clickTarget = null
+                        }
+                    }
+                }
             )
 
             HorizontalPager(
@@ -256,6 +278,8 @@ internal fun HomeScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f),
+                beyondViewportPageCount = 1,
+                key = { HOME_MODES[it].name }
             ) {
                 val mode = HOME_MODES[it]
                 HomeWatchlistPage(
@@ -270,7 +294,6 @@ internal fun HomeScreen(
                         onchainListState
                     },
                     quoteRepository = quoteRepository,
-                    history = history,
                     showOnchainMarketCap = state.showOnchainMarketCap,
                     onNavigateSearch = { onNavigateSearch(mode) },
                     onDismissQuickMenu = { quickMenuState = null },
@@ -357,7 +380,6 @@ private fun HomeWatchlistPage(
     overlayIds: Set<String>,
     listState: LazyListState,
     quoteRepository: QuoteRepository,
-    history: HomeQuoteHistory,
     showOnchainMarketCap: Boolean = false,
     onNavigateSearch: () -> Unit,
     onDismissQuickMenu: () -> Unit,
@@ -368,8 +390,6 @@ private fun HomeWatchlistPage(
 ) {
     var displayItems by remember { mutableStateOf(items) }
     var dragState by remember { mutableStateOf<HomeDragState?>(null) }
-    var spotlightId by rememberSaveable(mode) { mutableStateOf<String?>(null) }
-    val design = CoinMonitorThemeTokens.design
     val colors = CoinMonitorThemeTokens.colors
     val scope = rememberCoroutineScope()
     val emptyHint = stringResource(
@@ -383,7 +403,6 @@ private fun HomeWatchlistPage(
     LaunchedEffect(items) {
         if (dragState == null) {
             displayItems = items
-            if (items.none { it.id == spotlightId }) spotlightId = items.firstOrNull()?.id
         }
     }
 
@@ -420,26 +439,8 @@ private fun HomeWatchlistPage(
                 }
             }
         } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                state = listState,
-                contentPadding = PaddingValues(horizontal = design.spacing.pageHorizontal, vertical = design.spacing.group),
-                verticalArrangement = Arrangement.spacedBy(0.dp)
-            ) {
-                val spotlight = displayItems.firstOrNull { it.id == spotlightId } ?: displayItems.firstOrNull()
-                spotlight?.let { focused ->
-                    item(key = "home-spotlight") {
-                        var anchor by remember { mutableStateOf(IntOffset.Zero) }
-                        Box(Modifier.onGloballyPositioned { coordinates ->
-                            val position = coordinates.positionInRoot()
-                            anchor = IntOffset((position.x + coordinates.size.width / 2).toInt(), (position.y + coordinates.size.height / 2).toInt())
-                        }) {
-                            HomeSpotlightCard(focused, quoteRepository, history, showOnchainMarketCap, onMore = { onLongPress(focused, anchor) })
-                        }
-                    }
-                }
-                item(key = "home-watchlist-header") { HomeWatchlistHeader(displayItems.size, onNavigateSearch) }
-                itemsIndexed(displayItems, key = { _, item -> item.id }) { index, item ->
+            HomeWatchlistContainer(state = listState) {
+                items(displayItems, key = { it.id }, contentType = { "home-watch-row" }) { item ->
                     val isDragging = dragState?.itemId == item.id
                     Box(
                         modifier = Modifier
@@ -448,14 +449,12 @@ private fun HomeWatchlistPage(
                     ) {
                         WatchItemCard(
                             itemId = item.id,
-                            clickLabel = stringResource(R.string.home_focus_asset, item.symbol),
                             modifier = Modifier.fillMaxWidth(),
                             dragOffsetY = if (isDragging) {
                                 dragState?.dragOffsetY ?: 0f
                             } else {
                                 0f
                             },
-                            onClick = { onDismissQuickMenu(); spotlightId = item.id },
                             onLongPress = { anchorInRoot ->
                                 onLongPress(item, anchorInRoot)
                             },
@@ -511,9 +510,8 @@ private fun HomeWatchlistPage(
                             }
                         ) {
                             HomeAssetRow(
-                                item = item, quoteRepository = quoteRepository, history = history,
-                                showOnchainMarketCap = showOnchainMarketCap, overlaySelected = overlayIds.contains(item.id),
-                                first = index == 0, last = index == displayItems.lastIndex
+                                item = item, quoteRepository = quoteRepository,
+                                showOnchainMarketCap = showOnchainMarketCap, overlaySelected = overlayIds.contains(item.id)
                             )
                         }
                     }

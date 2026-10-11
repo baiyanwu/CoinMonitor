@@ -10,33 +10,24 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import io.baiyanwu.coinmonitor.R
-import io.baiyanwu.coinmonitor.data.AppContainer
-import io.baiyanwu.coinmonitor.domain.model.AppThemeMode
 import io.baiyanwu.coinmonitor.ui.components.CoinMonitorIcons
 import io.baiyanwu.coinmonitor.ui.components.CoinMonitorNavigationRow
 import io.baiyanwu.coinmonitor.ui.components.CoinMonitorPageHeader
-import io.baiyanwu.coinmonitor.ui.components.CoinMonitorPillOption
 import io.baiyanwu.coinmonitor.ui.components.CoinMonitorRoundedCard
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorDesignTheme
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorTheme
@@ -44,7 +35,6 @@ import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 
 @Composable
 fun SettingsRoute(
-    container: AppContainer,
     contentTopInset: Dp = 0.dp,
     contentBottomInset: Dp = 0.dp,
     onNavigateGeneralSettings: () -> Unit,
@@ -53,11 +43,7 @@ fun SettingsRoute(
     onNavigateThirdPartyApiSettings: () -> Unit,
     onNavigateAbout: () -> Unit
 ) {
-    val model: SettingsViewModel = viewModel(factory = SettingsViewModel.factory(container))
-    val state by model.uiState.collectAsStateWithLifecycle()
     SettingsHomeScreen(
-        themeMode = state.preferences.themeMode,
-        onThemeModeChange = model::setThemeMode,
         contentTopInset = contentTopInset,
         contentBottomInset = contentBottomInset,
         onNavigateGeneralSettings = onNavigateGeneralSettings,
@@ -68,11 +54,9 @@ fun SettingsRoute(
     )
 }
 
-/** 展示层可独立预览，偏好持久化与实际导航只由 Route 提供。 */
+/** 展示层可独立预览，实际导航只由 Route 提供。 */
 @Composable
 internal fun SettingsHomeScreen(
-    themeMode: AppThemeMode,
-    onThemeModeChange: (AppThemeMode) -> Unit,
     contentTopInset: Dp = 0.dp,
     contentBottomInset: Dp = 0.dp,
     onNavigateGeneralSettings: () -> Unit,
@@ -148,29 +132,17 @@ internal fun SettingsHomeScreen(
                 ),
                 verticalArrangement = Arrangement.spacedBy(design.spacing.group)
             ) {
-                item(key = "appearance") {
-                    SettingsSection(stringResource(R.string.settings_appearance_title)) {
-                        SettingsAppearanceChoices(themeMode, onThemeModeChange)
-                    }
-                }
                 groups.forEach { group ->
                     item(key = group.id) {
                         SettingsSection(group.title) {
-                            CoinMonitorRoundedCard(Modifier.fillMaxWidth(), contentPadding = PaddingValues(0.dp)) {
-                                group.entries.forEachIndexed { index, entry ->
+                            CoinMonitorRoundedCard(Modifier.fillMaxWidth(), contentPadding = PaddingValues(vertical = design.spacing.inline)) {
+                                group.entries.forEach { entry ->
                                     CoinMonitorNavigationRow(
                                         title = entry.title,
                                         subtitle = entry.subtitle,
                                         leadingIcon = entry.icon,
                                         onClick = entry.onClick
                                     )
-                                    if (index < group.entries.lastIndex) {
-                                        HorizontalDivider(
-                                            modifier = Modifier.padding(horizontal = design.spacing.cardPadding),
-                                            thickness = design.sizes.dividerThickness,
-                                            color = design.colors.divider
-                                        )
-                                    }
                                 }
                             }
                         }
@@ -192,35 +164,6 @@ private fun SettingsSection(title: String, content: @Composable () -> Unit) {
             style = design.typography.label
         )
         content()
-    }
-}
-
-@Composable
-private fun SettingsAppearanceChoices(themeMode: AppThemeMode, onThemeModeChange: (AppThemeMode) -> Unit) {
-    val design = CoinMonitorThemeTokens.design
-    val choices = listOf(
-        Triple(AppThemeMode.LIGHT, R.string.settings_theme_light, CoinMonitorIcons.LightMode),
-        Triple(AppThemeMode.DARK, R.string.settings_theme_dark, CoinMonitorIcons.DarkMode),
-        Triple(AppThemeMode.SYSTEM, R.string.theme_system, CoinMonitorIcons.SystemMode)
-    )
-    CoinMonitorRoundedCard(Modifier.fillMaxWidth(), contentPadding = PaddingValues(design.spacing.small)) {
-        Row(
-            Modifier.fillMaxWidth().selectableGroup(),
-            horizontalArrangement = Arrangement.spacedBy(design.spacing.tiny),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            choices.forEach { (mode, label, icon) ->
-                CoinMonitorPillOption(
-                    label = stringResource(label),
-                    selected = themeMode == mode,
-                    onClick = { onThemeModeChange(mode) },
-                    modifier = Modifier.weight(1f),
-                    leadingIcon = icon,
-                    showSelectionMark = true,
-                    textStyle = design.typography.rowSubtitle.copy(fontWeight = FontWeight.Medium)
-                )
-            }
-        }
     }
 }
 
@@ -285,8 +228,6 @@ private fun SettingsHomeLargeFontPreview() = SettingsHomePreview(darkTheme = fal
 private fun SettingsHomePreview(darkTheme: Boolean) {
     CoinMonitorTheme(darkTheme = darkTheme) {
         SettingsHomeScreen(
-            themeMode = if (darkTheme) AppThemeMode.DARK else AppThemeMode.SYSTEM,
-            onThemeModeChange = {},
             onNavigateGeneralSettings = {},
             onNavigateWalletSettings = {},
             onNavigateOverlaySettings = {},

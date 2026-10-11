@@ -21,7 +21,6 @@ import androidx.compose.material.icons.automirrored.rounded.OpenInNew
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -114,19 +113,16 @@ private fun AboutScreen(
                         value = stringResource(R.string.about_author_value),
                         onClick = onOpenAuthor
                     )
-                    AboutDivider()
                     AboutInfoRow(
                         label = stringResource(R.string.about_repository),
                         value = stringResource(R.string.about_repository_value),
                         onClick = onOpenRepository
                     )
-                    AboutDivider()
                     AboutInfoRow(
                         label = stringResource(R.string.about_license),
                         value = stringResource(R.string.about_license_value),
                         onClick = onOpenLicense
                     )
-                    AboutDivider()
                     AboutInfoRow(
                         label = stringResource(R.string.about_feedback),
                         value = stringResource(R.string.about_feedback_value),
@@ -258,11 +254,6 @@ private fun AboutInfoRow(
             tint = colors.accent
         )
     }
-}
-
-@Composable
-private fun AboutDivider() {
-    HorizontalDivider(color = CoinMonitorThemeTokens.colors.divider.copy(alpha = 0.5f))
 }
 
 private const val AUTHOR_URL = "https://github.com/baiyanwu"

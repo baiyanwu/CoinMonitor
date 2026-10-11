@@ -81,6 +81,7 @@ class CoinIconService private constructor(private val context: Context) {
         }
     }
 
+    /** Safe during composition: disk reads/decoding belong exclusively to loadBitmap on IO. */
     fun peekBitmap(
         symbol: String,
         preferredIconUrl: String? = null,
@@ -97,11 +98,10 @@ class CoinIconService private constructor(private val context: Context) {
             grayscaleFallback = grayscaleFallback
         )
         directRequests.forEach { request ->
-            loadCachedBitmap(request.cacheKey)?.let { return it }
+            memoryCache[request.cacheKey]?.let { return it }
         }
         if (!allowSymbolLookup) return null
-        memoryCache[normalized]?.let { return it }
-        return loadFromDisk(normalized)?.also { memoryCache[normalized] = it }
+        return memoryCache[normalized]
     }
 
     suspend fun resolveIconUrl(symbol: String): String? = withContext(Dispatchers.IO) {

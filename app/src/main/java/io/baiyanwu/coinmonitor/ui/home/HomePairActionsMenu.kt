@@ -12,6 +12,7 @@ import androidx.compose.ui.res.stringResource
 import io.baiyanwu.coinmonitor.R
 import io.baiyanwu.coinmonitor.ui.components.CoinMonitorIcons
 import io.baiyanwu.coinmonitor.ui.components.CoinMonitorSmallIconButton
+import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 
 /** 首页“更多”移至顶部；保留添加币对和悬浮币对配置两个操作。 */
 @Composable
@@ -25,7 +26,8 @@ internal fun HomePairActionsMenu(
     Box(modifier) {
         CoinMonitorSmallIconButton(
             CoinMonitorIcons.More, stringResource(R.string.home_pair_actions),
-            onClick = { onExpandedChange(!expanded) }, modifier = Modifier.testTag("home-pair-actions-trigger")
+            onClick = { onExpandedChange(!expanded) }, modifier = Modifier.testTag("home-pair-actions-trigger"),
+            containerColor = CoinMonitorThemeTokens.design.colors.surface
         )
         DropdownMenu(expanded, onDismissRequest = { onExpandedChange(false) }) {
             DropdownMenuItem(

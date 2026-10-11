@@ -313,7 +313,6 @@ private fun MainShell(
             }
             composable(Destinations.SETTINGS) {
                 SettingsRoute(
-                    container = container,
                     contentTopInset = innerPadding.calculateTopPadding(),
                     contentBottomInset = innerPadding.calculateBottomPadding(),
                     onNavigateGeneralSettings = onOpenGeneralSettings,

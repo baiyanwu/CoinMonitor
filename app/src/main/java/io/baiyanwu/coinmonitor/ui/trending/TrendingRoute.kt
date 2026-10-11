@@ -1,6 +1,8 @@
 package io.baiyanwu.coinmonitor.ui.trending
 
 import android.widget.Toast
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -14,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.text.AnnotatedString
@@ -40,6 +43,7 @@ import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorDesignTheme
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
 import java.util.Locale
 
 @Composable
@@ -69,12 +73,23 @@ internal fun TrendingScreen(
         val design = CoinMonitorThemeTokens.design
         val pager = rememberPagerState(initialPage = state.board.ordinal, pageCount = { TrendingBoard.entries.size })
         val scope = rememberCoroutineScope()
+        var selectedBoard by rememberSaveable { mutableStateOf(state.board) }
+        var pageSwitchJob by remember { mutableStateOf<Job?>(null) }
+        var clickTarget by remember { mutableStateOf<TrendingBoard?>(null) }
+        var switchRequest by remember { mutableStateOf(0L) }
+        val boardSettled = clickTarget == null && !pager.isScrollInProgress && state.board == selectedBoard
         val clipboard = LocalClipboardManager.current
         val context = LocalContext.current
         val copiedLabel = stringResource(R.string.trending_address_copied)
         var showFilters by rememberSaveable { mutableStateOf(false) }
         var token by remember { mutableStateOf<TrendingToken?>(null) }
-        LaunchedEffect(pager.settledPage) { onSelectBoard(TrendingBoard.entries[pager.settledPage]) }
+        LaunchedEffect(pager.settledPage, pager.isScrollInProgress, clickTarget) {
+            if (clickTarget == null && !pager.isScrollInProgress) {
+                // Start/cancel ranking demand only after the transition has settled.
+                selectedBoard = TrendingBoard.entries[pager.settledPage]
+                onSelectBoard(selectedBoard)
+            }
+        }
         Column(
             Modifier.fillMaxSize().background(design.colors.pageBackground)
                 .padding(top = contentTopInset, bottom = contentBottomInset)
@@ -82,25 +97,49 @@ internal fun TrendingScreen(
             CoinMonitorPageTopBar(stringResource(R.string.tab_trending)) {
                 CoinMonitorSmallIconButton(
                     CoinMonitorIcons.Refresh, stringResource(R.string.trending_refresh), onRefresh,
+                    containerColor = design.colors.surface,
                     enabled = !state.cacheRestoring && state.demand.any { source ->
                         source in state.ready && state.snapshots[source]?.loading != true &&
                             (state.snapshots[source]?.retryAt ?: 0) <= state.now
                     }
                 )
                 CoinMonitorSmallIconButton(
-                    CoinMonitorIcons.Filters, stringResource(R.string.trending_filters), onClick = { showFilters = true }
+                    CoinMonitorIcons.Filters, stringResource(R.string.trending_filters), onClick = { showFilters = true },
+                    containerColor = design.colors.surface
                 )
             }
             CoinMonitorSegmentedTabs(
                 tabs = TrendingBoard.entries.map { CoinMonitorSegmentedTab(it.name, boardTabTitle(it)) },
                 selectedId = TrendingBoard.entries[pager.currentPage].name,
-                onSelect = { id -> scope.launch { pager.animateScrollToPage(TrendingBoard.valueOf(id).ordinal) } },
-                modifier = Modifier.fillMaxWidth().padding(horizontal = design.spacing.pageHorizontal)
+                onSelect = { id ->
+                    val target = TrendingBoard.valueOf(id)
+                    val request = ++switchRequest
+                    pageSwitchJob?.cancel()
+                    clickTarget = target
+                    selectedBoard = target
+                    pageSwitchJob = scope.launch {
+                        try {
+                            pager.animateScrollToPage(
+                                target.ordinal,
+                                animationSpec = tween(design.motion.pageSwitchDurationMillis, easing = FastOutSlowInEasing)
+                            )
+                        } finally {
+                            if (switchRequest == request) clickTarget = null
+                        }
+                    }
+                },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = design.spacing.pageHorizontal),
+                compactTrack = true,
+                indicatorPosition = { pager.currentPage + pager.currentPageOffsetFraction }
             )
-            HorizontalPager(state = pager, modifier = Modifier.weight(1f)) { page ->
+            // Warm adjacent cached lists before scrolling; composition never adds data demand.
+            HorizontalPager(
+                state = pager, modifier = Modifier.weight(1f), beyondViewportPageCount = 1,
+                key = { TrendingBoard.entries[it].name }
+            ) { page ->
                 TrendingList(
                     state, TrendingBoard.entries[page], onOpenApiSettings, onDisplay,
-                    onFilters = { showFilters = true }, onToken = { token = it },
+                    onFilters = { if (boardSettled) showFilters = true }, onToken = { token = it },
                     onCopyAddress = { address ->
                         clipboard.setText(AnnotatedString(address))
                         Toast.makeText(context, copiedLabel, Toast.LENGTH_SHORT).show()
@@ -130,19 +169,24 @@ private fun TrendingList(
     onToken: (TrendingToken) -> Unit, onCopyAddress: (String) -> Unit
 ) {
     val design = CoinMonitorThemeTokens.design
-    val rows = state.rows(board)
     val summary = state.summary(board)
     val options = state.displayOptions(board)
     val newIds = state.newIds(board)
+    // A status/countdown tick must not re-sort unchanged token lists on every page.
+    val rows = remember(board, state.snapshots, state.sharedSnapshot, state.sources, options, newIds) {
+        state.rows(board)
+    }
+    val missingKeysLabel = if (summary.missing.isNotEmpty()) {
+        stringResource(R.string.trending_missing_keys, summary.missing.joinToString { it.title })
+    } else null
     val ready = summary.missing.isEmpty() && summary.sources.all { state.snapshots[it]?.updatedAt != null }
     Column(
         Modifier.fillMaxSize().padding(horizontal = design.spacing.pageHorizontal, vertical = design.spacing.small),
         verticalArrangement = Arrangement.spacedBy(design.spacing.small)
     ) {
         TrendingSourceSummary(summary, onFilters)
-        TrendingUpdateStatus(state, summary)
-        if (summary.missing.isNotEmpty()) TextButton(onClick = onOpenApiSettings, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.trending_missing_keys, summary.missing.joinToString { it.title }))
+        if (missingKeysLabel != null && rows.isNotEmpty()) TextButton(onClick = onOpenApiSettings, modifier = Modifier.fillMaxWidth()) {
+            Text(missingKeysLabel)
         }
         summary.failures.forEach { source ->
             val snapshot = state.snapshots.getValue(source)
@@ -154,7 +198,8 @@ private fun TrendingList(
             )
         }
         Surface(
-            Modifier.fillMaxWidth().weight(1f), shape = design.shapes.card,
+            Modifier.fillMaxWidth().then(if (rows.isEmpty()) Modifier else Modifier.weight(1f))
+                .testTag("trending-${board.name}-container"), shape = design.shapes.card,
             color = design.colors.surface, contentColor = design.colors.primaryText
         ) {
             Column {
@@ -176,11 +221,18 @@ private fun TrendingList(
                     }
                 }
                 if (rows.isEmpty()) {
-                    Box(Modifier.fillMaxWidth().weight(1f).padding(design.spacing.pageHorizontal), contentAlignment = Alignment.Center) {
+                    Box(
+                        Modifier.fillMaxWidth().heightIn(min = design.sizes.trendingEmptyBodyMinimumHeight)
+                            .padding(design.spacing.pageHorizontal),
+                        contentAlignment = Alignment.Center
+                    ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(design.spacing.inline)) {
                             if (state.cacheRestoring || summary.loading) CircularProgressIndicator(
-                                Modifier.size(design.sizes.actionContainer), color = design.colors.accent, strokeWidth = 2.dp
+                                Modifier.size(design.sizes.actionIcon), color = design.colors.accent, strokeWidth = 2.dp
                             )
+                            if (missingKeysLabel != null) TextButton(onClick = onOpenApiSettings) {
+                                Text(missingKeysLabel, style = design.typography.label)
+                            }
                             Text(
                                 stringResource(when {
                                     state.cacheRestoring -> R.string.trending_loading_cache
@@ -195,27 +247,33 @@ private fun TrendingList(
                         }
                     }
                 } else LazyColumn(
-                    Modifier.weight(1f), contentPadding = PaddingValues(horizontal = design.spacing.small, vertical = design.spacing.small)
+                    Modifier.weight(1f).testTag("trending-${board.name}-list"),
+                    contentPadding = PaddingValues(horizontal = design.spacing.small, vertical = design.spacing.inline)
                 ) {
-                    itemsIndexed(rows, key = { _, item -> item.id }) { index, item ->
+                    itemsIndexed(rows, key = { _, item -> item.id }, contentType = { _, _ -> "trending-token" }) { index, item ->
                         TrendingTokenRow(
                             item, index + 1, item.id in newIds, options.value,
                             showSmartMoney = TrendingSource.GMGN in summary.sources,
                             onToken = onToken, onCopyAddress = onCopyAddress
                         )
-                        if (index < rows.lastIndex) HorizontalDivider(
-                            Modifier.padding(horizontal = design.spacing.inline), color = design.colors.divider
-                        )
                     }
                 }
-                HorizontalDivider(Modifier.padding(horizontal = design.spacing.cardPadding), color = design.colors.divider)
-                Text(
-                    if (summary.updatedAt == null) stringResource(R.string.trending_waiting_update)
-                    else if (board == TrendingBoard.SHARED) pluralStringResource(R.plurals.trending_shared_results, rows.size, rows.size, summary.sources.size)
-                    else pluralStringResource(R.plurals.trending_count, rows.size, rows.size),
-                    Modifier.padding(horizontal = design.spacing.cardPadding, vertical = design.spacing.inline),
-                    style = design.typography.caption, color = design.colors.secondaryText
-                )
+                Row(
+                    Modifier.fillMaxWidth()
+                        .padding(horizontal = design.spacing.cardPadding, vertical = design.spacing.inline),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(design.spacing.inline)
+                ) {
+                    Text(
+                        if (summary.updatedAt == null) stringResource(R.string.trending_waiting_update)
+                        else if (board == TrendingBoard.SHARED) pluralStringResource(R.plurals.trending_shared_results, rows.size, rows.size, summary.sources.size)
+                        else pluralStringResource(R.plurals.trending_count, rows.size, rows.size),
+                        Modifier.weight(1f),
+                        style = design.typography.caption, color = design.colors.secondaryText,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis
+                    )
+                    TrendingUpdateStatus(summary, Modifier.weight(1f).testTag("trending-${board.name}-updated"))
+                }
             }
         }
     }
@@ -251,32 +309,17 @@ private fun TrendingSourceSummary(summary: TrendingBoardSummary, onFilters: () -
 }
 
 @Composable
-private fun TrendingUpdateStatus(state: TrendingUiState, summary: TrendingBoardSummary) {
+private fun TrendingUpdateStatus(summary: TrendingBoardSummary, modifier: Modifier = Modifier) {
     val design = CoinMonitorThemeTokens.design
-    val pausedLabel = stringResource(R.string.trending_paused)
-    val refresh = if (summary.updatedAt == null) "" else summary.sources.joinToString(" · ") { source ->
-        val options = state.options.getValue(source)
-        val snapshot = state.snapshots[source]
-        if (!options.autoRefresh) "${source.title} $pausedLabel"
-        else if (snapshot?.failure != null) source.title
-        else {
-            val due = maxOf((snapshot?.updatedAt ?: state.now) + options.refreshSeconds * 1000L, snapshot?.retryAt ?: 0)
-            "${source.title} ${((due - state.now).coerceAtLeast(0) + 999) / 1000}s"
-        }
-    }
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = design.spacing.inline, vertical = design.spacing.tiny),
+        modifier,
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(design.spacing.small)
     ) {
         Text(
             summary.updatedAt?.let {
                 stringResource(R.string.trending_updated, java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT).format(java.util.Date(it)))
-            } ?: stringResource(R.string.trending_waiting_update),
-            Modifier.weight(1f, fill = false), style = design.typography.caption, color = design.colors.secondaryText,
-            maxLines = 1, overflow = TextOverflow.Ellipsis
-        )
-        if (refresh.isNotEmpty()) Text(
-            refresh, Modifier.weight(1f), style = design.typography.caption, color = design.colors.secondaryText,
+            } ?: "",
+            Modifier.weight(1f), style = design.typography.caption, color = design.colors.secondaryText,
             textAlign = TextAlign.End, maxLines = 1, overflow = TextOverflow.Ellipsis
         )
         if (summary.loading) CircularProgressIndicator(Modifier.size(design.sizes.inlineActionIcon), strokeWidth = 2.dp, color = design.colors.accent)

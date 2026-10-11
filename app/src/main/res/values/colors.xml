@@ -1,4 +1,5 @@
 <resources>
+    <color name="coinmonitor_logo_ring">#ECEAF8</color>
     <color name="window_background">#FFFBFE</color>
     <color name="system_bar_background">#F7F2FA</color>
     <color name="overlay_notification_title_color">#1D1B20</color>

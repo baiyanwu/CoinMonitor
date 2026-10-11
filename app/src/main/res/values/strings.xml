@@ -115,7 +115,6 @@
     <string name="home_watchlist_title">观察列表</string>
     <string name="home_watchlist_subtitle">长按单个币对可快速加入悬浮窗</string>
     <string name="home_self_selected">自选</string>
-    <string name="home_my_watchlist">我的自选</string>
     <string name="home_overlay_monitor">悬浮盯盘</string>
     <string name="home_overlay_enabled">已开启</string>
     <string name="home_overlay_disabled">未开启</string>
@@ -123,7 +122,6 @@
     <string name="home_live_trend">实时</string>
     <string name="home_live_trend_description">本次首页会话收到的真实报价走势</string>
     <string name="home_trend_waiting">等待报价走势</string>
-    <string name="home_focus_asset">重点关注 %1$s</string>
     <string name="home_market_cap_label">市值</string>
 
     <string name="search_title">搜索币对</string>
@@ -160,9 +158,6 @@
     <string name="show_onchain_market_cap">显示链上市值</string>
     <string name="show_onchain_market_cap_description">开启后，主页和悬浮窗中的链上币将显示市值</string>
     <string name="settings_subtitle">统一管理语言、主题外观，以及悬浮窗相关能力。</string>
-    <string name="settings_appearance_title">外观</string>
-    <string name="settings_theme_light">浅色</string>
-    <string name="settings_theme_dark">深色</string>
     <string name="settings_group_preferences_security">偏好与安全</string>
     <string name="settings_group_monitoring_data">盯盘与数据</string>
     <string name="settings_group_application">应用</string>

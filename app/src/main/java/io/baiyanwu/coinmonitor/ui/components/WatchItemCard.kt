@@ -41,7 +41,7 @@ fun WatchItemCard(
     modifier: Modifier = Modifier,
     dragOffsetY: Float = 0f,
     clickLabel: String? = null,
-    onClick: () -> Unit = {},
+    onClick: (() -> Unit)? = null,
     onLongPress: (anchorInRoot: IntOffset) -> Unit,
     onDragStart: () -> Unit = {},
     onDragBy: (Float) -> Unit = {},
@@ -71,8 +71,10 @@ fun WatchItemCard(
             .fillMaxWidth()
             .testTag("watch-item-$itemId")
             .semantics(mergeDescendants = true) {
-                role = Role.Button
-                onClick(label = clickLabel) { onClick(); true }
+                if (onClick != null) {
+                    role = Role.Button
+                    onClick(label = clickLabel) { onClick(); true }
+                }
             }
             .graphicsLayer {
                 translationY = dragOffsetY
@@ -158,7 +160,7 @@ fun WatchItemCard(
                             if (change.changedToUpIgnoreConsumed()) {
                                 when {
                                     dragActive -> onDragEnd()
-                                    !dragArmed && !quickMenuOpened && (latestPosition - downPosition).getDistance() <= touchSlop -> onClick()
+                                    !dragArmed && !quickMenuOpened && (latestPosition - downPosition).getDistance() <= touchSlop -> onClick?.invoke()
                                     else -> onDragCancel()
                                 }
                                 break

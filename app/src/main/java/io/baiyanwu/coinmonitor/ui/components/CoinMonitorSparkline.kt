@@ -7,6 +7,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
@@ -24,7 +25,8 @@ fun CoinMonitorSparkline(
     points: List<CoinMonitorChartPoint>,
     color: Color,
     contentDescription: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    fillUnderCurve: Boolean = false
 ) {
     val normalized = remember(points) { normalizeSparklinePoints(points) }
     Canvas(modifier.semantics { this.contentDescription = contentDescription }) {
@@ -38,6 +40,18 @@ fun CoinMonitorSparkline(
                 val y = inset + point.y * chartHeight
                 if (index == 0) moveTo(x, y) else lineTo(x, y)
             }
+        }
+        if (fillUnderCurve) {
+            val area = Path().apply {
+                addPath(path)
+                lineTo(inset + normalized.last().x * chartWidth, inset + chartHeight)
+                lineTo(inset + normalized.first().x * chartWidth, inset + chartHeight)
+                close()
+            }
+            drawPath(area, Brush.verticalGradient(
+                listOf(color.copy(alpha = 0.1f), Color.Transparent),
+                startY = inset, endY = inset + chartHeight
+            ))
         }
         drawPath(path, color, style = Stroke(1.5.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
     }
