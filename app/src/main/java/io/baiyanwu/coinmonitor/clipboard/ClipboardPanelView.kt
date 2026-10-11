@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.OpenInNew
+import androidx.compose.material.icons.automirrored.rounded.ShowChart
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -22,6 +23,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -59,12 +61,9 @@ internal fun ClipboardPanelView(
                     else {
                         QueryHeader(state, onCopy, onDismiss, onSettings)
                         if (state.fomoWallets != null) ClipboardTextButton(onClick = state::showFomoResult) { Text(stringResource(R.string.clipboard_fomo_back)) }
-                        else if (state.supportsWallet) ClipboardModeTabs(
-                            wallet = state.mode == ClipboardContentMode.WALLET,
-                            onSelect = { if (it) state.useWalletMode() else state.useTokenMode() },
-                            tokenLabel = stringResource(R.string.clipboard_token_mode), walletLabel = stringResource(R.string.clipboard_wallet_mode))
+                        else if (state.supportsWallet) QueryModeControls(state, settings, watchlist, onFloatingChange, onToggleWatchlist)
                         if (state.mode == ClipboardContentMode.WALLET) WalletResult(state, onOpen, onWalletSettings)
-                        else if (state.selected != null) TokenResult(state, settings, watchlist, onFloatingChange, onToggleWatchlist, onOpen, onValueModeChange)
+                        else if (state.selected != null) TokenResult(state, settings, onOpen, onValueModeChange)
                         else PendingResult(state, onRetryRead)
                         state.actionMessage?.let { Text(stringResource(it), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
                     }
@@ -151,32 +150,83 @@ private fun PendingResult(state: ClipboardPanelState, onRetryRead: () -> Unit) {
 }
 
 @Composable
-private fun TokenResult(state: ClipboardPanelState, settings: ClipboardSettings, watchlist: List<WatchItem>,
+private fun QueryModeControls(state: ClipboardPanelState, settings: ClipboardSettings, watchlist: List<WatchItem>,
     onFloatingChange: (Boolean, WatchItem?) -> Unit, onToggleWatchlist: (ClipboardMatch, WatchItem?) -> Unit,
-    onOpen: (String) -> Unit, onValueModeChange: (String) -> Unit) {
-    val match = state.selected ?: return
-    val existing = watchlist.firstOrNull { it.semanticKey == match.watchItem(false).semanticKey }
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f)) {
-            Text(stringResource(if (settings.valueMode == "marketCap") R.string.clipboard_value_market_cap else R.string.clipboard_value_price), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(if (settings.valueMode == "marketCap") compactClipboardNumber(match.marketCap) else "$${QuoteFormatter.formatPrice(match.selection.priceUsd)}", fontSize = 18.sp, lineHeight = 21.sp, fontWeight = FontWeight.SemiBold)
-        }
-        ClipboardIconButton(onClick = { onValueModeChange(if (settings.valueMode == "marketCap") "price" else "marketCap") }) { Icon(Icons.Rounded.SwapHoriz, stringResource(R.string.clipboard_toggle_value), Modifier.size(16.dp)) }
-        match.selection.change24hPercent?.let { Text("24H ${if (it > 0) "+" else ""}${String.format(java.util.Locale.US, "%.2f", it)}%", style = MaterialTheme.typography.bodySmall, color = trendColor(it)) }
-    }
-    when {
-        state.chartLoading -> LoadingMessage(R.string.clipboard_chart_title)
-        state.chartUnavailable -> Text(stringResource(R.string.clipboard_chart_unavailable), style = MaterialTheme.typography.bodySmall)
-        else -> {
-            ClipboardChart(state.chart, match.selection.change24hPercent)
-            val hours = ((state.chart.lastOrNull()?.timestamp ?: 0.0) - (state.chart.firstOrNull()?.timestamp ?: 0.0)) / 3600
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(stringResource(R.string.clipboard_chart_actual_hours, hours.coerceAtLeast(0.0)), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                state.holderCount?.let { Text(stringResource(R.string.clipboard_holders_description, it), style = MaterialTheme.typography.bodySmall) }
+    modifier: Modifier = Modifier) {
+    CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 20.dp) {
+        Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            ClipboardModeTabs(wallet = state.mode == ClipboardContentMode.WALLET,
+                onSelect = { if (it) state.useWalletMode() else state.useTokenMode() },
+                tokenLabel = stringResource(R.string.clipboard_token_mode), walletLabel = stringResource(R.string.clipboard_wallet_mode),
+                modifier = Modifier.weight(2f))
+            Box(Modifier.weight(1f).padding(start = 3.dp), contentAlignment = Alignment.CenterEnd) {
+                // These actions apply to a resolved token, never to the wallet address mode.
+                state.selected?.takeIf { state.mode == ClipboardContentMode.TOKEN }?.let { match ->
+                    val existing = watchlist.firstOrNull { it.semanticKey == match.watchItem(false).semanticKey }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(stringResource(R.string.clipboard_floating_label), Modifier.weight(1f), fontSize = 9.sp, lineHeight = 12.sp,
+                            maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        ClipboardFloatingToggle(checked = existing?.overlaySelected ?: settings.addToFloating, enabled = !state.actionBusy,
+                            label = stringResource(R.string.clipboard_add_floating), onCheckedChange = { onFloatingChange(it, existing) }, size = 20.dp)
+                        ClipboardIconButton(onClick = { onToggleWatchlist(match, existing) }, enabled = !state.actionBusy, size = 20.dp) {
+                            Icon(if (existing == null) Icons.Rounded.Add else Icons.Rounded.Check,
+                                stringResource(if (existing == null) R.string.clipboard_add_watch else R.string.clipboard_remove_watch), Modifier.size(14.dp))
+                        }
+                    }
+                }
             }
         }
     }
-    if (state.chartLoading || state.chartUnavailable) state.holderCount?.let { Text(stringResource(R.string.clipboard_holders_description, it), style = MaterialTheme.typography.bodySmall) }
+}
+
+@Composable
+private fun TokenQuote(state: ClipboardPanelState, settings: ClipboardSettings, match: ClipboardMatch, onValueModeChange: (String) -> Unit) {
+    val textBackdrop = MaterialTheme.colorScheme.surface.copy(alpha = 0.90f)
+    val loadingDescription = stringResource(R.string.clipboard_chart_loading)
+    Box(Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
+        // Match the quote region's measured height, including when the value wraps at larger font sizes.
+        ClipboardChart(state.chart, match.selection.change24hPercent, Modifier.matchParentSize())
+        Column(Modifier.fillMaxWidth()) {
+            CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 20.dp) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(stringResource(if (settings.valueMode == "marketCap") R.string.clipboard_value_market_cap else R.string.clipboard_value_price),
+                            Modifier.background(textBackdrop), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        ClipboardIconButton(onClick = { onValueModeChange(if (settings.valueMode == "marketCap") "price" else "marketCap") }, size = 20.dp) {
+                            Icon(Icons.Rounded.SwapHoriz, stringResource(R.string.clipboard_toggle_value), Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
+                        }
+                        match.selection.change24hPercent?.let {
+                            Text("24H ${if (it > 0) "+" else ""}${String.format(java.util.Locale.US, "%.2f", it)}%",
+                                Modifier.weight(1f, fill = false).background(textBackdrop), style = MaterialTheme.typography.bodySmall, color = trendColor(it),
+                                maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                    }
+                    state.holderCount?.let { count ->
+                        val description = stringResource(R.string.clipboard_holders_description, count)
+                        Row(Modifier.background(textBackdrop).clearAndSetSemantics { contentDescription = description },
+                            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Icon(Icons.Rounded.Person, null, Modifier.size(12.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(count.toString(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                }
+            }
+            Text(if (settings.valueMode == "marketCap") compactClipboardNumber(match.marketCap) else "$${QuoteFormatter.formatPrice(match.selection.priceUsd)}",
+                Modifier.background(textBackdrop), fontSize = 18.sp, lineHeight = 21.sp, fontWeight = FontWeight.SemiBold)
+        }
+        when {
+            state.chartLoading -> CircularProgressIndicator(Modifier.align(Alignment.BottomEnd).size(12.dp)
+                .semantics { contentDescription = loadingDescription }, strokeWidth = 1.dp)
+            state.chartUnavailable -> Icon(Icons.AutoMirrored.Rounded.ShowChart, stringResource(R.string.clipboard_chart_unavailable),
+                Modifier.align(Alignment.BottomEnd).size(12.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
+private fun TokenResult(state: ClipboardPanelState, settings: ClipboardSettings, onOpen: (String) -> Unit, onValueModeChange: (String) -> Unit) {
+    val match = state.selected ?: return
+    TokenQuote(state, settings, match, onValueModeChange)
     if (state.matches.size > 1) NetworkPicker(match.chain.chainIndex, state.matches.map { it.chain.chainIndex to it.chain.displayName }) { value -> state.matches.firstOrNull { it.chain.chainIndex == value }?.let(state::chooseChain) }
     HorizontalDivider()
     val entries = settings.destinations.filter { it.enabled }.map { SiteLink(it.name, it.url(match), it.id, it.iconUrl) }
@@ -193,16 +243,7 @@ private fun TokenResult(state: ClipboardPanelState, settings: ClipboardSettings,
                 Icon(painterResource(R.drawable.clipboard_logo_grok), null, Modifier.size(14.dp))
                 Spacer(Modifier.width(4.dp)); Text("Grok")
             }
-            ClipboardIconButton(onClick = { onToggleWatchlist(match, existing) }, enabled = !state.actionBusy, size = 24.dp) {
-                Icon(if (existing == null) Icons.Rounded.Add else Icons.Rounded.Check,
-                    stringResource(if (existing == null) R.string.clipboard_add_watch else R.string.clipboard_remove_watch), Modifier.size(16.dp))
-            }
         }
-    }
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(stringResource(R.string.clipboard_add_floating), Modifier.weight(1f), fontSize = 9.sp, lineHeight = 12.sp)
-        ClipboardFloatingToggle(checked = existing?.overlaySelected ?: settings.addToFloating, enabled = !state.actionBusy,
-            label = stringResource(R.string.clipboard_add_floating), onCheckedChange = { onFloatingChange(it, existing) })
     }
 }
 
@@ -415,9 +456,9 @@ internal fun destinationIconResource(id: String, chainId: String): Int? = when (
 }
 
 @Composable
-private fun ClipboardChart(points: List<ClipboardChartPoint>, change: Double?) {
+private fun ClipboardChart(points: List<ClipboardChartPoint>, change: Double?, modifier: Modifier) {
     val color = trendColor(change)
-    Canvas(Modifier.fillMaxWidth().height(32.dp)) {
+    Canvas(modifier) {
         if (points.size < 2) return@Canvas
         val minimum = points.minOf { it.price }
         val range = (points.maxOf { it.price } - minimum).coerceAtLeast(minimum * 0.001)

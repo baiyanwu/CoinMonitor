@@ -16,7 +16,9 @@
     <string name="clipboard_add_watch">＋ Add to watchlist</string>
     <string name="clipboard_remove_watch">－ Remove from watchlist</string>
     <string name="clipboard_add_floating">Add to floating quotes</string>
+    <string name="clipboard_floating_label">Float</string>
     <string name="clipboard_chart_title">Last 24 hours · GeckoTerminal</string>
+    <string name="clipboard_chart_loading">Loading chart</string>
     <string name="clipboard_chart_unavailable">Chart unavailable. Quote details remain available.</string>
     <string name="clipboard_retry">Retry</string>
     <string name="clipboard_chart_period">Last 24 hours</string>
@@ -62,7 +64,6 @@
     <string name="clipboard_toggle_value">Switch price and market cap</string>
     <string name="clipboard_add_watch_compact">Watch</string>
     <string name="clipboard_added_watch_compact">Watched</string>
-    <string name="clipboard_chart_actual_hours">Price chart · %1$.1f hours of data</string>
     <string name="clipboard_wallet_choose_network">Select network</string>
     <string name="clipboard_wallet_loading">Loading holdings…</string>
     <string name="clipboard_wallet_failed">Holdings refresh failed. Previous results are retained. Check the data service and retry.</string>

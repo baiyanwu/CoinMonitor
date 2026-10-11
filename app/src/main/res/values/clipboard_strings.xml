@@ -16,7 +16,9 @@
     <string name="clipboard_add_watch">＋ 加入自选</string>
     <string name="clipboard_remove_watch">－ 移出自选</string>
     <string name="clipboard_add_floating">加入悬浮窗</string>
+    <string name="clipboard_floating_label">悬浮窗</string>
     <string name="clipboard_chart_title">近 24 小时走势 · GeckoTerminal</string>
+    <string name="clipboard_chart_loading">正在加载走势</string>
     <string name="clipboard_chart_unavailable">暂无走势数据，基本行情仍可使用。</string>
     <string name="clipboard_retry">重试</string>
     <string name="clipboard_chart_period">近 24 小时</string>
@@ -62,7 +64,6 @@
     <string name="clipboard_toggle_value">切换价格与市值</string>
     <string name="clipboard_add_watch_compact">自选</string>
     <string name="clipboard_added_watch_compact">已自选</string>
-    <string name="clipboard_chart_actual_hours">价格走势 · 实际跨度 %1$.1f 小时</string>
     <string name="clipboard_wallet_choose_network">选择查询网络</string>
     <string name="clipboard_wallet_loading">正在查询持仓…</string>
     <string name="clipboard_wallet_failed">持仓刷新失败，已有结果保留。请检查查询服务后重试。</string>

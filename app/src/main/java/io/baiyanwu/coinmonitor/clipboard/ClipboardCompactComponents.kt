@@ -56,13 +56,13 @@ internal fun ClipboardIconButton(onClick: () -> Unit, size: Dp = 28.dp, enabled:
 }
 
 @Composable
-internal fun ClipboardModeTabs(wallet: Boolean, onSelect: (Boolean) -> Unit, tokenLabel: String, walletLabel: String) {
-    Row(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp)).padding(2.dp)) {
+internal fun ClipboardModeTabs(wallet: Boolean, onSelect: (Boolean) -> Unit, tokenLabel: String, walletLabel: String, modifier: Modifier = Modifier) {
+    Row(modifier.background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(6.dp)).padding(1.dp)) {
         listOf(false to tokenLabel, true to walletLabel).forEach { (value, label) ->
-            Box(Modifier.weight(1f).heightIn(min = 24.dp)
-                .background(if (wallet == value) MaterialTheme.colorScheme.surface else androidx.compose.ui.graphics.Color.Transparent, RoundedCornerShape(6.dp))
+            Box(Modifier.weight(1f).heightIn(min = 18.dp)
+                .background(if (wallet == value) MaterialTheme.colorScheme.surface else androidx.compose.ui.graphics.Color.Transparent, RoundedCornerShape(5.dp))
                 .selectable(selected = wallet == value, role = Role.Tab, onClick = { onSelect(value) })
-                .padding(horizontal = 6.dp, vertical = 2.dp), contentAlignment = Alignment.Center) {
+                .padding(horizontal = 4.dp, vertical = 1.dp), contentAlignment = Alignment.Center) {
                 Text(label, style = MaterialTheme.typography.labelLarge,
                     color = if (wallet == value) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
             }
@@ -71,11 +71,11 @@ internal fun ClipboardModeTabs(wallet: Boolean, onSelect: (Boolean) -> Unit, tok
 }
 
 @Composable
-internal fun ClipboardFloatingToggle(checked: Boolean, enabled: Boolean, label: String, onCheckedChange: (Boolean) -> Unit) {
-    Box(Modifier.size(24.dp).semantics { contentDescription = label }.toggleable(checked, enabled, Role.Switch, onCheckedChange), contentAlignment = Alignment.Center) {
+internal fun ClipboardFloatingToggle(checked: Boolean, enabled: Boolean, label: String, onCheckedChange: (Boolean) -> Unit, size: Dp = 24.dp) {
+    Box(Modifier.size(size).semantics { contentDescription = label }.toggleable(checked, enabled, Role.Switch, onCheckedChange), contentAlignment = Alignment.Center) {
         val color = if (checked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
-        Box(Modifier.size(24.dp, 14.dp).background(color.copy(alpha = if (enabled) 1f else 0.38f), RoundedCornerShape(7.dp)).padding(2.dp)) {
-            Box(Modifier.align(if (checked) Alignment.CenterEnd else Alignment.CenterStart).size(10.dp)
+        Box(Modifier.size(size, size * (14f / 24f)).background(color.copy(alpha = if (enabled) 1f else 0.38f), RoundedCornerShape(size * (7f / 24f))).padding(size * (2f / 24f))) {
+            Box(Modifier.align(if (checked) Alignment.CenterEnd else Alignment.CenterStart).size(size * (10f / 24f))
                 .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(5.dp)))
         }
     }
