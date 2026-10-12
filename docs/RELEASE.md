@@ -146,10 +146,12 @@ gh release view v1.0.4 --json body,url
 
 Release 创建后 GitHub Actions 会自动打包上传 APK。**必须等待打包成功后再合入 main**，否则打包失败时 main 上已经有错误版本。
 
-等待方式：创建 Release 后，每 2 分钟检查一次打包状态，直到成功或失败。
+所有 CI 状态监控统一每 4 分钟检查一次，包括发布分支 Android CI、Android Release 和 main/dev 合并后的 Android CI。
+
+等待方式：创建 Release 后，每 4 分钟检查一次打包状态，直到成功或失败。
 
 ```bash
-# 每2分钟检查一次
+# 每4分钟检查一次
 gh run list --workflow=android-release.yml --limit 1
 # 或直接查看 Release 页面的 Actions 状态
 ```
