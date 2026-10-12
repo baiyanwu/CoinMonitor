@@ -90,7 +90,7 @@
     <string name="clipboard_site_choose_address">Multiple addresses found. Select the token contract.</string>
     <string name="clipboard_site_network_rules">Network rules</string>
     <string name="clipboard_site_route_name">Network name in URL</string>
-    <string name="clipboard_site_new_network">New network, e.g. base / solana</string>
+    <string name="clipboard_site_new_network">Select network</string>
     <string name="clipboard_site_add_network">Add network rule</string>
     <string name="clipboard_site_preview">Link preview</string>
     <string name="clipboard_ai_default_question">Research this token: verify project identity, utility, liquidity, holder concentration and recent catalysts.</string>

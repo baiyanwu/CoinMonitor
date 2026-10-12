@@ -169,6 +169,10 @@ class ClipboardWindowController(
                                 hide()
                                 context.startActivity(Intent(context, io.baiyanwu.coinmonitor.ui.settings.ThirdPartyApiSettingsActivity::class.java)
                                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                            }, onOverlayItems = {
+                                hide()
+                                context.startActivity(Intent(context, io.baiyanwu.coinmonitor.ui.settings.OverlayItemsSettingsActivity::class.java)
+                                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                             }, onSettings = {
                                 hide()
                                 ClipboardSettingsActivity.start(context)

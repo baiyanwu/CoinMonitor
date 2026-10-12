@@ -75,8 +75,8 @@ class ClipboardWebsiteRecognitionTest {
     @Test fun newBuiltInRoutesImportTheirNetworkRules() {
         val sol = "So11111111111111111111111111111111111111112"
         for ((id, url, chain) in listOf(
-            Triple("pump", "https://pump.fun/coin/$sol", "solana"),
-            Triple("axiom", "https://axiom.trade/token/$sol", "solana"),
+            Triple("pump", "https://pump.fun/coin/$sol", null),
+            Triple("axiom", "https://axiom.trade/token/$sol", null),
             Triple("debot", "https://debot.ai/token/bsc/$CA", "bsc"),
             Triple("birdeye", "https://birdeye.so/bsc/token/$CA", "bsc")
         )) {
@@ -114,14 +114,37 @@ class ClipboardWebsiteRecognitionTest {
         assertEquals(5, migrated.destinations.size)
     }
 
-    @Test fun deletedSolanaOnlyRuleStaysDeletedWhenRecognizedAgain() {
+    @Test fun caOnlyLegacyRoutesMigrateEvenAfterDefaultsWereAdded() {
+        val pump = ClipboardDestination("user-pump", "My Pump", "", enabled = false,
+            chainTemplates = mapOf("solana" to "https://pump.fun/coin/{ca}"))
+        val deleted = pump.copy(id = "deleted", chainTemplates = emptyMap(), removedNetworkRules = setOf("solana"))
+        val custom = pump.copy(id = "custom", chainTemplates = pump.chainTemplates + ("base" to "https://example.com/{ca}"))
+        val saved = ClipboardSettings(destinations = listOf(pump, deleted, custom), destinationsVersion = 1)
+        val migrated = migrateClipboardDestinations(saved)
+        assertEquals(pump.copy(template = "https://pump.fun/coin/{ca}", chainTemplates = emptyMap()), migrated.destinations[0])
+        assertEquals(deleted, migrated.destinations[1])
+        assertEquals(custom, migrated.destinations[2])
+        assertEquals(migrated, migrateClipboardDestinations(migrated))
+    }
+
+    @Test fun caOnlySitesHaveNoNetworkMappingsAfterRecognition() {
         val sol = "So11111111111111111111111111111111111111112"
-        val url = "https://pump.fun/coin/$sol"
-        val first = recognize(url).destination
-        val deleted = first.copy(chainTemplates = emptyMap(), removedNetworkRules = setOf("solana"))
-        val again = recognize(url, deleted).destination
-        assertTrue(again.chainTemplates.isEmpty())
-        assertEquals(setOf("solana"), again.removedNetworkRules)
+        for (id in listOf("pump", "axiom")) {
+            val site = clipboardDestinations().first { it.id == id }
+            val result = recognize(site.template.replace("{ca}", sol), site)
+            assertNull(result.chain)
+            assertTrue(result.destination.template.contains("{ca}"))
+            assertFalse(result.destination.template.contains("{chain}"))
+            assertTrue(result.destination.chainTemplates.isEmpty())
+            assertTrue(result.destination.chainValues.isEmpty())
+        }
+    }
+
+    @Test fun networkChoicesIncludeCommonAndSavedCustomKeysWithoutDuplicates() {
+        val site = newSite.copy(chainValues = mapOf("custom-chain" to "custom"), removedNetworkRules = setOf("deleted-chain"))
+        val choices = clipboardNetworkOptions(site)
+        assertTrue(choices.containsAll(listOf("ethereum", "solana", "base", "robinhood", "arc", "monad", "custom-chain", "deleted-chain")))
+        assertEquals(choices.distinct().sorted(), choices)
     }
 
     @Test fun unsafeUrlsAreRejectedAndAiLiteralPlusIsEncoded() {
