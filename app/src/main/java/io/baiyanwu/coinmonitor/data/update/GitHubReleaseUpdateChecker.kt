@@ -15,12 +15,14 @@ data class AvailableAppUpdate(
 )
 
 class GitHubReleaseUpdateChecker(
-    private val httpClient: OkHttpClient
+    private val httpClient: OkHttpClient,
+    private val enabled: Boolean = true
 ) {
     private val json = Json { ignoreUnknownKeys = true }
 
-    suspend fun checkForUpdate(currentVersion: String): AvailableAppUpdate? =
-        withContext(Dispatchers.IO) {
+    suspend fun checkForUpdate(currentVersion: String): AvailableAppUpdate? {
+        if (!enabled) return null
+        return withContext(Dispatchers.IO) {
             runCatching {
                 val request = Request.Builder()
                     .url(LATEST_RELEASE_API_URL)
@@ -50,6 +52,7 @@ class GitHubReleaseUpdateChecker(
                 null
             }
         }
+    }
 
     private companion object {
         const val LATEST_RELEASE_API_URL =

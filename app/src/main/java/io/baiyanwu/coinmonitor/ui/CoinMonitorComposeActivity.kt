@@ -1,15 +1,21 @@
 package io.baiyanwu.coinmonitor.ui
 
 import android.content.Context
+import android.graphics.Color
+import android.os.Build
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.graphics.toArgb
-import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsControllerCompat
+import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.baiyanwu.coinmonitor.appContainer
 import io.baiyanwu.coinmonitor.data.AppContainer
@@ -29,7 +35,7 @@ abstract class CoinMonitorComposeActivity : AppCompatActivity() {
         useDesignPageBackground: Boolean = false,
         content: @Composable (AppContainer) -> Unit
     ) {
-        WindowCompat.setDecorFitsSystemWindows(window, true)
+        enableEdgeToEdge()
         val container = appContainer()
 
         setContent {
@@ -52,15 +58,24 @@ abstract class CoinMonitorComposeActivity : AppCompatActivity() {
                     colors.pageBackground
                 }
                 SideEffect {
-                    window.statusBarColor = pageBackground.toArgb()
-                    window.navigationBarColor = colors.cardBackground.toArgb()
-                    WindowInsetsControllerCompat(window, window.decorView).apply {
-                        isAppearanceLightStatusBars = !isDarkTheme
-                        isAppearanceLightNavigationBars = !isDarkTheme
+                    val systemBarStyle = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT) {
+                        isDarkTheme
+                    }
+                    enableEdgeToEdge(statusBarStyle = systemBarStyle, navigationBarStyle = systemBarStyle)
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        window.isNavigationBarContrastEnforced = false
                     }
                 }
-                AppConfigurationApplier.ProvideLocalizedResources(language = preferences.language) {
-                    content(container)
+                // 宿主替代旧的 decor 留边；消费安全区域，子页面不会重复添加系统栏或 IME 留白。
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(pageBackground)
+                        .safeDrawingPadding()
+                ) {
+                    AppConfigurationApplier.ProvideLocalizedResources(language = preferences.language) {
+                        content(container)
+                    }
                 }
             }
         }

@@ -39,6 +39,8 @@
 
 Alchemy 尚未收录或目录尚未更新的标准 EVM 网络，可以直接填写名称、Chain ID、原生币符号、浏览器地址和 RPC 添加。自定义 EVM 网络立即进入网络列表，不依赖发版；保存前必须通过 `eth_chainId` 验证。单条网络也可以覆盖为自建或第三方 RPC，自定义 RPC 永远优先于 Alchemy RPC。Solana 自定义节点仍验证 Mainnet genesis hash。
 
+自定义 RPC 仅接受有效的 HTTPS 地址；历史保存的 HTTP 节点会在发出请求前被拒绝，需要用户重新配置 HTTPS 节点。应用明确禁止明文 HTTP 传输，RPC 客户端也禁止 HTTPS 与 HTTP 之间的协议切换重定向。不会自动把旧 HTTP 地址改写为 HTTPS，以免使用节点并未提供的 TLS 服务。
+
 | 配置 | 资产与价格 | 交易执行与状态 | 活动历史 |
 | --- | --- | --- |
 | OKX + Alchemy | OKX Onchain | Alchemy RPC | Alchemy Transfers + 本地交易 |
@@ -138,9 +140,9 @@ ui/wallet/WalletRoute.kt
 必须先配置 Wallet Core GitHub Packages 只读凭证，再运行：
 
 ```bash
-./gradlew :app:testDebugUnitTest --no-parallel
-./gradlew :app:lintDebug --no-parallel
-./gradlew :app:assembleDebug --no-parallel
+./gradlew :app:testGithubDebugUnitTest --no-parallel
+./gradlew :app:lintGithubDebug --no-parallel
+./gradlew :app:assembleGithubDebug --no-parallel
 ```
 
 代码级验证不等同于真实主网小额转账验证。涉及真实资金前，仍应在隔离钱包中逐链执行最小金额的原生币、ERC20、SOL 与 SPL 端到端测试。

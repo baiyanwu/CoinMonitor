@@ -87,9 +87,9 @@ ui/walletwatch/WalletWatchRoute.kt
 ## 验证
 
 ```bash
-./gradlew testDebugUnitTest
-./gradlew lintDebug
-./gradlew :app:assembleDebug
+./gradlew :app:testGithubDebugUnitTest
+./gradlew :app:lintGithubDebug
+./gradlew :app:assembleGithubDebug
 ```
 
 测试覆盖地址识别、ChainIndex 分流、固定 HMAC 签名向量、最终编码查询签名、OKX 字段映射、风险参数、`BigDecimal` 金额计算、排序、总值失败兜底和鉴权 Header 脱敏。

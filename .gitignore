@@ -6,6 +6,9 @@
 /build
 /captures
 **/build
+# Local Play release bundles, notes, store graphics, videos and verification files
+/release-artifacts/
+/artwork/google-play/
 .DS_Store
 .memsearch/
 third_party/lightweightlibrary/node_modules/

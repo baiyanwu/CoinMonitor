@@ -19,7 +19,7 @@
 ```bash
 git clone <your-repo-url>
 cd CoinMonitor
-./gradlew :app:assembleDebug
+./gradlew :app:assembleGithubDebug
 ```
 
 ## Recommended Checks
@@ -27,7 +27,7 @@ cd CoinMonitor
 提交前请至少执行：
 
 ```bash
-./gradlew testDebugUnitTest :app:assembleDebug :app:lintDebug
+./gradlew :app:testGithubDebugUnitTest :app:assembleGithubDebug :app:lintGithubDebug --no-parallel
 ```
 
 如果改动涉及以下内容，建议额外关注：

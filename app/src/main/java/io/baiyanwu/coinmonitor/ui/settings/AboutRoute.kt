@@ -51,6 +51,7 @@ fun AboutRoute(onBack: () -> Unit) {
         onOpenAuthor = { runCatching { uriHandler.openUri(AUTHOR_URL) } },
         onOpenRepository = { runCatching { uriHandler.openUri(PROJECT_URL) } },
         onOpenLicense = { runCatching { uriHandler.openUri(LICENSE_URL) } },
+        onOpenPrivacy = { runCatching { uriHandler.openUri(PRIVACY_URL) } },
         onOpenIssues = { runCatching { uriHandler.openUri(ISSUES_URL) } }
     )
 }
@@ -62,6 +63,7 @@ private fun AboutScreen(
     onOpenAuthor: () -> Unit,
     onOpenRepository: () -> Unit,
     onOpenLicense: () -> Unit,
+    onOpenPrivacy: () -> Unit,
     onOpenIssues: () -> Unit
 ) = CoinMonitorDesignColorTheme {
     val colors = CoinMonitorThemeTokens.colors
@@ -123,6 +125,11 @@ private fun AboutScreen(
                         label = stringResource(R.string.about_license),
                         value = stringResource(R.string.about_license_value),
                         onClick = onOpenLicense
+                    )
+                    AboutInfoRow(
+                        label = stringResource(R.string.about_privacy),
+                        value = stringResource(R.string.about_privacy_value),
+                        onClick = onOpenPrivacy
                     )
                     AboutInfoRow(
                         label = stringResource(R.string.about_feedback),
@@ -259,5 +266,6 @@ private fun AboutInfoRow(
 
 private const val AUTHOR_URL = "https://github.com/baiyanwu"
 private const val PROJECT_URL = "https://github.com/baiyanwu/CoinMonitor"
+private const val PRIVACY_URL = "https://baiyanwu.github.io/CoinMonitor/privacy.html"
 private const val LICENSE_URL = "$PROJECT_URL/blob/main/LICENSE"
 private const val ISSUES_URL = "$PROJECT_URL/issues"

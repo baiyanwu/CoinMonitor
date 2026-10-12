@@ -10,19 +10,22 @@ CoinMonitor — Android crypto price monitoring app (Kotlin + Jetpack Compose). 
 
 ```bash
 # Debug build
-./gradlew :app:assembleDebug
+./gradlew :app:assembleGithubDebug
 
 # Release build (requires signing config in local.properties or env vars)
-./gradlew :app:assembleRelease
+./gradlew :app:assembleGithubRelease -PrequireReleaseSigning=true
+
+# Google Play release bundle (same signing config)
+./gradlew :app:bundlePlayRelease -PrequireReleaseSigning=true
 
 # Unit tests
-./gradlew testDebugUnitTest
+./gradlew :app:testGithubDebugUnitTest
 
 # Lint
-./gradlew :app:lintDebug
+./gradlew :app:lintGithubDebug
 
 # Full pre-commit check
-./gradlew testDebugUnitTest :app:assembleDebug :app:lintDebug
+./gradlew :app:testGithubDebugUnitTest :app:assembleGithubDebug :app:lintGithubDebug --no-parallel
 ```
 
 ## Modules

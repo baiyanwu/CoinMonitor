@@ -8,9 +8,9 @@
 
 ## Validation
 
-- [ ] `./gradlew testDebugUnitTest`
-- [ ] `./gradlew :app:assembleDebug`
-- [ ] `./gradlew :app:lintDebug`
+- [ ] `./gradlew :app:testGithubDebugUnitTest`
+- [ ] `./gradlew :app:assembleGithubDebug`
+- [ ] `./gradlew :app:lintGithubDebug`
 
 ## Screenshots / Recordings
 

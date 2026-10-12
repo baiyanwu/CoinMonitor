@@ -15,6 +15,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import okhttp3.Call
 import okhttp3.Callback
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -25,11 +26,16 @@ import java.util.concurrent.atomic.AtomicLong
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
-class WalletRpcClient(private val httpClient: OkHttpClient) {
+class WalletRpcClient(httpClient: OkHttpClient) {
+    private val httpClient = httpClient.newBuilder().followSslRedirects(false).build()
     private val json = Json { ignoreUnknownKeys = true; explicitNulls = false }
     private val requestIds = AtomicLong(1)
 
     suspend fun call(url: String, method: String, params: JsonArray = JsonArray(emptyList())): JsonElement {
+        val endpoint = url.trim().toHttpUrlOrNull()
+        require(endpoint != null && endpoint.isHttps) {
+            "RPC 地址必须使用有效的 HTTPS（https://）地址，请重新配置节点。"
+        }
         val body = buildJsonObject {
             put("jsonrpc", "2.0")
             put("id", requestIds.getAndIncrement())
@@ -37,7 +43,7 @@ class WalletRpcClient(private val httpClient: OkHttpClient) {
             put("params", params)
         }
         val request = Request.Builder()
-            .url(url)
+            .url(endpoint)
             .post(json.encodeToString(JsonObject.serializer(), body).toRequestBody(JSON_MEDIA_TYPE))
             .build()
         val response = httpClient.newCall(request).await()

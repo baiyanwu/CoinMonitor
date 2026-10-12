@@ -59,10 +59,13 @@ jobs:
         run: chmod +x gradlew
 
       - name: Run unit tests
-        run: ./gradlew testDebugUnitTest
+        run: ./gradlew :app:testGithubDebugUnitTest --no-parallel
 
       - name: Run lint
-        run: ./gradlew :app:lintDebug
+        run: ./gradlew :app:lintGithubDebug --no-parallel
 
       - name: Build debug APK
-        run: ./gradlew :app:assembleDebug
+        run: ./gradlew :app:assembleGithubDebug --no-parallel
+
+      - name: Validate Play channel
+        run: ./gradlew :app:testPlayReleaseUnitTest :app:lintVitalPlayRelease --no-parallel

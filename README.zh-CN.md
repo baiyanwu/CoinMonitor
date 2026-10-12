@@ -35,7 +35,7 @@
 
 ## 构建
 
-准备 JDK 17、Android SDK 35，可使用 Android Studio 打开项目。App 支持 Android 8.0 及以上。
+准备 JDK 17、Android SDK 36，可使用 Android Studio 打开项目。App 支持 Android 8.0 及以上。
 
 ```bash
 git clone https://github.com/baiyanwu/CoinMonitor.git
@@ -50,12 +50,14 @@ gpr.key=YOUR_READ_PACKAGES_TOKEN
 ```
 
 ```bash
-./gradlew :app:assembleDebug
+./gradlew :app:assembleGithubDebug
 # 可选：运行测试和静态检查
-./gradlew :app:testDebugUnitTest :app:lintDebug
+./gradlew :app:testGithubDebugUnitTest :app:lintGithubDebug --no-parallel
 ```
 
-APK 位于 `app/build/outputs/apk/debug/`。Release 签名与发布见 [发布说明](./docs/RELEASE.md)。
+APK 位于 `app/build/outputs/apk/github/debug/`。在 Android Studio 的 Build Variants 面板选择 `github` 或 `play`。两个 flavor 共用包名、版本名称和正式签名，版本代码从 `config/distribution.properties` 读取。Release 签名与发布见 [发布说明](./docs/RELEASE.md)。
+
+本地 Play AAB、更新日志、提交视频和商店图片统一保存在已忽略的 `release-artifacts/<versionName>/` 目录。
 
 ## 更多文档
 

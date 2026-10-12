@@ -84,10 +84,10 @@ jobs:
           printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > keystore/coinmonitor-release.jks
 
       - name: Run unit tests
-        run: ./gradlew testDebugUnitTest
+        run: ./gradlew :app:testGithubDebugUnitTest --no-parallel
 
       - name: Run lint
-        run: ./gradlew :app:lintDebug
+        run: ./gradlew :app:lintGithubDebug --no-parallel
 
       - name: Build signed release APK
         env:
@@ -95,13 +95,13 @@ jobs:
           ANDROID_RELEASE_STORE_PASSWORD: ${{ secrets.ANDROID_RELEASE_STORE_PASSWORD }}
           ANDROID_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}
           ANDROID_RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEY_PASSWORD }}
-        run: ./gradlew :app:assembleRelease
+        run: ./gradlew :app:assembleGithubRelease -PrequireReleaseSigning=true --no-parallel
 
       - name: Upload release APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: coinmonitor-release-apk-${{ steps.target.outputs.artifact_suffix }}
-          path: app/build/outputs/apk/release/*.apk
+          path: app/build/outputs/apk/github/release/*.apk
           if-no-files-found: error
           retention-days: 14
 
@@ -109,16 +109,16 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: coinmonitor-lint-report-${{ steps.target.outputs.artifact_suffix }}
-          path: app/build/reports/lint-results-debug.html
+          path: app/build/reports/lint-results-githubDebug.html
           if-no-files-found: error
           retention-days: 14
 
       - name: Upload mapping artifact
-        if: ${{ hashFiles('app/build/outputs/mapping/release/**') != '' }}
+        if: ${{ hashFiles('app/build/outputs/mapping/githubRelease/**') != '' }}
         uses: actions/upload-artifact@v4
         with:
           name: coinmonitor-release-mapping-${{ steps.target.outputs.artifact_suffix }}
-          path: app/build/outputs/mapping/release/**
+          path: app/build/outputs/mapping/githubRelease/**
           if-no-files-found: ignore
           retention-days: 14
 
@@ -128,9 +128,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ steps.target.outputs.release_tag }}
         run: |
-          gh release upload "$RELEASE_TAG" app/build/outputs/apk/release/*.apk --repo "$GITHUB_REPOSITORY" --clobber
-          if [ -d app/build/outputs/mapping/release ]; then
-            find app/build/outputs/mapping/release -type f -maxdepth 1 -print0 | while IFS= read -r -d '' file; do
+          gh release upload "$RELEASE_TAG" app/build/outputs/apk/github/release/*.apk --repo "$GITHUB_REPOSITORY" --clobber
+          if [ -d app/build/outputs/mapping/githubRelease ]; then
+            find app/build/outputs/mapping/githubRelease -type f -maxdepth 1 -print0 | while IFS= read -r -d '' file; do
               gh release upload "$RELEASE_TAG" "$file" --repo "$GITHUB_REPOSITORY" --clobber
             done
           fi

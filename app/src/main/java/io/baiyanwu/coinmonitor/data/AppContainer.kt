@@ -1,6 +1,7 @@
 package io.baiyanwu.coinmonitor.data
 
 import android.content.Context
+import io.baiyanwu.coinmonitor.BuildConfig
 import androidx.room.Room
 import androidx.lifecycle.ProcessLifecycleOwner
 import io.baiyanwu.coinmonitor.data.local.CoinMonitorDatabase
@@ -95,6 +96,7 @@ class AppContainer(context: Context) {
         networkLogRepository = networkLogRepository
     )
     val appUpdateChecker = GitHubReleaseUpdateChecker(
+        enabled = BuildConfig.FLAVOR == "github",
         httpClient = networkFactory.okHttpClient.newBuilder()
             .callTimeout(10, TimeUnit.SECONDS)
             .build()

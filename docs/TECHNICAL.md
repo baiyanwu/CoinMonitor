@@ -73,13 +73,18 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 - “关于”页通过 `BuildConfig.VERSION_NAME / VERSION_CODE` 读取当前构建版本，版本信息不在字符串资源中重复维护
 - 页面集中展示项目用途、作者 `baiyanwu`、GitHub 源码仓库、Apache-2.0 许可、Issues 反馈入口及行情风险说明；外部链接统一交由系统 URI 处理器打开
 - 关于页和设置入口均提供简体中文与英文资源；设置首页入口展示“关于 CoinMonitor”及版本、许可与开源信息摘要，仍进入原有关于页。
+- 关于页提供隐私政策入口，打开 `https://baiyanwu.github.io/CoinMonitor/privacy.html`。政策按当前存储、API、剪贴板、DApp Cookie 和 Android 备份行为编写，网页由 `release-web` 分支的 `/docs` 目录发布。
 
 ### App Update Check
 
-- `MainActivity` 每次创建主界面 Compose 内容时，通过 `LaunchedEffect` 调用一次 `GitHubReleaseUpdateChecker`；不记录上次检查时间，也没有 24 小时缓存
+- App 定义 `github` / `play` 两个 product flavor，使用 Gradle 自动生成的 `BuildConfig.FLAVOR` 区分更新来源。两个 flavor 共用包名、版本名称和正式签名。
+- GitHub 渠道的 `MainActivity` 每次创建主界面 Compose 内容时，通过 `LaunchedEffect` 调用一次 `GitHubReleaseUpdateChecker`；不记录上次检查时间，也没有 24 小时缓存
+- Play 渠道在 `AppContainer` 中禁用检查器，调用时直接返回空结果，不请求 GitHub、不展示 GitHub 更新弹窗，由 Google Play 管理更新；当前没有额外的 Play 应用内更新 UI
 - 检查器使用应用已有的 `OkHttpClient`，直接请求 GitHub 官方 `GET https://api.github.com/repos/baiyanwu/CoinMonitor/releases/latest`，请求沿用全局 `10 秒` call timeout，不依赖第三方更新服务或 API Key
 - 远端 `tag_name` 与 `BuildConfig.VERSION_NAME` 按数字段比较，兼容 `v1.0.7`、`1.0.7` 与不同段数；标签无法解析、网络失败或非成功响应时静默跳过，不阻塞应用启动
 - 只在远端版本更高时展示双语提示；用户确认后交由系统 URI 处理器打开 `https://github.com/baiyanwu/CoinMonitor/releases/latest`，应用不自动下载或安装 APK
+- `versionName` 表示产品版本；两个 flavor 分别从外部 `config/distribution.properties` 的 `github.versionCode / play.versionCode` 读取版本代码并做整数范围校验。可用 `-PdistributionConfigFile=路径` 指定另一份配置文件。直接运行 `:app:assembleGithubRelease` 或 `:app:bundlePlayRelease` 打包，使用 `-PrequireReleaseSigning=true` 要求正式签名参数齐全。每渠道发布代码递增，跨渠道覆盖还需协调代码大小，详见 [发布流程](RELEASE.md)。
+- App 与图表模块使用 SDK 36，AGP 8.12.2 / Gradle 8.13 / JDK 17。`CoinMonitorComposeActivity` 统一启用 edge-to-edge，绘制页面背景并消费 `safeDrawing`（系统栏、刘海和 IME）安全区域；子页面已有的 inset 修饰不会重复计入，K 线聊天不再自行按原始 IME 高度二次留白。Activity 使用 `adjustResize`。
 
 ### K-line
 
@@ -139,6 +144,7 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 
 ### Overlay
 
+- 悬浮前台服务声明为 `specialUse`，用途为用户主动开启的跨应用持续行情展示；保留 `SYSTEM_ALERT_WINDOW`，通过常驻通知提供停止入口。
 - 顶层提供 `ARRANGED / MARQUEE` 两种显示类型，设置页分别显示为“排列型 / 跑马灯型”；默认值为 `ARRANGED`，升级后保持原外观和行为
 - 当前最多允许选择 `10` 个共用悬浮窗币对；超过上限时会在入口页给出提示，限制值统一收口在 `OverlaySettings.MAX_SELECTABLE_ITEMS`。排列型和跑马灯型共用一份跨交易所/链上的 `overlayOrder`，再按各自 `maxItems` 截取前 N 项
 - 两种类型共用启用、锁定和币对选择，透明度、字体、展示数量和位置分别保存；排列型和跑马灯型的主体透明度都支持真实的 `0%–72%`，设置页只展示当前类型的专属配置
@@ -304,9 +310,9 @@ app/src/main/java/io/baiyanwu/coinmonitor/
 
 Release 自动流程：
 
-1. `testDebugUnitTest`
-2. `:app:lintDebug`
-3. `:app:assembleRelease`
+1. `:app:testGithubDebugUnitTest`
+2. `:app:lintGithubDebug`
+3. `:app:assembleGithubRelease`
 4. 上传 APK 到 GitHub Release
 
 ## Implementation Notes

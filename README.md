@@ -35,7 +35,7 @@ Some data sources and wallet queries require your own credentials in Third-party
 
 ## Build
 
-Use JDK 17 and Android SDK 35, or open the project in Android Studio. The app supports Android 8.0 and later.
+Use JDK 17 and Android SDK 36, or open the project in Android Studio. The app supports Android 8.0 and later.
 
 ```bash
 git clone https://github.com/baiyanwu/CoinMonitor.git
@@ -50,12 +50,14 @@ gpr.key=YOUR_READ_PACKAGES_TOKEN
 ```
 
 ```bash
-./gradlew :app:assembleDebug
+./gradlew :app:assembleGithubDebug
 # Optional: run unit tests and lint
-./gradlew :app:testDebugUnitTest :app:lintDebug
+./gradlew :app:testGithubDebugUnitTest :app:lintGithubDebug --no-parallel
 ```
 
-The APK is generated in `app/build/outputs/apk/debug/`. See [release instructions](./docs/RELEASE.md) for release signing and publishing.
+The APK is generated in `app/build/outputs/apk/github/debug/`. Select `github` or `play` in Android Studio's Build Variants panel. Both flavors share the app ID, version name, and release signing key; version codes come from `config/distribution.properties`. See [release instructions](./docs/RELEASE.md) for release signing and publishing.
+
+Local Play release bundles, release notes, videos and store graphics are kept together under the ignored `release-artifacts/<versionName>/` directory.
 
 ## Documentation
 

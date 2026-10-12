@@ -17,6 +17,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 
@@ -133,8 +134,8 @@ class DefaultWalletNetworkSettingsRepository(
             "区块浏览器地址必须使用 https://。"
         }
         val normalizedRpc = rpcUrl.trim().trimEnd('/')
-        require(normalizedRpc.startsWith("https://") || normalizedRpc.startsWith("http://")) {
-            "RPC 地址必须以 http:// 或 https:// 开头。"
+        require(normalizedRpc.toHttpUrlOrNull()?.isHttps == true) {
+            "RPC 地址必须使用有效的 HTTPS（https://）地址。"
         }
         val actualChainId = rpcClient.evmChainId(normalizedRpc)
         require(actualChainId == chainId) { "RPC Chain ID 为 $actualChainId，与填写的 $chainId 不一致。" }
@@ -181,8 +182,8 @@ class DefaultWalletNetworkSettingsRepository(
     override suspend fun validateRpc(network: WalletNetwork, url: String): Result<Unit> = withContext(Dispatchers.IO) {
         runCatching {
             val normalized = url.trim()
-            require(normalized.startsWith("https://") || normalized.startsWith("http://")) {
-                "RPC 地址必须以 http:// 或 https:// 开头。"
+            require(normalized.toHttpUrlOrNull()?.isHttps == true) {
+                "RPC 地址必须使用有效的 HTTPS（https://）地址。"
             }
             if (network.isEvm) {
                 val actual = rpcClient.evmChainId(normalized)

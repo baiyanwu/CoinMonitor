@@ -112,7 +112,7 @@ OKX 单链选择提供 Solana、BSC、Base、Ethereum、Arbitrum；全部链接�
 
 单元测试入口包括 `TrendingClientTest`（请求参数、响应解析、限流及 PumpFun 价格计算）、`TrendingRulesTest`（身份、交集、排序、NEW 与刷新策略）、`TrendingSnapshotCacheTest`（持久化和失效）、`TrendingCachedStateTest` 与 `TrendingDisplayTest`（缓存展示与数值格式）、`TrendingRefreshFlowTest`（ViewModel 单次请求、共用五秒限制、失败不重试、筛选/凭证变化、页面重进与缓存恢复）、`TrendingPresentationTest`（实际筛选摘要、PumpFun 固定 1h 时间窗及多链摘要、完整缓存时间与来源未齐），导航入口由 `MainNavigationEntryPolicyTest` 覆盖。
 
-仓库验证命令：`./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleRelease`。这些检查验证代码与构建，不证明生产接口可用或实体机交互结果。
+仓库验证命令：`./gradlew :app:testGithubDebugUnitTest :app:lintGithubDebug :app:assembleGithubRelease`。这些检查验证代码与构建，不证明生产接口可用或实体机交互结果。
 
 本次 UI 改造在 2026-10-09 完成 `:app:testDebugUnitTest`（307 个测试全部通过）、`:app:lintDebug`（无错误，162 条警告）、`:app:assembleDebug`。Seeker 已安装版本为 Debug 1.0.13；新包与原安装包的签名一致，`adb install -r` 返回 `Success`，保留已有数据。自动安装过程未启动 App 或截图；随后用户反馈本轮热门页无明显问题，并确认提交。上述代码检查不代表生产接口验证。
 

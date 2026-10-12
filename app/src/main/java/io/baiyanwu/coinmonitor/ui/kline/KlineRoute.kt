@@ -14,12 +14,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -165,8 +163,8 @@ private fun KlineScreen(
     var stableTopOverlayHeightPx by rememberSaveable { mutableIntStateOf(0) }
     val density = LocalDensity.current
     val composerHeight = with(density) { composerHeightPx.toDp() }
-    val imeBottomInset = with(density) { WindowInsets.ime.getBottom(this).toDp() }
-    val bottomDockInset = if (imeBottomInset > contentBottomInset) imeBottomInset else contentBottomInset
+    // 共享 Activity 宿主已避让并消费 IME，不能再次按原始键盘高度留白。
+    val bottomDockInset = contentBottomInset
     val stableTopInset = with(density) { stableTopOverlayHeightPx.toDp() }
 
     /**

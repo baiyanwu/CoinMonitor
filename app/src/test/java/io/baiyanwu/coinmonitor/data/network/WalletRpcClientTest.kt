@@ -11,9 +11,27 @@ import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
 import okio.Buffer
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class WalletRpcClientTest {
+    @Test fun `rejects saved HTTP endpoints before sending wallet data`() = kotlinx.coroutines.runBlocking {
+        var requests = 0
+        val http = OkHttpClient.Builder().addInterceptor {
+            requests++
+            throw AssertionError("Insecure RPC must not reach the HTTP client")
+        }.build()
+        val client = WalletRpcClient(http)
+
+        val error = runCatching {
+            client.evmBalance("http://rpc.example", "0xabc")
+        }.exceptionOrNull()
+
+        assertTrue(error is IllegalArgumentException)
+        assertTrue(error?.message?.contains("HTTPS") == true)
+        assertEquals(0, requests)
+    }
+
     @Test fun `transaction preflight reads EVM and Solana token balances from RPC`() = kotlinx.coroutines.runBlocking {
         val seenMethods = mutableListOf<String>()
         val http = OkHttpClient.Builder().addInterceptor(Interceptor { chain ->
