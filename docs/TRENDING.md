@@ -110,7 +110,7 @@ OKX 单链选择提供 Solana、BSC、Base、Ethereum、Arbitrum；全部链接�
 
 随后按用户要求在 Seeker（Android 16）同签名覆盖安装 Debug 1.0.13/13 并实际打开热门页：OKX 按钮刷新发出一次请求，5 秒内切到 PumpFun 再切回 OKX 并连续点击刷新，OKX 请求数未增加；约 5.697 秒后再次刷新才出现第二次请求。切到 PumpFun 发出请求，切到共同热门后 PumpFun/OKX 各发出一次，返回 HTTP 200；共同看板静置 35 秒新增热门请求为 0。GMGN 未配置凭证，仅确认配置提示，未验证其真实接口。左上角既有悬浮窗遮挡共同标签的上半部分，改点未遮挡下半部分后进入共同榜单；未改动悬浮窗设置。证据保存在 `app/build/ui-review/trending-manual-20261011/`，实际观察仅覆盖上述操作与时段，不代表所有运行条件均已验证。
 
-单元测试入口包括 `TrendingClientTest`（请求参数、响应解析、限流及 PumpFun 价格计算）、`TrendingRulesTest`（身份、交集、排序、NEW 与刷新策略）、`TrendingSnapshotCacheTest`（持久化和失效）、`TrendingCachedStateTest` 与 `TrendingDisplayTest`（缓存展示与数值格式）、`TrendingRefreshFlowTest`（ViewModel 单次请求、共用五秒限制、失败不重试、筛选/凭证变化、页面重进与缓存恢复）、`TrendingPresentationTest`（实际筛选摘要、PumpFun 无时间窗、完整缓存时间与来源未齐），导航入口由 `MainNavigationEntryPolicyTest` 覆盖。
+单元测试入口包括 `TrendingClientTest`（请求参数、响应解析、限流及 PumpFun 价格计算）、`TrendingRulesTest`（身份、交集、排序、NEW 与刷新策略）、`TrendingSnapshotCacheTest`（持久化和失效）、`TrendingCachedStateTest` 与 `TrendingDisplayTest`（缓存展示与数值格式）、`TrendingRefreshFlowTest`（ViewModel 单次请求、共用五秒限制、失败不重试、筛选/凭证变化、页面重进与缓存恢复）、`TrendingPresentationTest`（实际筛选摘要、PumpFun 固定 1h 时间窗及多链摘要、完整缓存时间与来源未齐），导航入口由 `MainNavigationEntryPolicyTest` 覆盖。
 
 仓库验证命令：`./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleRelease`。这些检查验证代码与构建，不证明生产接口可用或实体机交互结果。
 
@@ -129,3 +129,5 @@ OKX 单链选择提供 Solana、BSC、Base、Ethereum、Arbitrum；全部链接�
 - 只读接口核对：本次热门请求成功返回 `board=movers` 与 30 条记录，其中 Solana 22、BSC 6、Ethereum 2；这是当次接口快照，不代表长期链覆盖。与 Mac 一样兼容该 board 标记。
 
 - 验证：单元测试 388 项，387 通过、1 项既有 Fomo 测试跳过，失败/错误为 0；Debug lint 无错误，Debug APK 构建成功。新增测试覆盖多链解码、链身份与大小写去重、新/旧响应格式、缓存本地筛选，以及切换 Pump 链后共同交集重算且不发请求。实体机 UI 未自动操作或验收。
+
+- 安装：已核对 Seeker 原 APK 与新 APK 均为 `io.baiyanwu.coinmonitor`、Debug 1.0.14/14，签名 SHA-256 一致；`adb install -r` 返回 `Success`，保留应用数据。安装后未主动启动 App 或进行界面验收。代码及主要文档已提交为 `6bb2023`。
