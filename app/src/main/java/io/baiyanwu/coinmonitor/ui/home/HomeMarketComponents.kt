@@ -8,6 +8,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -48,6 +49,7 @@ import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -116,28 +118,45 @@ internal fun HomeModeSelector(
 }
 
 @Composable
-internal fun HomeOverlayStatus(enabled: Boolean, onConfigure: () -> Unit) {
+internal fun HomeOverlayStatus(enabled: Boolean, onConfigure: () -> Unit, onOpenItems: () -> Unit) {
     val design = CoinMonitorThemeTokens.design
-    Surface(
-        onClick = onConfigure, shape = design.shapes.pill,
-        color = design.colors.surface, contentColor = design.colors.primaryText,
+    Row(
         modifier = Modifier.padding(horizontal = design.spacing.pageHorizontal, vertical = design.spacing.small)
-            .fillMaxWidth().testTag("home-overlay-status")
+            .fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(design.spacing.inline),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            Modifier.heightIn(min = design.sizes.minimumTouchTarget).padding(horizontal = design.spacing.cardPadding),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(design.spacing.inline)
+        Surface(
+            onClick = onConfigure, shape = design.shapes.pill,
+            color = design.colors.surface, contentColor = design.colors.primaryText,
+            modifier = Modifier.weight(1f).testTag("home-overlay-status")
         ) {
-            Box(Modifier.size(design.sizes.actionContainer).background(design.colors.selectedContainer, design.shapes.pill), contentAlignment = Alignment.Center) {
-                Icon(CoinMonitorIcons.Copy, null, Modifier.size(design.sizes.actionIcon), tint = design.colors.accent)
+            Row(
+                Modifier.heightIn(min = design.sizes.minimumTouchTarget).padding(horizontal = design.spacing.cardPadding),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(design.spacing.inline)
+            ) {
+                Box(Modifier.size(design.sizes.actionContainer).background(design.colors.selectedContainer, design.shapes.pill), contentAlignment = Alignment.Center) {
+                    Icon(CoinMonitorIcons.Copy, null, Modifier.size(design.sizes.actionIcon), tint = design.colors.accent)
+                }
+                Text(stringResource(R.string.home_overlay_monitor), style = design.typography.label)
+                Box(Modifier.size(5.dp).background(if (enabled) design.colors.positive else design.colors.tertiaryText, CircleShape))
+                Text(stringResource(if (enabled) R.string.home_overlay_enabled else R.string.home_overlay_disabled), style = design.typography.caption,
+                    color = if (enabled) design.colors.positive else design.colors.secondaryText, modifier = Modifier.weight(1f))
+                Text(stringResource(R.string.home_configure), style = design.typography.caption, color = design.colors.accent)
+                Icon(Icons.Rounded.ChevronRight, null, Modifier.size(design.sizes.actionIcon), tint = design.colors.accent)
             }
-            Text(stringResource(R.string.home_overlay_monitor), style = design.typography.label)
-            Box(Modifier.size(5.dp).background(if (enabled) design.colors.positive else design.colors.tertiaryText, CircleShape))
-            Text(stringResource(if (enabled) R.string.home_overlay_enabled else R.string.home_overlay_disabled), style = design.typography.caption,
-                color = if (enabled) design.colors.positive else design.colors.secondaryText, modifier = Modifier.weight(1f))
-            Text(stringResource(R.string.home_configure), style = design.typography.caption, color = design.colors.accent)
-            Icon(Icons.Rounded.ChevronRight, null, Modifier.size(design.sizes.actionIcon), tint = design.colors.accent)
+        }
+        Surface(
+            onClick = onOpenItems,
+            shape = design.shapes.pill,
+            color = design.colors.surface,
+            contentColor = design.colors.accent,
+            modifier = Modifier.size(design.sizes.minimumTouchTarget).testTag("home-overlay-items")
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(Icons.Rounded.Layers, stringResource(R.string.overlay_items_settings_title), Modifier.size(design.sizes.actionIcon))
+            }
         }
     }
 }
@@ -202,12 +221,13 @@ internal fun HomeAssetRow(item: WatchItem, quoteRepository: QuoteRepository, sho
             },
             supporting = {
                 Column(verticalArrangement = Arrangement.spacedBy(design.spacing.tiny)) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(design.spacing.small)) {
-                        Text(homeExchangeLabel(item.exchangeSource), style = design.typography.caption, color = design.colors.secondaryText,
-                            maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
-                        if (item.marketType == MarketType.CEX_USDT_FUTURES) Text(stringResource(R.string.market_tag_usdt_futures), style = design.typography.caption, color = design.colors.secondaryText)
-                        if (item.homePinned) Icon(Icons.Rounded.PushPin, stringResource(R.string.home_pinned_tag), Modifier.size(12.dp), tint = design.colors.accent)
-                        if (overlaySelected) Icon(Icons.Rounded.Layers, stringResource(R.string.home_overlay_tag), Modifier.size(12.dp), tint = design.colors.secondaryText)
+                    if (item.exchangeSource != ExchangeSource.ONCHAIN || item.homePinned || overlaySelected) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(design.spacing.small)) {
+                            HomeExchangeBadge(item.exchangeSource, Modifier.weight(1f, fill = false))
+                            if (item.marketType == MarketType.CEX_USDT_FUTURES) Text(stringResource(R.string.market_tag_usdt_futures), style = design.typography.caption, color = design.colors.secondaryText)
+                            if (item.homePinned) Icon(Icons.Rounded.PushPin, stringResource(R.string.home_pinned_tag), Modifier.size(12.dp), tint = design.colors.accent)
+                            if (overlaySelected) Icon(Icons.Rounded.Layers, stringResource(R.string.home_overlay_tag), Modifier.size(12.dp), tint = design.colors.secondaryText)
+                        }
                     }
                     contract?.let { address ->
                         Row(
@@ -284,12 +304,29 @@ private fun HomePairTitle(item: WatchItem, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun homeExchangeLabel(source: ExchangeSource): String = stringResource(when (source) {
-    ExchangeSource.BINANCE -> R.string.exchange_badge_binance
-    ExchangeSource.BINANCE_ALPHA -> R.string.exchange_badge_binance_alpha
-    ExchangeSource.OKX -> R.string.exchange_badge_okx
-    ExchangeSource.ONCHAIN -> R.string.exchange_badge_onchain
-})
+private fun HomeExchangeBadge(source: ExchangeSource, modifier: Modifier = Modifier) {
+    val logo = when (source) {
+        ExchangeSource.BINANCE, ExchangeSource.BINANCE_ALPHA -> R.drawable.clipboard_logo_binance
+        ExchangeSource.OKX -> R.drawable.clipboard_logo_okx
+        ExchangeSource.ONCHAIN -> return
+    }
+    val design = CoinMonitorThemeTokens.design
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(design.spacing.tiny)
+    ) {
+        Image(
+            painter = painterResource(logo),
+            contentDescription = if (source == ExchangeSource.BINANCE_ALPHA) ExchangeSource.BINANCE.title else source.title,
+            modifier = Modifier.size(12.dp).clip(CircleShape)
+        )
+        if (source == ExchangeSource.BINANCE_ALPHA) {
+            Text(stringResource(R.string.search_tag_alpha), style = design.typography.caption,
+                color = design.colors.secondaryText, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+    }
+}
 
 @Composable
 private fun HomeQuoteTexts(item: WatchItem, showOnchainMarketCap: Boolean) {

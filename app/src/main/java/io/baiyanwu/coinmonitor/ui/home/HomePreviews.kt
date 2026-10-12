@@ -61,7 +61,7 @@ private fun HomePreview(darkTheme: Boolean) {
                     HomeScreen(
                         state = HomeUiState(isLoaded = true, items = items, overlayEnabled = true),
                         contentTopInset = 0.dp, contentBottomInset = 0.dp,
-                        onNavigateSearch = {}, onNavigateOverlaySettings = {},
+                        onNavigateSearch = {}, onNavigateOverlaySettings = {}, onNavigateOverlayItems = {},
                         quoteRepository = quotes, onRemoveWatchItem = {}, onToggleOverlay = {},
                         onSetHomePinned = { _, _ -> }, onMoveHomeItem = { _, _ -> },
                         onMovePinnedHomeItem = { _, _ -> }, onRefresh = {}
