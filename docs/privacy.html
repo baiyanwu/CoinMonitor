@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="CoinMonitor Privacy Policy: local wallet storage, market and blockchain queries, third-party services, and data deletion.">
+  <title>CoinMonitor Privacy Policy / 隐私政策</title>
+  <style>
+    :root { color-scheme: dark; --bg:#0d0b16; --surface:#1c1830; --text:#f5f7fb; --muted:#c8c4d5; --accent:#d0bcff; --line:#514760; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--text); font:16px/1.75 system-ui,-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif; }
+    main { max-width:960px; margin:auto; padding:40px 28px 64px; }
+    header { padding-bottom:24px; border-bottom:1px solid var(--line); }
+    h1 { font-size:clamp(28px,5vw,40px); line-height:1.25; margin:16px 0; }
+    h2 { font-size:26px; margin:40px 0 16px; }
+    h3 { font-size:20px; margin:28px 0 10px; }
+    p,li { overflow-wrap:anywhere; }
+    a { color:var(--accent); text-underline-offset:3px; }
+    a:focus-visible { outline:2px solid var(--accent); outline-offset:4px; }
+    nav { display:flex; flex-wrap:wrap; gap:12px 24px; }
+    .meta { color:var(--muted); }
+    .summary { padding:18px 22px; background:var(--surface); border:1px solid var(--line); border-radius:16px; }
+    section + section { margin-top:48px; padding-top:8px; border-top:1px solid var(--line); }
+    ul { padding-left:24px; }
+    li { margin:8px 0; }
+    footer { margin-top:40px; padding-top:20px; border-top:1px solid var(--line); color:var(--muted); }
+    @media (max-width:560px) { main { padding:24px 18px 48px; } .summary { padding:14px 16px; } }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <a href="./">← CoinMonitor</a>
+    <h1>Privacy Policy / 隐私政策</h1>
+    <p class="meta">CoinMonitor · Android · Developer: baiyanwu<br>Effective and last updated: 12 October 2026 / 生效及更新日期：2026 年 10 月 12 日</p>
+    <nav aria-label="Policy languages"><a href="#english">English</a><a href="#chinese">简体中文</a><a href="https://github.com/baiyanwu/CoinMonitor/issues">Privacy contact / 隐私联系</a></nav>
+  </header>
+
+  <section id="english" lang="en" aria-labelledby="english-title">
+    <h2 id="english-title">CoinMonitor Privacy Policy</h2>
+    <p>This policy explains how the Android app CoinMonitor, maintained by <a href="https://github.com/baiyanwu">baiyanwu</a>, handles information when you use market watchlists, floating prices, token discovery, clipboard lookup, address observation, wallets and DApps. It also covers optional AI features where available and this project website. The services contacted depend on the features, networks and providers you choose.</p>
+    <div class="summary"><strong>Overview.</strong> CoinMonitor uses local app storage and does not require a CoinMonitor online account. Wallet recovery phrases and private keys are encrypted on the device and used for local signing. Public addresses, queries, authentication headers and signed transactions can be transmitted to the services needed for the feature you use. Those services can also receive your IP address and network or browser request information. CoinMonitor does not include an advertising or analytics SDK, automatically upload crash reports, or sell your information.</div>
+
+    <h3>1. Information kept on your device</h3>
+    <ul>
+      <li><strong>App data:</strong> watchlists, token and pair identifiers, saved or observed public addresses, address labels, search and DApp discovery history, preferences, network settings, and cached quotes, rankings, balances and transaction history are stored in app-private databases, preferences or cache files. Optional AI conversation history is also stored locally.</li>
+      <li><strong>Wallet secrets:</strong> recovery phrases, private keys and wallet metadata are stored in a password-protected encrypted vault using AES-GCM and Android Keystore-backed secure storage. Signing is performed locally. The app does not automatically send your recovery phrase or private key to the developer, a market provider, a DApp or an AI service.</li>
+      <li><strong>API credentials:</strong> credentials you configure for OKX, GMGN, Alchemy, RPC endpoints or an AI service are stored in encrypted app-private preferences. Credentials or authentication headers are sent to their corresponding service when needed; a secret used to generate a request signature is used locally. CoinMonitor refuses plaintext fallback if its encrypted credential storage cannot be created.</li>
+      <li><strong>Biometric authentication:</strong> optional wallet authentication uses Android's biometric system and Keystore. The app receives an authentication result; it does not receive or store fingerprint images, face images or biometric templates.</li>
+    </ul>
+
+    <h3>2. Information sent for market and blockchain features</h3>
+    <p>Market searches and subscriptions can send a search term, trading pair, token contract, pool identifier, chain identifier, ranking filter or time interval to the selected provider. Balance, address observation and transaction queries can send public wallet addresses, token identifiers, chain identifiers, transaction hashes and RPC parameters. Transfers send signed transaction data to the selected RPC service and blockchain network after your confirmation. Signed messages and transactions can identify the signing address even though they do not contain the private key.</p>
+    <p>Current recipients include Binance and OKX for exchange data; DexScreener, GeckoTerminal and CoinGecko for on-chain information or icons; GMGN, Pump.fun and OKX Onchain for discovery or address data; Alchemy and configured or public RPC operators for blockchain queries and broadcasting; and image hosts referenced by token metadata, GitHub-hosted assets and chain icon services. Requests can occur when a screen loads or refreshes and while you keep floating price monitoring enabled, including when another app is in the foreground.</p>
+    <p><strong>FoMo profile lookup:</strong> when enabled and you look up a copied FoMo profile, the extracted profile handle is sent to the third-party service <a href="https://985monitor.xyz/">985monitor.xyz</a> at its profile lookup endpoint. Public transaction hashes and candidate addresses can then be queried through public RPC endpoints to verify the associated addresses. Profile images can be loaded from that service or its image host. This service is operated by a third party, not by CoinMonitor.</p>
+    <p>The receiving services can process your IP address, request times, request headers and the information included in the query. A public blockchain address may be associated with a person or financial activity when combined with an IP address or profile. Third-party server logging and retention are governed by the operators' own practices and policies; CoinMonitor does not specify or control their retention periods.</p>
+
+    <h3>3. Clipboard and links</h3>
+    <p>The clipboard lookup panel reads clipboard text after you open the panel and it obtains window focus. It does not continuously monitor clipboard changes, and it does not dereference copied content-file URIs. Recognized contract addresses, wallet addresses, FoMo handles or copied website URLs can be used for the requested lookup. The whole clipboard is not automatically uploaded as a clipboard history. If you add an identified token or address to a watchlist, that selection is saved locally.</p>
+    <p>Opening an external market page, explorer, social site or a website chosen by you sends the selected URL and its query parameters to that site through your browser. Website information, icons and token images may also be requested from their hosts.</p>
+
+    <h3>4. DApp browser, cookies and wallet connections</h3>
+    <p>The in-app DApp browser enables JavaScript, web storage, first-party cookies and third-party cookies. A visited site and its embedded services can receive the page URL, browser information, IP address, cookies and anything you enter on that page. Their privacy policies apply to their processing. The app keeps DApp discovery history locally.</p>
+    <p>When you approve a wallet connection, the DApp can obtain the selected public address and network information. Signing and transaction requests require the app's confirmation and authentication flow; approved requests can return a signature or transaction result to the DApp. Wallet recovery phrases and private keys are not exposed through the app's wallet bridge. Disconnecting or deleting a local wallet does not erase a website's cookies or public blockchain records.</p>
+
+    <h3>5. Optional AI features</h3>
+    <p>If you open the clipboard's ChatGPT or Grok action, token information, links and the question you choose are included in the destination URL. If you configure and use an OpenAI-compatible AI endpoint where available, that endpoint receives your submitted conversation and the market or indicator context included in the request, together with the authentication required by that endpoint. Your chosen provider handles that information under its own policy. The app does not automatically include wallet recovery phrases or private keys in these requests; anything you type into a prompt is sent as part of that prompt.</p>
+
+    <h3>6. Diagnostics, permissions and updates</h3>
+    <p>App network recording is off by default. If you enable it, a bounded in-memory log records endpoints, request and response metadata, timing, failures and limited body previews. Known credentials, authorization values and signatures are redacted before display. You can stop recording or clear the log. Copying a log puts the selected text on your system clipboard; the app does not automatically upload these diagnostic logs.</p>
+    <p>Internet access enables the features described above. The display-over-other-apps permission displays CoinMonitor's own price panel and does not capture other apps' screens. Foreground service and notification permissions support ongoing monitoring. Boot notifications allow an enabled overlay to be restored after a device restart or app update. Optional biometric authentication is handled by Android.</p>
+    <p>GitHub-distributed builds check GitHub's public release feed for updates. Play-distributed builds use Google Play for updates and do not run that GitHub update check. Both can request public network catalogues or assets from GitHub. Google Play and GitHub process their own service or distribution data under their own policies.</p>
+
+    <h3>7. Android backup and data security</h3>
+    <p>CoinMonitor does not provide its own cloud account or cloud synchronization of the wallet vault. Android system backup and device transfer are enabled for eligible app data and depend on your device and account settings. The current rules exclude the wallet vault, biometric wallet data, wallet portfolio cache, wallet network settings and GMGN credential files. Other app databases, preferences and remaining encrypted settings may be included in Android-managed backup or transfer. Manage those copies using your Android or backup-provider controls.</p>
+    <p>Built-in API requests use HTTPS or secure WebSockets. Custom endpoints follow the configuration you provide and the platform's network restrictions. Local encryption and Android access controls protect stored secrets, but they do not make an unlocked, compromised device or information you deliberately share with a website immune from disclosure.</p>
+
+    <h3>8. Retention, deletion and your choices</h3>
+    <p>Saved app information remains locally until you remove it through the relevant controls or clear the app's storage. Caches can be replaced as data refreshes. Diagnostic logs are held in memory and can be cleared; they are lost when the app process ends. You can remove watchlist items or observed addresses, delete local wallets, clear configured credentials, disable clipboard lookup and stop floating monitoring.</p>
+    <p>For complete removal of the app's remaining local databases, preferences, cached information and browser storage, use Android Settings to clear CoinMonitor's app storage or uninstall the app. Check your system backup settings to prevent a backup from restoring data you intended to remove. Copies you make outside the app are under your control. Removing a wallet from the app does not delete its address or transaction history from a blockchain, revoke an API key at its provider, or erase data already received by a third-party service. Contact that provider about its retained data.</p>
+    <p>There is no CoinMonitor online account to delete. Depending on applicable law, you may have rights concerning information you provide in a support inquiry or information handled by a service you use. Contact the developer for privacy questions and the relevant service operator for its server-side data. You control local app data through the controls above.</p>
+
+    <h3>9. Website hosting and international services</h3>
+    <p>This site is hosted by GitHub Pages. GitHub states that visitors' IP addresses are logged and stored for security, even when they are not signed in; see <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub's privacy statement</a>. The existing introduction page also loads Google Fonts, which causes requests to Google's font servers; see <a href="https://policies.google.com/privacy">Google's privacy policy</a>. This privacy page uses system fonts and adds no analytics script or tracking code.</p>
+    <p>External services and blockchain networks can operate in multiple countries. Information you send to them can be processed outside your country under their policies. CoinMonitor cannot remove public blockchain records or set those services' storage locations.</p>
+
+    <h3>10. Children, changes and contact</h3>
+    <p>CoinMonitor is a cryptocurrency market and wallet tool, not a service designed for children. It does not implement a CoinMonitor registration or age-verification service. If information is mistakenly provided in a support inquiry, contact the developer to discuss its removal.</p>
+    <p>Changes to the app's handling of information will be reflected in this policy and its update date. Material changes should be reviewed before using the affected feature.</p>
+    <p><strong>Developer and privacy contact:</strong> baiyanwu, CoinMonitor. Submit a privacy question through <a href="https://github.com/baiyanwu/CoinMonitor/issues">CoinMonitor GitHub Issues</a>. GitHub requires an account to submit an issue, and submitted issues are public. Do not include recovery phrases, private keys, API secrets or sensitive financial details in a public issue. Viewing this privacy policy does not require an account.</p>
+  </section>
+
+  <section id="chinese" lang="zh-CN" aria-labelledby="chinese-title">
+    <h2 id="chinese-title">CoinMonitor 隐私政策</h2>
+    <p>本政策说明由 <a href="https://github.com/baiyanwu">baiyanwu</a> 维护的 Android 应用 CoinMonitor，在自选行情、悬浮盯盘、热门发现、剪贴板查询、地址观察、钱包及 DApp 功能中如何处理信息，也涵盖可用版本中的可选 AI 功能和本项目网站。实际访问的服务取决于您使用的功能、网络和数据源。</p>
+    <div class="summary"><strong>概要：</strong>CoinMonitor 使用本地应用存储，无需注册 CoinMonitor 在线账号。钱包助记词和私钥在设备上加密保存，用于本地签名。使用相关功能时，公开地址、查询参数、认证信息和已签名交易可能发送给相应服务；接收方也可能获得您的 IP 地址及网络或浏览器请求信息。应用未集成广告或统计分析 SDK，不自动上传崩溃报告，也不出售您的信息。</div>
+
+    <h3>1. 保存在设备上的信息</h3>
+    <ul>
+      <li><strong>应用数据：</strong>自选列表、代币及交易对标识、保存或观察的公开地址、地址备注、搜索与 DApp 发现历史、偏好和网络设置，以及行情、榜单、余额和交易记录缓存，保存在应用私有数据库、偏好或缓存文件中。可选 AI 对话历史也保存在本地。</li>
+      <li><strong>钱包秘密信息：</strong>助记词、私钥和钱包元数据保存在受密码保护的加密保险库中，使用 AES-GCM 和 Android Keystore 支持的安全存储。签名在本机完成。应用不会自动把助记词或私钥发送给开发者、行情服务、DApp 或 AI 服务。</li>
+      <li><strong>API 凭证：</strong>您配置的 OKX、GMGN、Alchemy、RPC 或 AI 服务凭证保存在应用私有的加密偏好中。请求所需的凭证或认证信息会发送给对应服务；用于生成请求签名的密钥在本地使用。无法创建加密凭证存储时，应用拒绝降级为明文保存。</li>
+      <li><strong>生物识别：</strong>可选的钱包身份验证使用 Android 生物识别和 Keystore。应用接收验证结果，不接收或保存指纹图像、人脸图像或生物识别模板。</li>
+    </ul>
+
+    <h3>2. 行情和区块链功能发送的信息</h3>
+    <p>行情搜索和订阅可能向选定数据源发送搜索词、交易对、代币合约、池地址、链标识、榜单筛选及时间周期。余额、地址观察和交易查询可能发送公开钱包地址、代币标识、链标识、交易哈希及 RPC 参数。转账在您确认后，将已签名交易发送给选定 RPC 服务和区块链网络。签名消息和交易不包含私钥，但仍可能识别签名地址。</p>
+    <p>目前的接收方包括提供交易所行情的 Binance 和 OKX；提供链上信息或图标的 DexScreener、GeckoTerminal 和 CoinGecko；提供榜单或地址数据的 GMGN、Pump.fun 和 OKX Onchain；提供区块链查询和广播的 Alchemy、您配置的 RPC 及公共 RPC 运营者；以及代币信息中指定的图片站点、GitHub 资源和链图标服务。页面加载或刷新，以及开启悬浮盯盘期间，可能发起这些请求，包括其他应用处于前台时。</p>
+    <p><strong>FoMo 主页查询：</strong>启用该功能并查询复制的 FoMo 主页时，提取出的主页标识会发送到第三方服务 <a href="https://985monitor.xyz/">985monitor.xyz</a> 的主页查询接口；随后可能通过公共 RPC 查询公开交易哈希和候选地址，核对关联地址。头像可能从该服务或其图片站点加载。该服务由第三方运营，不由 CoinMonitor 运营。</p>
+    <p>接收服务可能处理您的 IP 地址、请求时间、请求头及查询中的信息。公开区块链地址与 IP 或主页信息结合后，可能关联到个人或其金融活动。第三方服务端日志与保留期限由其运营者和政策决定，CoinMonitor 不设定或控制这些保留期限。</p>
+
+    <h3>3. 剪贴板与外部链接</h3>
+    <p>剪贴板查询面板在您打开它并获得窗口焦点后读取文本，不持续监听剪贴板变化，也不读取其他应用复制的文件内容 URI。识别出的合约地址、钱包地址、FoMo 主页标识或网站网址，可能用于您请求的查询。应用不会把整个剪贴板自动上传为剪贴板历史。您主动把识别的代币或地址加入自选后，对应选择会保存在本地。</p>
+    <p>通过浏览器打开行情站点、区块浏览器、社交网站或您选择的网站，会把选定网址及查询参数发送给该站点。网站信息、图标和代币图片也可能从对应站点加载。</p>
+
+    <h3>4. DApp 浏览器、Cookie 和钱包连接</h3>
+    <p>内置 DApp 浏览器启用 JavaScript、网页存储、第一方及第三方 Cookie。访问的网站及其嵌入服务可能获得网址、浏览器信息、IP、Cookie，以及您在网页中输入的内容；其处理受各自隐私政策约束。DApp 发现历史保存在本地。</p>
+    <p>您批准钱包连接后，DApp 可以获得选定的公开地址和网络信息。签名或交易请求需要经过应用的确认和身份验证流程，批准后可能向 DApp 返回签名或交易结果。应用的钱包桥接接口不向网页暴露助记词或私钥。断开连接或删除本地钱包，不会删除网站 Cookie 或公开区块链记录。</p>
+
+    <h3>5. 可选 AI 功能</h3>
+    <p>使用剪贴板中的 ChatGPT 或 Grok 入口时，代币信息、链接和您选定的问题会放入目标网址。配置并使用可用版本中的 OpenAI 兼容 AI 接口时，您提交的对话、请求中包含的行情或指标上下文，以及接口所需认证信息，会发送到您选定的服务。接收方按自己的政策处理这些数据。应用不会自动把钱包助记词或私钥加入 AI 请求；您在提示词中输入的内容会随提示词发送。</p>
+
+    <h3>6. 诊断日志、权限与更新</h3>
+    <p>网络日志记录默认关闭。开启后，有容量限制的内存日志会记录接口、请求和响应元数据、耗时、失败及有限的正文预览，展示前会遮盖已知凭证、认证信息和签名。您可以停止记录或清空日志。复制日志会将选定文本放入系统剪贴板，应用不会自动上传这些诊断日志。</p>
+    <p>网络权限用于上述功能。悬浮窗权限用于展示 CoinMonitor 自己的价格面板，不用于截取其他应用的屏幕。前台服务与通知权限支持持续盯盘；开机通知允许在设备重启或应用更新后恢复已启用的悬浮功能。可选生物识别由 Android 处理。</p>
+    <p>GitHub 渠道会查询 GitHub 公开发布信息来检查更新；Play 渠道由 Google Play 更新，不执行该 GitHub 更新检查。两种渠道仍可能从 GitHub 下载公开网络目录或资源。Google Play 与 GitHub 按各自政策处理其服务和分发数据。</p>
+
+    <h3>7. Android 备份与数据安全</h3>
+    <p>CoinMonitor 不提供自己的云端账号或钱包保险库云同步。符合条件的应用数据可参与 Android 系统备份和设备迁移，具体取决于设备与账号设置。当前规则排除了钱包保险库、生物识别钱包数据、钱包资产缓存、钱包网络设置及 GMGN 凭证文件；其余应用数据库、偏好和剩余加密设置可能参与 Android 管理的备份或迁移。请通过 Android 或备份服务的设置管理这些副本。</p>
+    <p>内置 API 使用 HTTPS 或安全 WebSocket。自定义服务遵循您提供的配置和系统网络限制。本地加密与 Android 访问控制保护已保存的秘密信息，但不能保证已解锁或被入侵的设备，以及您主动向网站提供的信息，不会发生泄露。</p>
+
+    <h3>8. 保留、删除与您的选择</h3>
+    <p>保存的应用信息会保留在本地，直到您通过对应功能移除或清除应用存储。缓存可能在刷新时被替换。诊断日志只保存在内存中，可以手动清空，也会随应用进程结束而消失。您可以移除自选或观察地址、删除本地钱包、清除已配置凭证、关闭剪贴板查询及停止悬浮盯盘。</p>
+    <p>需要完整移除剩余本地数据库、偏好、缓存和浏览器存储时，请在 Android 设置中清除 CoinMonitor 的应用存储，或卸载应用；同时检查系统备份设置，避免恢复您原本希望删除的数据。您在应用外制作的副本由您自行管理。删除本地钱包不会删除区块链上的地址和交易记录，不会撤销服务端 API Key，也不会删除第三方已接收的数据；其保留数据请联系对应运营者。</p>
+    <p>本应用没有需要注销的 CoinMonitor 在线账号。根据适用法律，您可能对支持咨询中提供的信息或所使用服务处理的信息享有相应权利。隐私问题可联系开发者，服务端数据请联系对应服务运营者；本地应用数据可通过上述控制管理。</p>
+
+    <h3>9. 网站托管与跨境服务</h3>
+    <p>本网站由 GitHub Pages 托管。GitHub 说明，即使未登录，访问者的 IP 地址仍会因安全用途被记录和保存，详见 <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub 隐私声明</a>。现有介绍页还会加载 Google Fonts，产生到 Google 字体服务器的请求，详见 <a href="https://policies.google.com/privacy">Google 隐私政策</a>。本隐私政策页使用系统字体，不添加统计分析脚本或追踪代码。</p>
+    <p>外部服务和区块链网络可能位于多个国家，您发送的信息可能按其政策在境外处理。CoinMonitor 无法删除公开区块链记录，也不设定这些服务的存储地点。</p>
+
+    <h3>10. 儿童、政策变更与联系</h3>
+    <p>CoinMonitor 是加密资产行情和钱包工具，不是专为儿童设计的服务。应用未实现 CoinMonitor 注册或年龄验证服务。若您在支持咨询中误提供了信息，可联系开发者讨论删除。</p>
+    <p>应用的信息处理方式变化时，会相应更新本政策及日期。使用受影响的功能前，请查看重要变更。</p>
+    <p><strong>开发者及隐私联系方式：</strong>baiyanwu，CoinMonitor。您可通过 <a href="https://github.com/baiyanwu/CoinMonitor/issues">CoinMonitor GitHub Issues</a> 提交隐私问题。提交 Issue 需要 GitHub 账号，提交内容会公开；请勿在公开 Issue 中包含助记词、私钥、API 密钥或敏感财务信息。查看本隐私政策无需账号。</p>
+  </section>
+  <footer><a href="./">CoinMonitor home / 返回介绍页</a> · <a href="https://github.com/baiyanwu/CoinMonitor">Source / 源码</a></footer>
+</main>
+</body>
+</html>
