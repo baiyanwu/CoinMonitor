@@ -80,6 +80,7 @@ fun CoinMonitorNavHost(
     onOpenKlineHistory: () -> Unit,
     onOpenKlineIndicatorSettings: () -> Unit,
     onOpenOverlaySettings: () -> Unit,
+    onOpenOverlayItems: () -> Unit,
     onOpenThirdPartyApiSettings: () -> Unit,
     onOpenWalletNetworkSettings: () -> Unit,
     onOpenWatchWallet: () -> Unit,
@@ -153,6 +154,7 @@ fun CoinMonitorNavHost(
                 onOpenKlineHistory = onOpenKlineHistory,
                 onOpenKlineIndicatorSettings = onOpenKlineIndicatorSettings,
                 onOpenOverlaySettings = onOpenOverlaySettings,
+                onOpenOverlayItems = onOpenOverlayItems,
                 onOpenThirdPartyApiSettings = onOpenThirdPartyApiSettings,
                 onOpenWalletNetworkSettings = onOpenWalletNetworkSettings,
                 onOpenWatchWallet = onOpenWatchWallet,
@@ -232,6 +234,7 @@ private fun MainShell(
     onOpenKlineHistory: () -> Unit,
     onOpenKlineIndicatorSettings: () -> Unit,
     onOpenOverlaySettings: () -> Unit,
+    onOpenOverlayItems: () -> Unit,
     onOpenThirdPartyApiSettings: () -> Unit,
     onOpenWalletNetworkSettings: () -> Unit,
     onOpenWatchWallet: () -> Unit,
@@ -292,7 +295,8 @@ private fun MainShell(
                     contentTopInset = innerPadding.calculateTopPadding(),
                     contentBottomInset = innerPadding.calculateBottomPadding(),
                     onNavigateSearch = onOpenSearch,
-                    onNavigateOverlaySettings = onOpenOverlaySettings
+                    onNavigateOverlaySettings = onOpenOverlaySettings,
+                    onNavigateOverlayItems = onOpenOverlayItems
                 )
             }
             composable(Destinations.KLINE) {

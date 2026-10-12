@@ -30,13 +30,15 @@ data class ClipboardDestination(
     val chainTemplates: Map<String, String> = emptyMap(),
     val removedNetworkRules: Set<String> = emptySet(),
     val sourceUrl: String? = null,
-    val iconUrl: String? = null
+    val iconUrl: String? = null,
+    val disabledNetworkRules: Set<String> = emptySet()
 ) {
     fun url(match: ClipboardMatch): String? {
         if (id == "dex" && template.isBlank()) {
             return safeClipboardUrl("https://dexscreener.com/${match.chain.dexScreenerId}/${match.selection.pair.pairAddress}")
         }
         val chain = match.chain.dexScreenerId
+        if (chain in disabledNetworkRules || chain in removedNetworkRules) return null
         val source = if (template.isBlank()) chainTemplates[chain] ?: return null else template
         val chainValue = chainValues[chain]
         if (source.contains("{chain}") && chainValue == null) return null
@@ -60,12 +62,12 @@ fun clipboardDestinations(): List<ClipboardDestination> = listOf(
         "robinhood" to "https://robinhoodchain.blockscout.com/address/{ca}")),
     ClipboardDestination("fomo", "Fomo", "https://fomo.family/tokens/{chain}/{ca}",
         chainValues = mapOf("ethereum" to "ethereum", "bsc" to "bnb", "base" to "base", "solana" to "solana", "monad" to "monad", "robinhood" to "robinhood")),
-    ClipboardDestination("pump", "Pump.fun", "", chainTemplates = mapOf("solana" to "https://pump.fun/coin/{ca}"),
+    ClipboardDestination("pump", "Pump.fun", "https://pump.fun/coin/{ca}",
         iconUrl = "https://pump.fun/favicon.ico"),
     ClipboardDestination("ave", "Ave.ai", "https://ave.ai/token/{ca}-{chain}",
         chainValues = mapOf("arc" to "arc", "bsc" to "bsc", "ethereum" to "eth", "robinhood" to "robinhood", "solana" to "sol"),
         iconUrl = "https://ave.ai/favicon.ico"),
-    ClipboardDestination("axiom", "Axiom", "", chainTemplates = mapOf("solana" to "https://axiom.trade/token/{ca}"),
+    ClipboardDestination("axiom", "Axiom", "https://axiom.trade/token/{ca}",
         iconUrl = "https://axiom.trade/favicon.ico"),
     ClipboardDestination("debot", "Debot", "https://debot.ai/token/{chain}/{ca}",
         chainValues = mapOf("bsc" to "bsc", "robinhood" to "robinhood", "solana" to "solana"),
@@ -76,7 +78,17 @@ fun clipboardDestinations(): List<ClipboardDestination> = listOf(
 )
 
 /** Append this release's new defaults once, without restoring previously deleted sites. */
-internal fun migrateClipboardDestinations(settings: ClipboardSettings): ClipboardSettings {
+internal fun migrateClipboardDestinations(saved: ClipboardSettings): ClipboardSettings {
+    // These CA-only routes were previously stored as editable per-network templates.
+    // Convert only the exact legacy shape; retain custom rules and explicit deletions.
+    val caOnlyRoutes = setOf("https://pump.fun/coin/{ca}", "https://axiom.trade/token/{ca}")
+    val settings = saved.copy(destinations = saved.destinations.map { site ->
+        val route = site.chainTemplates["solana"]
+        if (site.template.isBlank() && site.chainTemplates.size == 1 && route in caOnlyRoutes &&
+            site.removedNetworkRules.isEmpty()) {
+            site.copy(template = route!!, chainTemplates = emptyMap(), chainValues = emptyMap())
+        } else site
+    })
     if (settings.destinationsVersion >= 1) return settings
     val addedIds = setOf("pump", "ave", "axiom", "debot", "birdeye")
     val additions = clipboardDestinations().filter { default ->

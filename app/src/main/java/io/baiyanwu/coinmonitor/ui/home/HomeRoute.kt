@@ -107,7 +107,8 @@ fun HomeRoute(
     contentTopInset: Dp = 0.dp,
     contentBottomInset: Dp = 0.dp,
     onNavigateSearch: (SearchMode) -> Unit,
-    onNavigateOverlaySettings: () -> Unit
+    onNavigateOverlaySettings: () -> Unit,
+    onNavigateOverlayItems: () -> Unit
 ) {
     val viewModel: HomeViewModel = viewModel(factory = HomeViewModel.factory(container))
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -143,6 +144,7 @@ fun HomeRoute(
             contentBottomInset = contentBottomInset,
             onNavigateSearch = onNavigateSearch,
             onNavigateOverlaySettings = onNavigateOverlaySettings,
+            onNavigateOverlayItems = onNavigateOverlayItems,
             quoteRepository = container.quoteRepository,
             onRemoveWatchItem = viewModel::removeWatchItem,
             onToggleOverlay = viewModel::toggleOverlay,
@@ -162,6 +164,7 @@ internal fun HomeScreen(
     contentBottomInset: Dp,
     onNavigateSearch: (SearchMode) -> Unit,
     onNavigateOverlaySettings: () -> Unit,
+    onNavigateOverlayItems: () -> Unit,
     quoteRepository: QuoteRepository,
     onRemoveWatchItem: (String) -> Unit,
     onToggleOverlay: (String) -> Unit,
@@ -273,7 +276,7 @@ internal fun HomeScreen(
                     onRefresh = onRefresh
                 )
             }
-            HomeOverlayStatus(enabled = state.overlayEnabled, onConfigure = onNavigateOverlaySettings)
+            HomeOverlayStatus(enabled = state.overlayEnabled, onConfigure = onNavigateOverlaySettings, onOpenItems = onNavigateOverlayItems)
         }
 
         quickMenuState?.let { menuState ->

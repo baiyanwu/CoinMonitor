@@ -7,6 +7,22 @@ import org.junit.Test
 
 class TrendingCachedStateTest {
     private val row = TrendingToken("501", "Solana", "So11111111111111111111111111111111111111112", "SOL")
+    @Test fun `pump filters cached multichain rows without changing request or NEW identity`() {
+        val evm = TrendingToken("7777777", "Chain #7777777", "0x" + "ab".repeat(20), "EX")
+        val state = TrendingUiState(snapshots = mapOf(TrendingSource.PUMP to TrendingSnapshot(listOf(row, evm), 1000,
+            newDates = mapOf(evm.id to 900))), now = 1100)
+        assertEquals(listOf(evm, row).toSet(), state.rows(TrendingBoard.PUMP).toSet())
+        val filtered = state.copy(options = state.options + (TrendingSource.PUMP to TrendingOptions(pumpChainIndex = "7777777")))
+        assertEquals(listOf(evm), filtered.rows(TrendingBoard.PUMP))
+        assertEquals("Chain #7777777", filtered.summary(TrendingBoard.PUMP).chainTitle)
+        assertTrue(filtered.availablePumpChains().any { it.index == "7777777" })
+        assertEquals(state.newIds(TrendingBoard.PUMP), filtered.newIds(TrendingBoard.PUMP))
+        assertEquals(state.options.getValue(TrendingSource.PUMP).queryKey(TrendingSource.PUMP), filtered.options.getValue(TrendingSource.PUMP).queryKey(TrendingSource.PUMP))
+        assertNotEquals(sharedQueryKey(state.sources, state.options), sharedQueryKey(filtered.sources, filtered.options))
+        val shared = filtered.copy(sources = setOf(TrendingSource.PUMP, TrendingSource.OKX), snapshots = filtered.snapshots +
+            (TrendingSource.OKX to TrendingSnapshot(listOf(row, evm), 1000)))
+        assertEquals(listOf(evm), shared.rows(TrendingBoard.SHARED))
+    }
     @Test fun `background loading and failure retain visible individual rows`() {
         val state = TrendingUiState(snapshots = mapOf(TrendingSource.GMGN to TrendingSnapshot(listOf(row), 1000, loading = true)))
         assertEquals(listOf(row), state.rows(TrendingBoard.GMGN))

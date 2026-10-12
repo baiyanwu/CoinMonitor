@@ -6,7 +6,7 @@ import java.util.Locale
 
 /** Recognition is local. Unknown hosts only inherit the exact route pasted by the user. */
 internal object ClipboardWebsiteRecognition {
-    data class Result(val destination: ClipboardDestination, val address: String, val chain: String?)
+    data class Result(val destination: ClipboardDestination, val address: String, val chain: String?, val sameFormat: Boolean = false)
     sealed interface Outcome {
         data object Invalid : Outcome
         data object NoAddress : Outcome
@@ -87,6 +87,6 @@ internal object ClipboardWebsiteRecognition {
             iconUrl = existing.iconUrl?.takeIf { runCatching { URI(it).host == host }.getOrDefault(false) }
                 ?: URI(uri.scheme, null, host, uri.port, "/favicon.ico", null, null).toString()
         )
-        return if (validClipboardDestination(destination)) Outcome.Recognized(Result(destination, address, chain)) else Outcome.Invalid
+        return if (validClipboardDestination(destination)) Outcome.Recognized(Result(destination, address, chain, sameFormat)) else Outcome.Invalid
     }
 }

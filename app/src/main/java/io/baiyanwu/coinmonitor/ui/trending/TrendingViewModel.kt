@@ -38,11 +38,15 @@ data class TrendingUiState(
     val now: Long = System.currentTimeMillis()
 ) {
     val demand: Set<TrendingSource> get() = TrendingRules.demand(board, sources)
+    fun availablePumpChains(): List<PumpTrendingChain> =
+        (TrendingChain.entries.map { it.okxId } + snapshots[TrendingSource.PUMP]?.tokens.orEmpty().map { it.chainIndex } +
+            listOfNotNull(options.getValue(TrendingSource.PUMP).pumpChainIndex)).distinct().map(::PumpTrendingChain)
     fun rows(board: TrendingBoard): List<TrendingToken> {
         val rows = if (board == TrendingBoard.SHARED) sharedSnapshot?.tokens ?: TrendingRules.intersection(sources,
-            snapshots.filter { it.value.updatedAt != null }.mapValues { it.value.tokens })
+            snapshots.filter { it.value.updatedAt != null }.mapValues { (source, snapshot) ->
+                snapshot.tokens.filterPumpChain(source, options.getValue(source)) })
         else snapshots[TrendingRules.demand(board, sources).first()]?.tokens.orEmpty()
-        return TrendingRules.sorted(rows, displayOptions(board), newIds(board))
+        return TrendingRules.sorted(if (board == TrendingBoard.PUMP) rows.filterPumpChain(TrendingSource.PUMP, displayOptions(board)) else rows, displayOptions(board), newIds(board))
     }
     fun displayOptions(board: TrendingBoard): TrendingOptions = if (board == TrendingBoard.SHARED) sharedOptions
         else options.getValue(TrendingRules.demand(board, sources).first())
@@ -251,7 +255,8 @@ class TrendingViewModel(
         // Keep the last complete intersection while any source is refreshing or has failed.
         if (cacheLoaded && state.sources.all { snapshots[it]?.updatedAt != null && snapshots[it]?.loading == false && snapshots[it]?.failure == null }
             && revision != shared?.sourceDates) {
-            val rows = TrendingRules.intersection(state.sources, snapshots.mapValues { it.value.tokens })
+            val rows = TrendingRules.intersection(state.sources, snapshots.mapValues { (source, snapshot) ->
+                snapshot.tokens.filterPumpChain(source, state.options.getValue(source)) })
             shared = TrendingSnapshot(tokens = rows, updatedAt = revision.values.maxOrNull(),
                 newDates = TrendingRules.newDates(rows.map { it.id }, shared?.tokens?.map { it.id }, shared?.newDates.orEmpty(), now),
                 sourceDates = revision)
@@ -274,9 +279,12 @@ class TrendingViewModel(
 }
 
 internal fun sharedQueryKey(sources: Set<TrendingSource>, options: Map<TrendingSource, TrendingOptions>): String =
-    "SHARED:" + TrendingRules.priority.filter { it in sources }.joinToString("|") { options.getValue(it).queryKey(it) }
+    "SHARED:" + TrendingRules.priority.filter { it in sources }.joinToString("|") { options.getValue(it).queryKey(it) + if (it == TrendingSource.PUMP) ":${options.getValue(it).pumpChainIndex ?: "all"}" else "" }
 
 private fun CachedTrendingSnapshot.toUi() = TrendingSnapshot(tokens = tokens, updatedAt = updatedAt,
     newDates = newDates, sourceDates = sourceDates)
 
 private fun TrendingSnapshot.toCached() = CachedTrendingSnapshot(tokens, requireNotNull(updatedAt), newDates, sourceDates)
+
+private fun List<TrendingToken>.filterPumpChain(source: TrendingSource, options: TrendingOptions): List<TrendingToken> =
+    if (source == TrendingSource.PUMP && options.pumpChainIndex != null) filter { it.chainIndex == options.pumpChainIndex } else this

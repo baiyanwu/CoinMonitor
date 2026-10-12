@@ -22,6 +22,7 @@ class TrendingRefreshFlowTest {
     private class Harness(val scope: TestScope, loaded: Boolean = true) {
         val counts = TrendingSource.entries.associateWith { 0 }.toMutableMap()
         var failure: TrendingFailure? = null
+        var rows: List<TrendingToken> = emptyList()
         val cacheState = MutableStateFlow(TrendingCacheState(loaded = loaded))
         val key = MutableStateFlow("test-key")
         lateinit var model: TrendingViewModel
@@ -48,7 +49,7 @@ class TrendingRefreshFlowTest {
                     Mockito.`when`(client.fetch(source, options, apiKey, credentials)).thenAnswer {
                         counts[source] = counts.getValue(source) + 1
                         failure?.let { throw TrendingException(it) }
-                        emptyList<TrendingToken>()
+                        rows
                     }
                 }
             }
@@ -77,6 +78,21 @@ class TrendingRefreshFlowTest {
         assertEquals(1, counts.getValue(TrendingSource.PUMP))
         scope.advanceTimeBy(600_000); scope.runCurrent()
         assertEquals(1, counts.getValue(TrendingSource.PUMP))
+    }
+
+    @Test fun `pump chain switch keeps complete snapshot and updates shared intersection without requests`() = verifyFlow(TrendingBoard.SHARED) {
+        val sol = TrendingToken("501", "Solana", "So11111111111111111111111111111111111111112", "SOL")
+        val bsc = TrendingToken("56", "BSC", "0x" + "ab".repeat(20), "BSC")
+        rows = listOf(sol, bsc)
+        model.start(); scope.runCurrent()
+        assertEquals(2, model.state.value.rows(TrendingBoard.SHARED).size)
+        model.updateOptions(TrendingSource.PUMP, TrendingOptions(pumpChainIndex = "56")); scope.runCurrent()
+        assertEquals(listOf(bsc), model.state.value.rows(TrendingBoard.SHARED))
+        assertEquals(listOf(bsc), model.state.value.rows(TrendingBoard.PUMP))
+        assertEquals(listOf(sol, bsc), model.state.value.snapshots.getValue(TrendingSource.PUMP).tokens)
+        model.updateOptions(TrendingSource.PUMP, TrendingOptions()); scope.runCurrent()
+        assertEquals(2, model.state.value.rows(TrendingBoard.SHARED).size)
+        assertTrue(counts.values.all { it == 1 })
     }
 
     @Test fun `button drops repeated requests until exactly five seconds`() = verifyFlow {

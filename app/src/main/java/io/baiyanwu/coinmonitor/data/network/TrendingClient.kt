@@ -77,7 +77,12 @@ class TrendingClient(private val httpClient: OkHttpClient) {
     }
     companion object {
         fun pumpRequest(): Request = Request.Builder()
-            .url("https://frontend-api-v3.pump.fun/coins/great-coins?topK=50")
+            .url(HttpUrl.Builder().scheme("https").host("advanced-indexer.pump.fun").addPathSegments("boards/trending")
+                .addQueryParameter("tier", "web").addQueryParameter("surface", "TRENDING")
+                .addQueryParameter("platform", "WEB")
+                .addQueryParameter("chains", "solana,eip155:4663,eip155:8453,eip155:56,eip155:1,eip155:5042")
+                .addQueryParameter("ranking", "social").addQueryParameter("window", "1h")
+                .addQueryParameter("hot", "label").build())
             .header("Accept", "application/json").get().build()
         fun gmgnRequest(chain: TrendingChain, period: String, key: String, now: Long = System.currentTimeMillis()): Request {
             val url = HttpUrl.Builder().scheme("https").host("openapi.gmgn.ai").addPathSegments("v1/market/rank")
@@ -202,13 +207,34 @@ object TrendingDecoder {
         }.distinctBy(TrendingToken::id)
     }
     fun pump(element: JsonElement): List<TrendingToken> {
-        val rows = element as? JsonArray ?: invalid()
+        val rows = when (element) {
+            is JsonArray -> element
+            is JsonObject -> {
+                if (element.text("board") !in listOf("trending", "movers")) invalid()
+                (element["entries"] as? JsonArray)?.let { entries ->
+                    JsonArray(entries.map { item ->
+                        val entry = item as? JsonObject ?: invalid()
+                        buildJsonObject {
+                            listOf("mint" to "m", "name" to "n", "symbol" to "t", "image_uri" to "i",
+                                "chain_id" to "c", "usd_market_cap" to "mc").forEach { (field, short) ->
+                                put(field, entry[short] ?: JsonNull)
+                            }
+                        }
+                    })
+                } ?: (element["coins"] as? JsonArray) ?: invalid()
+            }
+            else -> invalid()
+        }
         return rows.mapNotNull { it as? JsonObject }.mapNotNull { row ->
-            if (row.text("chain_id") != null && row.text("chain_id") != "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp") return@mapNotNull null
+            val chain = if ("chain_id" in row) {
+                val value = row["chain_id"] as? JsonPrimitive ?: invalid()
+                if (!value.isString) invalid()
+                PumpTrendingChain.fromCaip(value.content) ?: return@mapNotNull null
+            } else PumpTrendingChain("501")
             val address = row.text("mint") ?: invalid()
-            if (!TrendingChain.SOLANA.validAddress(address)) invalid()
+            if (!chain.validAddress(address)) invalid()
             val marketCap = (row.number("usd_market_cap") ?: row.number("market_cap_usd"))?.takeIf { it >= 0 }
-            TrendingToken("501", "Solana", address, row.text("symbol") ?: invalid(), row.text("name") ?: invalid(),
+            TrendingToken(chain.index, chain.title, address, row.text("symbol") ?: invalid(), row.text("name") ?: invalid(),
                 iconUrl = logo(row.text("image_uri")),
                 price = pumpPrice(row, marketCap), marketCap = marketCap,
                 liquidity = row.number("canonical_pool_liquidity_usd")?.takeIf { it >= 0 },

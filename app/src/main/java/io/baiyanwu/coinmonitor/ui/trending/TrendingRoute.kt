@@ -185,15 +185,12 @@ private fun TrendingList(
         verticalArrangement = Arrangement.spacedBy(design.spacing.small)
     ) {
         TrendingSourceSummary(summary, onFilters)
-        if (missingKeysLabel != null && rows.isNotEmpty()) TextButton(onClick = onOpenApiSettings, modifier = Modifier.fillMaxWidth()) {
-            Text(missingKeysLabel)
-        }
-        summary.failures.forEach { source ->
+        // Cached rows remain usable: show refresh failures only on an empty board.
+        if (rows.isEmpty()) summary.failures.forEach { source ->
             val snapshot = state.snapshots.getValue(source)
             val seconds = ((snapshot.retryAt - state.now).coerceAtLeast(0) + 999) / 1000
             Text(
-                "${source.title} · ${failureTitle(snapshot.failure!!, seconds)}" +
-                    if (rows.isNotEmpty()) " · ${stringResource(R.string.trending_previous_result)}" else "",
+                "${source.title} · ${failureTitle(snapshot.failure!!, seconds)}",
                 Modifier.padding(horizontal = design.spacing.inline), style = design.typography.caption, color = design.colors.error
             )
         }
@@ -330,11 +327,11 @@ private fun TrendingUpdateStatus(summary: TrendingBoardSummary, modifier: Modifi
 private fun scopeTitle(summary: TrendingBoardSummary): String {
     val chain = when {
         summary.mixedChains -> stringResource(R.string.trending_mixed_chains)
-        summary.chain != null -> summary.chain.title
+        summary.chainTitle != null -> summary.chainTitle
         else -> stringResource(R.string.trending_all_chains)
     }
     val range = when {
-        summary.sources == listOf(TrendingSource.PUMP) -> TrendingSource.PUMP.title
+        summary.sources == listOf(TrendingSource.PUMP) -> summary.period
         summary.sources.size > 1 && (TrendingSource.PUMP in summary.sources || summary.mixedPeriods || summary.mode == null) ->
             stringResource(R.string.trending_independent_filters)
         summary.mode == TrendingMode.HOT_SEARCH -> listOfNotNull(summary.period, modeTitle(summary.mode)).joinToString(" · ")

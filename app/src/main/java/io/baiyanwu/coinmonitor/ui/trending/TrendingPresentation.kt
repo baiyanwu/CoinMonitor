@@ -1,5 +1,6 @@
 package io.baiyanwu.coinmonitor.ui.trending
 
+import io.baiyanwu.coinmonitor.domain.model.PumpTrendingChain
 import io.baiyanwu.coinmonitor.domain.model.TrendingBoard
 import io.baiyanwu.coinmonitor.domain.model.TrendingChain
 import io.baiyanwu.coinmonitor.domain.model.TrendingMode
@@ -10,6 +11,7 @@ import io.baiyanwu.coinmonitor.domain.model.TrendingSource
 internal data class TrendingBoardSummary(
     val sources: List<TrendingSource>,
     val chain: TrendingChain?,
+    val chainTitle: String?,
     val mixedChains: Boolean,
     val period: String?,
     val mixedPeriods: Boolean,
@@ -23,14 +25,15 @@ internal data class TrendingBoardSummary(
 internal fun TrendingUiState.summary(board: TrendingBoard): TrendingBoardSummary {
     val demand = TrendingRules.demand(board, sources)
     val ordered = TrendingSource.entries.filter { it in demand }
-    val chains = ordered.map { if (it == TrendingSource.PUMP) TrendingChain.SOLANA else options.getValue(it).chain }.distinct()
-    // PumpFun 没有时间窗或热搜选项，不能给它伪造 24h/5m 标签。
+    val chains = ordered.map { if (it == TrendingSource.PUMP) options.getValue(it).pumpChainIndex else options.getValue(it).chain?.okxId }.distinct()
+    // Pump uses its fixed 1h window; the other providers keep independent settings.
     val configurable = ordered.filter { it != TrendingSource.PUMP }.map { options.getValue(it) }
-    val periods = configurable.map { it.period }.distinct()
+    val periods = ordered.map { if (it == TrendingSource.PUMP) "1h" else options.getValue(it).period }.distinct()
     val modes = configurable.map { it.mode }.distinct()
     return TrendingBoardSummary(
         sources = ordered,
-        chain = chains.singleOrNull(),
+        chain = chains.singleOrNull()?.let { index -> TrendingChain.entries.firstOrNull { it.okxId == index } },
+        chainTitle = chains.singleOrNull()?.let { PumpTrendingChain(it).title },
         mixedChains = chains.size > 1,
         period = periods.singleOrNull(),
         mixedPeriods = periods.size > 1,

@@ -1,72 +1,48 @@
 <div align="center">
-  <img src="./artwork/coinmonitor_app_icon.svg" alt="CoinMonitor app icon" width="96" height="96" />
+  <img src="./artwork/coinmonitor_app_icon.svg" alt="CoinMonitor" width="96" height="96" />
   <h1>CoinMonitor</h1>
-  <p>A lightweight Android crypto price monitor built around a watchlist and system overlay workflow.</p>
+  <p>An Android crypto monitor with watchlists, floating prices, and a multichain wallet.</p>
+  <p><a href="./README.zh-CN.md">简体中文</a> · <a href="https://github.com/baiyanwu/CoinMonitor/releases">Download APK</a> · <a href="https://github.com/baiyanwu/CoinMonitor/issues">Report an issue</a></p>
 </div>
 
-<p align="center">
-  <a href="./README.zh-CN.md">简体中文</a>
-  ·
-  <a href="./docs/TECHNICAL.md">Technical Notes</a>
-  ·
-  <a href="./LICENSE">Apache-2.0</a>
-</p>
+## Screenshots
 
-`CoinMonitor` is an Android app focused on one simple path: search assets, add them to a watchlist, and optionally pin selected items into a floating overlay for quick monitoring across apps. The project is built and iterated primarily through vibecoding.
+<table>
+  <tr>
+    <th>Markets & floating prices</th>
+    <th>Trending tokens</th>
+    <th>Settings</th>
+  </tr>
+  <tr>
+    <td><img src="./artwork/screenshots/markets.png" alt="Markets & floating prices" width="240" /></td>
+    <td><img src="./artwork/screenshots/trending.png" alt="Trending tokens" width="240" /></td>
+    <td><img src="./artwork/screenshots/settings.png" alt="Settings" width="240" /></td>
+  </tr>
+</table>
 
-<div align="center">
-  <img src="./artwork/screenshot.png" alt="CoinMonitor preview" width="960" />
-</div>
+Captured on a Seeker device running version 1.0.14.
 
----
+## Features
 
-## Core Features
+- **Watchlists**: Track Binance, OKX, and on-chain tokens in one place, with search, sorting, pinning, and contract-address copying.
+- **Floating prices**: Monitor prices above other apps with a panel or scrolling ticker. Customize opacity, font size, and position.
+- **Trending tokens**: Browse GMGN, PumpFun, and OKX rankings, including tokens trending across multiple sources.
+- **Quick lookup**: Look up contract addresses from the clipboard, open market websites, and add address tracking.
+- **Multichain wallet**: Manage a local self-custody EVM and Solana wallet, view assets, receive and send funds, browse DApps, or observe other addresses in read-only mode.
+- **Personalization**: Light and dark themes, English and Chinese, configurable data sources and refresh settings.
 
-- The compact rounded bottom navigation offers Markets, Trending, Wallet, and Settings. Trending uses the shared blue-purple design with pill tabs for Shared, GMGN, PumpFun, and OKX rankings, rounded compact rows, contract-address copy buttons, and matching filters/details. GMGN keys use encrypted third-party API settings; OKX reuses existing credentials; PumpFun requires no key. [Trending notes](./docs/TRENDING.md)
-- Trending restores the last matching successful ranking across navigation and app restarts, refreshes in the background, and keeps existing rows during failures or rate limits. Shared rankings match chain and contract address across selected sources; requests stop when the page leaves the foreground.
+Some data sources and wallet queries require your own credentials in Third-party API settings. Floating prices require Android's display-over-other-apps permission.
 
-- Search `Binance Alpha`, Binance spot and USDT-M futures, plus OKX spot and USDT swaps in parallel, then merge, sort, and display one result set after all sources finish
-- Search on-chain tokens by name, symbol, or contract address without selecting a chain; every network returned by `DexScreener` is accepted without a local allowlist
-- Open `General` from Settings to manage the persistent `Show on-chain market cap` switch together with appearance, language, and network logs; the switch changes every on-chain row across Home, the arranged overlay, and the marquee overlay between price and market cap, while exchange quotes are unaffected
-- Open `Wallet Settings` for wallet management, backup, and security; backup started from Settings first asks which wallet to use, while the original three entries remain available from the wallet page menu
-- Settings uses compact rounded blue-purple cards grouped into Preferences & Security, Monitoring & Data, and Application. Appearance is configured in General. Settings detail pages, wallet subpages, the address observer, floating-pair settings, and exchange/on-chain add pages share the same Light / Dark colors while retaining their existing layouts and workflows.
-- Home has swipeable `Tokens / Address tracking` tabs. Tokens combines exchange and on-chain watch items with shared ordering and pinning; Address tracking groups the same EVM address across chains and opens the existing wallet observer.
-- Track addresses manually or with the `+` beside clipboard/FoMo address copy controls. FoMo names use the original `/profile/` path value; a pencil beside each name edits a persistent alias. Existing estimates stay cached when switching tabs; only missing estimates load automatically. FoMo reverse lookup is enabled by default and can be disabled in Quick query and website settings. [Wallet watch and tracking](docs/WALLET_WATCH.md)
-- Home uses the rounded blue-purple design with a shared compact header, one `+` button, Tokens / Address tracking pills, a fixed rounded scrolling list, and an overlay status shortcut. Tap the small northeast arrow after a token name to open its market page; the row itself does not navigate. The compact CA copy icon sits beside the address. [UI design notes](./docs/UI_DESIGN_SYSTEM.md)
-- Open the corresponding external market page from a pair title; on-chain rows show `target / counter token` from the selected pool, provide a compact contract address with one-tap full-address copy, and keep the label synchronized when the pool or quote source changes
-- Pin selected items into either an arranged floating panel or a full-width, single-line marquee that scrolls tightly packed coin icons and latest prices, with a subtle dot between complete cycles
-- Open Floating Window Settings directly below Wallet Settings; its first two entries are Clipboard CA Lookup and Floating Pairs. The dedicated Floating Pairs page handles selection and drag ordering across exchange and on-chain pairs, while arranged and marquee appearances keep independent opacity, font size, item count, position, and motion settings
-- Choose vertical rows or a single-item horizontal carousel independently of edge snapping in the arranged overlay. With snapping enabled, a 0–10-second slider controls collapse to a slim edge tab; 0 means never hide. Tapping the tab restores the selected layout and restarts the timer. Both overlay types persist through the foreground service and support hide/restore from the notification
-- Review the current build version, project purpose, author, source repository, Apache-2.0 license, feedback link, and usage notice from the in-app About page
-- Check GitHub's latest published Release once whenever the main screen is created, then prompt users to open the Release page when a newer version is available; no third-party update service is involved
-- Keep exchange quotes flowing through `WSS` first, while DexScreener prices use an independent smart or fixed refresh cycle with sequential request pacing
-- Use the middle `Wallet` tab as a local self-custody wallet for dynamically managed EVM networks and Solana: OKX Onchain aggregates assets, prices, metadata, and risk flags, while Alchemy or a per-chain custom RPC handles transaction preflight, broadcast, and status
-- Open a dedicated asset detail page for receive, send, and external Uniswap / OKX Bridge shortcuts; wallet-scoped OKX asset and Alchemy activity snapshots render before background refresh, and external pages never receive local keys or signing access
-- Enable Ethereum, BNB Chain, Robinhood Chain, and Solana by default; additional catalog EVM networks or a user-verified custom EVM RPC can be enabled without changing the wallet model
-- Open the existing OKX-powered read-only watch-address workspace from the fixed footer shared by the wallet Asset and Activity tabs; it shares encrypted OKX credentials with self-custody asset queries while keeping addresses, filters, models, and caches isolated
-- The wallet home uses the compact rounded blue-purple design with a wallet/address selector, visible asset estimate, amount visibility toggle, asset/activity pills, network picker, and watch-address shortcut. Wallet → More → DApp Browser opens a standalone discovery page with the existing catalog and search history; selecting a DApp or confirming an HTTPS address opens the existing browser Activity. Trending keeps its existing browser entry points. Any HTTPS main page opened inside this browser can discover the Trust Web3 Provider EIP-1193 / EIP-6963 bridge, including DApps that only recognize the legacy MetaMask connector; manually entered sites show a third-party risk warning, while connection, transaction, message-signing, network-addition, and token-addition requests remain behind origin-aware native approval, preferring biometrics when enabled
+## Build
 
-## On-chain Notes
+Use JDK 17 and Android SDK 35, or open the project in Android Studio. The app supports Android 8.0 and later.
 
-- On-chain search and quotes use the user-selected `DexScreener / OKX DEX` priority. An empty result, request failure, or unconfigured provider automatically falls through to the next provider. Candlesticks remain on `GeckoTerminal` and are not provided for items discovered through OKX yet.
-- Results are deduplicated by network and token contract. Each token row shows the selected pair, chain logo, DEX, liquidity, and shortened contract address.
-- When multiple valid pools exist, users can expand the row and switch among the most liquid alternatives. The selected pool is then reused for both quote refreshes and candlesticks.
-- Home rows retain the selected pool's real pair label. Existing watch items missing the counter token are filled automatically after the next valid quote refresh and do not need to be re-added.
-- Market cap comes from the selected DexScreener pool and is accepted only when the tracked token is on the pool's base side. FDV is not used as a fallback, and missing data is rendered as `--`.
-- In market-cap mode, brief red/green flashes still follow real price movement. Repeated refreshes at the same price do not flash, and the value returns to its neutral color afterward.
-- Home and both floating overlay styles use the same Coil 3 image loader and icon policy. On-chain token images stay separate from the chain badge in the lower-right corner; missing or failed token images show the symbol initial, without guessing by symbol or substituting the chain icon. Exchange symbols retain their existing image lookup.
-- DexScreener and GeckoTerminal remain public and keyless. OKX is optional, uses only credentials entered by the user, and stores them in Android encrypted storage; the project ships no developer credential. The app signs and broadcasts direct transfers but does not execute swaps, bridges, orders, or external-page contract calls.
+```bash
+git clone https://github.com/baiyanwu/CoinMonitor.git
+cd CoinMonitor
+```
 
-## Requirements
-
-- Android Studio Koala or newer
-- JDK 17
-- Android `minSdk 26`
-- Android `targetSdk 35`
-
-## Quick Start
-
-Wallet Core Android artifacts are distributed through GitHub Packages. Create a read-only classic personal access token with `read:packages`, then put the following untracked values in `local.properties`:
+Wallet Core is downloaded from GitHub Packages. Add a GitHub classic PAT with `read:packages` permission to your local `~/.gradle/gradle.properties` (do not commit credentials):
 
 ```properties
 gpr.user=YOUR_GITHUB_USERNAME
@@ -74,29 +50,17 @@ gpr.key=YOUR_READ_PACKAGES_TOKEN
 ```
 
 ```bash
-git clone https://github.com/baiyanwu/CoinMonitor.git
-cd CoinMonitor
 ./gradlew :app:assembleDebug
-./gradlew testDebugUnitTest :app:lintDebug
-./gradlew :app:installDebug
+# Optional: run unit tests and lint
+./gradlew :app:testDebugUnitTest :app:lintDebug
 ```
+
+The APK is generated in `app/build/outputs/apk/debug/`. See [release instructions](./docs/RELEASE.md) for release signing and publishing.
 
 ## Documentation
 
-- Chinese README: [README.zh-CN.md](./README.zh-CN.md)
-- Technical implementation: [TECHNICAL.md](./docs/TECHNICAL.md)
-- Shared UI design and migration: [UI_DESIGN_SYSTEM.md](./docs/UI_DESIGN_SYSTEM.md)
-- Wallet watch implementation: [WALLET_WATCH.md](./docs/WALLET_WATCH.md)
-- Self-custody wallet implementation: [SELF_CUSTODY_WALLET.md](./docs/SELF_CUSTODY_WALLET.md)
-- Third-party notices: [THIRD_PARTY_NOTICES.md](./docs/THIRD_PARTY_NOTICES.md)
-- Contributing guide: [CONTRIBUTING.md](./docs/CONTRIBUTING.md)
-
-## Disclaimer
-
-- This project is for technical exploration and personal learning only and does not constitute investment advice.
-- `Binance`, `OKX`, and other platform names or APIs belong to their respective owners.
-- The wallet can sign and broadcast direct in-app transfers. Trusted DApps may also request transactions or message signatures in the standalone browser, but every sensitive operation requires native app approval. Prices are estimates and crypto assets are highly volatile.
+[Technical notes](./docs/TECHNICAL.md) · [Contributing](./docs/CONTRIBUTING.md) · [Changelog](./docs/CHANGELOG.md)
 
 ## License
 
-This project is licensed under [Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0). See [LICENSE](./LICENSE) for details.
+Licensed under [Apache-2.0](./LICENSE). See [third-party notices](./docs/THIRD_PARTY_NOTICES.md) for dependencies. Market data is provided for reference and is not investment advice.

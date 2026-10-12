@@ -90,7 +90,7 @@
     <string name="clipboard_site_choose_address">链接包含多个地址，请选择代币 CA。</string>
     <string name="clipboard_site_network_rules">网络规则</string>
     <string name="clipboard_site_route_name">网址中的网络名称</string>
-    <string name="clipboard_site_new_network">新增网络，如 base / solana</string>
+    <string name="clipboard_site_new_network">选择网络</string>
     <string name="clipboard_site_add_network">添加网络规则</string>
     <string name="clipboard_site_preview">链接预览</string>
     <string name="clipboard_ai_default_question">请研究这个代币：核实项目身份、实际用途、流动性、持仓集中度和近期催化。</string>

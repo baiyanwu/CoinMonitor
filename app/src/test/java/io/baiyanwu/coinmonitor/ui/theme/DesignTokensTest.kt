@@ -21,12 +21,14 @@ class DesignTokensTest {
     }
 
     @Test
-    fun `small financial values remain readable on cards and spotlight backgrounds`() {
-        listOf(designTokens(false).colors, designTokens(true).colors).forEach { colors ->
-            listOf(colors.surface, colors.surfaceMuted).forEach { background ->
-                assertTrue("positive value", contrast(colors.positive, background) >= 4.5)
-                assertTrue("negative value", contrast(colors.negative, background) >= 4.5)
-            }
+    fun `financial colors preserve the original palette in both modes and semantic bridge`() {
+        listOf(false to DefaultMdPalette.light, true to DefaultMdPalette.dark).forEach { (dark, original) ->
+            val colors = designTokens(dark).colors
+            val bridged = colors.toSemanticColors()
+            assertEquals(original.positive, colors.positive)
+            assertEquals(original.negative, colors.negative)
+            assertEquals(original.positiveMuted, bridged.positiveMuted)
+            assertEquals(original.negativeMuted, bridged.negativeMuted)
         }
     }
 

@@ -1,102 +1,66 @@
 <div align="center">
-  <img src="./artwork/coinmonitor_app_icon.svg" alt="CoinMonitor app icon" width="96" height="96" />
+  <img src="./artwork/coinmonitor_app_icon.svg" alt="CoinMonitor" width="96" height="96" />
   <h1>CoinMonitor</h1>
-  <p>一个专注于观察列表与悬浮窗盯盘体验的 Android 币价监控应用。</p>
+  <p>Android 加密货币行情监控，支持自选列表、悬浮盯盘和多链钱包。</p>
+  <p><a href="./README.md">English</a> · <a href="https://github.com/baiyanwu/CoinMonitor/releases">下载 APK</a> · <a href="https://github.com/baiyanwu/CoinMonitor/issues">反馈问题</a></p>
 </div>
 
-<p align="center">
-  <a href="./README.md">English</a>
-  ·
-  <a href="./docs/TECHNICAL.md">Technical Notes</a>
-  ·
-  <a href="./LICENSE">Apache-2.0</a>
-</p>
+## 界面预览
 
-`CoinMonitor` 是一个基于 Android 的轻量级盯盘应用，聚焦”观察列表 + 悬浮窗盯盘”这条核心路径，主要通过 vibecoding 的方式迭代推进。
+<table>
+  <tr>
+    <th>行情与悬浮盯盘</th>
+    <th>热门榜单</th>
+    <th>设置</th>
+  </tr>
+  <tr>
+    <td><img src="./artwork/screenshots/markets.png" alt="行情与悬浮盯盘" width="240" /></td>
+    <td><img src="./artwork/screenshots/trending.png" alt="热门榜单" width="240" /></td>
+    <td><img src="./artwork/screenshots/settings.png" alt="设置" width="240" /></td>
+  </tr>
+</table>
 
-<div align="center">
-  <img src="./artwork/screenshot.png" alt="CoinMonitor homepage preview" width="960" />
-</div>
-
----
+截图来自 Seeker 实机，版本 1.0.14。
 
 ## 核心功能
 
-- 底部导航采用紧凑圆润样式，顺序为“行情 / 热门 / 钱包 / 设置”。热门沿用通用蓝紫设计，使用胶囊标签切换共同热门、GMGN、PumpFun、OKX，提供圆角紧凑榜单、完整合约地址复制和统一样式的筛选/详情面板。GMGN key 在第三方 API 设置中加密保存，OKX 复用现有凭证，PumpFun 无需 key。[热门说明](./docs/TRENDING.md)
-- 热门榜单跨页面切换和 App 重启恢复匹配筛选的上次成功结果，再后台刷新；失败或限流时保留已有列表。共同热门按链与合约地址匹配所选来源，离开页面或进入后台停止请求。
-- 首页采用统一紧凑品牌栏，右侧只保留加号；提供“代币 / 地址追踪”胶囊、固定圆角滚动列表和悬浮盯盘入口。币种名称后的右上斜箭头负责跳转行情，条目本身不跳转；CA 复制图标紧贴地址。首页不展示重点卡和折线图。[UI 设计说明](./docs/UI_DESIGN_SYSTEM.md)
+- **自选行情**：统一查看 Binance、OKX 和链上代币，支持搜索、排序、置顶及合约地址复制。
+- **悬浮盯盘**：在其他 App 上方查看价格，支持排列面板与跑马灯，可调整透明度、字体和位置。
+- **热门发现**：查看 GMGN、PumpFun、OKX 榜单，以及多个来源共同出现的热门代币。
+- **快捷查询**：通过剪贴板查询合约地址，快速打开行情网站，并添加地址追踪。
+- **多链钱包**：支持 EVM 与 Solana 的本地自托管钱包、资产查询、收款、转账和 DApp 浏览器，也可只读观察其他地址。
+- **个性化设置**：支持浅色 / 深色主题、中英文，以及行情来源和刷新设置。
 
-- 交易所搜索并行覆盖 `Binance Alpha`、`Binance` 现货与 USDT 合约、`OKX` 现货与 USDT 合约，等待全部来源结束后统一合并、排序并一次性展示
-- 链上搜索无需选链：输入币名、Symbol 或合约地址后，接受 `DexScreener` 返回的全部网络，不再使用本地链白名单过滤
-- 设置页的“通用设置”子页提供持久化的“显示链上市值”开关，并统一收纳外观模式、语言和网络日志；该开关可让首页、排列型悬浮窗和跑马灯悬浮窗中的全部链上币在价格与市值之间切换，交易所行情不受影响
-- 设置页新增“钱包设置”子页，复用钱包管理、备份钱包和安全设置功能；从设置发起备份时会先选择目标钱包，钱包页右上角菜单入口继续保留
-- 设置首页采用紧凑圆润蓝紫卡片，分为“偏好与安全 / 盯盘与数据 / 应用”，顶部提供共用既有偏好的“浅色 / 深色 / 跟随系统”快捷切换；二级页面继续保留现有功能与布局
-- 首页支持可点击、可左右滑动的“代币 / 地址追踪”Tab；交易所与链上代币合并展示，并共用排序与置顶。地址追踪将同一 EVM 地址跨链聚合，点击可直接进入观察地址页面。
-- 在剪切板或 FoMo 地址复制按钮旁点“＋”，或手动输入地址即可追踪。FoMo 名称使用原始 `/profile/` 路径值，紧贴名字的小笔支持持久化改名；切换 Tab 保留已有估值，只自动补查空值。“快捷查询与网站设置”中的 FoMo 反查开关默认开启。[观察地址与追踪说明](docs/WALLET_WATCH.md)
-- 首页币对名称可直接打开对应外部行情页；链上币会按当前选中池显示 `目标币 / 另一侧币种`，并提供合约地址缩写与一键复制完整 CA，切池或后续报价刷新时同步更新
-- 系统悬浮窗支持“排列型 / 跑马灯型”两种样式：排列型延续原有多行面板，跑马灯型使用无描边的全屏宽单行细条，紧凑滚动币种图标与最新价，并以小圆点标记每轮结束
-- 设置首页将“悬浮窗设置”放在“钱包设置”下方；悬浮窗设置页顶部依次提供“剪贴板 CA 查询”和“悬浮币对”，后者负责选择与跨交易所/链上拖动排序，两种悬浮样式分别保存透明度、字体、展示数量、位置与专属行为
-- 排列型的“单 item 横向滚动”和“吸附靠边”为独立开关，可组合竖向排列或单项横向轮播与自由位置或左右吸附；开启吸附后，用 0–10 秒滑杆设置收起为边缘唤出条的时间，0 秒表示永不隐藏，点击唤出条恢复当前布局并重新计时。两种样式都由前台服务维持，并可从通知栏隐藏或恢复
-- 设置中的“关于”页集中展示当前构建版本、项目用途、作者、源码仓库、Apache-2.0 许可、问题反馈入口与使用说明
-- 每次主界面创建时通过 GitHub 官方接口检查一次最新已发布 Release；发现更高版本后提示用户打开 Release 页面，不接入第三方更新服务
-- 交易所行情优先使用 `WSS`，链上价格使用独立的智能或固定轮转周期，并顺序分散 DexScreener 请求
-- 底部导航的“钱包”提供本地自托管钱包，支持动态管理的 EVM 网络与 Solana；OKX Onchain 聚合资产、价格、元数据和风险标记，Alchemy 或逐链自定义 RPC 负责交易预检、广播与状态查询，并使用加密存储与可选生物识别保护本机密钥
-- 单个资产进入独立详情页，提供收款、转账以及打开 Uniswap / OKX Bridge 的外部网页入口；OKX 资产与 Alchemy 活动均先显示按钱包隔离的本地快照再后台刷新，网页不获得本机私钥或签名能力
-- 首次默认启用 Ethereum、BNB Chain、Robinhood Chain 和 Solana；目录中的其他 EVM 网络或用户自行验证的标准 EVM RPC 可继续启用，不需要改变钱包模型
-- 原 OKX 观察地址从钱包资产/活动分页共用的固定底部小块进入；它与自托管资产查询共用本机加密的 OKX 凭证，但地址、筛选、模型和缓存仍保持隔离
-- 钱包主页已接入紧凑圆润蓝紫设计，提供钱包/地址选择、可见资产估值、金额隐藏、资产/活动胶囊、网络选择和观察地址快捷入口。“钱包 → 更多 → DApp 浏览器”打开独立目录页，复用目录/搜索历史；选择 DApp 或确认 HTTPS 地址后打开现有独立浏览器 Activity。热门现有浏览器入口继续有效。浏览器内任意 HTTPS 主页面都可通过 Trust Web3 Provider 发现 EIP-1193 / EIP-6963 钱包，并兼容只识别旧版 MetaMask Connector 的 DApp；手输网址会先显示第三方风险提示，连接按实际来源确认，交易、消息签名、添加网络和 Token 均继续走原生确认，并在启用生物识别时优先触发指纹
+部分数据源与钱包查询需要在「第三方 API」中配置自己的凭证；悬浮盯盘需要授予系统悬浮窗权限。
 
-## 链上说明
+## 构建
 
-- 链上搜索与报价按用户设置的 `DexScreener / OKX DEX` 优先级请求；首选来源无结果、失败或未配置时自动尝试下一个。K 线继续由 `GeckoTerminal` 提供，当前不为仅由 OKX 找到的标的提供 K 线。
-- 链上结果按“链 + 代币合约”去重，每个代币只展示一条结果；结果会明确显示当前交易对、链 Logo、DEX、流动性和合约缩写。
-- 同一代币存在多个有效池时，可以在结果内展开并切换高流动性备选池；所选池会同时用于后续价格刷新与 K 线。
-- 首页沿用所选池的真实交易对；历史观察项缺少另一侧币种时，会在下一次有效报价刷新后自动补齐，无需删除重加。
-- 市值使用所选 DexScreener 池返回的目标代币市值；仅在目标币位于池子的 base 侧时采用该值，不以 FDV 代替，缺少数据时显示 `--`。
-- 切换到市值后仍按真实价格方向触发短暂红绿闪烁；价格未变化的重复刷新不会闪烁，闪烁结束后恢复中性色。
-- 首页及两种悬浮窗共用 Coil 3 图库与图标规则：链上代币主图使用自身图片，链标独立放在右下角；缺图或失败显示简称首字母，不猜同名币图，也不用链图标代替代币。交易所币种保留原简称图片查询。
-- DexScreener 与 GeckoTerminal 无需 API Key；OKX DEX 为可选来源，只使用用户填写并保存在 Android 加密存储中的凭证，项目不内置开发者凭证。应用可签名并广播直接转账，但不执行 Swap、跨链、订单或外部网页中的合约调用。
-
-## Requirements
-
-- Android Studio Koala 及以上版本
-- JDK 17
-- Android `minSdk 26`
-- Android `targetSdk 35`
-
-## Quick Start
-
-Wallet Core 的 Android 包通过 GitHub Packages 发布。请创建仅带 `read:packages` 的 classic personal access token，并在不提交版本库的 `local.properties` 中加入：
-
-```properties
-gpr.user=你的_GitHub_用户名
-gpr.key=你的_只读_PACKAGES_TOKEN
-```
+准备 JDK 17、Android SDK 35，可使用 Android Studio 打开项目。App 支持 Android 8.0 及以上。
 
 ```bash
 git clone https://github.com/baiyanwu/CoinMonitor.git
 cd CoinMonitor
-./gradlew :app:assembleDebug
-./gradlew testDebugUnitTest :app:lintDebug
-./gradlew :app:installDebug
 ```
 
-## 文档
+Wallet Core 依赖通过 GitHub Packages 下载，需要具有 `read:packages` 权限的 GitHub classic PAT。在本机 `~/.gradle/gradle.properties` 中添加（不要提交凭证）：
 
-- 技术实现说明：[TECHNICAL.md](./docs/TECHNICAL.md)
-- 通用 UI 设计与逐页接入：[UI_DESIGN_SYSTEM.md](./docs/UI_DESIGN_SYSTEM.md)
-- 观察地址说明：[WALLET_WATCH.md](./docs/WALLET_WATCH.md)
-- 自托管钱包说明：[SELF_CUSTODY_WALLET.md](./docs/SELF_CUSTODY_WALLET.md)
-- 第三方组件声明：[THIRD_PARTY_NOTICES.md](./docs/THIRD_PARTY_NOTICES.md)
-- 英文 README：[README.md](./README.md)
-- 贡献说明：[CONTRIBUTING.md](./docs/CONTRIBUTING.md)
+```properties
+gpr.user=YOUR_GITHUB_USERNAME
+gpr.key=YOUR_READ_PACKAGES_TOKEN
+```
 
-## Disclaimer
+```bash
+./gradlew :app:assembleDebug
+# 可选：运行测试和静态检查
+./gradlew :app:testDebugUnitTest :app:lintDebug
+```
 
-- 本项目仅用于技术交流与个人学习，不构成任何投资建议
-- `Binance`、`OKX` 等名称和接口归各自平台所有
-- 钱包支持签名并广播 App 内直接转账；可信 DApp 也可以在独立浏览器中请求交易或消息签名，但每次敏感操作都必须经过 App 原生确认。资产价格仅为估算值
+APK 位于 `app/build/outputs/apk/debug/`。Release 签名与发布见 [发布说明](./docs/RELEASE.md)。
 
-## License
+## 更多文档
 
-本项目采用 [Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0) 许可证，详情见 [LICENSE](./LICENSE)。
+[技术说明](./docs/TECHNICAL.md) · [贡献指南](./docs/CONTRIBUTING.md) · [更新记录](./docs/CHANGELOG.md)
+
+## 开源协议
+
+采用 [Apache-2.0](./LICENSE) 协议，第三方依赖见 [第三方声明](./docs/THIRD_PARTY_NOTICES.md)。行情仅供参考，不构成投资建议。

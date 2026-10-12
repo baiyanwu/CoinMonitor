@@ -86,6 +86,29 @@ class TrendingClientTest {
         assertEquals(1234.0, token.marketCap!!, 0.0)
         assertNull(token.price); assertNull(token.change); assertNull(token.iconUrl)
     }
+    @Test fun `pump board preserves actual multichain identity and deduplicates within chain`() {
+        val ca = "0x" + "Ab".repeat(20)
+        val sol = "So11111111111111111111111111111111111111112"
+        val entries = listOf("solana:mainnet" to sol, "eip155:56" to ca, "eip155:4663" to ca,
+            "eip155:7777777" to ca, "eip155:56" to ca.lowercase(), "eip155:501" to ca)
+            .joinToString { (chain, address) -> """{"c":"$chain","m":"$address","n":"Example","t":"EX","mc":1234}""" }
+        val rows = TrendingDecoder.pump(decode("""{"board":"trending","entries":[$entries]}"""))
+        assertEquals(listOf("501", "56", "4663", "7777777", "eip155:501"), rows.map { it.chainIndex })
+        assertEquals("Chain #7777777", rows[3].chainTitle)
+        assertTrue(rows.all { it.price == null && it.marketCap == 1234.0 })
+        assertEquals(5, rows.map { it.id }.toSet().size)
+        assertEquals(rows, TrendingDecoder.pump(decode("""{"board":"movers","entries":[$entries]}""")))
+    }
+    @Test fun `pump rejects malformed chain fields and wrong network addresses`() {
+        val sol = "So11111111111111111111111111111111111111112"
+        for (chain in listOf("56", "null", "\"eip155:56\"")) {
+            try {
+                TrendingDecoder.pump(decode("""[{"chain_id":$chain,"mint":"$sol","name":"x","symbol":"x"}]"""))
+                fail("Expected invalid data for $chain")
+            } catch (error: TrendingException) { assertEquals(TrendingFailure.INVALID_DATA, error.failure) }
+        }
+        assertTrue(TrendingDecoder.pump(decode("""[{"chain_id":"cosmos:example","mint":"unknown"}]""")).isEmpty())
+    }
     @Test fun `nonfinite numbers remain unknown`() {
         val row = gmgnRow.replace("1200", "NaN")
         assertNull(TrendingDecoder.gmgn(decode("""{"code":0,"data":{"rank":[$row]}}"""), TrendingChain.BASE).single().marketCap)
@@ -108,7 +131,15 @@ class TrendingClientTest {
     }
     @Test fun `pump request carries no credentials`() {
         val request = TrendingClient.pumpRequest()
-        assertEquals("50", request.url.queryParameter("topK"))
+        assertEquals("advanced-indexer.pump.fun", request.url.host)
+        assertEquals("/boards/trending", request.url.encodedPath)
+        assertEquals("solana,eip155:4663,eip155:8453,eip155:56,eip155:1,eip155:5042", request.url.queryParameter("chains"))
+        assertEquals("1h", request.url.queryParameter("window"))
+        assertEquals("social", request.url.queryParameter("ranking"))
+        assertEquals("web", request.url.queryParameter("tier"))
+        assertEquals("TRENDING", request.url.queryParameter("surface"))
+        assertEquals("WEB", request.url.queryParameter("platform"))
+        assertEquals("label", request.url.queryParameter("hot"))
         assertNull(request.header("X-APIKEY")); assertNull(request.header("OK-ACCESS-KEY"))
     }
     @Test fun `gmgn requests preserve filters and hot search parameters`() {

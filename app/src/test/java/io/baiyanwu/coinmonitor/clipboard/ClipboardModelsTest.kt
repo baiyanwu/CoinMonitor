@@ -85,7 +85,8 @@ class ClipboardModelsTest {
         val destinations = clipboardDestinations().associateBy { it.id }
         assertEquals("https://pump.fun/coin/$sol", destinations.getValue("pump").url(solMatch))
         assertEquals("https://axiom.trade/token/$sol", destinations.getValue("axiom").url(solMatch))
-        for (id in listOf("pump", "axiom")) assertNull(destinations.getValue(id).url(bscMatch))
+        assertEquals("https://pump.fun/coin/$CA", destinations.getValue("pump").url(bscMatch))
+        assertEquals("https://axiom.trade/token/$CA", destinations.getValue("axiom").url(bscMatch))
         val expected = mapOf("ave" to "https://ave.ai/token/$CA-bsc",
             "debot" to "https://debot.ai/token/bsc/$CA", "birdeye" to "https://birdeye.so/bsc/token/$CA")
         expected.forEach { (id, url) -> assertEquals(url, destinations.getValue(id).url(bscMatch)) }

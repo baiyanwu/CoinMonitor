@@ -1,6 +1,8 @@
 package io.baiyanwu.coinmonitor.ui.settings.overlay
 
 import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,6 +29,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
@@ -45,6 +48,11 @@ import io.baiyanwu.coinmonitor.domain.model.MarketType
 import io.baiyanwu.coinmonitor.domain.model.OverlayDisplayType
 import io.baiyanwu.coinmonitor.domain.model.OverlaySettings
 import io.baiyanwu.coinmonitor.domain.model.WatchItem
+import io.baiyanwu.coinmonitor.domain.model.OnchainChainRegistry
+import io.baiyanwu.coinmonitor.ui.components.CoilCoinSymbolIcon
+import io.baiyanwu.coinmonitor.ui.components.CoinInitialPlaceholder
+import io.baiyanwu.coinmonitor.ui.components.OnchainChainIcon
+import io.baiyanwu.coinmonitor.ui.components.watchItemIconModel
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorComponentDefaults
 import io.baiyanwu.coinmonitor.ui.theme.CoinMonitorThemeTokens
 
@@ -315,6 +323,8 @@ private fun OverlaySelectedItemRow(
             style = MaterialTheme.typography.labelLarge,
             color = colors.tertiaryText
         )
+        OverlayItemIcon(item)
+        Spacer(Modifier.width(8.dp))
         Column(modifier = Modifier.weight(1f)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -399,14 +409,42 @@ private fun AvailableOverlayItemGroup(
         color = CoinMonitorThemeTokens.colors.tertiaryText
     )
     items.forEach { item ->
-        Box(modifier = Modifier.testTag("overlay-available-item-${item.id}")) {
-            OverlaySettingSwitchRow(
-                title = item.symbol,
-                subtitle = overlayItemSubtitle(item),
-                horizontalPadding = 0.dp,
-                verticalPadding = 0.dp,
-                checked = false,
-                onCheckedChange = { onToggleItem(item.id) }
+        Row(modifier = Modifier.testTag("overlay-available-item-${item.id}"), verticalAlignment = Alignment.CenterVertically) {
+            OverlayItemIcon(item)
+            Spacer(Modifier.width(8.dp))
+            Box(Modifier.weight(1f)) {
+                OverlaySettingSwitchRow(
+                    title = item.symbol,
+                    subtitle = overlayItemSubtitle(item),
+                    horizontalPadding = 0.dp,
+                    verticalPadding = 0.dp,
+                    checked = false,
+                    onCheckedChange = { onToggleItem(item.id) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun OverlayItemIcon(item: WatchItem) {
+    val model = watchItemIconModel(item)
+    Box(Modifier.size(28.dp)) {
+        CoilCoinSymbolIcon(
+            symbol = model.symbol,
+            iconUrl = model.tokenIconUrl,
+            allowSymbolLookup = model.allowSymbolLookup,
+            size = 28.dp,
+            placeholderContent = { CoinInitialPlaceholder(item.baseSymbol, it, iconSize = 28.dp) }
+        )
+        model.chainIndex?.let { chainIndex ->
+            OnchainChainIcon(
+                chainIndex = chainIndex,
+                name = OnchainChainRegistry.resolve(chainIndex)?.displayName ?: chainIndex,
+                modifier = Modifier.align(Alignment.BottomEnd)
+                    .background(CoinMonitorThemeTokens.design.colors.surface, CircleShape)
+                    .padding(1.dp).clip(CircleShape),
+                size = 12.dp
             )
         }
     }

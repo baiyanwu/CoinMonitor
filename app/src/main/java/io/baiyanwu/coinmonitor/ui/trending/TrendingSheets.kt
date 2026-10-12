@@ -46,7 +46,12 @@ internal fun TrendingFilters(state: TrendingUiState, onToggleSource: (TrendingSo
                     ChoiceRow(listOf<TrendingChain?>(null) + chains, { it == options.chain }, { it?.title ?: stringResource(R.string.trending_all_chains) },
                         { onOptions(source, options.copy(chain = it)) })
                     ChoiceRow(TrendingOptions.periods(source), { it == options.period }, { it }, { onOptions(source, options.copy(period = it)) })
-                } else Text(stringResource(R.string.trending_pump_hint), style = MaterialTheme.typography.bodySmall, color = CoinMonitorThemeTokens.colors.secondaryText)
+                } else {
+                    ChoiceRow(listOf<PumpTrendingChain?>(null) + state.availablePumpChains(),
+                        { it?.index == options.pumpChainIndex }, { it?.title ?: stringResource(R.string.trending_all_chains) },
+                        { onOptions(source, options.copy(pumpChainIndex = it?.index)) })
+                    Text(stringResource(R.string.trending_pump_hint), style = MaterialTheme.typography.bodySmall, color = CoinMonitorThemeTokens.colors.secondaryText)
+                }
             } }
         }
         item { CoinMonitorRoundedCard(Modifier.fillMaxWidth()) {

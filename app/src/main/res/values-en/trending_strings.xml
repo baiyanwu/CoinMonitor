@@ -55,7 +55,7 @@
     <string name="trending_network_error">Request failed. Retry in %1$d s</string>
     <string name="trending_sources">Shared sources (at least two)</string>
     <string name="trending_shared_hint">Matches chain and contract across selected rankings. Data and order prioritize GMGN, OKX, then PumpFun.</string>
-    <string name="trending_pump_hint">Solana ranking, no API key required, in website order. No time range or hot-search ranking is available.</string>
+    <string name="trending_pump_hint">Multichain ranking, no API key required, in website order. Uses a 1h window; chain filters share the same ranking data.</string>
     <string name="trending_sort">Sort</string>
     <string name="trending_ascending">Ascending</string>
     <string name="trending_descending">Descending</string>
