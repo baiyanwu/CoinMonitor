@@ -33,13 +33,21 @@
 当前默认配置：
 
 ```properties
-github.versionCode=17
+github.versionCode=20
 play.versionCode=20
 ```
 
 配置文件只存公开构建参数，不放签名密码或凭证。配置需包含 `github.versionCode` 和 `play.versionCode`，两个 flavor 分别读取自己的值，数值必须是 `1..2100000000` 的整数。可用 `-PdistributionConfigFile=/absolute/path/distribution.properties` 指定另一份文件。
 
 仅渠道更新来源、商店兼容或重新打包调整可保留产品版本名称；用户可感知的功能或行为修复仍按正常发版决定新版本名称。每个发布产物应记录 `versionName`、`versionCode`、渠道和 SHA-256，保留现有 tag 的历史身份。当前 Play 构建使用 `1.0.15 / 20`；本地只保留本次发布最后确认的交付产物，旧 AAB 与过程核验文件在最终包验证后删除。
+
+### 同版本渠道补发
+
+本次 GitHub 补发使用应用版本名称 `1.0.15`、Version Code `20`、修订标签 `v1.0.15-r1`。旧 `v1.0.15` 标签继续指向原发布源码，不改写旧标签或旧 Release 资产；已发布 Play 的 `1.0.15 / 20` AAB 不重新打包。
+
+在既有 `release/1.0.15` 分支接入已提交的 `dev` 改动，准备修订提交并完成该精确提交的 Android CI。通过后打 `v1.0.15-r1` 标签，创建正式 GitHub Release 并设为 Latest；正式 APK 下载验签通过后，按正常流程合入 `main`、再同步回 `dev`。
+
+当前 GitHub 更新器按版本名称比较，并忽略标签中的修订后缀。已安装 1.0.15 的 GitHub 用户不会因 `r1` 收到自动更新提示，需从 Release 页手动安装；后续产品更新再统一提高两个渠道的应用版本名称。
 
 ## 分发渠道
 
